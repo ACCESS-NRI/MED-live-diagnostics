@@ -1,4 +1,4 @@
-# Live model diagnostics
+# Live model diagnostics.
 
 A general template repository for default settings when creating new repositories.
 
