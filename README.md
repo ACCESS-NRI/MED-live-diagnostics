@@ -1,6 +1,6 @@
 # Live model diagnostics.
 
-### Framework for the live monitoring and diagnostic analyses of ACCESS models
+### Framework for live monitoring and diagnostic analyses of the ACCESS model suite.
 
 A general template repository for default settings when creating new repositories.
 
