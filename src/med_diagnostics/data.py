@@ -81,8 +81,6 @@ def _start_dask_cluster():
 def _build_data_object(model_cat, key):
 
     # Load dataset using dask to xarray object
-    
-    print(key)
     dataset = model_cat[key](xarray_open_kwargs=dict(use_cftime=True)).to_dask()
     
     return dataset

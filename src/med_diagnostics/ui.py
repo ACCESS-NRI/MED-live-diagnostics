@@ -85,32 +85,23 @@ class UserUI():
         """
         
         """
-        
-#         # Check if dask cluster already running
-#         if 'self.dask_cluster_client' not in locals():
-            
-#             # Update text box
-#             self._update_status_text('Status >> Starting dask cluster and retrieving model data.')
-        
-#             # Start dask cluster
-#             self.dask_cluster_client = data._start_dask_cluster()
-#             print('Dask cluster client:', self.dask_cluster_client)
-            
-#         else:
-            
-#             # Update text box
-#             self._update_status_text('Status >> Retrieving model data.')
 
-        print(self.keys_dropdown.value)
-        
         # Load selected dataset
         self.dataset = data._build_data_object(self.model_cat, self.keys_dropdown.value)
         
         # Update text box
         self._update_status_text('Status >> Plotting selected data.')
         
-        # Plot dataset
-        self._display_dataset_plot_ui()
+        # Check if plot already exists
+        if len(self.widget_container) == 5:
+            
+            # Update existing plot
+            self._update_dataset_plot_ui()
+            
+        else:
+        
+            # Create new plot
+            self._display_dataset_plot_ui()
         
         
     def _display_dataset_plot_ui(self):
@@ -119,21 +110,23 @@ class UserUI():
         
         """
         
-        print(list(self.dataset.keys()))
-        
         self.plot_variable_dropdown.name = 'Available variables'
         self.plot_variable_dropdown.options = list(self.dataset.keys())
         
-        #self.interactive_plot = pn.bind(self._plot_dataset, self.plot_variable_dropdown)
-        
-#         # if self.data_update == False:
+        self.interactive_plot = pn.bind(self._plot_dataset, self.plot_variable_dropdown)
         
         self.widget_container.append(self.plot_variable_dropdown)
         self.widget_container.append(self.interactive_plot)
-            
-#         elif self.data_update == True:
-            
-#             pass
+        
+        
+    def _update_dataset_plot_ui(self):
+        
+        """
+        
+        """
+        
+        self.plot_variable_dropdown.options = list(self.dataset.keys())
+        plt.close(self.fig)
         
         
     def _plot_dataset(self, variable):
@@ -142,14 +135,14 @@ class UserUI():
         
         """
         
-        fig = plt.figure(figsize=[10,5])
-        self.dataset[self.keys_dropdown.value][variable].plot()
+        self.fig = plt.figure(figsize=[10,5])
+        self.dataset[variable].plot()
 
-        plt.title(self.dataset[self.keys_dropdown.value][variable].attrs['long_name'], fontsize=14)
+        plt.title(self.dataset[variable].attrs['long_name'], fontsize=14)
 
         plt.grid()
         plt.tight_layout()
 
-        plt.close(fig)
+        plt.close(self.fig)
 
-        return fig
+        return self.fig

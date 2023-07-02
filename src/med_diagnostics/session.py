@@ -30,6 +30,9 @@ class CreateLiveSession():
         
         self.data_update = False
         
+        # Start dask client
+        self.client = Client(threads_per_worker=1)
+        
         print()
         print('----------------------- Live diagnostics session started -----------------------')
         print()
@@ -37,6 +40,8 @@ class CreateLiveSession():
         print('Model realm:', self.model_realm)
         print('Model data path:', self.model_path)
         print('Model data update period:', self.period, 'mins')
+        print()
+        print('Started dask client:', self.client.dashboard_link)
         print()
         print('--------------------------------------------------------------------------------')
         print()
@@ -47,9 +52,6 @@ class CreateLiveSession():
         self.ui._display_status_text()
         self.ui._update_status_text('Status >> Importing and building initial model data catalog. This can take a few minutes.')
         print()
-        
-        # Start dask client
-        self.client = Client(threads_per_worker=1)
         
         # Start data scheduler
         self._start_scheduler()
