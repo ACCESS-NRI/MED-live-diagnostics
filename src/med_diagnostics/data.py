@@ -11,9 +11,7 @@ import intake
 #from access_nri_intake.esmcat.builders import AccessCm2Builder
 from access_nri_intake.source.builders import AccessCm2Builder
 
-# import warnings
-# warnings.filterwarnings("ignore")
-  
+
         
 def _check_for_new_data(model_path, model_data):
     
@@ -26,8 +24,6 @@ def _check_for_new_data(model_path, model_data):
     
     # Check if any files have changed
     if current_model_data != model_data:
-        
-        #print('New data detected - updating catalog. This can take a few minutes.')
         
         new_model_data = current_model_data
         
@@ -79,11 +75,26 @@ def _start_dask_cluster():
 
 
 def _build_data_object(model_cat, key):
-
+    
     # Load dataset using dask to xarray object
     dataset = model_cat[key](xarray_open_kwargs=dict(use_cftime=True)).to_dask()
     
     return dataset
 
 
-
+def _load_access_nri_catalog(model, filter=True):
+    
+    """
+    
+    """
+    
+    catalog = intake.cat.access_nri
+    
+    if filter == False:
+        
+        return catalog
+    
+    else:
+        
+        # Filter catalog by model type
+        return catalog.search(model='.*' + model.upper() + '.*')

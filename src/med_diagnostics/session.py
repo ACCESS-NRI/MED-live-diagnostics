@@ -12,9 +12,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from med_diagnostics import data, ui
 from distributed import Client
 
-# import warnings
-# warnings.filterwarnings("ignore")
-
 
 class CreateLiveSession():
     
@@ -50,8 +47,6 @@ class CreateLiveSession():
         
         self.ui = ui.UserUI()
         self.ui._display_status_text()
-        self.ui._update_status_text('Status >> Importing and building initial model data catalog. This can take a few minutes.')
-        print()
         
         # Start data scheduler
         self._start_scheduler()
@@ -91,7 +86,12 @@ class CreateLiveSession():
         
         """
         
+        self.ui._update_status_text('Status >> Importing and building initial model data catalog. This can take a few minutes.')
+        
         new_model_data = data._check_for_new_data(self.model_path, self.model_data)
+        
+        self.ui._update_status_text('Status >> Model data catalog built.')
+        self.ui._update_last_data_load_text('Last model data catalog build >> ' + self.ui._get_current_time())
         
         if new_model_data == None:
             
@@ -103,27 +103,37 @@ class CreateLiveSession():
             # Data loading procedure for initial step
             if self.data_update == False:
             
+                # Update self.model_data with new data
+                self.model_data = new_model_data
+
+                # Load new catalog
+                self.model_cat = data._load_new_catalog()
+                
+                # Load access_nri catalog for model comparison filtered by model type
+                self.access_nri_cat = data._load_access_nri_catalog(self.model_type)
+
+                # Generate UI
+                self.ui._display_dataset_selection_ui(self.model_cat, self.access_nri_cat)
+            
                 self.data_update == True
-                #self.ui._update_status_text('>> New data found. Updating catalog.')
                 
                 
             # Data loading procedure for update step
             elif self.data_update == True:
                 
-                self.ui._update_status_text('>> New data found. Updating catalog.')
+                self.ui._update_status_text('Status >> New data found. Updating catalog.')
+                
+                ## Need to work on UI updates during data update
                 
             
-            # Update self.model_data with new data
-            self.model_data = new_model_data
+#                 # Update self.model_data with new data
+#                 self.model_data = new_model_data
 
-            # Load new catalog
-            self.model_cat = data._load_new_catalog()
-            
-            # Load selected dataset
-            # self.dataset = data._build_data_object(self.model_cat) 
+#                 # Load new catalog
+#                 self.model_cat = data._load_new_catalog()
 
-            # Generate UI
-            self.ui._display_dataset_selection_ui(self.model_cat)
+#                 # Generate UI
+#                 self.ui._display_dataset_selection_ui(self.model_cat)
             
             
             
