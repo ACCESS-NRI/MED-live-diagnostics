@@ -1,0 +1,19 @@
+name: model-diagnostics-doc
+channels:
+  - conda-forge
+  - accessnri
+  - defaults
+dependencies:
+  - python==3.11
+  - intake
+  - access-nri-intake
+  - ipython
+  - numpy
+  - sphinx
+  - sphinx-autobuild
+  - pip
+  - pip:
+    - sphinx-autoapi
+    - sphinx-rtd-theme
+    - sphinxcontrib-napoleon
+    - -e ..
