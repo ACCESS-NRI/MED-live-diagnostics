@@ -39,7 +39,11 @@ extensions = [
     "sphinx.ext.todo"
 ]
 
+# autoapi directives
+autoapi_dirs = ["../src/med_diagnostics"]
 autodoc_typehints = 'description'
+autoapi_ignore = ["*/*.ipynb_checkpoints"]
+autoapi_add_toctree_entry = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -47,7 +51,7 @@ templates_path = ['_templates']
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', "**.ipynb_checkpoints"]
 
 
 # -- Options for HTML output -------------------------------------------------
