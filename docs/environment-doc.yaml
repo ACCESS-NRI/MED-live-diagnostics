@@ -6,7 +6,6 @@ channels:
 dependencies:
   - python>=3.9
   - intake
-  - access-nri-intake==0.0.9
   - ipython
   - numpy
   - sphinx
