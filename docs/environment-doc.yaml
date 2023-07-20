@@ -4,7 +4,10 @@ channels:
   - accessnri
   - defaults
 dependencies:
-  - python==3.11
+  - apscheduler
+  - matplotlib
+  - python>=3.9
+  - panel
   - intake
   - access-nri-intake==0.0.9
   - ipython
