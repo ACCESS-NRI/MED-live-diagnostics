@@ -18,6 +18,6 @@ Read the `documentation here <https://med-live-diagnostics.readthedocs.io/en/lat
     :target: https://med-live-diagnostics.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 
-.. |license| image:: https://img.shields.io/github/license/ACCESS-NRI/intake-dataframe-catalog
-        :target: https://github.com/ACCESS-NRI/intake-dataframe-catalog/blob/main/LICENSE
+.. |license| image:: https://img.shields.io/github/license/ACCESS-NRI/med-live-diagnostics
+        :target: https://github.com/ACCESS-NRI/med-live-diagnostics/blob/main/LICENSE
         :alt: Apache-2.0 License
