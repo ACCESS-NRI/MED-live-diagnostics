@@ -4,4 +4,4 @@ src
 .. toctree::
    :maxdepth: 4
 
-   med_diagnostics
+   src/med_diagnostics
