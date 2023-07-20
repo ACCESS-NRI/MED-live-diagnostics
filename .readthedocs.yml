@@ -5,5 +5,8 @@ sphinx:
 
 formats: all
 
+conda:
+  environment: docs/environment-doc.yaml
+
 submodules:
   include: all
