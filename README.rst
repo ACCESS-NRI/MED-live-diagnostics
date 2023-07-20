@@ -2,7 +2,7 @@
 Live model diagnostics.
 =========================
 
-**Framework for live monitoring and diagnostic analyses of the ACCESS model suite.**
+**Framework for monitoring and diagnostic analyses of the ACCESS model suite.**
 
 Read the `documentation here <https://med-live-diagnostics.readthedocs.io/en/latest/index.html>`_. 
 
