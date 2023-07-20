@@ -5,7 +5,6 @@ channels:
   - defaults
 dependencies:
   - python==3.11
-  - intake
   - access-nri-intake
   - ipython
   - numpy
