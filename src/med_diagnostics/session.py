@@ -13,16 +13,37 @@ from med_diagnostics import data, ui
 from distributed import Client
 
 
-class CreateLiveSession():
+class CreateModelDiagnosticsSession():
     
-    def __init__(self, model_type, model_realm, model_path, period=None, timezone=None):
+    """
+    Primary class for starting a model diagnostics session
+    """
+    
+    def __init__(self, model_type, model_path, period=None, timezone=None):
         
-        self.model_type = str(model_type)
-        self.model_realm = str(model_realm)
+        """
+        Initialise a CreateLiveSession instance to start a model diagnostics session.
+
+        Parameters
+        ----------
+        model_type : str
+            Type of ACCESS model in capitals (e.g. CM2, OM2).
+        model_path : str
+            Path to model output directory/files on Gadi.
+        period : int/float/str, optional, default None
+            Period in minutes for background scheduler to monitor model_path for new data. If period=None, defaults to 60.
+        timezone : str, optional, default 'Australia/Canberra'
+            Timezone required for scheduler in tinfo 'Region/Location' format. 
+            
+        """
+        
+        # Set local variables
+        self.model_type = str(model_type).lower()
+        # self.model_realm = str(model_realm)
         self.model_path = str(model_path)
         self.model_data = []
         
-        self.period = float(period) if period != None else 10.0
+        self.period = float(period) if period != None else 60.0
         self.timezone = str(timezone) if timezone != None else 'Australia/Canberra'
         
         self.data_update = False
@@ -34,7 +55,7 @@ class CreateLiveSession():
         print('----------------------- Live diagnostics session started -----------------------')
         print()
         print('Model type:', self.model_type)
-        print('Model realm:', self.model_realm)
+        # print('Model realm:', self.model_realm)
         print('Model data path:', self.model_path)
         print('Model data update period:', self.period, 'mins')
         print()
@@ -42,10 +63,9 @@ class CreateLiveSession():
         print()
         print('--------------------------------------------------------------------------------')
         print()
-        # print('Importing and building initial model data catalog. This can take a few minutes.')
-        # print()
         
-        self.ui = ui.UserUI()
+        # Start UserUI instance and display initial status text
+        self.ui = ui.UserInterface()
         self.ui._display_status_text()
         
         # Start data scheduler
@@ -58,8 +78,7 @@ class CreateLiveSession():
     def _start_scheduler(self):
         
         """
-        Function to start apscheduler to trigger live model data retrieval at nominated interval. Private.
-        
+        Start background scheduler to trigger model data retrieval function get_data() at nominated period. Private.
         """
 
         self.scheduler = BackgroundScheduler()
@@ -71,7 +90,7 @@ class CreateLiveSession():
     def end_session(self):
 
         """
-        Function to stop apscheduler from triggering live model data retrieval at nominated period.
+        Stop background scheduler and close dask client to end current CreateLiveSession instance.
         """
 
         self.scheduler.shutdown()
@@ -83,13 +102,15 @@ class CreateLiveSession():
     def _get_data(self):
         
         """
-        
+        Check nominated model data path for new data. Private.
         """
         
         self.ui._update_status_text('Status >> Importing and building initial model data catalog. This can take a few minutes.')
         
-        new_model_data = data._check_for_new_data(self.model_path, self.model_data)
+        # Check for new data
+        new_model_data = data._check_for_new_data(self.model_path, self.model_data, self.model_type)
         
+        # Update status text
         self.ui._update_status_text('Status >> Model data catalog built.')
         self.ui._update_last_data_load_text('Last model data catalog build >> ' + self.ui._get_current_time())
         
@@ -135,18 +156,16 @@ class CreateLiveSession():
 #                 # Generate UI
 #                 self.ui._display_dataset_selection_ui(self.model_cat)
             
-            
-            
-    def _build_session_ui(self):
-        
-        pass
-            
         
     def return_model_data_catalog(self):
         
         """
-        Function to return currently loaded model data catalog
+        Return currently loaded model data catalog.
         
+        Returns
+        ----------
+        Intake-ESM datastore object
+            Intake catalog of user model data.
         """
         
         return self.model_cat

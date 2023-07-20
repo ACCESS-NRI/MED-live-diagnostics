@@ -1,7 +1,7 @@
 # Copyright 2023 ACCESS-NRI and contributors. See the top-level COPYRIGHT file for details.
 # SPDX-License-Identifier: Apache-2.0
 
-""" UI functions """
+""" UI class and functions """
 
 
 import panel as pn
@@ -9,18 +9,25 @@ import matplotlib.pyplot as plt
 import datetime
 
 from med_diagnostics import data
+from IPython.display import display
 
-# import warnings
-# warnings.filterwarnings("ignore")
-
+# Import panel extensions
 pn.extension()
 
 
-class UserUI():
+class UserInterface():
+    
+    """
+    Primary class for user interface (UI) components and deployment
+    """
     
     def __init__(self):
         
-        # Build panel widgets
+        """
+        Initialise a UserInterface instance.
+        """
+        
+        # Build and style panel widgets
         self.last_data_load_textbox = pn.widgets.StaticText(styles={'background': 'orange', 'font-size': '18px', 'color': 'black', 'padding': '5px'}, margin=(10, 0, 10, 0))
         self.status_textbox = pn.widgets.StaticText(styles={'background': 'lightblue', 'font-size': '18px', 'color': 'black', 'padding': '5px'}, margin=(10, 0, 10, 0))
         
@@ -39,6 +46,7 @@ class UserUI():
         self.figure_exists = False
         self.ref_figure_exists = False
         
+        
         # Initialise button listener functions
         @pn.depends(self.keys_dropdown.param.value)
         def _keys_button_click(event):
@@ -55,110 +63,165 @@ class UserUI():
             
             self._ref_dataset_dropdown_click()
             
-            
         self.keys_button.on_click(_keys_button_click)
         self.ref_keys_button.on_click(_ref_keys_button_click)
         self.ref_data_keys_button.on_click(_ref_data_keys_button_click)
             
             
-        
     def _display_status_text(self):
         
+        """
+        Create widget_container then add status_textbox and last_data_load_textbox widgets. Private.
+        """
+        
+        # Create panel column
         self.widget_container = pn.Column()
         
+        # Append widget_container with textbox widgets
         self.widget_container.append(self.last_data_load_textbox)
         self.widget_container.append(self.status_textbox)
+        
+        # Display widget_container in notebook
         display(self.widget_container)
         print()
         
         
     def _update_status_text(self, text):
         
+        """
+        Update text displayed in status_textbox widget. Private.
+        
+        Parameters
+        ----------
+        text : str
+            Text to be displayed in status_textbox
+        """
+        
+        # Update status_textbox with text
         self.status_textbox.value = str(text)
         
         
     def _update_last_data_load_text(self, text):
         
+        """
+        Update text displayed in last_data_load_textbox widget. Private.
+        
+        Parameters
+        ----------
+        text : str
+            Text to be displayed in last_data_load_textbox
+        """
+        
+        # Update last_data_load_textbox with text
         self.last_data_load_textbox.value = str(text)
         
         
     def _get_current_time(self):
         
+        """
+        Get current time. Private.
+        
+        Returns
+        ----------
+        str
+            Current time in "%Y-%m-%d %H:%M:%S" format.
+        """
+        
         return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
         
-    def _display_dataset_selection_ui(self, model_cat, acccess_nri_cat):
+    def _display_dataset_selection_ui(self, model_cat, access_nri_cat):
         
         """
+        Label, populate and append dataset selection-related widgets to widget_container. Private.
         
+        Parameters
+        ----------
+        model_cat : Intake-ESM datastore object
+            Intake catalog of user model data.
+        access_nri_cat : Intake-ESM datastore object
+            Intake catalog of ACCESS model data.
         """
         
+        # Assign argument to class-accessible variables
         self.model_cat = model_cat
-        self.access_nri_cat = acccess_nri_cat
+        self.access_nri_cat = access_nri_cat
         
+        # Add horizontal line divider to widget_container
         self.widget_container.append(pn.layout.Divider(styles={'color': 'white'}))
         
-        # Add user model widgets
+        # Populate user model widgets
         self.keys_dropdown.name = '1. Please select a dataset to monitor:'
         self.keys_dropdown.options = self.model_cat.keys()
         self.keys_button.name = 'Load dataset'
         self.keys_button.button_type = 'primary'
         
+        # Add user model widgets to keys_selection_row
         self.keys_selection_row = pn.Row()
         self.keys_selection_row.append(self.keys_dropdown)
         self.keys_selection_row.append(self.keys_button)
         
+        # Add keys_selection_row to widget_container
         self.widget_container.append(self.keys_selection_row)
         
+        # Add horizontal line divider to widget_container
         self.widget_container.append(pn.layout.Divider(styles={'color': 'white'}))
         
         
     def _display_reference_model_selection_ui(self):
         
         """
+        Label, populate and append ACCESS reference model selection-related widgets to widget_container. Private.
         
         """
         
-        # Add comparison model widgets
+        # Populate reference/comparison model widgets
         self.ref_keys_dropdown.name = '2. Select reference model (optional):'
         self.ref_keys_dropdown.options = self.access_nri_cat.keys()
         self.ref_keys_button.name = 'Load model'
         self.ref_keys_button.button_type = 'primary'
         
+        # Add reference/comparison widgets to ref_keys_selection_row
         self.ref_keys_selection_row = pn.Row()
         self.ref_keys_selection_row.append(self.ref_keys_dropdown)
         self.ref_keys_selection_row.append(self.ref_keys_button)
         
+        # Add ref_keys_selection_row to widget_container
         self.widget_container.append(self.ref_keys_selection_row)
         
+        # Add horizontal line divider to widget_container
         self.widget_container.append(pn.layout.Divider(styles={'color': 'white'}))
         
         
     def _display_reference_dataset_selection_ui(self):
         
         """
+        Label, populate and append ACCESS reference dataset selection-related widgets to widget_container. Private.
         
         """
         
-        # Add comparison model widgets
+        # Populate reference/comparison dataset widgets
         self.ref_data_keys_dropdown.name = '2. Select reference dataset (optional):'
         self.ref_data_keys_dropdown.options = self.ref_model_cat.keys()
         self.ref_data_keys_button.name = 'Load dataset'
         self.ref_data_keys_button.button_type = 'primary'
         
+        # Add reference/comparison widgets to ref_data_keys_selection_row
         self.ref_data_keys_selection_row = pn.Row()
         self.ref_data_keys_selection_row.append(self.ref_data_keys_dropdown)
         self.ref_data_keys_selection_row.append(self.ref_data_keys_button)
         
+        # Add ref_data_keys_selection_row to widget_container
         self.widget_container.append(self.ref_data_keys_selection_row)
         
+        # Add horizontal line divider to widget_container
         self.widget_container.append(pn.layout.Divider(styles={'color': 'white'}))
         
         
     def _keys_dropdown_click(self):
         
         """
-        
+        Loads selected model dataset from keys_dropdown and creates new interactive plot. Private.
         """
         
         # Update text box
@@ -188,10 +251,8 @@ class UserUI():
     def _ref_keys_dropdown_click(self):
         
         """
-        
+        Loads selected reference model from ref_keys_dropdown and display reference model dataset selection. Private.
         """
-        
-        print('_ref_keys_dropdown_click')
         
         # Extract selected model catalog
         self.ref_model_cat = self.access_nri_cat.search(name=self.ref_keys_dropdown.value).to_source()
@@ -211,7 +272,9 @@ class UserUI():
         
     def _ref_dataset_dropdown_click(self):
         
-        print('_ref_dataset_dropdown_click')
+        """
+        Loads selected reference model dataset from ref_data_keys_dropdown and creates new interactive plot. Private.
+        """
         
         # Load selected access_nri catalog dataset
         self.ref_dataset = data._build_data_object(self.ref_model_cat, self.ref_data_keys_dropdown.value)
@@ -232,7 +295,7 @@ class UserUI():
     def _display_dataset_plot_ui(self):
         
         """
-        
+        Create interactive panel plot for user model dataset and add to widget_container. Private.
         """
         
         self.plot_variable_dropdown.name = 'Available variables'
@@ -247,7 +310,7 @@ class UserUI():
     def _display_ref_dataset_plot_ui(self):
         
         """
-        
+        Create interactive panel plot for reference model dataset and add to widget_container. Private.
         """
         
         self.ref_plot_variable_dropdown.name = 'Available reference variables'
@@ -262,7 +325,7 @@ class UserUI():
     def _update_dataset_plot_ui(self):
         
         """
-        
+        Update exisiting user model dataset plot if new data are selected. Private.
         """
         
         self.plot_variable_dropdown.options = list(self.dataset.keys())
@@ -272,10 +335,8 @@ class UserUI():
     def _update_ref_dataset_keys_plot_ui(self):
         
         """
-        
+        Update exisiting reference model dataset keys if new data are selected. Private.
         """
-        
-        print('updating model keys')
         
         self.ref_data_keys_dropdown.options = list(self.ref_model_cat.keys())
         plt.close(self.ref_fig)
@@ -286,10 +347,8 @@ class UserUI():
     def _update_ref_dataset_plot_ui(self):
         
         """
-        
-        """ 
-        
-        print('updating dataset keys')
+        Update exisiting reference model dataset plot if new data are selected. Private.
+        """
         
         self.ref_plot_variable_dropdown.options = list(self.ref_dataset.keys())
         self.ref_plot_variable_dropdown.value = list(self.ref_dataset.keys())[0]
@@ -299,7 +358,19 @@ class UserUI():
     def _plot_dataset(self, variable, ref_variable=None):
         
         """
+        Plot 2D time-series from model data. Private.
         
+        Parameters
+        ----------
+        variable : str
+            Model data variable as selected from panel dropdown.
+        ref_variable : str, default None
+            Reference model data variable as selected from panel dropdown.
+            
+        Returns
+        ----------
+        fig : matplotlib.pyplot.figure()
+        ref_fig : matplotlib.pyplot.figure()
         """
         
         if ref_variable == None:
