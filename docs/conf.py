@@ -10,10 +10,10 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import os
-import sys
-#sys.path.insert(0, os.path.abspath('.'))
-sys.path.insert(0, '/Users/miket/Projects/005_MED-diagnostics/med-live_diagnostics/src')
+# import os
+# import sys
+# sys.path.insert(0, os.path.abspath('.'))
+# sys.path.insert(0, '/Users/miket/Projects/005_MED-diagnostics/med-live_diagnostics/src')
 
 
 # -- Project information -----------------------------------------------------
