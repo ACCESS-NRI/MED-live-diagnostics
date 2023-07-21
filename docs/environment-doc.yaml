@@ -9,6 +9,7 @@ dependencies:
   - apscheduler
   - panel
   - matplotlib
+  - ipython
   - sphinx
   - sphinx-autobuild
   - pip
