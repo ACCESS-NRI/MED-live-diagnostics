@@ -2,7 +2,7 @@ ACCESS-NRI Model Diagnostics
 ========================
 
 
-med\_diagnostics.data
+data
 ----------------------------
 
 .. automodule:: med_diagnostics.data
@@ -10,7 +10,7 @@ med\_diagnostics.data
    :undoc-members:
    :show-inheritance:
 
-med\_diagnostics.diagnostics
+diagnostics
 -----------------------------------
 
 .. automodule:: med_diagnostics.diagnostics
@@ -18,7 +18,7 @@ med\_diagnostics.diagnostics
    :undoc-members:
    :show-inheritance:
 
-med\_diagnostics.session
+session
 -------------------------------
 
 .. automodule:: med_diagnostics.session
@@ -26,7 +26,7 @@ med\_diagnostics.session
    :undoc-members:
    :show-inheritance:
 
-med\_diagnostics.ui
+ui
 --------------------------
 
 .. automodule:: med_diagnostics.ui
