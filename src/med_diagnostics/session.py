@@ -17,24 +17,23 @@ class CreateModelDiagnosticsSession():
     
     """
     Primary class for starting a model diagnostics session
+
+    Parameters
+    ----------
+    model_type : str
+        Type of ACCESS model in capitals (e.g. CM2, OM2).
+    model_path : str
+        Path to model output directory/files on Gadi.
+    period : int/float/str, optional, default None
+        Period in minutes for background scheduler to monitor model_path for new data. If period=None, defaults to 60.
+    timezone : str, optional, default 'Australia/Canberra'
+        Timezone required for scheduler in tinfo 'Region/Location' format. 
     """
     
     def __init__(self, model_type, model_path, period=None, timezone=None):
         
         """
-        Initialise a CreateLiveSession instance to start a model diagnostics session.
-
-        Parameters
-        ----------
-        model_type : str
-            Type of ACCESS model in capitals (e.g. CM2, OM2).
-        model_path : str
-            Path to model output directory/files on Gadi.
-        period : int/float/str, optional, default None
-            Period in minutes for background scheduler to monitor model_path for new data. If period=None, defaults to 60.
-        timezone : str, optional, default 'Australia/Canberra'
-            Timezone required for scheduler in tinfo 'Region/Location' format. 
-            
+        Initialise a CreateLiveSession instance to start a model diagnostics session. 
         """
         
         # Set local variables
