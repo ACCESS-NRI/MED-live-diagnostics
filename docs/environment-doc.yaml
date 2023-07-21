@@ -6,15 +6,13 @@ channels:
 dependencies:
   - python>=3.10
   - access-nri-intake
+  - apscheduler
   - ipython
   - numpy
   - sphinx
   - sphinx-autobuild
   - pip
   - pip:
-    - intake
-    - intake-esm
-    - ecgtools
     - sphinx-autoapi
     - sphinx-rtd-theme
     - sphinxcontrib-napoleon
