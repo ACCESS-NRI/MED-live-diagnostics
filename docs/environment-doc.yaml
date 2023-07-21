@@ -8,6 +8,7 @@ dependencies:
   - access-nri-intake
   - apscheduler
   - panel
+  - matplotlib
   - sphinx
   - sphinx-autobuild
   - pip
