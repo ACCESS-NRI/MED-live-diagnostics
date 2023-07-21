@@ -5,9 +5,6 @@ channels:
   - defaults
 dependencies:
   - python>=3.10
-  - intake
-  - intake-esm
-  - ecgtools
   - access-nri-intake
   - ipython
   - numpy
@@ -15,6 +12,9 @@ dependencies:
   - sphinx-autobuild
   - pip
   - pip:
+    - intake
+    - intake-esm
+    - ecgtools
     - sphinx-autoapi
     - sphinx-rtd-theme
     - sphinxcontrib-napoleon
