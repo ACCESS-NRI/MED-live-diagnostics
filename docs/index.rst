@@ -3,7 +3,7 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Model Diagnostics's documentation!
+Welcome to the ACCESS-NRI Model Diagnostics documentation
 =============================================
 
 .. toctree::
@@ -12,7 +12,7 @@ Welcome to Model Diagnostics's documentation!
 
    modules
 
-Indices and tables
+Search package
 ==================
 
 * :ref:`search`
