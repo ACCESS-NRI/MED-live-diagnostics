@@ -1,10 +1,8 @@
-med\_diagnostics package
+ACCESS-NRI Model Diagnostics
 ========================
 
-Submodules
-----------
 
-med\_diagnostics.data module
+med\_diagnostics.data
 ----------------------------
 
 .. automodule:: med_diagnostics.data
@@ -12,7 +10,7 @@ med\_diagnostics.data module
    :undoc-members:
    :show-inheritance:
 
-med\_diagnostics.diagnostics module
+med\_diagnostics.diagnostics
 -----------------------------------
 
 .. automodule:: med_diagnostics.diagnostics
@@ -20,7 +18,7 @@ med\_diagnostics.diagnostics module
    :undoc-members:
    :show-inheritance:
 
-med\_diagnostics.session module
+med\_diagnostics.session
 -------------------------------
 
 .. automodule:: med_diagnostics.session
@@ -28,18 +26,10 @@ med\_diagnostics.session module
    :undoc-members:
    :show-inheritance:
 
-med\_diagnostics.ui module
+med\_diagnostics.ui
 --------------------------
 
 .. automodule:: med_diagnostics.ui
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: med_diagnostics
    :members:
    :undoc-members:
    :show-inheritance:
