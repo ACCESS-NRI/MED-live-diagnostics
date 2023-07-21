@@ -1,7 +1,7 @@
-src
+model_diagnostics
 ===
 
 .. toctree::
    :maxdepth: 4
 
-   med_diagnostics
+   src/med_diagnostics
