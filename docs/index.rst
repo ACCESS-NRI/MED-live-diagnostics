@@ -3,8 +3,13 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to the ACCESS-NRI Model Diagnostics documentation
+ACCESS-NRI Model Diagnostics documentation
 =============================================
+
+Search package
+==================
+
+* :ref:`search`
 
 .. toctree::
    :maxdepth: 2
@@ -43,8 +48,3 @@ ui
    :members:
    :undoc-members:
    :show-inheritance:
-
-Search package
-==================
-
-* :ref:`search`
