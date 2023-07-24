@@ -5,7 +5,7 @@
 
 ACCESS-NRI Model Diagnostics documentation
 =============================================
-Description of package here
+Framework for monitoring and diagnostic analyses of the ACCESS model suite.
 
 Search package
 ==================
