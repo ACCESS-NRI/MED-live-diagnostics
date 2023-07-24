@@ -16,7 +16,7 @@ Search package
    :maxdepth: 2
    :caption: Contents:
 
-   modules
+   
 
 Modules
 ==================
