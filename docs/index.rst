@@ -5,6 +5,7 @@
 
 ACCESS-NRI Model Diagnostics documentation
 =============================================
+Description of package here
 
 Search package
 ==================
@@ -16,6 +17,9 @@ Search package
    :caption: Contents:
 
    modules
+
+Modules
+==================
 
 data
 ----------------------------
