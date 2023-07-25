@@ -24,9 +24,6 @@ to use the framework outside of Jupyter notebooks, user experience will be impac
 Prerequisites
 ^^^^^^^^^^^^^
 
-Prerequisites
-==================
-
 As MLD uses both the `ACCESS-NRI Intake Catalog <https://github.com/ACCESS-NRI/access-nri-intake-catalog/tree/main>`_ to handle model data 
 and the `Australian Research Environment (ARE) <https://are-auth.nci.org.au/>`_ to run JupyterLab, you will need to have the following:
 
@@ -52,8 +49,9 @@ and the `Australian Research Environment (ARE) <https://are-auth.nci.org.au/>`_ 
       The ACCESS-NRI Intake Catalog is actually not yet installed in the :code:`hh5` environments, so for now 
       you'll have to use the :code:`xp65` environment. 
 
-Installing Model Live Diagnostics
-^^^^^^^^^^^^^
+
+Installation guide
+==================
 Installation instructions
 
 
