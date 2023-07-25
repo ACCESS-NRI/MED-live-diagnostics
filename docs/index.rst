@@ -50,11 +50,13 @@ and the `Australian Research Environment (ARE) <https://are-auth.nci.org.au/>`_ 
       you'll have to use the :code:`xp65` environment. 
 
 
-Installation guide
-==================
+Installation
+^^^^^^^^^^^^^
 Installation instructions
 
 
+ACCESS-NRI Model Diagnostics reference
+=============================================
 
 data
 ----------------------------
