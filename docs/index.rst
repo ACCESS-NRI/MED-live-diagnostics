@@ -54,6 +54,8 @@ and the `Australian Research Environment (ARE) <https://are-auth.nci.org.au/>`_ 
 Reference
 ==================
 
+modules
+
 data
 ----------------------------
 
