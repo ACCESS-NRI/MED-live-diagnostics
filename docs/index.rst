@@ -3,7 +3,9 @@ ACCESS-NRI Model Diagnostics documentation
 
 .. toctree::
    :maxdepth: 2
-   :hidden:
+   :caption: Contents:
+
+   modules
 
 Welcome to the documentation and reference guide for the `ACCESS-NRI <https://www.access-nri.org.au/>`_ Model Live Diagnostics package. 
 The Model Live Diagnostics framework is designed to provide useful and practical Jupyter-based tools for the monitoring and diagnostic 
@@ -53,8 +55,6 @@ and the `Australian Research Environment (ARE) <https://are-auth.nci.org.au/>`_ 
 
 Reference
 ==================
-
-modules
 
 data
 ----------------------------
