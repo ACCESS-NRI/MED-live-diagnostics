@@ -12,6 +12,7 @@ dependencies:
   - ipython
   - sphinx
   - sphinx-autobuild
+  - sphinx-panels
   - pip
   - pip:
     - sphinx-autoapi
