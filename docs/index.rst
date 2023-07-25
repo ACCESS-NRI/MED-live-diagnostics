@@ -16,7 +16,7 @@ Quick-start guide
 Quickstart guide
 
 ==================
-med_diagnostics packagereference
+med_diagnostics package reference
 ==================
 
 data
