@@ -32,18 +32,18 @@ to use the framework outside of Jupyter notebooks, user experience will be impac
 Prerequisites
 ^^^^^^^^^^^^^
 
-As MLD uses the `ACCESS-NRI Intake Catalog <https://github.com/ACCESS-NRI/access-nri-intake-catalog/tree/main>`_ to handle model data,
-you will need to have the following:
+As MLD uses both the `ACCESS-NRI Intake Catalog <https://github.com/ACCESS-NRI/access-nri-intake-catalog/tree/main>`_ to handle model data 
+and the `Australian Research Environment (ARE) <https://are-auth.nci.org.au/>`_ to run JupyterLab, you will need to have the following:
 
 #. **An account at NCI**: see the `NCI documentation for creating an account 
    <https://opus.nci.org.au/display/Help/How+to+create+an+NCI+user+account>`_ if you don't have one. 
    Note you will need to join a project with a compute allocation. If you don't know what project is 
    appropriate you will need to seek help from your local group or IT support.
 
-#. **Access to the projects that house the model data you're interested in**: the catalog references data 
+#. **Access to the project(s) that house the model data you are interested in**: the catalog references data 
    products across multiple projects on Gadi.  Currently, data is included from the following projects:
 
-   .. include:: ../project_list.rst
+   .. include:: https://github.com/ACCESS-NRI/access-nri-intake-catalog/blob/main/docs/project_list.rst
 
    If you wish to be able to access all the data in the catalog, you will need to be a member of all 
    these projects. See the `NCI documentation for how to join projects 
