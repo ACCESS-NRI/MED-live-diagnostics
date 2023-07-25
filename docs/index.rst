@@ -41,9 +41,8 @@ and the `Australian Research Environment (ARE) <https://are-auth.nci.org.au/>`_ 
    appropriate you will need to seek help from your local group or IT support.
 
 #. **Access to the project(s) that house the model data you are interested in**: the ACCESS-NRI Intake Catalog references data 
-   products across multiple projects on Gadi. Currently, data is included from the following projects:
-
-   .. include:: https://raw.githubusercontent.com/ACCESS-NRI/access-nri-intake-catalog/main/docs/project_list.rst
+   products across multiple projects on Gadi. You can find the list of currently support projects 
+   `here <https://github.com/ACCESS-NRI/access-nri-intake-catalog/blob/main/docs/project_list.rst>`_.
 
    If you wish to be able to access **all** the data in the ACCESS-NRI Intake Catalog, you will need to be a member of **all** 
    these projects. See the `NCI documentation for how to join projects <https://opus.nci.org.au/display/Help/How+to+connect+to+a+project>`_.
@@ -61,8 +60,7 @@ and the `Australian Research Environment (ARE) <https://are-auth.nci.org.au/>`_ 
       you'll have to use the :code:`xp65` environment. 
 
 
-Installing Model Live Diagnostics
-^^^^^^^^^^^^^
+
 
 
 
