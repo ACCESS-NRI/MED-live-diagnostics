@@ -27,7 +27,7 @@ issue `here <https://github.com/ACCESS-NRI/MED-live-diagnostics/issues>`_.
 Quick-start guide
 ==================
 The ACCESS-NRI Model Live Diagnostics framework is intended to be used in Jupyter notebooks running on Gadi. While it may be possible 
-to use the framework outside of Jupyter notebooks, user experience will be impacted as it is not supported.
+to use the framework outside of Jupyter notebooks, user experience will be impacted as this option is not supported.
 
 Prerequisites
 ^^^^^^^^^^^^^
@@ -40,28 +40,32 @@ and the `Australian Research Environment (ARE) <https://are-auth.nci.org.au/>`_ 
    Note you will need to join a project with a compute allocation. If you don't know what project is 
    appropriate you will need to seek help from your local group or IT support.
 
-#. **Access to the project(s) that house the model data you are interested in**: the catalog references data 
-   products across multiple projects on Gadi.  Currently, data is included from the following projects:
+#. **Access to the project(s) that house the model data you are interested in**: the ACCESS-NRI Intake Catalog references data 
+   products across multiple projects on Gadi. Currently, data is included from the following projects:
 
    .. include:: https://github.com/ACCESS-NRI/access-nri-intake-catalog/blob/main/docs/project_list.rst
 
-   If you wish to be able to access all the data in the catalog, you will need to be a member of all 
-   these projects. See the `NCI documentation for how to join projects 
-   <https://opus.nci.org.au/display/Help/How+to+connect+to+a+project>`_.
+   If you wish to be able to access **all** the data in the ACCESS-NRI Intake Catalog, you will need to be a member of **all** 
+   these projects. See the `NCI documentation for how to join projects <https://opus.nci.org.au/display/Help/How+to+connect+to+a+project>`_.
 
    .. attention::
 
-      Catalog users will only be able to load data from projects that they have access to.
+      ACCESS-NRI Intake Catalog users will only be able to load data from projects that they have access to.
 
 #. **Access to the** :code:`xp65` **or** :code:`hh5` **projects**: these projects provide public 
-   analysis environments in which the ACCESS-NRI catalog is installed (along with many other useful 
-   packages). Alternatively, you can install the catalog into your own environment.
+   analysis environments in which the ACCESS-NRI Intake Catalog is installed (along with many other useful 
+   packages). Alternatively, you can install the ACCESS-NRI Intake Catalog into your own environment.
 
    .. warning::
-      The ACCESS-NRI catalog is actually not yet installed in the :code:`hh5` environments, so for now 
+      The ACCESS-NRI Intake Catalog is actually not yet installed in the :code:`hh5` environments, so for now 
       you'll have to use the :code:`xp65` environment. 
 
-==================
+
+Installing Model Live Diagnostics
+^^^^^^^^^^^^^
+
+
+
 med_diagnostics package reference
 ==================
 
