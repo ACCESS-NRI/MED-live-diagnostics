@@ -12,9 +12,10 @@ dependencies:
   - ipython
   - sphinx
   - sphinx-autobuild
-  - sphinx-panels
   - pip
   - pip:
     - sphinx-autoapi
     - sphinx-rtd-theme
     - sphinxcontrib-napoleon
+    - sphinx-panels
+    - sphinx-copybutton
