@@ -7,11 +7,6 @@ ACCESS-NRI Model Diagnostics documentation
 =============================================
 Framework for monitoring and diagnostic analyses of the ACCESS model suite.
 
-Search package
-==================
-
-* :ref:`search`
-
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
