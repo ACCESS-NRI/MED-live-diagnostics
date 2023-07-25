@@ -47,7 +47,7 @@ and the `Australian Research Environment (ARE) <https://are-auth.nci.org.au/>`_ 
 
    .. warning::
       The ACCESS-NRI Intake Catalog is actually not yet installed in the :code:`hh5` environments, so for now 
-      you'll have to use the :code:`xp65` environment. 
+      you'll have to use the :code:`xp65` environment.
 
 
 Installation
@@ -58,7 +58,7 @@ Installation instructions
 ACCESS-NRI Model Diagnostics reference
 =============================================
 
-data
+med_diagnostics.data
 ^^^^^^^^^^^^^
 
 .. automodule:: med_diagnostics.data
@@ -66,7 +66,7 @@ data
    :undoc-members:
    :show-inheritance:
 
-diagnostics
+med_diagnostics.diagnostics
 ^^^^^^^^^^^^^
 
 .. automodule:: med_diagnostics.diagnostics
@@ -74,7 +74,7 @@ diagnostics
    :undoc-members:
    :show-inheritance:
 
-session
+med_diagnostics.session
 ^^^^^^^^^^^^^
 
 .. automodule:: med_diagnostics.session
@@ -82,7 +82,7 @@ session
    :undoc-members:
    :show-inheritance:
 
-ui
+med_diagnostics.ui
 ^^^^^^^^^^^^^
 
 .. automodule:: med_diagnostics.ui
