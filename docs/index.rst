@@ -50,10 +50,29 @@ and the `Australian Research Environment (ARE) <https://are-auth.nci.org.au/>`_ 
       you'll have to use the :code:`xp65` environment.
 
 
-Installation
+Installation and getting started
 ^^^^^^^^^^^^^
-Installation instructions
+#. Clone the **MED-live-diagnostics** repository found at https://github.com/ACCESS-NRI/MED-live-diagnostics to an accessbile project location on Gadi.
 
+#. Log into to `ARE <are.nci.org.au>`_ and start a JupyterLab instance with the following minimum recommended settings:
+
+   +-----------------------+-------------------------------------+
+   | Compute Size          | Medium (4 cpus, 18G mem)            |  
+   +-----------------------+-------------------------------------+
+   | Storage               | All projects you wish to access     |     
+   +-----------------------+-------------------------------------+
+   
+   Advanced Options:
+   
+   +-----------------------+-------------------------------------+
+   | Module directories    | /g/data/xp65/public/modules         |
+   +-----------------------+-------------------------------------+
+   | Modules               | conda/access-med                    |
+   +-----------------------+-------------------------------------+
+
+#. You should now have an ARE JupyterLab instance running using the `ACCESS-NRI MED Conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_.
+
+#. Open the one of tutorial notebooks from the `examples <https://github.com/ACCESS-NRI/MED-live-diagnostics/tree/main/examples>`_ and get started!
 
 ACCESS-NRI Model Diagnostics reference
 =============================================
