@@ -59,7 +59,7 @@ ACCESS-NRI Model Diagnostics reference
 =============================================
 
 data
-----------------------------
+^^^^^^^^^^^^^
 
 .. automodule:: med_diagnostics.data
    :members:
@@ -67,7 +67,7 @@ data
    :show-inheritance:
 
 diagnostics
------------------------------------
+^^^^^^^^^^^^^
 
 .. automodule:: med_diagnostics.diagnostics
    :members:
@@ -75,7 +75,7 @@ diagnostics
    :show-inheritance:
 
 session
--------------------------------
+^^^^^^^^^^^^^
 
 .. automodule:: med_diagnostics.session
    :members:
@@ -83,7 +83,7 @@ session
    :show-inheritance:
 
 ui
---------------------------
+^^^^^^^^^^^^^
 
 .. automodule:: med_diagnostics.ui
    :members:
