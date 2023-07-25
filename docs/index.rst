@@ -15,7 +15,8 @@ Quick-start guide
 ==================
 Quickstart guide
 
-Modules in med_diagnostics
+==================
+med_diagnostics packagereference
 ==================
 
 data
