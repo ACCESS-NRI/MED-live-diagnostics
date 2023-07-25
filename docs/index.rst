@@ -32,7 +32,8 @@ to use the framework outside of Jupyter notebooks, user experience will be impac
 Prerequisites
 ^^^^^^^^^^^^^
 
-In order to use MLD, you will need to have the following:
+As MLD uses the `ACCESS-NRI Intake Catalog <https://github.com/ACCESS-NRI/access-nri-intake-catalog/tree/main>`_ to handle model data,
+you will need to have the following:
 
 #. **An account at NCI**: see the `NCI documentation for creating an account 
    <https://opus.nci.org.au/display/Help/How+to+create+an+NCI+user+account>`_ if you don't have one. 
