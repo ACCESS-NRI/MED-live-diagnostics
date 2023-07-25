@@ -16,7 +16,9 @@ Search package
    :maxdepth: 2
    :caption: Contents:
 
-   
+Quick-start guide
+==================
+Quickstart guide
 
 Modules in med_diagnostics
 ==================
