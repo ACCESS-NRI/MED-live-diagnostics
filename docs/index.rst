@@ -1,4 +1,4 @@
-.. Model Diagnostics documentation master file, created by
+diag.. Model Diagnostics documentation master file, created by
    sphinx-quickstart on Thu Jul 20 12:26:45 2023.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
@@ -60,10 +60,7 @@ and the `Australian Research Environment (ARE) <https://are-auth.nci.org.au/>`_ 
 
 
 
-
-
-
-Reference
+med_diagnotics reference
 ==================
 
 data
