@@ -5,11 +5,13 @@
 
 ACCESS-NRI Model Diagnostics documentation
 =============================================
-Framework for monitoring and diagnostic analyses of the ACCESS model suite.
+Welcome to the documentation and reference guide for the `ACCESS-NRI <https://www.access-nri.org.au/>`_ Model Diagnostics package. Model Diagnostics framework is designed to provide useful and practical Jupyter-based tools for the monitoring and diagnostic analyses of currently running (i.e. 'live') ACCESS climate models on the Australian NCI supercomputer Gadi.
+
+This documentation aims to introduce these new tools, and support both new and existing users to get the most out of them using the Australia Research Environment (ARE).
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :hidden:
 
 Quick-start guide
 ==================
