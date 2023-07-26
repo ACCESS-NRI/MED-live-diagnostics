@@ -84,7 +84,7 @@ Installation and getting started
 #. Open the one of tutorial notebooks from the `examples <https://github.com/ACCESS-NRI/MED-live-diagnostics/tree/main/examples>`_, update the path to your MLD clone on Gadi and get started! 
 
 
-ACCESS-NRI Model Diagnostics reference
+Model Live Diagnostics reference
 ======================================
 
 med_diagnostics.data
