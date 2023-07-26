@@ -18,12 +18,12 @@ sys.path.insert(0, os.path.abspath('../src/'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'Model Live Diagnostics v0.0.1'
+project = 'Model Live Diagnostics'
 copyright = '2023, ACCESS-NRI'
 author = 'ACCESS-NRI'
 
 # The full version, including alpha/beta/rc tags
-release = '0.0.1'
+release = 'v0.0.1'
 
 
 # -- General configuration ---------------------------------------------------
