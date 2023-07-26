@@ -16,6 +16,7 @@ dependencies:
   - pip:
     - sphinx-autoapi
     - sphinx-rtd-theme
+    - sphinx-book-theme
     - sphinxcontrib-napoleon
     - sphinx-panels
     - sphinx-copybutton
