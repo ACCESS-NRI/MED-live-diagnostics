@@ -12,6 +12,9 @@ ACCESS modelling community to check, monitor, visualise and evaluate model behav
 models on the Australian NCI supercomuter Gadi. In addition to monitoring a live model, the package provides the functionality to load, 
 visualise and compare legacy ACCESS model data with the selected live user model.
 
+What doe this package do?
+=========================
+
 This package is currently in active development within the Model Evaluation Team at the `Australian Earth System Symulator (ACCESS-NRI) <https://www.access-nri.org.au/>`_
 so watch this space for version updates containing new features, model diagnostics tools and visualisation options! 
 
