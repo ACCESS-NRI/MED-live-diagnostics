@@ -1,5 +1,5 @@
 =========================
-Live model diagnostics.
+ACCESS-NRI Model Live Diagnostics
 =========================
 
 **Framework for monitoring and diagnostic analyses of the ACCESS model suite.**
