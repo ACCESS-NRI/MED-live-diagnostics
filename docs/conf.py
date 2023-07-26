@@ -72,7 +72,7 @@ html_static_path = ['_static']
 
 html_theme_options = {
     "use_edit_page_button": True,
-    "github_url": "https://github.com/ACCESS-NRI/access-nri-intake-catalog",
+    "github_url": "https://github.com/ACCESS-NRI/MED-live-diagnostics",
     "logo": {
         "image_light": "_static/accessnri_light.png",
         "image_dark": "_static/accessnri_dark.png",
