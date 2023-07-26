@@ -1,5 +1,5 @@
-ACCESS-NRI Model Diagnostics documentation
-=============================================
+ACCESS-NRI Model Diagnostics v0.0.1
+===================================
 
 .. toctree::
    :maxdepth: 2
@@ -15,6 +15,16 @@ Australia Research Environment (ARE).
 The ACCESS-NRI Model Live Diagnostics package, and the tools that support it, are still a work in progress. We value your feedback, 
 especially in the form of reporting issues/bugs or suggesting ways to improve the framework. To do so, please open an 
 issue `here <https://github.com/ACCESS-NRI/MED-live-diagnostics/issues>`_.
+
+What does this package do?
+==========================
+The primary purpose of the ACCESS-NRI Model Live Diagnostics package is to provide a simple, easy to use and accessible framework for the ACCESS 
+modelling community to check, monitor, visualise and evaluate model behaviour and progress on currently running or 'live' ACCESS models on the `Australian 
+NCI supercomputer Gadi <https://nci.org.au/our-systems/hpc-systems>`_. In addition to monitoring a live model, the package provides the functionality to 
+load, visualise and compare legacy ACCESS model data with the selected live user model. 
+
+This package is currently in active development within the Model Evaluation Team at the `Australian Earth System Symulator (ACCESS-NRI) <https://www.access-nri.org.au/>`_
+so watch this space for version updates containing new features, model diagnostics tools and visualisation options!
 
 Quick-start guide
 ==================
@@ -50,13 +60,32 @@ and the `Australian Research Environment (ARE) <https://are-auth.nci.org.au/>`_ 
       you'll have to use the :code:`xp65` environment.
 
 
-Installation
+Installation and getting started
 ^^^^^^^^^^^^^
-Installation instructions
+#. Clone the **MED-live-diagnostics** repository found at https://github.com/ACCESS-NRI/MED-live-diagnostics to an accessbile project location on Gadi.
+
+#. Log into to `ARE <are.nci.org.au>`_ and start a JupyterLab instance with the following minimum recommended settings:
+
+   +-----------------------+-------------------------------------+
+   | Compute Size          | Medium (4 cpus, 18G mem)            |  
+   +-----------------------+-------------------------------------+
+   | Storage               | All projects you wish to access     |     
+   +-----------------------+-------------------------------------+
+   
+   Advanced Options:
+   
+   +-----------------------+-------------------------------------+
+   | Module directories    | /g/data/xp65/public/modules         |
+   +-----------------------+-------------------------------------+
+   | Modules               | conda/access-med                    |
+   +-----------------------+-------------------------------------+
+
+#. You should now have an ARE JupyterLab instance running using the `ACCESS-NRI MED Conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_.
+#. Open the one of tutorial notebooks from the `examples <https://github.com/ACCESS-NRI/MED-live-diagnostics/tree/main/examples>`_, update the path to your MLD clone on Gadi and get started! 
 
 
-ACCESS-NRI Model Diagnostics reference
-=============================================
+Model Live Diagnostics reference
+======================================
 
 med_diagnostics.data
 ^^^^^^^^^^^^^

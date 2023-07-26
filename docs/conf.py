@@ -18,12 +18,12 @@ sys.path.insert(0, os.path.abspath('../src/'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'Model Diagnostics'
+project = 'Model Live Diagnostics'
 copyright = '2023, ACCESS-NRI'
 author = 'ACCESS-NRI'
 
 # The full version, including alpha/beta/rc tags
-release = '0.0.1'
+release = 'v0.0.1'
 
 
 # -- General configuration ---------------------------------------------------
@@ -53,15 +53,28 @@ templates_path = ['_templates']
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', "**.ipynb_checkpoints"]
 
+# The name of the Pygments (syntax highlighting) style to use.
+pygments_style = "sphinx"
+
 
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
+# html_theme = 'sphinx_rtd_theme'
+html_theme = "sphinx_book_theme"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+html_theme_options = {
+    "use_edit_page_button": True,
+    "github_url": "https://github.com/ACCESS-NRI/MED-live-diagnostics",
+    "logo": {
+        "image_light": "_static/accessnri_light.png",
+        "image_dark": "_static/accessnri_dark.png",
+    },
+}
