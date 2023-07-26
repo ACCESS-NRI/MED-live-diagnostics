@@ -1,5 +1,5 @@
-ACCESS-NRI Model Diagnostics documentation
-=============================================
+ACCESS-NRI Model Diagnostics v0.0.1
+===================================
 
 .. toctree::
    :maxdepth: 2
@@ -15,6 +15,16 @@ Australia Research Environment (ARE).
 The ACCESS-NRI Model Live Diagnostics package, and the tools that support it, are still a work in progress. We value your feedback, 
 especially in the form of reporting issues/bugs or suggesting ways to improve the framework. To do so, please open an 
 issue `here <https://github.com/ACCESS-NRI/MED-live-diagnostics/issues>`_.
+
+What does this package do?
+==========================
+The primary purpose of the ACCESS-NRI Model Live Diagnostics package is to provide a simple, easy to use and accessible framework for the ACCESS 
+modelling community to check, monitor, visualise and evaluate model behaviour and progress on currently running or 'live' ACCESS models on the `Australian 
+NCI supercomuter Gadi <https://nci.org.au/our-systems/hpc-systems>`_. In addition to monitoring a live model, the package provides the functionality to 
+load, visualise and compare legacy ACCESS model data with the selected live user model. 
+
+This package is currently in active development within the Model Evaluation Team at the `Australian Earth System Symulator (ACCESS-NRI) <https://www.access-nri.org.au/>`_
+so watch this space for version updates containing new features, model diagnostics tools and visualisation options!
 
 Quick-start guide
 ==================
@@ -74,8 +84,9 @@ Installation and getting started
 
 4. Open the one of tutorial notebooks from the `examples <https://github.com/ACCESS-NRI/MED-live-diagnostics/tree/main/examples>`_, update the path to your MLD clone on Gadi and get started! 
 
+
 ACCESS-NRI Model Diagnostics reference
-=============================================
+======================================
 
 med_diagnostics.data
 ^^^^^^^^^^^^^
