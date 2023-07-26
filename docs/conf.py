@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath('../src/'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'Model Diagnostics'
+project = 'Model Live Diagnostics 0.0.1'
 copyright = '2023, ACCESS-NRI'
 author = 'ACCESS-NRI'
 
