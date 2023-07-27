@@ -1,5 +1,5 @@
 model_diagnostics
-===
+=================
 
 .. toctree::
    :maxdepth: 4
