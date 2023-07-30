@@ -69,7 +69,7 @@ Installation and getting started
 #. Log into to `ARE <are.nci.org.au>`_ and start a JupyterLab instance with the following minimum recommended settings:
 
    +-----------------------+-------------------------------------+
-   | Compute Size          | Large (7 cpus, 32G mem)            |  
+   | Compute Size          | Large (7 cpus, 32G mem)             |  
    +-----------------------+-------------------------------------+
    | Storage               | All projects you wish to access     |     
    +-----------------------+-------------------------------------+
