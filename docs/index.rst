@@ -68,8 +68,10 @@ Installation and getting started
 
 #. Log into to `ARE <are.nci.org.au>`_ and start a JupyterLab instance with the following minimum recommended settings:
 
+   As these datasets are fairly large / memory intensive, the following 'Custom' settings are recommended to minimise SU consumption:
+
    +-----------------------+-------------------------------------+
-   | Compute Size          | Large (7 cpus, 32G mem)             |  
+   | Compute Size          | Custom (2 cpus, 32G mem)            |  
    +-----------------------+-------------------------------------+
    | Storage               | All projects you wish to access     |     
    +-----------------------+-------------------------------------+
