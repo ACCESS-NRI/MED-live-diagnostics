@@ -21,8 +21,8 @@ so watch this space for version updates containing new features, model diagnosti
 We value your feedback, especially in the form of reporting issues/bugs or suggesting ways to improve the framework. To do so, please open an 
 `issue <https://github.com/ACCESS-NRI/MED-live-diagnostics/issues>`_.
 
-------------
-
+Getting started
+=========================
 An example Jupyter notebook describing usage options can be found in the `examples <https://github.com/ACCESS-NRI/MED-live-diagnostics/tree/main/examples>`_ directory.
 
 The full documentation is available from `readthedocs <https://med-live-diagnostics.readthedocs.io/en/latest/index.html>`_. 
