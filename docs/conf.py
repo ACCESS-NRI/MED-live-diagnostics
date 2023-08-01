@@ -36,7 +36,8 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.viewcode",
-    "sphinx_panels"
+    "sphinx_panels",
+    "nbsphinx"
 ]
 
 # autoapi directives
