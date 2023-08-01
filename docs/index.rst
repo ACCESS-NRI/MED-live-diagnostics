@@ -85,4 +85,4 @@ Installation and getting started
    +-----------------------+-------------------------------------+
 
 #. You should now have an ARE JupyterLab instance running using the `ACCESS-NRI MED Conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_.
-#. Open the one of tutorial notebooks from the `examples <https://github.com/ACCESS-NRI/MED-live-diagnostics/tree/main/examples>`_, update the path to your MLD clone on Gadi and get started! 
+#. Open the tutorial notebook from the `examples <https://github.com/ACCESS-NRI/MED-live-diagnostics/tree/main/examples>`_ directory, update the path to your MLD clone on Gadi and get started! 
