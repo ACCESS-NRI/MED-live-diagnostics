@@ -2,7 +2,7 @@
 ACCESS-NRI Model Live Diagnostics v0.0.1
 =========================
 
-**Framework for monitoring and diagnostic analyses of the ACCESS model suite.**
+**Framework for interactive monitoring and diagnostic analyses of the ACCESS model suite.**
 
 The ACCESS-NRI Model Live Diagnostics framework is designed to provide useful and practical Jupyter-based tools for interactive monitoring and diagnostic 
 analyses of currently running (aka 'live') ACCESS climate models on the `Australian NCI supercomputer Gadi <https://nci.org.au/our-systems/hpc-systems>`_.
