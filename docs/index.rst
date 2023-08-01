@@ -8,7 +8,7 @@ ACCESS-NRI Model Diagnostics v0.0.1
    modules
 
 Welcome to the documentation and reference guide for the `ACCESS-NRI <https://www.access-nri.org.au/>`_ Model Live Diagnostics package. 
-The Model Live Diagnostics framework is designed to provide useful and practical Jupyter-based tools for the monitoring and diagnostic 
+The Model Live Diagnostics framework is designed to provide useful and practical Jupyter-based tools for interactive monitoring and diagnostic 
 analyses of currently running (aka 'live') ACCESS climate models on the Australian NCI supercomputer Gadi.
 
 This documentation aims to introduce these new tools, and support both new and existing users to get the most out of them using the 
