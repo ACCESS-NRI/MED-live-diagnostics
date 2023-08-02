@@ -9,7 +9,7 @@ ACCESS-NRI Model Diagnostics
    examples/example_notebook
    med_diagnostics
 
-v0.0.1
+Version 0.0.1
 
 Welcome to the documentation and reference guide for the `ACCESS-NRI <https://www.access-nri.org.au/>`_ Model Live Diagnostics package. 
 The Model Live Diagnostics framework is designed to provide useful and practical Jupyter-based tools for interactive monitoring and diagnostic 
