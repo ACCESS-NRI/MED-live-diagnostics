@@ -50,7 +50,7 @@ autoapi_add_toctree_entry = False
 templates_path = ['_templates']
 
 # Config myst-nb
-nb_execution_excludepatterns = ["examples/example_notebook.ipynb"]
+nb_execution_excludepatterns = ["notebooks/getting_started_tutorial.ipynb"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
