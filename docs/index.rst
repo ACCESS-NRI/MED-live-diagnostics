@@ -2,7 +2,7 @@ ACCESS-NRI Model Diagnostics
 ============================
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 0
    :hidden:
 
    index
