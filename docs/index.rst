@@ -6,6 +6,8 @@ ACCESS-NRI Model Diagnostics
    :hidden:
 
    index
+   examples/example_notebook
+   med_diagnostics
 
 v0.0.1
 
