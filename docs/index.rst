@@ -5,7 +5,7 @@ ACCESS-NRI Model Diagnostics v0.0.1
    :maxdepth: 3
    :hidden:
 
-   MED-live-diagnostics/tree/main/examples/example_notebook
+   examples/example_notebook
    modules
 
 Welcome to the documentation and reference guide for the `ACCESS-NRI <https://www.access-nri.org.au/>`_ Model Live Diagnostics package. 
