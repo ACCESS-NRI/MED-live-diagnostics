@@ -6,7 +6,7 @@ ACCESS-NRI Model Diagnostics
    :hidden:
 
    self
-   examples/example_notebook
+   notebooks/getting_started_tutorial
    med_diagnostics
 
 Version 0.0.1
