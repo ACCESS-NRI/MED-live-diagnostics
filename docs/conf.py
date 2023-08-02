@@ -37,7 +37,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.viewcode",
     "sphinx_panels",
-    "myst-nb"
+    "myst_nb"
 ]
 
 # autoapi directives
