@@ -20,4 +20,4 @@ dependencies:
     - sphinxcontrib-napoleon
     - sphinx-panels
     - sphinx-copybutton
-    - nbsphinx
+    - myst-nb
