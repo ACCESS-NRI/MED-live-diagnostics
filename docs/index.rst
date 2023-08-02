@@ -5,7 +5,7 @@ ACCESS-NRI Model Diagnostics
    :maxdepth: 0
    :hidden:
 
-   index.html#access-nri-model-diagnostics
+   self
    examples/example_notebook
    med_diagnostics
 
