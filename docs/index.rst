@@ -1,12 +1,15 @@
-ACCESS-NRI Model Diagnostics v0.0.1
-===================================
+ACCESS-NRI Model Diagnostics 
+============================
 
 .. toctree::
    :maxdepth: 3
    :hidden:
 
+   index
    examples/example_notebook
    med_diagnostics
+
+v0.0.1
 
 Welcome to the documentation and reference guide for the `ACCESS-NRI <https://www.access-nri.org.au/>`_ Model Live Diagnostics package. 
 The Model Live Diagnostics framework is designed to provide useful and practical Jupyter-based tools for interactive monitoring and diagnostic 
