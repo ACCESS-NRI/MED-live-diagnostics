@@ -23,7 +23,7 @@ We value your feedback, especially in the form of reporting issues/bugs or sugge
 
 Getting started
 =========================
-An example Jupyter notebook describing usage options can be found in the `examples <https://github.com/ACCESS-NRI/MED-live-diagnostics/blob/main/examples/example_notebook.ipynb>`_ directory.
+An example Jupyter notebook describing usage options can be found in the `docs/notebooks <https://github.com/ACCESS-NRI/MED-live-diagnostics/blob/main/examples/example_notebook.ipynb>`_ directory.
 
 The full documentation is available from `readthedocs <https://med-live-diagnostics.readthedocs.io/en/latest/index.html>`_. 
 
