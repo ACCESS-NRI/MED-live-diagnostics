@@ -17,23 +17,24 @@ class CreateModelDiagnosticsSession():
     
     """
     Primary class for starting a model diagnostics session
-
-    Parameters
-    ----------
-    model_type : str
-        Type of ACCESS model in capitals (e.g. CM2, OM2).
-    model_path : str
-        Path to model output directory/files on Gadi.
-    period : int/float/str, optional, default None
-        Period in minutes for background scheduler to monitor model_path for new data. If period=None, defaults to 60.
-    timezone : str, optional, default 'Australia/Canberra'
-        Timezone required for scheduler in tinfo 'Region/Location' format. 
     """
     
     def __init__(self, model_type, model_path, period=None, timezone=None):
         
         """
-        Initialise a CreateLiveSession instance to start a model diagnostics session. 
+        Initialise a CreateLiveSession instance to start a model diagnostics session.
+
+        Parameters
+        ----------
+        model_type : str
+            Type of ACCESS model in capitals (e.g. CM2, OM2).
+        model_path : str
+            Path to model output directory/files on Gadi.
+        period : int/float/str, optional, default None
+            Period in minutes for background scheduler to monitor model_path for new data. If period=None, defaults to 60.
+        timezone : str, optional, default 'Australia/Canberra'
+            Timezone required for scheduler in tinfo 'Region/Location' format. 
+            
         """
         
         # Set local variables
@@ -53,8 +54,7 @@ class CreateModelDiagnosticsSession():
         print()
         print('----------------------- Live diagnostics session started -----------------------')
         print()
-        print('Model type:', self.model_type)
-        # print('Model realm:', self.model_realm)
+        print('Model type:', str(model_type))
         print('Model data path:', self.model_path)
         print('Model data update period:', self.period, 'mins')
         print()
@@ -89,11 +89,13 @@ class CreateModelDiagnosticsSession():
     def end_session(self):
 
         """
-        Stop background scheduler and close dask client to end current CreateLiveSession instance.
+        Stop background scheduler and close dask client to end current CreateModelDiagnosticsSession instance.
         """
 
         self.scheduler.shutdown()
         self.client.close()
+
+        self.ui.widget_container.clear()
         
         print('------------------------ Live diagnostics session ended ------------------------')
         
@@ -104,13 +106,13 @@ class CreateModelDiagnosticsSession():
         Check nominated model data path for new data. Private.
         """
         
-        self.ui._update_status_text('Status >> Importing and building initial model data catalog. This can take a few minutes.')
+        self.ui._update_status_text('User model status >> Building initial model data catalog. This can take a few minutes.')
         
         # Check for new data
         new_model_data = data._check_for_new_data(self.model_path, self.model_data, self.model_type)
         
         # Update status text
-        self.ui._update_status_text('Status >> Model data catalog built.')
+        self.ui._update_status_text('User model status >> Model data catalog built.')
         self.ui._update_last_data_load_text('Last model data catalog build >> ' + self.ui._get_current_time())
         
         if new_model_data == None:
@@ -141,7 +143,7 @@ class CreateModelDiagnosticsSession():
             # Data loading procedure for update step
             elif self.data_update == True:
                 
-                self.ui._update_status_text('Status >> New data found. Updating catalog.')
+                self.ui._update_status_text('User model status >> New data found.')
                 
                 ## Need to work on UI updates during data update
                 
@@ -159,7 +161,7 @@ class CreateModelDiagnosticsSession():
     def return_model_data_catalog(self):
         
         """
-        Return currently loaded model data catalog.
+        Convenience function to return currently loaded model data catalog.
         
         Returns
         ----------
