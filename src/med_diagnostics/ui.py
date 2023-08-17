@@ -11,10 +11,6 @@ import datetime
 from med_diagnostics import data
 from IPython.display import display
 
-# Import panel extensions
-pn.extension()
-
-
 class UserInterface():
     
     """
@@ -26,22 +22,31 @@ class UserInterface():
         """
         Initialise a UserInterface instance.
         """
+
+        # Import panel extensions
+        pn.extension()
         
         # Build and style panel widgets
         self.last_data_load_textbox = pn.widgets.StaticText(styles={'background': 'orange', 'font-size': '18px', 'color': 'black', 'padding': '5px'}, margin=(10, 0, 10, 0))
         self.status_textbox = pn.widgets.StaticText(styles={'background': 'lightblue', 'font-size': '18px', 'color': 'black', 'padding': '5px'}, margin=(10, 0, 10, 0))
+        self.ref_status_textbox = pn.widgets.StaticText(styles={'background': 'lightblue', 'font-size': '18px', 'color': 'black', 'padding': '5px'}, margin=(10, 0, 10, 0))
+
+        self.ref_model_metadata = pn.widgets.StaticText(styles={'color': 'white'})
         
         self.keys_dropdown = pn.widgets.Select()
-        self.keys_button = pn.widgets.Button(styles={}, margin=(10, 0, 20, 0))
+        self.keys_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 0))
         self.plot_variable_dropdown = pn.widgets.Select()
         
         self.ref_keys_dropdown = pn.widgets.Select()
-        self.ref_keys_button = pn.widgets.Button(styles={}, margin=(10, 0, 20, 0))
+        self.ref_keys_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 0))
         self.ref_plot_variable_dropdown = pn.widgets.Select()
         
         self.ref_data_keys_dropdown = pn.widgets.Select()
-        self.ref_data_keys_button = pn.widgets.Button(styles={}, margin=(10, 0, 20, 0))
+        self.ref_data_keys_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 0))
         self.ref_data_plot_variable_dropdown = pn.widgets.Select()
+
+        self.clear_ref_model_data_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 10))
+        self.ref_model_info_button = pn.widgets.Button(styles={}, margin=(23, 10, 0, 0))
         
         self.figure_exists = False
         self.ref_figure_exists = False
@@ -62,10 +67,22 @@ class UserInterface():
         def _ref_data_keys_button_click(event):
             
             self._ref_dataset_dropdown_click()
+
+        @pn.depends(self.ref_keys_dropdown.param.value)
+        def _ref_model_info_button_click(event):
+            
+            self._ref_model_info_click()
+
+        def _ref_clear_data_button_click(event):
+            
+            self._ref_clear_data_click()
             
         self.keys_button.on_click(_keys_button_click)
         self.ref_keys_button.on_click(_ref_keys_button_click)
         self.ref_data_keys_button.on_click(_ref_data_keys_button_click)
+        self.clear_ref_model_data_button.on_click(_ref_clear_data_button_click)
+        self.ref_model_info_button.on_click(_ref_model_info_button_click)
+
             
             
     def _display_status_text(self):
@@ -99,6 +116,21 @@ class UserInterface():
         
         # Update status_textbox with text
         self.status_textbox.value = str(text)
+
+
+    def _update_ref_status_text(self, text):
+        
+        """
+        Update text displayed in ref_status_textbox widget. Private.
+        
+        Parameters
+        ----------
+        text : str
+            Text to be displayed in ref_status_textbox
+        """
+
+        # Update ref_status_textbox with text
+        self.ref_status_textbox.value = str(text)
         
         
     def _update_last_data_load_text(self, text):
@@ -166,6 +198,8 @@ class UserInterface():
         
         # Add horizontal line divider to widget_container
         self.widget_container.append(pn.layout.Divider(styles={'color': 'white'}))
+
+        #print(self.widget_container)
         
         
     def _display_reference_model_selection_ui(self):
@@ -174,20 +208,32 @@ class UserInterface():
         Label, populate and append ACCESS reference model selection-related widgets to widget_container. Private.
         
         """
+
+        # Add refrence data status text box
+        self.widget_container.append(self.ref_status_textbox)
         
         # Populate reference/comparison model widgets
         self.ref_keys_dropdown.name = '2. Select reference model (optional):'
         self.ref_keys_dropdown.options = self.access_nri_cat.keys()
-        self.ref_keys_button.name = 'Load model'
+        self.ref_keys_button.name = 'Load reference model'
         self.ref_keys_button.button_type = 'primary'
+        
+        self.clear_ref_model_data_button.name = 'Clear reference model'
+        self.clear_ref_model_data_button.button_type = 'primary'
+
+        self.ref_model_info_button.name = 'Reference model information'
+        self.ref_model_info_button.button_type = 'primary'
         
         # Add reference/comparison widgets to ref_keys_selection_row
         self.ref_keys_selection_row = pn.Row()
         self.ref_keys_selection_row.append(self.ref_keys_dropdown)
+        self.ref_keys_selection_row.append(self.ref_model_info_button)
         self.ref_keys_selection_row.append(self.ref_keys_button)
+        self.ref_keys_selection_row.append(self.clear_ref_model_data_button)
         
         # Add ref_keys_selection_row to widget_container
         self.widget_container.append(self.ref_keys_selection_row)
+        self.widget_container.append(self.ref_model_metadata)
         
         # Add horizontal line divider to widget_container
         self.widget_container.append(pn.layout.Divider(styles={'color': 'white'}))
@@ -201,9 +247,9 @@ class UserInterface():
         """
         
         # Populate reference/comparison dataset widgets
-        self.ref_data_keys_dropdown.name = '2. Select reference dataset (optional):'
+        self.ref_data_keys_dropdown.name = '2.1. Select reference dataset (optional):'
         self.ref_data_keys_dropdown.options = self.ref_model_cat.keys()
-        self.ref_data_keys_button.name = 'Load dataset'
+        self.ref_data_keys_button.name = 'Load reference dataset'
         self.ref_data_keys_button.button_type = 'primary'
         
         # Add reference/comparison widgets to ref_data_keys_selection_row
@@ -218,6 +264,7 @@ class UserInterface():
         self.widget_container.append(pn.layout.Divider(styles={'color': 'white'}))
         
         
+        
     def _keys_dropdown_click(self):
         
         """
@@ -225,13 +272,13 @@ class UserInterface():
         """
         
         # Update text box
-        self._update_status_text('Status >> Loading data.')
+        self._update_status_text('User model status >> Loading data.')
 
         # Load selected dataset
         self.dataset = data._build_data_object(self.model_cat, self.keys_dropdown.value)
         
         # Update text box
-        self._update_status_text('Status >> Data loaded.')
+        self._update_status_text('User model status >> Data successfully loaded.')
         
         # Check if plot already exists
         if self.figure_exists == False:
@@ -253,21 +300,19 @@ class UserInterface():
         """
         Loads selected reference model from ref_keys_dropdown and display reference model dataset selection. Private.
         """
+
+        # Update text box
+        self._update_ref_status_text('Reference model status >> Loading data.')
         
         # Extract selected model catalog
         self.ref_model_cat = self.access_nri_cat.search(name=self.ref_keys_dropdown.value).to_source()
-        
-        # Check if plot already exists
-        if self.ref_figure_exists == False:
 
-            # Create new plot
-            self._display_reference_dataset_selection_ui()
-            
-        elif self.ref_figure_exists == True:
+        # Update text box
+        self._update_ref_status_text('Reference model status >> Data successfuly loaded.')
 
-            # Update existing plot
-            self._update_ref_dataset_keys_plot_ui()
-        
+        # Create new plot
+        self._display_reference_dataset_selection_ui()
+                    
         
         
     def _ref_dataset_dropdown_click(self):
@@ -278,19 +323,51 @@ class UserInterface():
         
         # Load selected access_nri catalog dataset
         self.ref_dataset = data._build_data_object(self.ref_model_cat, self.ref_data_keys_dropdown.value)
-        
-        # Check if plot already exists
-        if self.ref_figure_exists == False:
 
-            # Create new plot
-            self._display_ref_dataset_plot_ui()
+        # Create new plot
+        self._display_ref_dataset_plot_ui()
             
-        elif self.ref_figure_exists == True:
 
-            # Update existing plot
-            self._update_ref_dataset_plot_ui()
+
+    def _ref_clear_data_click(self):
+        """
+        Clears and 'unloads' selected reference model dataset from widget container. Private.
+        """
+
+        # Update text box
+        self._update_ref_status_text('Reference model status >> Data removed.')
+
+        # Remove reference model widgets from container one at a time
+        self.widget_container.pop(-1)
+        self.widget_container.pop(-1)
+        self.widget_container.pop(-1)
+        self.widget_container.pop(-1)
+
+        # Remove reference model ref_model_cat
+        del self.self.ref_model_cat
         
-        
+        # Remove reference dataset ref_dataset
+        del self.ref_dataset
+
+
+    def _ref_model_info_click(self):
+
+        # Update text box
+        self._update_ref_status_text('Reference model status >> Retrieving model metadata.')
+
+        # self.ref_model_metadata.value = self.access_nri_cat[self.ref_keys_dropdown.value].metadata['description']
+
+        self.ref_model_metadata.value = '<b>Model information:</b><br>' + \
+                                        '<b>Model:   </b>' + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata['model']) + '<br>' + \
+                                        '<b>Short description:   </b>' + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata['description']) + '<br>' + \
+                                        '<b>Nominal resolution:   </b>' + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata['nominal_resolution']) + '<br>' + \
+                                        '<b>Parent experiment:   </b>' + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata['parent_experiment']) + '<br>' + \
+                                        '<b>Long description:   </b>' + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata['long_description']) + '<br>' + \
+                                        '<b>Contact:   </b>' + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata['contact']) + '<br>' + \
+                                        '<b>Email:   </b>' + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata['email']) + '<br>'
+
+        # Update text box
+        self._update_ref_status_text('')
         
     def _display_dataset_plot_ui(self):
         
@@ -415,5 +492,6 @@ class UserInterface():
             plt.close(self.ref_fig)
 
             return self.ref_fig
+
         
         
