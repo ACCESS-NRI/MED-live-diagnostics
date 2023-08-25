@@ -32,12 +32,22 @@ The full documentation is available from `readthedocs <https://med-live-diagnost
 +---------------+----------------------+
 | Documentation | |docs|               |
 +---------------+----------------------+
+| Package       | |pypi| |conda|       |
++--------------------------------------+
 | License       | |license|            |
 +---------------+----------------------+
 
 .. |docs| image:: https://readthedocs.org/projects/med-live-diagnostics/badge/?version=latest
         :target: https://med-live-diagnostics.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
+
+.. |pypi| image:: https://img.shields.io/pypi/v/med-diagnostics
+        :target: https://pypi.org/project/med-diagnostics/
+        :alt: PyPI package
+        
+.. |conda| image:: https://img.shields.io/conda/v/accessnri/med-diagnostics
+        :target: https://anaconda.org/accessnri/med-diagnostics
+        :alt: Conda package
 
 .. |license| image:: https://img.shields.io/github/license/ACCESS-NRI/med-live-diagnostics
         :target: https://github.com/ACCESS-NRI/med-live-diagnostics/blob/main/LICENSE
