@@ -1,0 +1,38 @@
+{% set data = load_setup_py_data(setup_file='../setup.py', from_recipe_dir=True) %}
+{% set version = data.get('version') %}
+
+package:
+  name: med_diagnostics
+  version: "{{ version }}"
+
+source:
+  url: "https://pypi.io/packages/source/a/med-diagnostics/med_diagnostics-{{ version }}.tar.gz"
+
+build:
+  noarch: python
+  number: 0
+  script: "{{ PYTHON }} -m pip install . -vv"
+
+requirements:
+  host:
+    - python
+    - pip
+    - versioneer
+  run:
+    - python >=3.10
+    - access-nri-intake
+    - apscheduler
+    - panel
+    - matplotlib
+
+about:
+  home: https://github.com/ACCESS-NRI/med-live-diagnostics
+  license: Apache Software
+  license_family: APACHE
+  summary: "Interactive monitoring and diagnostic analyses of ACCESS climate models"
+  doc_url: https://med-live-diagnostics.readthedocs.io/en/latest
+
+extra:
+  recipe-maintainers:
+    - mtetley
+    - rbeucher
