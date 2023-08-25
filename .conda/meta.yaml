@@ -1,12 +1,13 @@
 {% set data = load_setup_py_data(setup_file='../setup.py', from_recipe_dir=True) %}
 {% set version = data.get('version') %}
+{% set name = 'med-diagnostics' %}
 
 package:
-  name: med_diagnostics
+  name: {{ name|lower }}
   version: "{{ version }}"
 
 source:
-  url: "https://pypi.io/packages/source/a/med-diagnostics/med-diagnostics-{{ version }}.tar.gz"
+  url: https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/{{ name }}-{{ version }}.tar.gz
 
 build:
   noarch: python
