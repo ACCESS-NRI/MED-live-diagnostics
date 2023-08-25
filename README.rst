@@ -29,13 +29,13 @@ The full documentation is available from `readthedocs <https://med-live-diagnost
 
 ------------
 
-+---------------+----------------------+
-| Documentation | |docs|               |
-+---------------+----------------------+
-| Package       | |pypi| |conda|       |
-+--------------------------------------+
-| License       | |license|            |
-+---------------+----------------------+
++---------------+-------------------------------------+
+| Documentation | |docs|                              |
++---------------+-------------------------------------+
+| Package       | |pypi| |conda|                      |
++---------------+-------------------------------------+
+| License       | |license|                           |
++---------------+-------------------------------------+
 
 .. |docs| image:: https://readthedocs.org/projects/med-live-diagnostics/badge/?version=latest
         :target: https://med-live-diagnostics.readthedocs.io/en/latest/?badge=latest
