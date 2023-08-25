@@ -13,7 +13,7 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
-dependencies = ["apscheduler", access-nri-intake", "panel",  "matplotlib"]
+dependencies = ["apscheduler", "access-nri-intake", "panel",  "matplotlib"]
 dynamic = ["version"]
 
 [build-system]
@@ -30,7 +30,7 @@ where = ["src"]
 [tool.versioneer]
 VCS = "git"
 style = "pep440"
-versionfile_source = "med_diagnostics/_version.py"
+versionfile_source = "src/med_diagnostics/_version.py"
 versionfile_build = "med_diagnostics/_version.py"
 tag_prefix = "v"
 parentdir_prefix = "med_diagnostics-"
