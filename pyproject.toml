@@ -4,7 +4,7 @@ authors = [
     { name = "ACCESS-NRI" },
 ]
 description = "ACCESS MED-Diagnostics"
-readme = "README.md"
+readme = "README.rst"
 requires-python = ">=3.10"
 license = {text = "APACHE-2.0"}
 classifiers = [
