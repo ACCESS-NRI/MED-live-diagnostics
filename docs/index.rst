@@ -41,7 +41,7 @@ Prerequisites
 ^^^^^^^^^^^^^
 
 As MLD uses both the `ACCESS-NRI Intake Catalog <https://github.com/ACCESS-NRI/access-nri-intake-catalog/tree/main>`_ to handle model data 
-and the `Australian Research Environment (ARE) <https://are-auth.nci.org.au/>`_ to run JupyterLab, you will need to have the following:
+and the `Australian Research Environment (ARE) <https://are.nci.org.au/>`_ to run JupyterLab, you will need to have the following:
 
 #. **An account at NCI**: see the `NCI documentation for creating an account <https://opus.nci.org.au/display/Help/How+to+create+an+NCI+user+account>`_ if you don't have one. 
    Note you will need to join a project with a compute allocation. If you don't know what project is 
@@ -70,7 +70,7 @@ Installation and getting started
 ^^^^^^^^^^^^^
 #. Clone the **MED-live-diagnostics** repository found at https://github.com/ACCESS-NRI/MED-live-diagnostics to an accessbile project location on Gadi.
 
-#. Log into to `ARE <are.nci.org.au>`_ and start a JupyterLab instance with the following minimum recommended settings:
+#. Log into to `ARE <https://are.nci.org.au>`_ and start a JupyterLab instance with the following minimum recommended settings:
 
    As these datasets are fairly large / memory intensive, the following 'Custom' settings are recommended to minimise SU consumption:
 
@@ -89,4 +89,4 @@ Installation and getting started
    +-----------------------+-------------------------------------+
 
 #. You should now have an ARE JupyterLab instance running using the `ACCESS-NRI MED Conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_.
-#. Open the tutorial notebook from the `examples <https://github.com/ACCESS-NRI/MED-live-diagnostics/tree/main/examples>`_ directory, update the path to your MLD clone on Gadi and get started! 
+#. Open the `Getting started tutorial notebook <https://med-live-diagnostics.readthedocs.io/en/latest/notebooks/getting_started_tutorial.html>`_ in the notebooks directory, update the path to your MLD clone on Gadi and get started! 
