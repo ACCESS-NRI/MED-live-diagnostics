@@ -21,6 +21,14 @@ so watch this space for version updates containing new features, model diagnosti
 We value your feedback, especially in the form of reporting issues/bugs or suggesting ways to improve the framework. To do so, please open an 
 `issue <https://github.com/ACCESS-NRI/MED-live-diagnostics/issues>`_.
 
+Installation instructions
+=========================
+The med-diagnostics package can be installed either from the `access-nri conda channel <https://anaconda.org/accessnri/med-diagnostics>`_ or `PyPI <https://pypi.org/project/med-diagnostics/>`_.
+
+.. code-block:: text
+:conda: conda install -c accessnri med-diagnostics
+:PyPI: pip install med-diagnostics
+
 Getting started
 =========================
 An example Jupyter notebook describing usage options can be found in the `docs/notebooks <https://github.com/ACCESS-NRI/MED-live-diagnostics/tree/main/docs/notebooks>`_ directory.
