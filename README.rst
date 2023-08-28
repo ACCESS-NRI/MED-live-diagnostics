@@ -25,9 +25,11 @@ Installation instructions
 =========================
 The med-diagnostics package can be installed either from the `access-nri conda channel <https://anaconda.org/accessnri/med-diagnostics>`_ or `PyPI <https://pypi.org/project/med-diagnostics/>`_.
 
-.. code-block:: text
-:conda: conda install -c accessnri med-diagnostics
-:PyPI: pip install med-diagnostics
++---------------+---------------------------------------------+
+| conda         | conda install -c accessnri med-diagnostics  |
++---------------+---------------------------------------------+
+| PyPI          | pip install med-diagnostics                 |
++---------------+---------------------------------------------+
 
 Getting started
 =========================
