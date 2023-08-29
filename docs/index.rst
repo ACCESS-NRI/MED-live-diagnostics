@@ -9,7 +9,7 @@ ACCESS-NRI Model Diagnostics
    notebooks/getting_started_tutorial
    med_diagnostics
 
-Current version 0.0.1
+Current version ``v0.0.1``
 
 Welcome to the documentation and reference guide for the `ACCESS-NRI <https://www.access-nri.org.au/>`_ Model Live Diagnostics package. 
 The Model Live Diagnostics framework is designed to provide useful and practical Jupyter-based tools for interactive monitoring and diagnostic 
@@ -34,36 +34,28 @@ so watch this space for version updates containing new features, model diagnosti
 
 Quick-start guide
 ==================
-The ACCESS-NRI Model Live Diagnostics framework is intended to be used in JupyterLab sessions running on Gadi. While it may be possible 
+The ACCESS-NRI Model Live Diagnostics framework is intended to be used in ARE ``JupyterLab`` sessions running on Gadi. While it may be possible 
 to use the framework outside of Jupyter notebooks, user experience will be impacted as this option is not supported.
 
 Prerequisites
 ^^^^^^^^^^^^^
 
 As MLD uses both the `ACCESS-NRI Intake Catalog <https://github.com/ACCESS-NRI/access-nri-intake-catalog/tree/main>`_ to handle model data 
-and the `Australian Research Environment (ARE) <https://are.nci.org.au/>`_ to run JupyterLab, you will need to have the following:
+and the `Australian Research Environment (ARE) <https://are.nci.org.au/>`_ to run ``JupyterLab``, users require the following:
 
 #. **An account at NCI**: see the `NCI documentation for creating an account <https://opus.nci.org.au/display/Help/How+to+create+an+NCI+user+account>`_ if you don't have one. 
-   Note you will need to join a project with a compute allocation. If you don't know what project is 
-   appropriate you will need to seek help from your local group or IT support.
+   Note you will need to join a project with a compute allocation in order to run MLD. If you don't know what project is appropriate you will need to seek help from your local 
+   group or IT support.
 
-#. **Access to the project(s) that house the model data you are interested in**: the ACCESS-NRI Intake Catalog references data 
+#. **Access to the project(s) that house the model data you are interested in**: the `ACCESS-NRI Intake Catalog <https://github.com/ACCESS-NRI/access-nri-intake-catalog/tree/main>`_ references data 
    products across multiple projects on Gadi. You can find the list of currently support projects 
    `here <https://github.com/ACCESS-NRI/access-nri-intake-catalog/blob/main/docs/project_list.rst>`_.
 
    If you wish to be able to access **all** the data in the ACCESS-NRI Intake Catalog, you will need to be a member of **all** 
-   these projects. See the `NCI documentation for how to join projects <https://opus.nci.org.au/display/Help/How+to+connect+to+a+project>`_.
+   the supported projects listed in the link above. See the `NCI documentation for how to join projects <https://opus.nci.org.au/display/Help/How+to+connect+to+a+project>`_.
 
    .. attention::
-      ACCESS-NRI Intake Catalog users will only be able to load data from projects that they have access to.
-
-#. **Access to the** :code:`xp65` **or** :code:`hh5` **projects**: these projects provide public 
-   analysis environments in which the ACCESS-NRI Intake Catalog is installed (along with many other useful 
-   packages). Alternatively, you can install the ACCESS-NRI Intake Catalog into your own environment.
-
-   .. warning::
-      The ACCESS-NRI Intake Catalog is actually not yet installed in the :code:`hh5` environments, so for now 
-      you'll have to use the :code:`xp65` environment.
+      Users will only be able to load data from projects that they have access to.
 
 
 Installation and getting started
