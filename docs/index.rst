@@ -56,13 +56,12 @@ and the `Australian Research Environment (ARE) <https://are.nci.org.au/>`_ to ru
 
 #. **RECOMMENDED** Join the ACCESS-NRI project ``xp65`` to gain access to the `ACCESS-NRI conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_ on Gadi.
 
-
 Using the package
-=========================
+^^^^^^^^^^^^^
 
 The full documentation is available from `readthedocs <https://med-live-diagnostics.readthedocs.io/en/latest/index.html>`_. 
 
-Start an ARE JupyterLab session for Model Live Diagnostics
+Start an ARE JupyterLab session
 ^^^^^^^^^^^^^
 
 #. Log into to `ARE <https://are.nci.org.au>`_ and start a ``JupyterLab`` instance with the following recommended settings:
