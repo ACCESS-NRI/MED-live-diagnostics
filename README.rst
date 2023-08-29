@@ -1,5 +1,3 @@
-![ACCESS-NRI](https://www.access-nri.org.au/wp-content/themes/accessnri/images/logos/access_logo_rgb.svg)
-
 =========================
 ACCESS-NRI Model Live Diagnostics v0.0.1
 =========================
