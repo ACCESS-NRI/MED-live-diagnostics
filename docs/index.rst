@@ -59,8 +59,6 @@ and the `Australian Research Environment (ARE) <https://are.nci.org.au/>`_ to ru
 
 Using the package
 =========================
-      
-An example Jupyter notebook describing usage options can be found in the `docs/notebooks <https://github.com/ACCESS-NRI/MED-live-diagnostics/tree/main/docs/notebooks>`_ directory.
 
 The full documentation is available from `readthedocs <https://med-live-diagnostics.readthedocs.io/en/latest/index.html>`_. 
 
@@ -90,7 +88,7 @@ Start an ARE JupyterLab session for Model Live Diagnostics
 
 #. You should now have an ARE ``JupyterLab`` instance running using the `ACCESS-NRI MED Conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_.
 
-#. Open the 'Getting started' tutorial found `here <https://med-live-diagnostics.readthedocs.io/en/latest/notebooks/getting_started_tutorial.html>`_.
+#. Follow the 'Getting started' tutorial found `here <https://med-live-diagnostics.readthedocs.io/en/latest/notebooks/getting_started_tutorial.html>`_ to begin your first Model Live Diagnostics session.
 
 Installing the package directly
 ^^^^^^^^^^^^^
