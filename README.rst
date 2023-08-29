@@ -26,28 +26,25 @@ Usage / installation instructions
 The med-diagnostics package is pre-installed in the Gadi `ACCESS-NRI MED conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_. To use this environment for your ARE JupyterLab session
 simply set the following parameters in the ARE JupyterLab 'Advanced options':
 
-+-------------------------+------------------------------+
-| Module directories      | /g/data/xp65/public/modules  |
-+-------------------------+------------------------------+
-| Modules                 | conda/are                    |
-+-------------------------+------------------------------+
++-------------------------+----------------------------------+
+| Module directories      | ``/g/data/xp65/public/modules``  |
++-------------------------+----------------------------------+
+| Modules                 | ``conda/are``                    |
++-------------------------+----------------------------------+
 
 Alternatively, the med-diagnostics package can be installed directly into your chosen conda environment on Gadi either from the 
 `access-nri conda channel <https://anaconda.org/accessnri/med-diagnostics>`_ or `PyPI <https://pypi.org/project/med-diagnostics/>`_.
 
-+---------------+---------------------------------------------+
-| conda         | conda install -c accessnri med-diagnostics  |
-+---------------+---------------------------------------------+
-| PyPI          | pip install med-diagnostics                 |
-+---------------+---------------------------------------------+
++---------------+-------------------------------------------------+
+| conda         | ``conda install -c accessnri med-diagnostics``  |
++---------------+-------------------------------------------------+
+| PyPI          | ``pip install med-diagnostics``                 |
++---------------+-------------------------------------------------+
 
 Getting started
 =========================
-After installing, to use the med-diagnostics package use:
+After installing, to use the med-diagnostics package use: ``import med_diagnostics``         
 
-+------------------------------------+
-| import med_diagnostics             |
-+------------------------------------+
 
 An example Jupyter notebook describing usage options can be found in the `docs/notebooks <https://github.com/ACCESS-NRI/MED-live-diagnostics/tree/main/docs/notebooks>`_ directory.
 
