@@ -54,15 +54,13 @@ and the `Australian Research Environment (ARE) <https://are.nci.org.au/>`_ to ru
    If you wish to be able to access **ALL** the data in the ACCESS-NRI Intake Catalog, you will need to be a member of **ALL** supported projects. If you are unsure how to join projects on Gadi, 
    please see the `NCI documentation <https://opus.nci.org.au/display/Help/How+to+connect+to+a+project>`_ for instructions.
 
-#. **RECOMMENDED** Join the ACCESS-NRI project ``xp65`` to gain access to the `ACCESS-NRI conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_ on Gadi which comes pre-loaded with everything you need
-   to run Model Live Diagnostics sessions.
+#. **RECOMMENDED** Join the ACCESS-NRI project ``xp65`` to gain access to the `ACCESS-NRI conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_ on Gadi.
 
 
 Installation and getting started
 ^^^^^^^^^^^^^
-The Model Live Diagnostics (med-diagnostics) package is pre-installed in the Gadi `ACCESS-NRI MED conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_. To use this environment for your ARE JupyterLab session,
-membership of the NCI project ``xp65``.
-simply set the following parameters in the ARE JupyterLab 'Advanced options':
+It is recommended that you use the `ACCESS-NRI MED conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_ that comes pre-installed with the Model Live Diagnostics package
+when running ARE JupyterLab sessions. To do this, simply set the following parameters in the ARE JupyterLab 'Advanced options':
 
 +-------------------------+----------------------------------+
 | Module directories      | ``/g/data/xp65/public/modules``  |
@@ -79,7 +77,7 @@ Alternatively, the med-diagnostics package can be installed directly into your c
 | PyPI          | ``pip install med-diagnostics``                 |
 +---------------+-------------------------------------------------+
 
-Getting started
+Using the package
 =========================
 After installing, to use the med-diagnostics package use: ``import med_diagnostics``         
 
@@ -96,18 +94,18 @@ The full documentation is available from `readthedocs <https://med-live-diagnost
 
    As these datasets are fairly large / memory intensive, the following 'Custom' settings are recommended to minimise SU consumption:
 
-   +-----------------------+-------------------------------------+
-   | Compute Size          | Custom (2 cpus, 18G mem)            |  
-   +-----------------------+-------------------------------------+
-   | Storage               | All projects you wish to access     |     
-   +-----------------------+-------------------------------------+
+   +-----------------------+----------------------------------------------+
+   | Compute Size          | Custom (2 cpus, 18G mem)                     |  
+   +-----------------------+----------------------------------------------+
+   | Storage               | e.g. ``gdata/project1+gdata/project2``       |     
+   +-----------------------+----------------------------------------------+
    
    Advanced Options:
    
    +-----------------------+-------------------------------------+
-   | Module directories    | /g/data/xp65/public/modules         |
+   | Module directories    | ``/g/data/xp65/public/modules``     |
    +-----------------------+-------------------------------------+
-   | Modules               | conda/access-med                    |
+   | Modules               | ``conda/access-med``                |
    +-----------------------+-------------------------------------+
 
 #. You should now have an ARE JupyterLab instance running using the `ACCESS-NRI MED Conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_.
