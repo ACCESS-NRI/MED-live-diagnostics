@@ -57,40 +57,17 @@ and the `Australian Research Environment (ARE) <https://are.nci.org.au/>`_ to ru
 #. **RECOMMENDED** Join the ACCESS-NRI project ``xp65`` to gain access to the `ACCESS-NRI conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_ on Gadi.
 
 
-Installation and getting started
-^^^^^^^^^^^^^
-It is recommended that you use the `ACCESS-NRI MED conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_ that comes pre-installed with the Model Live Diagnostics package
-when running ARE JupyterLab sessions. To do this, simply set the following parameters in the ARE JupyterLab 'Advanced options':
-
-+-------------------------+----------------------------------+
-| Module directories      | ``/g/data/xp65/public/modules``  |
-+-------------------------+----------------------------------+
-| Modules                 | ``conda/are``                    |
-+-------------------------+----------------------------------+
-
-Alternatively, the med-diagnostics package can be installed directly into your chosen conda environment on Gadi either from the 
-`access-nri conda channel <https://anaconda.org/accessnri/med-diagnostics>`_ or `PyPI <https://pypi.org/project/med-diagnostics/>`_.
-
-+---------------+-------------------------------------------------+
-| conda         | ``conda install -c accessnri med-diagnostics``  |
-+---------------+-------------------------------------------------+
-| PyPI          | ``pip install med-diagnostics``                 |
-+---------------+-------------------------------------------------+
-
 Using the package
 =========================
-After installing, to use the med-diagnostics package use: ``import med_diagnostics``         
-
-
+      
 An example Jupyter notebook describing usage options can be found in the `docs/notebooks <https://github.com/ACCESS-NRI/MED-live-diagnostics/tree/main/docs/notebooks>`_ directory.
 
 The full documentation is available from `readthedocs <https://med-live-diagnostics.readthedocs.io/en/latest/index.html>`_. 
 
+Start an ARE JupyterLab session for Model Live Diagnostics
+^^^^^^^^^^^^^
 
-
-#. Clone the **MED-live-diagnostics** repository found at https://github.com/ACCESS-NRI/MED-live-diagnostics to an accessbile project location on Gadi.
-
-#. Log into to `ARE <https://are.nci.org.au>`_ and start a JupyterLab instance with the following minimum recommended settings:
+#. Log into to `ARE <https://are.nci.org.au>`_ and start a ``JupyterLab`` instance with the following recommended settings:
 
    As these datasets are fairly large / memory intensive, the following 'Custom' settings are recommended to minimise SU consumption:
 
@@ -101,12 +78,29 @@ The full documentation is available from `readthedocs <https://med-live-diagnost
    +-----------------------+----------------------------------------------+
    
    Advanced Options:
-   
-   +-----------------------+-------------------------------------+
-   | Module directories    | ``/g/data/xp65/public/modules``     |
-   +-----------------------+-------------------------------------+
-   | Modules               | ``conda/access-med``                |
-   +-----------------------+-------------------------------------+
 
-#. You should now have an ARE JupyterLab instance running using the `ACCESS-NRI MED Conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_.
-#. Open the `Getting started tutorial notebook <https://med-live-diagnostics.readthedocs.io/en/latest/notebooks/getting_started_tutorial.html>`_ in the notebooks directory, update the path to your MLD clone on Gadi and get started! 
+   It is recommended that you use the `ACCESS-NRI MED conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_ that comes pre-installed with the Model Live Diagnostics package
+   when running ARE JupyterLab sessions.
+   
+   +-------------------------+----------------------------------+
+   | Module directories      | ``/g/data/xp65/public/modules``  |
+   +-------------------------+----------------------------------+
+   | Modules                 | ``conda/are``                    |
+   +-------------------------+----------------------------------+
+
+#. You should now have an ARE ``JupyterLab`` instance running using the `ACCESS-NRI MED Conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_.
+
+#. Open the 'Getting started' tutorial found `here <https://med-live-diagnostics.readthedocs.io/en/latest/notebooks/getting_started_tutorial.html>`_.
+
+Installing the package directly
+^^^^^^^^^^^^^
+
+Alternatively, the med-diagnostics package can be installed directly into your chosen conda environment on Gadi either from the 
+`access-nri conda channel <https://anaconda.org/accessnri/med-diagnostics>`_ or `PyPI <https://pypi.org/project/med-diagnostics/>`_.
+
++---------------+-------------------------------------------------+
+| conda         | ``conda install -c accessnri med-diagnostics``  |
++---------------+-------------------------------------------------+
+| PyPI          | ``pip install med-diagnostics``                 |
++---------------+-------------------------------------------------+
+
