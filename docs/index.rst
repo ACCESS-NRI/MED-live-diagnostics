@@ -9,17 +9,17 @@ ACCESS-NRI Model Diagnostics
    notebooks/getting_started_tutorial
    med_diagnostics
 
-Version 0.0.1
+Current version 0.0.1
 
 Welcome to the documentation and reference guide for the `ACCESS-NRI <https://www.access-nri.org.au/>`_ Model Live Diagnostics package. 
 The Model Live Diagnostics framework is designed to provide useful and practical Jupyter-based tools for interactive monitoring and diagnostic 
 analyses of currently running (aka 'live') ACCESS climate models on the Australian NCI supercomputer Gadi.
 
 This documentation aims to introduce these new tools, and support both new and existing users to get the most out of them using the 
-Australia Research Environment (ARE).
+`Australia Research Environment <https://are.nci.org.au/>`_ (ARE).
 
-The ACCESS-NRI Model Live Diagnostics package, and the tools that support it, are still a work in progress. We value your feedback, 
-especially in the form of reporting issues/bugs or suggesting ways to improve the framework. To do so, please open an 
+The ACCESS-NRI Model Live Diagnostics package, and the tools that support it, are still a work in progress. We value your constructive feedback, 
+especially in the form of reporting issues/bugs or suggesting ways to improve the framework. To do so, please feel free to open an 
 issue `here <https://github.com/ACCESS-NRI/MED-live-diagnostics/issues>`_.
 
 What does this package do?
@@ -34,7 +34,7 @@ so watch this space for version updates containing new features, model diagnosti
 
 Quick-start guide
 ==================
-The ACCESS-NRI Model Live Diagnostics framework is intended to be used in Jupyter notebooks running on Gadi. While it may be possible 
+The ACCESS-NRI Model Live Diagnostics framework is intended to be used in JupyterLab sessions running on Gadi. While it may be possible 
 to use the framework outside of Jupyter notebooks, user experience will be impacted as this option is not supported.
 
 Prerequisites
@@ -75,7 +75,7 @@ Installation and getting started
    As these datasets are fairly large / memory intensive, the following 'Custom' settings are recommended to minimise SU consumption:
 
    +-----------------------+-------------------------------------+
-   | Compute Size          | Custom (2 cpus, 32G mem)            |  
+   | Compute Size          | Custom (2 cpus, 18G mem)            |  
    +-----------------------+-------------------------------------+
    | Storage               | All projects you wish to access     |     
    +-----------------------+-------------------------------------+
