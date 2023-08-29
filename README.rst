@@ -21,9 +21,19 @@ so watch this space for version updates containing new features, model diagnosti
 We value your feedback, especially in the form of reporting issues/bugs or suggesting ways to improve the framework. To do so, please open an 
 `issue <https://github.com/ACCESS-NRI/MED-live-diagnostics/issues>`_.
 
-Installation instructions
+Usage / installation instructions
 =========================
-The med-diagnostics package can be installed either from the `access-nri conda channel <https://anaconda.org/accessnri/med-diagnostics>`_ or `PyPI <https://pypi.org/project/med-diagnostics/>`_.
+The med-diagnostics package is pre-installed in the Gadi `ACCESS-NRI MED conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_. To use this environment for your ARE JupyterLab session
+simply set the following parameters in the ARE JupyterLab 'Advanced options':
+
++-------------------------+------------------------------+
+| Module directories      | /g/data/xp65/public/modules  |
++-------------------------+------------------------------+
+| Nodules                 | conda/are                    |
++-------------------------+------------------------------+
+
+Alternatively, the med-diagnostics package can be installed directly into your chosen conda environment on Gadi either from the 
+`access-nri conda channel <https://anaconda.org/accessnri/med-diagnostics>`_ or `PyPI <https://pypi.org/project/med-diagnostics/>`_.
 
 +---------------+---------------------------------------------+
 | conda         | conda install -c accessnri med-diagnostics  |
@@ -33,6 +43,12 @@ The med-diagnostics package can be installed either from the `access-nri conda c
 
 Getting started
 =========================
+After installing, to use the med-diagnostics package use:
+
++------------------------------------+
+| import med_diagnostics             |
++------------------------------------+
+
 An example Jupyter notebook describing usage options can be found in the `docs/notebooks <https://github.com/ACCESS-NRI/MED-live-diagnostics/tree/main/docs/notebooks>`_ directory.
 
 The full documentation is available from `readthedocs <https://med-live-diagnostics.readthedocs.io/en/latest/index.html>`_. 
