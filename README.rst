@@ -1,3 +1,5 @@
+[![ACCESS-NRI](https://www.access-nri.org.au/wp-content/themes/accessnri/images/logos/access_logo_rgb.svg)](https://www.access-nri.org.au/)
+
 =========================
 ACCESS-NRI Model Live Diagnostics v0.0.1
 =========================
@@ -15,7 +17,7 @@ visualise and compare legacy ACCESS model data with the selected live user model
 What does this package do?
 =========================
 
-This package is currently in active development within the Model Evaluation Team at the `Australian Earth System Symulator (ACCESS-NRI) <https://www.access-nri.org.au/>`_
+This package is currently in active development within the Model Evaluation Team at the `Australian Earth System Simulator (ACCESS-NRI) <https://www.access-nri.org.au/>`_
 so watch this space for version updates containing new features, model diagnostics tools and visualisation options! 
 
 We value your feedback, especially in the form of reporting issues/bugs or suggesting ways to improve the framework. To do so, please open an 
