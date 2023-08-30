@@ -24,7 +24,7 @@ We value your feedback, especially in the form of reporting issues/bugs or sugge
 Usage / installation instructions
 =========================
 The med-diagnostics package is pre-installed in the Gadi `ACCESS-NRI MED conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_. To use this environment for your ARE JupyterLab session
-simply set the following parameters in the ARE JupyterLab 'Advanced options':
+simply set the following parameters in the ARE JupyterLab **'Advanced options'**:
 
 +-------------------------+----------------------------------+
 | Module directories      | ``/g/data/xp65/public/modules``  |
