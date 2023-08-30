@@ -87,7 +87,7 @@ Start an ARE JupyterLab session
 Installing the package directly
 ^^^^^^^^^^^^^
 
-Alternatively, the med-diagnostics package can be installed directly into your chosen conda environment on Gadi either from the 
+Alternatively, the Model Live Diagnostics package can be installed directly into your chosen conda environment on Gadi either from the 
 `access-nri conda channel <https://anaconda.org/accessnri/med-diagnostics>`_ or `PyPI <https://pypi.org/project/med-diagnostics/>`_.
 
 +---------------+-------------------------------------------------+
