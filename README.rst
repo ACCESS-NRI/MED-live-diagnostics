@@ -29,7 +29,7 @@ simply set the following parameters in the ARE JupyterLab **'Advanced options'**
 +-------------------------+----------------------------------+
 | Module directories      | ``/g/data/xp65/public/modules``  |
 +-------------------------+----------------------------------+
-| Modules                 | ``conda/access-med``                    |
+| Modules                 | ``conda/access-med``             |
 +-------------------------+----------------------------------+
 
 Alternatively, the med-diagnostics package can be installed directly into your chosen conda environment on Gadi either from the 
