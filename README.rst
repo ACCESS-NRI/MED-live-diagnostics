@@ -43,7 +43,7 @@ Alternatively, the med-diagnostics package can be installed directly into your c
 
 Getting started
 =========================
-After installing, to use the med-diagnostics package use: ``import med_diagnostics``         
+To use the med-diagnostics package use: ``import med_diagnostics``         
 
 
 An example Jupyter notebook describing usage options can be found in the `docs/notebooks <https://github.com/ACCESS-NRI/MED-live-diagnostics/tree/main/docs/notebooks>`_ directory.
