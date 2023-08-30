@@ -35,11 +35,11 @@ simply set the following parameters in the ARE JupyterLab 'Advanced options':
 Alternatively, the med-diagnostics package can be installed directly into your chosen conda environment on Gadi either from the 
 `access-nri conda channel <https://anaconda.org/accessnri/med-diagnostics>`_ or `PyPI <https://pypi.org/project/med-diagnostics/>`_.
 
-+---------------+-------------------------------------------------+
-| conda         | ``conda install -c accessnri med-diagnostics``  |
-+---------------+-------------------------------------------------+
-| PyPI          | ``pip install med-diagnostics``                 |
-+---------------+-------------------------------------------------+
++-------------------------+-------------------------------------------------+
+| conda                   | ``conda install -c accessnri med-diagnostics``  |
++-------------------------+-------------------------------------------------+
+| PyPI                    | ``pip install med-diagnostics``                 |
++-------------------------+-------------------------------------------------+
 
 Getting started
 =========================
