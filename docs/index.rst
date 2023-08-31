@@ -44,7 +44,7 @@ Model Live diagnostics uses both the `ACCESS-NRI Intake Catalog <https://github.
 and the `Australian Research Environment (ARE) <https://are.nci.org.au/>`_ to run ``JupyterLab`` sessions. Before starting, please ensure you:
 
 #. **Have an account at NCI**: see the `NCI documentation for creating an account <https://opus.nci.org.au/display/Help/How+to+create+an+NCI+user+account>`_ if you don't have one. 
-   Note you will need to join a project with a compute allocation in order to run MLD. If you don't know what project is appropriate you will need to seek help from your local 
+   Note you will need to join a project with a compute allocation in order to run MLD. If you don't know which project is appropriate you will need to seek help from your local 
    group or IT support.
 
 #. **Access to the project(s) that house the model data you are interested in**: the `ACCESS-NRI Intake Catalog <https://github.com/ACCESS-NRI/access-nri-intake-catalog/tree/main>`_ references data 
@@ -87,7 +87,7 @@ Start an ARE JupyterLab session
 Installing the package directly
 ^^^^^^^^^^^^^
 
-Alternatively, the med-diagnostics package can be installed directly into your chosen conda environment on Gadi either from the 
+Alternatively, the Model Live Diagnostics package can be installed directly into your chosen conda environment on Gadi either from the 
 `access-nri conda channel <https://anaconda.org/accessnri/med-diagnostics>`_ or `PyPI <https://pypi.org/project/med-diagnostics/>`_.
 
 +---------------+-------------------------------------------------+
