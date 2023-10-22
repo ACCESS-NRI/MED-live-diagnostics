@@ -1,6 +1,6 @@
-=========================
+=========================================
 ACCESS-NRI Model Live Diagnostics v0.0.1
-=========================
+=========================================
 
 **Framework for interactive monitoring and diagnostic analyses of the ACCESS model suite.**
 
@@ -13,7 +13,7 @@ models on Gadi. In addition to monitoring a live model, the package provides the
 visualise and compare legacy ACCESS model data with the selected live user model.
 
 What does this package do?
-=========================
+===========================
 
 This package is currently in active development within the Model Evaluation Team at the `Australian Earth System Simulator (ACCESS-NRI) <https://www.access-nri.org.au/>`_
 so watch this space for version updates containing new features, model diagnostics tools and visualisation options! 
@@ -22,7 +22,7 @@ We value your feedback, especially in the form of reporting issues/bugs or sugge
 `issue <https://github.com/ACCESS-NRI/MED-live-diagnostics/issues>`_.
 
 Usage / installation instructions
-=========================
+==================================
 The med-diagnostics package is pre-installed in the Gadi `ACCESS-NRI MED conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_. To use this environment for your ARE JupyterLab session
 simply set the following parameters in the ARE JupyterLab **'Advanced options'**:
 
