@@ -19,6 +19,7 @@ requirements:
     - python
     - pip
     - versioneer
+    - tomli
   run:
     - python >=3.10
     - access-nri-intake
