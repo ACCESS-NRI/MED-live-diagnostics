@@ -35,11 +35,7 @@ jobs:
     name: build and deploy to conda
     needs: pypi
     if: always() && needs.pypi.result == 'success'
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [macOS-latest, ubuntu-latest, windows-latest]
-        python-version: ["3.10", "3.11"]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout source
@@ -49,7 +45,7 @@ jobs:
         uses: conda-incubator/setup-miniconda@v2
         with:
           miniconda-version: "latest"
-          python-version: ${{ matrix.python-version }}
+          python-version: 3.11
           environment-file: .conda/environment.yml
           auto-update-conda: false
           auto-activate-base: false
@@ -59,9 +55,9 @@ jobs:
         uses: uibcdf/action-build-and-upload-conda-packages@v1.2.0
         with:
           meta_yaml_dir: .conda
-          python-version: ${{ matrix.python-version }}
+          python-version: 3.11
           overwrite: true
           user: accessnri
-          label: main
+          label: auto
           token: ${{ secrets.anaconda_token }}
 
