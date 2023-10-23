@@ -21,7 +21,7 @@ requirements:
     - versioneer
     - tomli
   run:
-    - python >=3.9
+    - python >=3.10
     - access-nri-intake
     - apscheduler
     - panel
