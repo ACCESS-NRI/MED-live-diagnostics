@@ -58,6 +58,6 @@ jobs:
           python-version: 3.11
           overwrite: true
           user: accessnri
-          label: auto
+          label: main
           token: ${{ secrets.anaconda_token }}
 
