@@ -60,6 +60,7 @@ jobs:
         with:
           meta_yaml_dir: .conda
           python-version: ${{ matrix.python-version }}
+          overwrite: true
           user: accessnri
           label: main
           token: ${{ secrets.anaconda_token }}
