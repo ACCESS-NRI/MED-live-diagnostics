@@ -35,9 +35,10 @@ jobs:
     name: build and deploy to conda
     needs: pypi
     if: always() && needs.pypi.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [macOS-latest, ubuntu-latest, windows-latest]
         python-version: ["3.10", "3.11"]
 
     steps:
@@ -59,9 +60,6 @@ jobs:
         with:
           meta_yaml_dir: .conda
           python-version: ${{ matrix.python-version }}
-          platform_linux-64: true
-          platform_osx-64: true
-          platform_win-64: true
           user: accessnri
           label: main
           token: ${{ secrets.anaconda_token }}
