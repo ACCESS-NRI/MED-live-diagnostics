@@ -5,7 +5,7 @@ authors = [
 ]
 description = "ACCESS MED-Diagnostics"
 readme = "README.rst"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 license = {text = "APACHE-2.0"}
 classifiers = [
     "Development Status :: 4 - Beta",
