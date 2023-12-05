@@ -8,7 +8,6 @@ import os
 import time
 import intake
 
-# from access_nri_intake.esmcat.builders import AccessCm2Builder # for use with med_diagnostics_test_env
 from access_nri_intake.source.builders import AccessCm2Builder # for use with access-med-env
 
 

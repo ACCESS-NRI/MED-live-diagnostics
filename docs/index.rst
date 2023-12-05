@@ -9,7 +9,7 @@ ACCESS-NRI Model Diagnostics
    notebooks/getting_started_tutorial
    med_diagnostics
 
-Current version ``v0.0.1``
+Current version ``v1.0``
 
 Welcome to the documentation and reference guide for the `ACCESS-NRI <https://www.access-nri.org.au/>`_ Model Live Diagnostics package. 
 The Model Live Diagnostics framework is designed to provide useful and practical Jupyter-based tools for interactive monitoring and diagnostic 
@@ -77,7 +77,7 @@ Start an ARE JupyterLab session
    +-------------------------+----------------------------------+
    | Module directories      | ``/g/data/xp65/public/modules``  |
    +-------------------------+----------------------------------+
-   | Modules                 | ``conda/are``                    |
+   | Modules                 | ``conda/access-med``             |
    +-------------------------+----------------------------------+
 
 #. You should now have an ARE ``JupyterLab`` instance running using the `ACCESS-NRI MED Conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_.
