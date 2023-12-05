@@ -143,20 +143,8 @@ class CreateModelDiagnosticsSession():
             # Data loading procedure for update step
             elif self.data_update == True:
                 
-                self.ui._update_status_text('User model status >> New data found.')
+                self.ui._update_status_text('User model status >> New data found. Please restart session to view new data.')
                 
-                ## Need to work on UI updates during data update
-                
-            
-#                 # Update self.model_data with new data
-#                 self.model_data = new_model_data
-
-#                 # Load new catalog
-#                 self.model_cat = data._load_new_catalog()
-
-#                 # Generate UI
-#                 self.ui._display_dataset_selection_ui(self.model_cat)
-            
         
     def return_model_data_catalog(self):
         
