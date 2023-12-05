@@ -1,4 +1,4 @@
-ACCESS-NRI Model Diagnostics 
+ACCESS-NRI Model Live Diagnostics 
 ============================
 
 .. toctree::
