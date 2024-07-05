@@ -8,7 +8,7 @@ import os
 import intake
 import panel as pn
 
-from apscheduler.schedulers.background import BackgroundScheduler
+#from apscheduler.schedulers.background import BackgroundScheduler
 from med_diagnostics import data, ui
 from distributed import Client
 
@@ -51,24 +51,12 @@ class CreateModelDiagnosticsSession():
         # Start dask client
         self.client = Client(threads_per_worker=1)
         
-        print()
-        print('----------------------- Live diagnostics session started -----------------------')
-        print()
-        print('Model type:', str(model_type))
-        print('Model data path:', self.model_path)
-        print('Model data update period:', self.period, 'mins')
-        print()
-        print('Started dask client:', self.client.dashboard_link)
-        print()
-        print('--------------------------------------------------------------------------------')
-        print()
-        
         # Start UserUI instance and display initial status text
         self.ui = ui.UserInterface()
-        self.ui._display_status_text()
-        
+        self.ui._display_status_text(str(model_type), self.model_path, self.client.dashboard_link)
+
         # Start data scheduler
-        self._start_scheduler()
+        # self._start_scheduler() - not being used for now as rate of typical model output is too slow (~4-5h)
         
         # Get initial model data
         self._get_data()
@@ -92,12 +80,12 @@ class CreateModelDiagnosticsSession():
         Stop background scheduler and close dask client to end current CreateModelDiagnosticsSession instance.
         """
 
-        self.scheduler.shutdown()
+        #self.scheduler.shutdown()
         self.client.close()
-
         self.ui.widget_container.clear()
+
         
-        print('------------------------ Live diagnostics session ended ------------------------')
+        print('--- Interactive diagnostics session ended ---')
         
         
     def _get_data(self):
@@ -121,6 +109,8 @@ class CreateModelDiagnosticsSession():
             pass
             
         else:
+
+            # Add in new step here with menu for interactive plot, 4-up plot etc.
             
             # Data loading procedure for initial step
             if self.data_update == False:
@@ -134,8 +124,14 @@ class CreateModelDiagnosticsSession():
                 # Load access_nri catalog for model comparison filtered by model type
                 self.access_nri_cat = data._load_access_nri_catalog(self.model_type)
 
-                # Generate UI
-                self.ui._display_dataset_selection_ui(self.model_cat, self.access_nri_cat)
+                
+
+                # Load UI main menu
+                self.ui._display_main_menu_selection_ui()
+                
+                #self.ui._display_dataset_selection_ui(self.model_cat, self.access_nri_cat)
+
+                
             
                 self.data_update == True
                 

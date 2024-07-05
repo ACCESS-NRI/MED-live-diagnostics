@@ -26,13 +26,23 @@ class UserInterface():
         # Import panel extensions
         pn.extension()
         
-        # Build and style panel widgets
-        self.last_data_load_textbox = pn.widgets.StaticText(styles={'background': 'orange', 'font-size': '18px', 'color': 'black', 'padding': '5px'}, margin=(10, 0, 10, 0))
-        self.status_textbox = pn.widgets.StaticText(styles={'background': 'lightblue', 'font-size': '18px', 'color': 'black', 'padding': '5px'}, margin=(10, 0, 10, 0))
-        self.ref_status_textbox = pn.widgets.StaticText(styles={'background': 'lightblue', 'font-size': '18px', 'color': 'black', 'padding': '5px'}, margin=(10, 0, 10, 0))
+        #### Build and style panel widgets
+
+        # Textboxes    
+        self.last_data_load_textbox = pn.widgets.StaticText(styles={'background': 'orange', 'font-size': '18px', 'color': 'black', 'padding': '5px'},
+                                                            margin=(10, 0, 10, 0))
+        self.status_textbox = pn.widgets.StaticText(styles={'background': 'lightblue', 'font-size': '18px', 'color': 'black', 'padding': '5px'}, 
+                                                    margin=(10, 0, 10, 0))
+        self.ref_status_textbox = pn.widgets.StaticText(styles={'background': 'lightblue', 'font-size': '18px', 'color': 'black', 'padding': '5px'},
+                                                        margin=(10, 0, 10, 0))
 
         self.ref_model_metadata = pn.widgets.StaticText(styles={'color': 'white'})
-        
+
+        # Main UI menu items
+        self.menu_variables_vis_button = pn.widgets.Button(styles={}, margin=(10, 0, 0, 0))
+        self.menu_4up_report_button = pn.widgets.Button(styles={}, margin=(10, 0, 0, 0))
+
+        # Selection menu itemsf
         self.keys_dropdown = pn.widgets.Select()
         self.keys_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 0))
         self.plot_variable_dropdown = pn.widgets.Select()
@@ -82,17 +92,31 @@ class UserInterface():
         self.ref_data_keys_button.on_click(_ref_data_keys_button_click)
         self.clear_ref_model_data_button.on_click(_ref_clear_data_button_click)
         self.ref_model_info_button.on_click(_ref_model_info_button_click)
+        
 
-            
-            
-    def _display_status_text(self):
+    
+    def _display_status_text(self, model_type, model_path, dashboard_link):
         
         """
         Create widget_container then add status_textbox and last_data_load_textbox widgets. Private.
         """
         
         # Create panel column
-        self.widget_container = pn.Column()
+        self.widget_container = pn.Column(styles={'font-size': '16pt'})
+
+        # Add horizontal line divider to widget_container
+        self.widget_container.append(pn.layout.Divider(styles={'color': 'white'}))
+
+        # Append widget_container with model params textbox widgets
+        self.widget_container.append(pn.pane.Str("--- Interactive diagnostics session started ---\n" +
+                                                 " \n" +
+                                                 "Model type: " + model_type + "\n" +
+                                                 "Model path: " + model_path + "\n" +
+                                                 " \n" +
+                                                 "Dask URL: " + dashboard_link, styles={'font-size': '10pt'}))
+
+        # Add horizontal line divider to widget_container
+        self.widget_container.append(pn.layout.Divider(styles={'color': 'white'}))
         
         # Append widget_container with textbox widgets
         self.widget_container.append(self.last_data_load_textbox)
@@ -100,7 +124,7 @@ class UserInterface():
         
         # Display widget_container in notebook
         display(self.widget_container)
-        print()
+        
         
         
     def _update_status_text(self, text):
@@ -160,6 +184,45 @@ class UserInterface():
         """
         
         return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+    def _display_main_menu_selection_ui(self):
+
+        """
+        Label, populate and append main menu-related widgets to widget_container. Private.
+
+        """
+
+        # Add horizontal line divider to widget_container
+        self.widget_container.append(pn.layout.Divider(styles={'color': 'white'}))
+
+        # Add title text
+        self.widget_container.append(pn.pane.Str("Data loaded. Please select from the options below:", styles={'font-size': '10pt'}))
+
+        # Label menu buttons
+        self.menu_variables_vis_button.name = 'Visualise model variables'
+        self.menu_variables_vis_button.button_type = 'primary'
+
+        self.menu_4up_report_button.name = 'Generate model snapshot'
+        self.menu_4up_report_button.button_type = 'primary'
+
+        # Add menu button widgets to main_menu_selection_row
+        #self.main_menu_selection_row = pn.Row()
+        self.widget_container.append(pn.Row(self.menu_variables_vis_button, pn.pane.Str(" - Plots.", 
+                                                                                        styles={'font-size': '10pt'}, margin=(17, 0, 0, 10))))
+        
+        self.widget_container.append(pn.Row(self.menu_4up_report_button, pn.pane.Str(" - 4-Up.", 
+                                                                                     styles={'font-size': '10pt'}, margin=(17, 0, 10, 10))))
+        
+        # self.main_menu_selection_col.append(pn.Row(self.menu_4up_report_button, pn.pane.Str("4-Up.", styles={'font-size': '10pt'})))
+        
+        #self.main_menu_selection_row.append(self.menu_variables_vis_button)
+        #self.main_menu_selection_row.append(self.menu_4up_report_button)
+
+        #self.widget_container.append(self.main_menu_selection_row)
+
+        # Add horizontal line divider to widget_container
+        self.widget_container.append(pn.layout.Divider(styles={'color': 'white'}))
         
         
     def _display_dataset_selection_ui(self, model_cat, access_nri_cat):
@@ -209,7 +272,7 @@ class UserInterface():
         
         """
 
-        # Add refrence data status text box
+        # Add reference data status text box
         self.widget_container.append(self.ref_status_textbox)
         
         # Populate reference/comparison model widgets
