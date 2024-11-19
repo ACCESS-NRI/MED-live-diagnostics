@@ -26,5 +26,9 @@
 
     "title": "ACCESS-NRI MED Diagnostics",
 
-    "keywords": ["Climate", "Science", "Model Evaluation", "Diagnostics", "Intake", "Intake-ESM", "ACCESS-NRI", "NCI"]
+    "keywords": ["Climate", "Science", "Model Evaluation", "Diagnostics", "Intake", "Intake-ESM", "ACCESS-NRI", "NCI"],
+
+    "communities": [
+        {"identifier": "access-nri"}
+    ]
 }
