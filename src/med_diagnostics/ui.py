@@ -304,8 +304,8 @@ class UserInterface():
         # Update text box
         self._update_ref_status_text('Reference model status >> Loading data.')
         
-        # Extract selected model catalog
-        self.ref_model_cat = self.access_nri_cat.search(name=self.ref_keys_dropdown.value).to_source()
+        # Extract selected model catalog, this now returns an Intake-ESM AliasedESMCatalog object, meaning updates to the reference model dataset functions are required.
+        self.ref_model_cat = (self.access_nri_cat.search(name=self.ref_keys_dropdown.value).to_source()).unwrap()
 
         # Update text box
         self._update_ref_status_text('Reference model status >> Data successfuly loaded.')

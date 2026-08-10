@@ -34,3 +34,12 @@ versionfile_source = "src/med_diagnostics/_version.py"
 versionfile_build = "med_diagnostics/_version.py"
 tag_prefix = "v"
 parentdir_prefix = "med_diagnostics-"
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["win-64"]
+
+[tool.pixi.pypi-dependencies]
+med-diagnostics = { path = ".", editable = true }
+
+[tool.pixi.tasks]

@@ -8,11 +8,12 @@ import os
 import time
 import intake
 
-from access_nri_intake.source.builders import AccessCm2Builder # for use with access-med-env
+from access_nri_intake.source.builders import AccessCm2Builder, AccessOm2Builder, AccessCm3Builder, AccessOm3Builder, AccessEsm15Builder, AccessEsm16Builder, Mom6Builder
+from access_nri_intake.experiment import use_datastore
 
         
 def _check_for_new_data(model_path, model_data, model_type):
-    
+
     """
     Check monitored directory for new data and build new catalog if found.
     
@@ -28,31 +29,24 @@ def _check_for_new_data(model_path, model_data, model_type):
     new_model_data : intake ESM datastore
         Returns intake ESM datastore of user model data if data found.
     """
-    
-    # Return contents of nominated model data directory
-    current_model_data = [f for f in os.listdir(model_path) if os.path.isfile(os.path.join(model_path, f))]
-    
-    # Check if any files have changed
-    if current_model_data != model_data:
-        
-        # Set new_model_data to current_model_data
-        new_model_data = current_model_data
-        
-        # Build ESM catalog to include new data
-        _build_new_catalog(model_path, model_type)
-        
-        return new_model_data
-        
-    else:
-        
-        return None
-    
 
+    # Let the intake catalog _use_datastore function handle checking the directory and loading/rebuilding the catalog
+    ds = _build_new_catalog(model_path, model_type)
+    
+    # Get the current list of files directly from the catalog's dataframe
+    current_model_data = ds.df['path'].tolist()
+    
+    # Check if the catalog contains new/different files compared to the previous list of files. If so, return the new list of files; otherwise, return None.
+    if current_model_data != model_data:
+        return current_model_data
+    else:
+        return None
         
 def _build_new_catalog(model_path, model_type):
     
     """
-    Build new intake ESM datastore from user model data found in model_path. 
+    Build new intake ESM datastore from user model data found in model_path.
+    Uses intake datastore builder for the specified model_type. 
     Saves new catalog file to user home. Private.
     
     Parameters
@@ -63,12 +57,41 @@ def _build_new_catalog(model_path, model_type):
         Type of ACCESS model (e.g. CM2, OM2).
     """
     
-    # Use CM2 builder
-    if model_type == 'cm2':
-    
-        builder = AccessCm2Builder(path=model_path, ensemble=False).build()
-        builder.save(name="live_diagnostics_tmp_catalog", description="Temporary catalog for live diagnostics", directory=os.getcwd())
-    
+    #Match the model type to the correct type of builder
+    match model_type:
+        case 'cm2':
+            model_type_builder = AccessCm2Builder
+        case 'om2':
+            model_type_builder = AccessOm2Builder
+        case 'cm3':
+            model_type_builder = AccessCm3Builder
+        case 'om3':
+            model_type_builder = AccessOm3Builder
+        case 'esm15':
+            model_type_builder = AccessEsm15Builder
+        case 'esm16':
+            model_type_builder = AccessEsm16Builder
+        case 'mom6':
+            model_type_builder = Mom6Builder
+
+    # Set builder kwargs based on model type, if model_type is one of the builders that requires the ensemble argument, set it to False, otherwise set it to an empty dictionary.
+    if model_type_builder in [AccessEsm15Builder, AccessEsm16Builder, AccessCm2Builder, AccessCm3Builder]:
+        builder_kwargs_set = {'ensemble': False}
+    else:
+        builder_kwargs_set = {}
+
+    # Use the matched builder to build the new catalog in the users working directory.
+    ds = use_datastore(
+            experiment_dir=model_path,
+            catalog_dir = os.getcwd(),
+            builder = model_type_builder,
+            datastore_name = "live_diagnostics_tmp_catalog",
+            description = "Temporary catalog for live diagnostics",
+            builder_kwargs = builder_kwargs_set
+        )
+        
+    return ds
+
     
 def _load_new_catalog():
             
@@ -121,10 +144,9 @@ def _build_data_object(model_cat, key):
     dataset : xarray object
         Dask xarray object.
     """
-    
-    # Load dataset using dask to xarray object
+
+    # Standard Intake catalog approach (works for self.model_cat), does note work for self.ref_model_cat as this is an Intake-ESM AliasedESMCatalog object.
     dataset = model_cat[key](xarray_open_kwargs=dict(use_cftime=True)).to_dask()
-    
     return dataset
 
 
