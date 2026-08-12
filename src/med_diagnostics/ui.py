@@ -304,8 +304,8 @@ class UserInterface():
         # Update text box
         self._update_ref_status_text('Reference model status >> Loading data.')
         
-        # Extract selected model catalog, this now returns an Intake-ESM AliasedESMCatalog object, meaning updates to the reference model dataset functions are required.
-        self.ref_model_cat = (self.access_nri_cat.search(name=self.ref_keys_dropdown.value).to_source()).unwrap()
+        # Extract selected model catalog, this now returns an Intake-ESM AliasedESMCatalog object
+        self.ref_model_cat = self.access_nri_cat.search(name=self.ref_keys_dropdown.value).to_source()
 
         # Update text box
         self._update_ref_status_text('Reference model status >> Data successfuly loaded.')
@@ -482,6 +482,9 @@ class UserInterface():
                 for mem in self.ref_dataset.member.values:
 
                     self.ref_dataset[ref_variable].sel(member=mem).plot(label=mem)
+            else:
+                # Plot directly if no member dimension exists
+                self.ref_dataset[ref_variable].plot()        
             
             plt.title(self.ref_dataset[ref_variable].attrs['long_name'], fontsize=14)
 

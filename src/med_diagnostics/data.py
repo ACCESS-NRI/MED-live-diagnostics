@@ -6,11 +6,12 @@
 
 import os
 import time
+import access_nri_intake
 import intake
 
 from access_nri_intake.source.builders import AccessCm2Builder, AccessOm2Builder, AccessCm3Builder, AccessOm3Builder, AccessEsm15Builder, AccessEsm16Builder, Mom6Builder
 from access_nri_intake.experiment import use_datastore
-
+from access_nri_intake.aliases import AliasedESMCatalog
         
 def _check_for_new_data(model_path, model_data, model_type):
 
@@ -134,8 +135,8 @@ def _build_data_object(model_cat, key):
     
     Parameters
     ----------
-    model_cat : Intake-ESM datastore object
-        Intake catalog of user model data.
+    model_cat : Intake-ESM datastore object or AliasedESMCatalog object
+        Intake catalog of user or reference model data.
     key : str
         model_cat dictionary key - in this case the selected dropdown value.
         
@@ -145,7 +146,11 @@ def _build_data_object(model_cat, key):
         Dask xarray object.
     """
 
-    # Standard Intake catalog approach (works for self.model_cat), does note work for self.ref_model_cat as this is an Intake-ESM AliasedESMCatalog object.
+    #If the model_cat is an AliasedESMCatalog, unwrap it to get the raw esm_datastore (intake_esm.core.esm_datastore) object. Reference models are stored as AliasedESMCatalog objects, so this is necessary for loading reference model data.
+    if isinstance(model_cat, AliasedESMCatalog):
+        model_cat = model_cat.unwrap()
+
+    # Standard Intake catalog approach for getting dataset
     dataset = model_cat[key](xarray_open_kwargs=dict(use_cftime=True)).to_dask()
     return dataset
 
