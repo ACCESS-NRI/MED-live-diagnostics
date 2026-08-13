@@ -66,10 +66,8 @@ class CreateModelDiagnosticsSession():
         # Start UserUI instance and display initial status text
         self.ui = ui.UserInterface()
         self.ui._display_status_text()
-        
         # Start data scheduler
         #self._start_scheduler()
-        
         # Get initial model data
         self._get_data()
 
@@ -105,9 +103,7 @@ class CreateModelDiagnosticsSession():
         """
         Check nominated model data path for new data. Private.
         """
-        
-        self.ui._update_status_text('User model status >> Building initial model data catalog. This can take a few minutes.')
-        
+
         # Check for new data
         new_model_data = data._check_for_new_data(self.model_path, self.model_data, self.model_type)
         
@@ -115,35 +111,19 @@ class CreateModelDiagnosticsSession():
         self.ui._update_status_text('User model status >> Model data catalog built.')
         self.ui._update_last_data_load_text('Last model data catalog build >> ' + self.ui._get_current_time())
         
-        if new_model_data == None:
             
-            # Do nothing
-            pass
-            
-        else:
-            
-            # Data loading procedure for initial step
-            if self.data_update == False:
-            
-                # Update self.model_data with new data
-                self.model_data = new_model_data
+        # Update self.model_data with new data
+        self.model_data = new_model_data
 
-                # Load new catalog
-                self.model_cat = data._load_new_catalog()
-                
-                # Load access_nri catalog for model comparison filtered by model type
-                self.access_nri_cat = data._load_access_nri_catalog(self.model_type)
+        # Load new catalog
+        self.model_cat = data._load_new_catalog()
+        
+        # Load access_nri catalog for model comparison filtered by model type
+        self.access_nri_cat = data._load_access_nri_catalog(self.model_type)
 
-                # Generate UI
-                self.ui._display_dataset_selection_ui(self.model_cat, self.access_nri_cat)
+        # Generate UI
+        self.ui._display_dataset_selection_ui(self.model_cat, self.access_nri_cat)
             
-                self.data_update == True
-                
-                
-            # Data loading procedure for update step
-            elif self.data_update == True:
-                
-                self.ui._update_status_text('User model status >> New data found. Please restart session to view new data.')
                 
         
     def return_model_data_catalog(self):

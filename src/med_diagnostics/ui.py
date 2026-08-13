@@ -97,7 +97,17 @@ class UserInterface():
         # Append widget_container with textbox widgets
         self.widget_container.append(self.last_data_load_textbox)
         self.widget_container.append(self.status_textbox)
+
+        # pre build but hide the dataset selection UI elements
+        self.div_1 = pn.layout.Divider(styles={'color': 'white'}, visible=False)
+        self.keys_selection_row = pn.Row(self.keys_dropdown, self.keys_button, visible=False)
+        self.div_2 = pn.layout.Divider(styles={'color': 'white'}, visible=False)
         
+        self.widget_container.append(self.div_1)
+        self.widget_container.append(self.keys_selection_row)
+        self.widget_container.append(self.div_2)
+
+        self.status_textbox.value = "User model status >> Waiting for initial model data catalog to be built. This can take a few minutes."
         # Display widget_container in notebook
         display(self.widget_container)
         print()
@@ -179,25 +189,16 @@ class UserInterface():
         self.model_cat = model_cat
         self.access_nri_cat = access_nri_cat
         
-        # Add horizontal line divider to widget_container
-        self.widget_container.append(pn.layout.Divider(styles={'color': 'white'}))
-        
         # Populate user model widgets
         self.keys_dropdown.name = '1. Please select a dataset to monitor:'
-        self.keys_dropdown.options = self.model_cat.keys()
+        self.keys_dropdown.options = list(self.model_cat.keys())
         self.keys_button.name = 'Load dataset'
         self.keys_button.button_type = 'primary'
         
-        # Add user model widgets to keys_selection_row
-        self.keys_selection_row = pn.Row()
-        self.keys_selection_row.append(self.keys_dropdown)
-        self.keys_selection_row.append(self.keys_button)
-        
-        # Add keys_selection_row to widget_container
-        self.widget_container.append(self.keys_selection_row)
-        
-        # Add horizontal line divider to widget_container
-        self.widget_container.append(pn.layout.Divider(styles={'color': 'white'}))
+        # UNHIDE the widgets via property updates rather than structural appends
+        self.div_1.visible = True
+        self.keys_selection_row.visible = True
+        self.div_2.visible = True
 
         #print(self.widget_container)
         
@@ -304,7 +305,7 @@ class UserInterface():
         # Update text box
         self._update_ref_status_text('Reference model status >> Loading data.')
         
-        # Extract selected model catalog, this now returns an Intake-ESM AliasedESMCatalog object
+        # Extract selected model catalog
         self.ref_model_cat = self.access_nri_cat.search(name=self.ref_keys_dropdown.value).to_source()
 
         # Update text box
@@ -357,13 +358,15 @@ class UserInterface():
 
         # self.ref_model_metadata.value = self.access_nri_cat[self.ref_keys_dropdown.value].metadata['description']
 
-        self.ref_model_metadata.value = '<b>Model information:</b><br>' + \
+        self.ref_model_metadata.value = '<div style="color: var(--jp-ui-font-color1);">' + \
+                                        '<b>Model information:</b><br>' + \
                                         '<b>Model:   </b>' + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata['model']) + '<br>' + \
                                         '<b>Short description:   </b>' + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata['description']) + '<br>' + \
                                         '<b>Nominal resolution:   </b>' + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata['nominal_resolution']) + '<br>' + \
                                         '<b>Parent experiment:   </b>' + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata['parent_experiment']) + '<br>' + \
                                         '<b>Long description:   </b>' + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata['long_description']) + '<br>' + \
                                         '<b>Contact:   </b>' + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata['contact']) + '<br>' + \
+                                        '<b>Email:   </b>' + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata['email']) + '<br>' + \
                                         '<b>Email:   </b>' + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata['email']) + '<br>'
 
         # Update text box
