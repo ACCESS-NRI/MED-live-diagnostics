@@ -43,7 +43,7 @@ class UserInterface():
         
         self.ref_data_keys_dropdown = pn.widgets.Select()
         self.ref_data_keys_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 0))
-        self.ref_data_plot_variable_dropdown = pn.widgets.Select()
+        #self.ref_data_plot_variable_dropdown = pn.widgets.Select()
 
         self.clear_ref_model_data_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 10))
         self.ref_model_info_button = pn.widgets.Button(styles={}, margin=(23, 10, 0, 0))
@@ -311,9 +311,8 @@ class UserInterface():
         self.ref_model_cat = self.access_nri_cat.search(name=self.ref_keys_dropdown.value).to_source()
 
         # Update text box
-        self._update_ref_status_text('Reference model status >> Data successfuly loaded.')
+        self._update_ref_status_text('Reference model status >> Data successfully loaded.')
 
-        # Create new plot
         self._display_reference_dataset_selection_ui()
                     
         
@@ -327,10 +326,19 @@ class UserInterface():
         # Load selected access_nri catalog dataset
         self.ref_dataset = data._build_data_object(self.ref_model_cat, self.ref_data_keys_dropdown.value)
 
-        # Create new plot
-        self._display_ref_dataset_plot_ui()
-            
+        
+         # Check if plot already exists
+        if self.ref_figure_exists == False:
 
+            self.ref_figure_exists = True
+            # Create new plot
+            self._display_ref_dataset_plot_ui()
+            
+        elif self.ref_figure_exists == True:
+
+            # Update existing plot
+            self._update_ref_dataset_plot_ui()
+            
 
     def _ref_clear_data_click(self):
         """
@@ -347,10 +355,12 @@ class UserInterface():
         self.widget_container.pop(-1)
 
         # Remove reference model ref_model_cat
-        del self.self.ref_model_cat
+        del self.ref_model_cat
         
         # Remove reference dataset ref_dataset
         del self.ref_dataset
+
+        self.ref_figure_exists = False
 
 
     def _ref_model_info_click(self):
@@ -368,7 +378,6 @@ class UserInterface():
                                         '<b>Parent experiment:   </b>' + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata['parent_experiment']) + '<br>' + \
                                         '<b>Long description:   </b>' + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata['long_description']) + '<br>' + \
                                         '<b>Contact:   </b>' + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata['contact']) + '<br>' + \
-                                        '<b>Email:   </b>' + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata['email']) + '<br>' + \
                                         '<b>Email:   </b>' + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata['email']) + '<br>'
 
         # Update text box
@@ -397,8 +406,8 @@ class UserInterface():
         
         self.ref_plot_variable_dropdown.name = 'Available reference variables'
         self.ref_plot_variable_dropdown.options = list(self.ref_dataset.keys())
-        
-        self.ref_interactive_plot = pn.bind(self._plot_dataset, self.plot_variable_dropdown, self.ref_plot_variable_dropdown)
+
+        self.ref_interactive_plot = pn.bind(self._plot_ref_dataset, self.ref_plot_variable_dropdown)
         
         self.widget_container.append(self.ref_plot_variable_dropdown)
         self.widget_container.append(self.ref_interactive_plot)
@@ -420,7 +429,7 @@ class UserInterface():
         Update exisiting reference model dataset keys if new data are selected. Private.
         """
         
-        self.ref_data_keys_dropdown.options = list(self.ref_model_cat.keys())
+        self.ref_data_keys_dropdown.options = list(self.ref_dataset.keys())
         plt.close(self.ref_fig)
         
         self._update_ref_dataset_plot_ui()
@@ -433,11 +442,11 @@ class UserInterface():
         """
         
         self.ref_plot_variable_dropdown.options = list(self.ref_dataset.keys())
-        self.ref_plot_variable_dropdown.value = list(self.ref_dataset.keys())[0]
+        #self.ref_plot_variable_dropdown.value = list(self.ref_dataset.keys())[0]
         plt.close(self.ref_fig)
         
         
-    def _plot_dataset(self, variable, ref_variable=None):
+    def _plot_dataset(self, variable):
         
         """
         Plot 2D time-series from model data. Private.
@@ -445,61 +454,69 @@ class UserInterface():
         Parameters
         ----------
         variable : str
-            Model data variable as selected from panel dropdown.
-        ref_variable : str, default None
-            Reference model data variable as selected from panel dropdown.
-            
+            Model data variable as selected from panel dropdown. 
         Returns
         ----------
         fig : matplotlib.pyplot.figure()
         ref_fig : matplotlib.pyplot.figure()
         """
+        # Plot primary (user) model data
+        self.fig = plt.figure(figsize=[8,4])
         
-        if ref_variable == None:
-            
-            # Plot primary (user) model data
-            self.fig = plt.figure(figsize=[8,4])
-            
-            self.figure_exists = True
-            
-            self.dataset[variable].plot()
-            
-            plt.title(self.dataset[variable].attrs['long_name'], fontsize=14)
+        self.figure_exists = True
+        
+        self.dataset[variable].plot()
+        
+        plt.title(self.dataset[variable].attrs['long_name'], fontsize=14)
 
-            plt.grid()
-            plt.legend()
-            plt.tight_layout()
+        plt.grid()
+        plt.legend()
+        plt.tight_layout()
 
-            plt.close(self.fig)
+        plt.close(self.fig)
 
-            return self.fig
+        return self.fig
             
+
+
+    def _plot_ref_dataset(self, ref_variable):
+        
+        """
+        Plot 2D time-series from reference model data. Private.
+        
+        Parameters
+        ----------
+        ref_variable : str
+            Reference model data variable as selected from panel dropdown.
+            
+        Returns
+        ----------
+        ref_fig : matplotlib.pyplot.figure()
+        """
+        
+        self.ref_fig = plt.figure(figsize=[8,4])
+        
+        self.ref_figure_exists = True
+        
+        # Plot all model variants if multiple exist
+        if "member" in self.ref_dataset.dims:
+
+            for mem in self.ref_dataset.member.values:
+
+                self.ref_dataset[ref_variable].sel(member=mem).plot(label=mem)
         else:
-            
-            # Plot reference model
-            self.ref_fig = plt.figure(figsize=[8,4])
-            
-            self.ref_figure_exists = True
-            
-            # Plot all model variants if multiple exist
-            if "member" in self.ref_dataset.dims:
+            # Plot directly if no member dimension exists
+            self.ref_dataset[ref_variable].plot()        
+        
+        plt.title(self.ref_dataset[ref_variable].attrs['long_name'], fontsize=14)
 
-                for mem in self.ref_dataset.member.values:
+        plt.grid()
+        plt.legend()
+        plt.tight_layout()
 
-                    self.ref_dataset[ref_variable].sel(member=mem).plot(label=mem)
-            else:
-                # Plot directly if no member dimension exists
-                self.ref_dataset[ref_variable].plot()        
-            
-            plt.title(self.ref_dataset[ref_variable].attrs['long_name'], fontsize=14)
+        plt.close(self.ref_fig)
 
-            plt.grid()
-            plt.legend()
-            plt.tight_layout()
-
-            plt.close(self.ref_fig)
-
-            return self.ref_fig
+        return self.ref_fig
 
         
         
