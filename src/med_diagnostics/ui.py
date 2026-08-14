@@ -283,14 +283,14 @@ class UserInterface():
         
         # Check if plot already exists
         if self.figure_exists == False:
-
+            
+            self.figure_exists = True
             # Create new plot
             self._display_dataset_plot_ui()
             
             # Add ui for loading optional reference dataset
             self._display_reference_model_selection_ui()
 
-            self.figure_exists = True
             
         elif self.figure_exists == True:
 
