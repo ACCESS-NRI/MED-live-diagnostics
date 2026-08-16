@@ -43,11 +43,17 @@ class UserInterface():
         
         self.ref_data_keys_dropdown = pn.widgets.Select()
         self.ref_data_keys_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 0))
-        #self.ref_data_plot_variable_dropdown = pn.widgets.Select()
+        self.ref_data_plot_variable_dropdown = pn.widgets.Select()
 
         self.clear_ref_model_data_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 10))
         self.ref_model_info_button = pn.widgets.Button(styles={}, margin=(23, 10, 0, 0))
-        
+
+        self.plot_button = pn.widgets.Button(name='Plot Data', button_type='success', margin=(23, 0, 0, 10))
+        self.plot_pane = pn.pane.Matplotlib(tight=True)
+
+        self.ref_plot_button = pn.widgets.Button(name='Plot Reference', button_type='success', margin=(23, 0, 0, 10))
+        self.ref_plot_pane = pn.pane.Matplotlib(tight=True)
+                
         self.figure_exists = False
         self.ref_figure_exists = False
         
@@ -76,7 +82,29 @@ class UserInterface():
         def _ref_clear_data_button_click(event):
             
             self._ref_clear_data_click()
+
+        def _plot_button_click(event):
+
+            self._update_status_text('User model status >> Generating plot...')
+            fig = self._plot_dataset(self.plot_variable_dropdown.value)
+            self.plot_pane.object = fig
+            self._update_status_text('User model status >> Plot generated.')
+
+            if self.plot_pane not in self.widget_container:
+                self.widget_container.append(self.plot_pane)
+                self._display_reference_model_selection_ui()
             
+        def _ref_plot_button_click(event):
+            self._update_ref_status_text('Reference model status >> Generating plot...')
+            fig = self._plot_ref_dataset(self.ref_plot_variable_dropdown.value)
+            self.ref_plot_pane.object = fig
+            self._update_ref_status_text('Reference model status >> Plot generated.')
+
+            if self.ref_plot_pane not in self.widget_container:
+                self.widget_container.append(self.ref_plot_pane)
+
+        self.plot_button.on_click(_plot_button_click)
+        self.ref_plot_button.on_click(_ref_plot_button_click)  
         self.keys_button.on_click(_keys_button_click)
         self.ref_keys_button.on_click(_ref_keys_button_click)
         self.ref_data_keys_button.on_click(_ref_data_keys_button_click)
@@ -289,7 +317,7 @@ class UserInterface():
             self._display_dataset_plot_ui()
             
             # Add ui for loading optional reference dataset
-            self._display_reference_model_selection_ui()
+            #self._display_reference_model_selection_ui()
 
             
         elif self.figure_exists == True:
@@ -311,7 +339,7 @@ class UserInterface():
         self.ref_model_cat = self.access_nri_cat.search(name=self.ref_keys_dropdown.value).to_source()
 
         # Update text box
-        self._update_ref_status_text('Reference model status >> Data successfully loaded.')
+        self._update_ref_status_text('Reference model status >> Data catalog successfully loaded.')
 
         self._display_reference_dataset_selection_ui()
                     
@@ -322,11 +350,10 @@ class UserInterface():
         """
         Loads selected reference model dataset from ref_data_keys_dropdown and creates new interactive plot. Private.
         """
-        
+        self._update_ref_status_text('Reference model status >> Loading reference dataset...')
         # Load selected access_nri catalog dataset
         self.ref_dataset = data._build_data_object(self.ref_model_cat, self.ref_data_keys_dropdown.value)
-
-        
+        self._update_ref_status_text('Reference model status >> Reference dataset successfully loaded.')
          # Check if plot already exists
         if self.ref_figure_exists == False:
 
@@ -392,10 +419,9 @@ class UserInterface():
         self.plot_variable_dropdown.name = 'Available variables'
         self.plot_variable_dropdown.options = list(self.dataset.keys())
         
-        self.interactive_plot = pn.bind(self._plot_dataset, self.plot_variable_dropdown)
-        
-        self.widget_container.append(self.plot_variable_dropdown)
-        self.widget_container.append(self.interactive_plot)
+        plot_ui_row = pn.Row(self.plot_variable_dropdown, self.plot_button)
+        self.widget_container.append(plot_ui_row)
+        #self.widget_container.append(self.plot_pane)
         
         
     def _display_ref_dataset_plot_ui(self):
@@ -406,11 +432,10 @@ class UserInterface():
         
         self.ref_plot_variable_dropdown.name = 'Available reference variables'
         self.ref_plot_variable_dropdown.options = list(self.ref_dataset.keys())
-
-        self.ref_interactive_plot = pn.bind(self._plot_ref_dataset, self.ref_plot_variable_dropdown)
         
-        self.widget_container.append(self.ref_plot_variable_dropdown)
-        self.widget_container.append(self.ref_interactive_plot)
+        ref_plot_ui_row = pn.Row(self.ref_plot_variable_dropdown, self.ref_plot_button)
+        self.widget_container.append(ref_plot_ui_row)
+        #self.widget_container.append(self.ref_plot_pane)
         
         
     def _update_dataset_plot_ui(self):
@@ -418,9 +443,10 @@ class UserInterface():
         """
         Update exisiting user model dataset plot if new data are selected. Private.
         """
-        
         self.plot_variable_dropdown.options = list(self.dataset.keys())
-        plt.close(self.fig)
+        self.plot_pane.object = None  # Clears the previous plot from the screen
+        if hasattr(self, 'fig'):
+            plt.close(self.fig)
         
         
     def _update_ref_dataset_keys_plot_ui(self):
@@ -442,8 +468,9 @@ class UserInterface():
         """
         
         self.ref_plot_variable_dropdown.options = list(self.ref_dataset.keys())
-        #self.ref_plot_variable_dropdown.value = list(self.ref_dataset.keys())[0]
-        plt.close(self.ref_fig)
+        self.ref_plot_pane.object = None  # Clears the previous plot from the screen
+        if hasattr(self, 'ref_fig'):
+            plt.close(self.ref_fig)
         
         
     def _plot_dataset(self, variable):
