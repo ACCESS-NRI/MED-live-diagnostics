@@ -8,7 +8,6 @@ import os
 import intake
 import panel as pn
 
-#from apscheduler.schedulers.background import BackgroundScheduler #Removing for the time being as apscheduler is no longer in the analysis3 environment
 from med_diagnostics import data, ui
 from distributed import Client
 
@@ -19,7 +18,7 @@ class CreateModelDiagnosticsSession():
     Primary class for starting a model diagnostics session
     """
     
-    def __init__(self, model_type, model_path, period=None, timezone=None):
+    def __init__(self, model_type, model_path, timezone=None):
         
         """
         Initialise a CreateLiveSession instance to start a model diagnostics session.
@@ -30,8 +29,6 @@ class CreateModelDiagnosticsSession():
             Type of ACCESS model in capitals (e.g. CM2, OM2).
         model_path : str
             Path to model output directory/files on Gadi.
-        period : int/float/str, optional, default None
-            Period in minutes for background scheduler to monitor model_path for new data. If period=None, defaults to 60.
         timezone : str, optional, default 'Australia/Canberra'
             Timezone required for scheduler in tinfo 'Region/Location' format. 
             
@@ -43,7 +40,6 @@ class CreateModelDiagnosticsSession():
         self.model_path = str(model_path)
         self.model_data = []
         
-        self.period = float(period) if period != None else 60.0
         self.timezone = str(timezone) if timezone != None else 'Australia/Canberra'
         
         self.data_update = False
@@ -56,7 +52,6 @@ class CreateModelDiagnosticsSession():
         print()
         print('Model type:', str(model_type))
         print('Model data path:', self.model_path)
-        print('Model data update period:', self.period, 'mins')
         print()
         print('Started dask client:', self.client.dashboard_link)
         print()
@@ -66,31 +61,16 @@ class CreateModelDiagnosticsSession():
         # Start UserUI instance and display initial status text
         self.ui = ui.UserInterface()
         self.ui._display_status_text()
-        # Start data scheduler
-        #self._start_scheduler()
+
         # Get initial model data
         self._get_data()
-
-        
-    def _start_scheduler(self):
-        
-        """
-        Start background scheduler to trigger model data retrieval function get_data() at nominated period. Private.
-        """
-
-        self.scheduler = BackgroundScheduler()
-        self.scheduler.add_job(self._get_data, 'interval', minutes=self.period, timezone=self.timezone)
-
-        self.scheduler.start()
-        
         
     def end_session(self):
 
         """
         Stop background scheduler and close dask client to end current CreateModelDiagnosticsSession instance.
         """
-
-        self.scheduler.shutdown()
+        
         self.client.close()
 
         self.ui.widget_container.clear()
