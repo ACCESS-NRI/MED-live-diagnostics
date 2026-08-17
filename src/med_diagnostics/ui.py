@@ -36,7 +36,13 @@ class UserInterface():
         self.keys_dropdown = pn.widgets.Select()
         self.keys_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 0))
         self.plot_variable_dropdown = pn.widgets.Select()
-        
+
+        #Additions for selecting plot type
+        self.plot_type_dropdown = pn.widgets.Select()
+        self.x_axis_dropdown = pn.widgets.Select()
+        self.y_axis_dropdown = pn.widgets.Select()
+        self.select_variable_button = pn.widgets.Button(name='Select Variable and Plot Type', button_type='success', margin=(23, 0, 0, 10))
+
         self.ref_keys_dropdown = pn.widgets.Select()
         self.ref_keys_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 0))
         self.ref_plot_variable_dropdown = pn.widgets.Select()
@@ -63,6 +69,11 @@ class UserInterface():
         def _keys_button_click(event):
             
             self._keys_dropdown_click()
+
+        #@pn.depends(self.plot_type_dropdown.param.value)
+        #def _keys_button_click(event):
+                    
+            #self._plot_type_dropdown_click()
             
         @pn.depends(self.ref_keys_dropdown.param.value)
         def _ref_keys_button_click(event):
@@ -86,7 +97,16 @@ class UserInterface():
         def _plot_button_click(event):
 
             self._update_status_text('User model status >> Generating plot...')
-            fig = self._plot_dataset(self.plot_variable_dropdown.value)
+
+            #Based on plot type change function that is used
+            if self.plot_type_dropdown.value == "Heatmap":
+                x_axis = self.x_axis_dropdown.value
+                y_axis = self.y_axis_dropdown.value
+                fig = self._plot_heatmap(self.plot_variable_dropdown.value, x_axis, y_axis)
+            else:
+                x_axis = self.x_axis_dropdown.value
+                fig = self._plot_dataset(self.plot_variable_dropdown.value, x_axis)
+            
             self.plot_pane.object = fig
             self._update_status_text('User model status >> Plot generated.')
 
@@ -103,6 +123,9 @@ class UserInterface():
             if self.ref_plot_pane not in self.widget_container:
                 self.widget_container.append(self.ref_plot_pane)
 
+        def _select_variable_button_click(event):
+            self._display_plot_choices_ui()
+
         self.plot_button.on_click(_plot_button_click)
         self.ref_plot_button.on_click(_ref_plot_button_click)  
         self.keys_button.on_click(_keys_button_click)
@@ -110,7 +133,7 @@ class UserInterface():
         self.ref_data_keys_button.on_click(_ref_data_keys_button_click)
         self.clear_ref_model_data_button.on_click(_ref_clear_data_button_click)
         self.ref_model_info_button.on_click(_ref_model_info_button_click)
-
+        self.select_variable_button.on_click(_select_variable_button_click)
             
             
     def _display_status_text(self):
@@ -419,11 +442,34 @@ class UserInterface():
         self.plot_variable_dropdown.name = 'Available variables'
         self.plot_variable_dropdown.options = list(self.dataset.keys())
         
-        plot_ui_row = pn.Row(self.plot_variable_dropdown, self.plot_button)
+        self.plot_type_dropdown.name = 'Select plot type'
+        self.plot_type_dropdown.options = ["Line", "Heatmap"]
+        
+        plot_ui_row = pn.Row(self.plot_variable_dropdown, self.plot_type_dropdown, self.select_variable_button)
         self.widget_container.append(plot_ui_row)
         #self.widget_container.append(self.plot_pane)
         
-        
+    def _display_plot_choices_ui(self):
+            
+            """
+            Create interactive panel plot for user to choose plot options and add to widget_container. Private.
+            """
+
+            #Need to use self.dataset[var].dims instead, but requires variable to be selected before this UI pops up.
+            self.x_axis_dropdown.name = 'Select X-Axis dimension'
+            self.x_axis_dropdown.options = list(self.dataset[self.plot_variable_dropdown.value].dims)
+
+            #If the user chooses to plot a heatmap, allow them to choose the Y-axis
+            if self.plot_type_dropdown.value == "Heatmap":
+                self.y_axis_dropdown.name = 'Select Y-Axis dimension'
+                self.y_axis_dropdown.options = list(self.dataset[self.plot_variable_dropdown.value].dims)
+                plot_choices_row = pn.Row(self.x_axis_dropdown, self.y_axis_dropdown, self.plot_button)
+            elif self.plot_type_dropdown.value == "Line":
+                plot_choices_row = pn.Row(self.x_axis_dropdown, self.plot_button)
+
+            self.widget_container.append(plot_choices_row)
+            #self.widget_container.append(self.plot_pane)
+
     def _display_ref_dataset_plot_ui(self):
         
         """
@@ -473,7 +519,7 @@ class UserInterface():
             plt.close(self.ref_fig)
         
         
-    def _plot_dataset(self, variable):
+    def _plot_dataset(self, variable, x_axis):
         
         """
         Plot 2D time-series from model data. Private.
@@ -492,7 +538,7 @@ class UserInterface():
         
         self.figure_exists = True
         
-        self.dataset[variable].plot()
+        self.dataset[variable].plot(x=x_axis)
         
         plt.title(self.dataset[variable].attrs['long_name'], fontsize=14)
 
@@ -504,7 +550,40 @@ class UserInterface():
 
         return self.fig
             
+    def _plot_heatmap(self, variable, x_axis, y_axis):
+        """
+        Plot 2D heatmap from model data. Private.
+        
+        Parameters
+        ----------
+        dataset : xarray.Dataset
+            The dataset containing the model data.
+        variable : str
+            Model data variable for color scale.
+            
+        Returns
+        ----------
+        fig : matplotlib.pyplot.figure()
+        """
+        
+        # Create figure and explicit axis
+        self.fig, ax = plt.subplots(figsize=[8,4])
 
+        print("Defaulting to slicing time=0 and st_ocean=0, need to build in this functionality")
+
+        # Slice the dataset by time AND depth (st_ocean) to get a 2D array
+        heatmap_data = self.dataset.isel(time=0, st_ocean=0)
+
+        # Plot the specific DataArray onto the explicit axis
+        heatmap_data[variable].plot(x=x_axis, y=y_axis, ax=ax)
+        
+        title_str = self.dataset[variable].attrs.get('long_name', variable)
+        ax.set_title(title_str, fontsize=14)
+
+        ax.grid()
+        plt.tight_layout()
+
+        return self.fig
 
     def _plot_ref_dataset(self, ref_variable):
         
@@ -546,4 +625,23 @@ class UserInterface():
         return self.ref_fig
 
         
+        def _plot_with_slice(self, variable, slice_dim, slice_value):
         
+            """
+            Plot 2D time-series from model data with a slice applied. Private.
+            
+            Parameters
+            ----------
+            variable : str
+                Model data variable as selected from panel dropdown.
+            slice_dim : str
+                Dimension to slice along (e.g., 'lat', 'lon', 'member').
+            slice_value : float or int
+                Value along the slice_dim to select (e.g., 0.0 for lat=0.0).
+                
+            Returns
+            ----------
+            fig : matplotlib.pyplot.figure()
+            """
+
+            print("Placeholder for plotting with slice. This function is not yet implemented.")    
