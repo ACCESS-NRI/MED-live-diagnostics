@@ -41,7 +41,7 @@ class UserInterface():
         self.plot_type_dropdown = pn.widgets.Select()
         self.x_axis_dropdown = pn.widgets.Select()
         self.y_axis_dropdown = pn.widgets.Select()
-        self.select_variable_button = pn.widgets.Button(name='Select Variable and Plot Type', button_type='success', margin=(23, 0, 0, 10))
+        self.select_variable_button = pn.widgets.Button(name='Select Variable and Plot Type', button_type = "primary", margin=(23, 0, 0, 10))
 
         self.ref_keys_dropdown = pn.widgets.Select()
         self.ref_keys_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 0))
@@ -96,35 +96,67 @@ class UserInterface():
 
         def _plot_button_click(event):
 
+            self.plot_button.name = "Add Plot"    
+            self.select_variable_button.name = "Add new plot with different variable/ plot type"    
             self._update_status_text('User model status >> Generating plot...')
 
-            #Based on plot type change function that is used
+            # Based on plot type change function that is used
             if self.plot_type_dropdown.value == "Heatmap":
                 x_axis = self.x_axis_dropdown.value
                 y_axis = self.y_axis_dropdown.value
                 fig = self._plot_heatmap(self.plot_variable_dropdown.value, x_axis, y_axis)
-            else:
+            elif self.plot_type_dropdown.value == "Line":
                 x_axis = self.x_axis_dropdown.value
                 fig = self._plot_dataset(self.plot_variable_dropdown.value, x_axis)
             
-            self.plot_pane.object = fig
-            self._update_status_text('User model status >> Plot generated.')
+            # Create a new pane for the figure
+            new_plot_pane = pn.pane.Matplotlib(fig, tight=True)
 
-            if self.plot_pane not in self.widget_container:
-                self.widget_container.append(self.plot_pane)
+            # Create a remove button for each plot that is added
+            remove_btn = pn.widgets.Button(name='Remove this plot', button_type='danger', margin=(23, 0, 0, 10))
+            
+            # Group the plot and the button together
+            plot_group = pn.Column(new_plot_pane, remove_btn, margin=(0, 0, 25, 0))
+            
+            # Local callback to destroy this specific plot group
+            def _remove_this_plot(event):
+                if plot_group in self.widget_container:
+                    self.widget_container.remove(plot_group)
+                    
+            remove_btn.on_click(_remove_this_plot)
+
+            # remove the plot choices row since the plot has been created
+            if hasattr(self, 'plot_choices_row') and self.plot_choices_row in self.widget_container:
+                self.widget_container.remove(self.plot_choices_row)
+
+            # Check if the reference UI already exists
+            if self.ref_status_textbox in self.widget_container:
+                # Find where the reference UI is
+                insert_index = self.widget_container.index(self.ref_status_textbox)
+                
+                # Insert the new plot just above the reference UI
+                self.widget_container.insert(insert_index, plot_group)
+            else:
+                # First time plotting: append plot to bottom, then generate reference UI below it
+                self.widget_container.append(plot_group)
                 self._display_reference_model_selection_ui()
             
         def _ref_plot_button_click(event):
             self._update_ref_status_text('Reference model status >> Generating plot...')
             fig = self._plot_ref_dataset(self.ref_plot_variable_dropdown.value)
-            self.ref_plot_pane.object = fig
+            
+            # Create a new pane for the reference figure
+            new_ref_plot_pane = pn.pane.Matplotlib(fig, tight=True)
+            self.widget_container.append(new_ref_plot_pane)
+            
             self._update_ref_status_text('Reference model status >> Plot generated.')
 
             if self.ref_plot_pane not in self.widget_container:
                 self.widget_container.append(self.ref_plot_pane)
 
-        def _select_variable_button_click(event):
+        def _select_variable_button_click(event):                
             self._display_plot_choices_ui()
+
 
         self.plot_button.on_click(_plot_button_click)
         self.ref_plot_button.on_click(_ref_plot_button_click)  
@@ -322,7 +354,6 @@ class UserInterface():
         """
         Loads selected model dataset from keys_dropdown and creates new interactive plot. Private.
         """
-        
         # Update text box
         self._update_status_text('User model status >> Loading data.')
 
@@ -331,7 +362,8 @@ class UserInterface():
         
         # Update text box
         self._update_status_text('User model status >> Data successfully loaded.')
-        
+        self.keys_button.name = "Load different dataset"
+
         # Check if plot already exists
         if self.figure_exists == False:
             
@@ -347,7 +379,8 @@ class UserInterface():
 
             # Update existing plot
             self._update_dataset_plot_ui()
-            
+
+         
             
     def _ref_keys_dropdown_click(self):
         
@@ -445,8 +478,8 @@ class UserInterface():
         self.plot_type_dropdown.name = 'Select plot type'
         self.plot_type_dropdown.options = ["Line", "Heatmap"]
         
-        plot_ui_row = pn.Row(self.plot_variable_dropdown, self.plot_type_dropdown, self.select_variable_button)
-        self.widget_container.append(plot_ui_row)
+        self.plot_ui_row = pn.Row(self.plot_variable_dropdown, self.plot_type_dropdown, self.select_variable_button)
+        self.widget_container.append(self.plot_ui_row)
         #self.widget_container.append(self.plot_pane)
         
     def _display_plot_choices_ui(self):
@@ -454,8 +487,10 @@ class UserInterface():
             """
             Create interactive panel plot for user to choose plot options and add to widget_container. Private.
             """
+            #Remove preexisting plot choices UI
+            if hasattr(self, 'plot_choices_row') and self.plot_choices_row in self.widget_container:
+                self.widget_container.remove(self.plot_choices_row)
 
-            #Need to use self.dataset[var].dims instead, but requires variable to be selected before this UI pops up.
             self.x_axis_dropdown.name = 'Select X-Axis dimension'
             self.x_axis_dropdown.options = list(self.dataset[self.plot_variable_dropdown.value].dims)
 
@@ -463,11 +498,16 @@ class UserInterface():
             if self.plot_type_dropdown.value == "Heatmap":
                 self.y_axis_dropdown.name = 'Select Y-Axis dimension'
                 self.y_axis_dropdown.options = list(self.dataset[self.plot_variable_dropdown.value].dims)
-                plot_choices_row = pn.Row(self.x_axis_dropdown, self.y_axis_dropdown, self.plot_button)
+                self.plot_choices_row = pn.Row(self.x_axis_dropdown, self.y_axis_dropdown, self.plot_button)
             elif self.plot_type_dropdown.value == "Line":
-                plot_choices_row = pn.Row(self.x_axis_dropdown, self.plot_button)
+                self.plot_choices_row = pn.Row(self.x_axis_dropdown, self.plot_button)
 
-            self.widget_container.append(plot_choices_row)
+            #Insert the UI row under the variable selection even if there are plots already
+            if hasattr(self, 'plot_ui_row') and self.plot_ui_row in self.widget_container:
+                insert_index = self.widget_container.index(self.plot_ui_row) + 1
+                self.widget_container.insert(insert_index, self.plot_choices_row)
+            else:
+                self.widget_container.append(self.plot_choices_row)
             #self.widget_container.append(self.plot_pane)
 
     def _display_ref_dataset_plot_ui(self):
@@ -518,7 +558,7 @@ class UserInterface():
         if hasattr(self, 'ref_fig'):
             plt.close(self.ref_fig)
         
-        
+    
     def _plot_dataset(self, variable, x_axis):
         
         """
@@ -534,11 +574,11 @@ class UserInterface():
         ref_fig : matplotlib.pyplot.figure()
         """
         # Plot primary (user) model data
-        self.fig = plt.figure(figsize=[8,4])
+        self.fig, ax = plt.figure(figsize=[8,4])
         
         self.figure_exists = True
         
-        self.dataset[variable].plot(x=x_axis)
+        self.dataset[variable].plot(x=x_axis, ax=ax)
         
         plt.title(self.dataset[variable].attrs['long_name'], fontsize=14)
 
@@ -625,23 +665,23 @@ class UserInterface():
         return self.ref_fig
 
         
-        def _plot_with_slice(self, variable, slice_dim, slice_value):
+    def _plot_with_slice(self, variable, slice_dim, slice_value):
+    
+        """
+        Plot 2D time-series from model data with a slice applied. Private.
         
-            """
-            Plot 2D time-series from model data with a slice applied. Private.
+        Parameters
+        ----------
+        variable : str
+            Model data variable as selected from panel dropdown.
+        slice_dim : str
+            Dimension to slice along (e.g., 'lat', 'lon', 'member').
+        slice_value : float or int
+            Value along the slice_dim to select (e.g., 0.0 for lat=0.0).
             
-            Parameters
-            ----------
-            variable : str
-                Model data variable as selected from panel dropdown.
-            slice_dim : str
-                Dimension to slice along (e.g., 'lat', 'lon', 'member').
-            slice_value : float or int
-                Value along the slice_dim to select (e.g., 0.0 for lat=0.0).
-                
-            Returns
-            ----------
-            fig : matplotlib.pyplot.figure()
-            """
+        Returns
+        ----------
+        fig : matplotlib.pyplot.figure()
+        """
 
-            print("Placeholder for plotting with slice. This function is not yet implemented.")    
+        print("Placeholder for plotting with slice. This function is not yet implemented.")    
