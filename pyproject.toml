@@ -37,7 +37,7 @@ parentdir_prefix = "med_diagnostics-"
 
 [tool.pixi.workspace]
 channels = ["conda-forge", "accessnri"]
-platforms = ["win-64"]
+platforms = ["osx-arm64", "linux-64", "win-64"]
 
 [tool.pixi.pypi-dependencies]
 med-diagnostics = { path = ".", editable = true }
