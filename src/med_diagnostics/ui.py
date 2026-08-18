@@ -96,50 +96,12 @@ class UserInterface():
 
         def _plot_button_click(event):
 
-            self.plot_button.name = "Add Plot"    
-            self.select_variable_button.name = "Add new plot with different variable/ plot type"    
-            self._update_status_text('User model status >> Generating plot...')
-
-            # Based on plot type change function that is used
-            if self.plot_type_dropdown.value == "Heatmap":
-                x_axis = self.x_axis_dropdown.value
-                y_axis = self.y_axis_dropdown.value
-                fig = self._plot_heatmap(self.plot_variable_dropdown.value, x_axis, y_axis)
-            elif self.plot_type_dropdown.value == "Line":
-                x_axis = self.x_axis_dropdown.value
-                fig = self._plot_dataset(self.plot_variable_dropdown.value, x_axis)
+            plot_valid, requires_slice = self._check_plot_validity()    
+            if plot_valid:   
+                self._plot_data_button_click()
+            elif requires_slice:
+                self._check_slice()
             
-            # Create a new pane for the figure
-            new_plot_pane = pn.pane.Matplotlib(fig, tight=True)
-
-            # Create a remove button for each plot that is added
-            remove_btn = pn.widgets.Button(name='Remove this plot', button_type='danger', margin=(23, 0, 0, 10))
-            
-            # Group the plot and the button together
-            plot_group = pn.Column(new_plot_pane, remove_btn, margin=(0, 0, 25, 0))
-            
-            # Local callback to destroy this specific plot group
-            def _remove_this_plot(event):
-                if plot_group in self.widget_container:
-                    self.widget_container.remove(plot_group)
-                    
-            remove_btn.on_click(_remove_this_plot)
-
-            # remove the plot choices row since the plot has been created
-            if hasattr(self, 'plot_choices_row') and self.plot_choices_row in self.widget_container:
-                self.widget_container.remove(self.plot_choices_row)
-
-            # Check if the reference UI already exists
-            if self.ref_status_textbox in self.widget_container:
-                # Find where the reference UI is
-                insert_index = self.widget_container.index(self.ref_status_textbox)
-                
-                # Insert the new plot just above the reference UI
-                self.widget_container.insert(insert_index, plot_group)
-            else:
-                # First time plotting: append plot to bottom, then generate reference UI below it
-                self.widget_container.append(plot_group)
-                self._display_reference_model_selection_ui()
             
         def _ref_plot_button_click(event):
             self._update_ref_status_text('Reference model status >> Generating plot...')
@@ -167,7 +129,7 @@ class UserInterface():
         self.ref_model_info_button.on_click(_ref_model_info_button_click)
         self.select_variable_button.on_click(_select_variable_button_click)
             
-            
+    
     def _display_status_text(self):
         
         """
@@ -380,6 +342,64 @@ class UserInterface():
             # Update existing plot
             self._update_dataset_plot_ui()
 
+    def _plot_data_button_click(self):
+        
+        self.plot_button.name = "Add Plot"    
+        self.select_variable_button.name = "Add new plot with different variable/ plot type"    
+        self._update_status_text('User model status >> Generating plot...')
+
+        #For each of the slices, build a dictionary so that the slices can be accessed in the plot
+        self.chosen_slices = {}
+        if hasattr(self, 'slice_widgets'):
+            for dim, widget in self.slice_widgets.items():
+                self.chosen_slices[dim] = widget.value
+
+        # Based on plot type change function that is used
+        if self.plot_type_dropdown.value == "Heatmap":
+            x_axis = self.x_axis_dropdown.value
+            y_axis = self.y_axis_dropdown.value
+            fig = self._plot_heatmap(self.plot_variable_dropdown.value, x_axis, y_axis)
+        elif self.plot_type_dropdown.value == "Line":
+            x_axis = self.x_axis_dropdown.value
+            fig = self._plot_dataset(self.plot_variable_dropdown.value, x_axis)
+        
+        # Create a new pane for the figure
+        new_plot_pane = pn.pane.Matplotlib(fig, tight=True)
+
+        # Create a remove button for each plot that is added
+        remove_btn = pn.widgets.Button(name='Remove the above plot', button_type='danger', margin=(23, 0, 0, 10))
+        
+        # Group the plot and the button together
+        plot_group = pn.Column(new_plot_pane, remove_btn, margin=(0, 0, 25, 0))
+        
+        # Local callback to destroy this specific plot group
+        def _remove_this_plot(event):
+            if plot_group in self.widget_container:
+                self.widget_container.remove(plot_group)
+                
+        remove_btn.on_click(_remove_this_plot)
+
+        # remove the plot choices row since the plot has been created
+        if hasattr(self, 'plot_choices_row') and self.plot_choices_row in self.widget_container:
+            self.widget_container.remove(self.plot_choices_row)
+
+        if hasattr(self, 'slice_ui_row') and self.slice_ui_row in self.widget_container:
+            self.widget_container.remove(self.slice_ui_row)
+            # Delete the attributes so the gatekeeper resets for the next plot
+            del self.slice_ui_row
+            del self.slice_widgets
+
+        # Check if the reference UI already exists
+        if self.ref_status_textbox in self.widget_container:
+            # Find where the reference UI is
+            insert_index = self.widget_container.index(self.ref_status_textbox)
+            
+            # Insert the new plot just above the reference UI
+            self.widget_container.insert(insert_index, plot_group)
+        else:
+            # First time plotting: append plot to bottom, then generate reference UI below it
+            self.widget_container.append(plot_group)
+            self._display_reference_model_selection_ui()
          
             
     def _ref_keys_dropdown_click(self):
@@ -491,15 +511,21 @@ class UserInterface():
             if hasattr(self, 'plot_choices_row') and self.plot_choices_row in self.widget_container:
                 self.widget_container.remove(self.plot_choices_row)
 
+            #Find viable dimensions for axis selection
+            dim_sizes = self.dataset[list(self.dataset.keys())].sizes
+            viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
+
             self.x_axis_dropdown.name = 'Select X-Axis dimension'
-            self.x_axis_dropdown.options = list(self.dataset[self.plot_variable_dropdown.value].dims)
+            self.x_axis_dropdown.options = viable_dims
 
             #If the user chooses to plot a heatmap, allow them to choose the Y-axis
             if self.plot_type_dropdown.value == "Heatmap":
                 self.y_axis_dropdown.name = 'Select Y-Axis dimension'
-                self.y_axis_dropdown.options = list(self.dataset[self.plot_variable_dropdown.value].dims)
+                self.y_axis_dropdown.options = viable_dims
+                #_check_if_slice_required
                 self.plot_choices_row = pn.Row(self.x_axis_dropdown, self.y_axis_dropdown, self.plot_button)
             elif self.plot_type_dropdown.value == "Line":
+                #_check_if_slice_required
                 self.plot_choices_row = pn.Row(self.x_axis_dropdown, self.plot_button)
 
             #Insert the UI row under the variable selection even if there are plots already
@@ -509,6 +535,57 @@ class UserInterface():
             else:
                 self.widget_container.append(self.plot_choices_row)
             #self.widget_container.append(self.plot_pane)
+
+    def _check_plot_validity(self):
+        #add any necessary checks to see if the data will plot okay.
+        plot_valid = True
+        requires_slice = False
+
+        #Filter which dimensions can viably be plotted on an axis
+        dim_sizes = self.dataset[list(self.dataset.keys())].sizes
+        viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
+        
+        if self.plot_type_dropdown.value == "Heatmap":
+            chosen_axes = (self.x_axis_dropdown.value, self.y_axis_dropdown.value)
+        else:
+            chosen_axes = (self.x_axis_dropdown.value,)
+
+        self.remaining_dims = [dim for dim in viable_dims if dim not in chosen_axes]
+        if len(self.remaining_dims) > 0 and not hasattr(self, 'slice_widgets'):
+            plot_valid = False
+            requires_slice = True
+
+        return plot_valid, requires_slice
+        
+    
+    def _check_slice(self):
+
+        #Filter dimensions to get the remaining dimensions not selected as the axes
+        self.slice_widgets = {}
+        ui_components = []
+
+        #for each dimension remaining, add a dropdown to the widget row that will be added
+        for dimension in self.remaining_dims:
+            # Extract coordinate values as options
+            coord_values = list(self.dataset[dimension].values)
+            dropdown = pn.widgets.Select(name=f'Slice {dimension} at:', options=coord_values)
+            
+            self.slice_widgets[dimension] = dropdown
+            ui_components.append(dropdown)
+            
+        # Group them into a row
+        self.slice_ui_row = pn.Row(*ui_components)
+
+        # Insert the slice UI below the plot choices row
+        if hasattr(self, 'plot_choices_row') and self.plot_choices_row in self.widget_container:
+            insert_index = self.widget_container.index(self.plot_choices_row) + 1
+            self.widget_container.insert(insert_index, self.slice_ui_row)
+        else:
+            self.widget_container.append(self.slice_ui_row)
+            
+        # Update the UI text to prompt the user
+        self.plot_button.name = "Confirm Slices & Plot"
+        self._update_status_text('User model status >> Action required: Select slice values and click plot again.')
 
     def _display_ref_dataset_plot_ui(self):
         
@@ -574,13 +651,20 @@ class UserInterface():
         ref_fig : matplotlib.pyplot.figure()
         """
         # Plot primary (user) model data
-        self.fig, ax = plt.figure(figsize=[8,4])
+        self.fig, ax = plt.subplots(figsize=[8,4])
         
         self.figure_exists = True
-        
-        self.dataset[variable].plot(x=x_axis, ax=ax)
-        
-        plt.title(self.dataset[variable].attrs['long_name'], fontsize=14)
+        # Slice the dataset if the user has selected any
+        sliced_data = self.dataset.sel(**self.chosen_slices)
+
+        #Add the slice information to the title, if it is sliced data
+        sliced_data[variable].plot(x=x_axis, ax=ax)
+        slice_str = ", ".join([f"{dim}: {val}" for dim, val in self.chosen_slices.items()])
+        title_text = sliced_data[variable].attrs.get('long_name', variable)
+        if slice_str:
+            title_text += f" (Sliced by: {slice_str})"
+
+        plt.title(title_text, fontsize=14)
 
         plt.grid()
         plt.legend()
@@ -609,20 +693,24 @@ class UserInterface():
         # Create figure and explicit axis
         self.fig, ax = plt.subplots(figsize=[8,4])
 
-        print("Defaulting to slicing time=0 and st_ocean=0, need to build in this functionality")
-
-        # Slice the dataset by time AND depth (st_ocean) to get a 2D array
-        heatmap_data = self.dataset.isel(time=0, st_ocean=0)
+        # Slice the dataset if the user has selected any
+        heatmap_data = self.dataset.sel(**self.chosen_slices)
 
         # Plot the specific DataArray onto the explicit axis
         heatmap_data[variable].plot(x=x_axis, y=y_axis, ax=ax)
-        
-        title_str = self.dataset[variable].attrs.get('long_name', variable)
-        ax.set_title(title_str, fontsize=14)
 
-        ax.grid()
+        #Add the slice information to the title, if it is sliced data
+        slice_str = ", ".join([f"{dim}: {val}" for dim, val in self.chosen_slices.items()])
+        title_text = heatmap_data[variable].attrs.get('long_name', variable)
+        if slice_str:
+            title_text += f" (Sliced by: {slice_str})"
+
+        plt.title(title_text, fontsize=14)
+
+        plt.grid()
         plt.tight_layout()
-
+        plt.legend()
+        plt.close(self.fig)
         return self.fig
 
     def _plot_ref_dataset(self, ref_variable):
