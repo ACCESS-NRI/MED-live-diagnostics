@@ -5,7 +5,6 @@
 import sys
 from pathlib import Path
 src_dir = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(src_dir))
 import med_diagnostics
 from med_diagnostics.data import _build_new_catalog
 
