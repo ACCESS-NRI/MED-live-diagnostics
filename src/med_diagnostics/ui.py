@@ -839,14 +839,19 @@ class UserInterface():
         sliced_data[variable].plot(x=x_axis, ax=ax)
         slice_str = ", ".join([f"{dim}: {val}" for dim, val in self.chosen_slices.items()])
         title_text = sliced_data[variable].attrs.get('long_name', variable)
+        caption_text = "User model \nDataset: " + self.keys_dropdown.value
+
+        #Add details of slice to caption, if the data is sliced
         if slice_str:
-            title_text += f" (Sliced by: {slice_str})"
+            caption_text += f"\nSliced by: {slice_str}"
 
-        plt.title(title_text, fontsize=14)
+        self.fig.tight_layout()
+        ax.set_title(title_text, fontsize=14)
+        self.fig.text(0.1, 0.01, caption_text, wrap=False, horizontalalignment='left', fontsize=10)    
+        self.fig.subplots_adjust(bottom=0.2)
 
-        plt.grid()
-        plt.legend()
-        plt.tight_layout()
+        ax.grid()
+        ax.legend()
 
         plt.close(self.fig)
 
@@ -880,13 +885,18 @@ class UserInterface():
         #Add the slice information to the title, if it is sliced data
         slice_str = ", ".join([f"{dim}: {val}" for dim, val in self.chosen_slices.items()])
         title_text = heatmap_data[variable].attrs.get('long_name', variable)
+        caption_text = "User model \nDataset: " + self.keys_dropdown.value
+
+        #Add details of slice to caption, if the data is sliced
         if slice_str:
-            title_text += f" (Sliced by: {slice_str})"
+            caption_text += f"\nSliced by: {slice_str}"
 
-        plt.title(title_text, fontsize=14)
+        self.fig.tight_layout()
+        ax.set_title(title_text, fontsize=14)
+        self.fig.text(0.1, 0.01, caption_text, wrap=False, horizontalalignment='left', fontsize=10)    
+        self.fig.subplots_adjust(bottom=0.2)
 
-        plt.grid()
-        plt.tight_layout()
+        ax.grid()
         plt.close(self.fig)
         return self.fig
 
@@ -925,13 +935,18 @@ class UserInterface():
         
         slice_str = ", ".join([f"{dim}: {val}" for dim, val in self.ref_chosen_slices.items()])
         title_text = sliced_data[ref_variable].attrs.get('long_name', ref_variable)
-        if slice_str:
-            title_text += f" (Sliced by: {slice_str})"
+        caption_text = 'Model: ' + self.ref_keys_dropdown.value + '\nDataset: ' + self.ref_data_keys_dropdown.value
 
-        plt.title(title_text, fontsize=14)
-        plt.grid()
-        plt.legend()
-        plt.tight_layout()
+        #Add details of slice to caption, if the data is sliced
+        if slice_str:
+            caption_text += f"\nSliced by: {slice_str}"
+
+        self.ref_fig.tight_layout()
+        ax.set_title(title_text, fontsize=14)
+        self.ref_fig.text(0.1, 0.01, caption_text, wrap=False, horizontalalignment='left', fontsize=10)    
+        self.ref_fig.subplots_adjust(bottom=0.2)
+        ax.grid()
+        ax.legend()
 
         plt.close(self.ref_fig)
 
@@ -965,12 +980,18 @@ class UserInterface():
         #Add the slice information to the title, if it is sliced data
         slice_str = ", ".join([f"{dim}: {val}" for dim, val in self.ref_chosen_slices.items()])
         title_text = heatmap_data[ref_variable].attrs.get('long_name', ref_variable)
+        caption_text = 'Model: ' + self.ref_keys_dropdown.value + '\nDataset: ' + self.ref_data_keys_dropdown.value
+
+        #Add details of slice to caption, if the data is sliced
         if slice_str:
-            title_text += f" (Sliced by: {slice_str})"
+            caption_text += f"\nSliced by: {slice_str}"
 
-        plt.title(title_text, fontsize=14)
+        self.ref_fig.tight_layout()
+        ax.set_title(title_text, fontsize=14)
+        self.ref_fig.text(0.1, 0.01, caption_text, wrap=False, horizontalalignment='left', fontsize=10)    
+        self.ref_fig.subplots_adjust(bottom=0.2)
 
-        plt.grid()
-        plt.tight_layout()
+        ax.grid()
+        
         plt.close(self.ref_fig)
         return self.ref_fig
