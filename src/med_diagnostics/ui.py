@@ -355,7 +355,7 @@ class UserInterface():
         self.ref_dataset = data._build_data_object(self.ref_model_cat, self.ref_data_keys_dropdown.value)
         self._update_ref_status_text('Reference model status >> Reference dataset successfully loaded.')
          # Check if plot already exists
-        if self.ref_figure_exists == False:
+        if not self.ref_figure_exists:
 
             self.ref_figure_exists = True
             # Create new plot
