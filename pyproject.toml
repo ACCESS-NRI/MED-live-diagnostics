@@ -36,7 +36,7 @@ tag_prefix = "v"
 parentdir_prefix = "med_diagnostics-"
 
 [tool.pixi.workspace]
-channels = ["conda-forge"]
+channels = ["conda-forge", "accessnri"]
 platforms = ["win-64"]
 
 [tool.pixi.pypi-dependencies]
