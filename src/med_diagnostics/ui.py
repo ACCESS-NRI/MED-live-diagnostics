@@ -42,6 +42,10 @@ class UserInterface():
         self.x_axis_dropdown = pn.widgets.Select()
         self.y_axis_dropdown = pn.widgets.Select()
         self.select_variable_button = pn.widgets.Button(name='Select Variable and Plot Type', button_type = "primary", margin=(23, 0, 0, 10))
+        self.ref_plot_type_dropdown = pn.widgets.Select()
+        self.ref_x_axis_dropdown = pn.widgets.Select()
+        self.ref_y_axis_dropdown = pn.widgets.Select()
+        self.ref_select_variable_button = pn.widgets.Button(name='Select Variable and Plot Type', button_type = "primary", margin=(23, 0, 0, 10))
 
         self.ref_keys_dropdown = pn.widgets.Select()
         self.ref_keys_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 0))
@@ -96,28 +100,37 @@ class UserInterface():
 
         def _plot_button_click(event):
 
-            plot_valid, requires_slice = self._check_plot_validity()    
+            plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen = self._check_plot_validity()    
             if plot_valid:   
                 self._plot_data_button_click()
             elif requires_slice:
                 self._check_slice()
+            elif invalid_heatmap_data:
+                self._update_status_text("Warning >> The dataset only has one plottable dimension. Defaulting to line plot.")
+                self.plot_type_dropdown.value = "Line"
+                self._plot_data_button_click()
+            elif same_axes_chosen:
+                self._update_status_text("Warning >> Please select different values for the x and y axes")
             
             
         def _ref_plot_button_click(event):
-            self._update_ref_status_text('Reference model status >> Generating plot...')
-            fig = self._plot_ref_dataset(self.ref_plot_variable_dropdown.value)
-            
-            # Create a new pane for the reference figure
-            new_ref_plot_pane = pn.pane.Matplotlib(fig, tight=True)
-            self.widget_container.append(new_ref_plot_pane)
-            
-            self._update_ref_status_text('Reference model status >> Plot generated.')
-
-            if self.ref_plot_pane not in self.widget_container:
-                self.widget_container.append(self.ref_plot_pane)
+            plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen = self._ref_check_plot_validity()    
+            if plot_valid:   
+                self._ref_plot_data_button_click()
+            elif requires_slice:
+                self._ref_check_slice()
+            elif invalid_heatmap_data:
+                self._update_ref_status_text("Warning >> The dataset only has one plottable dimension. Defaulting to line plot.")
+                self.ref_plot_type_dropdown.value = "Line"
+                self._ref_plot_data_button_click()
+            elif same_axes_chosen:
+                self._update_ref_status_text("Warning >> Please select different values for the x and y axes")
 
         def _select_variable_button_click(event):                
             self._display_plot_choices_ui()
+
+        def _ref_select_variable_button_click(event):                
+            self._ref_display_plot_choices_ui()
 
 
         self.plot_button.on_click(_plot_button_click)
@@ -128,6 +141,7 @@ class UserInterface():
         self.clear_ref_model_data_button.on_click(_ref_clear_data_button_click)
         self.ref_model_info_button.on_click(_ref_model_info_button_click)
         self.select_variable_button.on_click(_select_variable_button_click)
+        self.ref_select_variable_button.on_click(_ref_select_variable_button_click)
             
     
     def _display_status_text(self):
@@ -401,6 +415,55 @@ class UserInterface():
             self.widget_container.append(plot_group)
             self._display_reference_model_selection_ui()
          
+    def _ref_plot_data_button_click(self):
+            
+        self.ref_plot_button.name = "Add Plot"    
+        self.ref_select_variable_button.name = "Add new plot with different variable/ plot type"    
+        self._update_ref_status_text('User model status >> Generating plot...')
+
+        #For each of the slices, build a dictionary so that the slices can be accessed in the plot
+        self.ref_chosen_slices = {}
+        if hasattr(self, 'ref_slice_widgets'):
+            for dim, widget in self.ref_slice_widgets.items():
+                self.ref_chosen_slices[dim] = widget.value
+
+        # Based on plot type change function that is used
+        if self.ref_plot_type_dropdown.value == "Heatmap":
+            x_axis = self.ref_x_axis_dropdown.value
+            y_axis = self.ref_y_axis_dropdown.value
+            fig = self._plot_ref_heatmap(self.ref_plot_variable_dropdown.value, x_axis, y_axis) #Need to check if I need a seperate function for reference heatmaps
+        elif self.ref_plot_type_dropdown.value == "Line":
+            x_axis = self.ref_x_axis_dropdown.value
+            fig = self._plot_ref_dataset(self.ref_plot_variable_dropdown.value, x_axis)
+        
+        # Create a new pane for the figure
+        new_plot_pane = pn.pane.Matplotlib(fig, tight=True)
+
+        # Create a remove button for each plot that is added
+        remove_btn = pn.widgets.Button(name='Remove the above plot', button_type='danger', margin=(23, 0, 0, 10))
+        
+        # Group the plot and the button together
+        plot_group = pn.Column(new_plot_pane, remove_btn, margin=(0, 0, 25, 0))
+        
+        # Local callback to destroy this specific plot group
+        def _remove_this_plot(event):
+            if plot_group in self.widget_container:
+                self.widget_container.remove(plot_group)
+                
+        remove_btn.on_click(_remove_this_plot)
+
+        # remove the plot choices row since the plot has been created
+        if hasattr(self, 'ref_plot_choices_row') and self.ref_plot_choices_row in self.widget_container:
+            self.widget_container.remove(self.ref_plot_choices_row)
+
+        if hasattr(self, 'ref_slice_ui_row') and self.ref_slice_ui_row in self.widget_container:
+            self.widget_container.remove(self.ref_slice_ui_row)
+            # Delete the attributes so the gatekeeper resets for the next plot
+            del self.ref_slice_ui_row
+            del self.ref_slice_widgets
+
+        self.widget_container.append(plot_group)
+        
             
     def _ref_keys_dropdown_click(self):
         
@@ -417,9 +480,13 @@ class UserInterface():
         # Update text box
         self._update_ref_status_text('Reference model status >> Data catalog successfully loaded.')
 
-        self._display_reference_dataset_selection_ui()
+        if hasattr(self, 'ref_data_keys_selection_row') and self.ref_data_keys_selection_row in self.widget_container:
+            # Just update the options in the existing dropdown to match the new model
+            self.ref_data_keys_dropdown.options = list(self.ref_model_cat.keys())
+        else:
+            # Build and display the UI for the first time
+            self._display_reference_dataset_selection_ui()
                     
-        
         
     def _ref_dataset_dropdown_click(self):
         
@@ -435,7 +502,7 @@ class UserInterface():
 
             self.ref_figure_exists = True
             # Create new plot
-            self._display_ref_dataset_plot_ui()
+            self._ref_display_dataset_plot_ui()
             
         elif self.ref_figure_exists == True:
 
@@ -501,6 +568,21 @@ class UserInterface():
         self.plot_ui_row = pn.Row(self.plot_variable_dropdown, self.plot_type_dropdown, self.select_variable_button)
         self.widget_container.append(self.plot_ui_row)
         #self.widget_container.append(self.plot_pane)
+    
+    def _ref_display_dataset_plot_ui(self):
+            
+        """
+        Create interactive panel plot for reference model dataset and add to widget_container. Private.
+        """
+        
+        self.ref_plot_variable_dropdown.name = 'Available variables'
+        self.ref_plot_variable_dropdown.options = list(self.ref_dataset.keys())
+        
+        self.ref_plot_type_dropdown.name = 'Select plot type'
+        self.ref_plot_type_dropdown.options = ["Line", "Heatmap"]
+        
+        self.ref_plot_ui_row = pn.Row(self.ref_plot_variable_dropdown, self.ref_plot_type_dropdown, self.ref_select_variable_button)
+        self.widget_container.append(self.ref_plot_ui_row)
         
     def _display_plot_choices_ui(self):
             
@@ -536,10 +618,47 @@ class UserInterface():
                 self.widget_container.append(self.plot_choices_row)
             #self.widget_container.append(self.plot_pane)
 
+    def _ref_display_plot_choices_ui(self):
+                
+        """
+        Create interactive panel plot for user to choose plot options and add to widget_container. Private.
+        """
+        #Remove preexisting plot choices UI
+        if hasattr(self, 'ref_plot_choices_row') and self.ref_plot_choices_row in self.widget_container:
+            self.widget_container.remove(self.ref_plot_choices_row)
+
+        #Find viable dimensions for axis selection
+        dim_sizes = self.ref_dataset[list(self.ref_dataset.keys())].sizes
+        viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
+
+        self.ref_x_axis_dropdown.name = 'Select X-Axis dimension'
+        self.ref_x_axis_dropdown.options = viable_dims
+
+        #If the user chooses to plot a heatmap, allow them to choose the Y-axis
+        if self.ref_plot_type_dropdown.value == "Heatmap":
+            self.ref_y_axis_dropdown.name = 'Select Y-Axis dimension'
+            self.ref_y_axis_dropdown.options = viable_dims
+            #_check_if_slice_required
+            self.ref_plot_choices_row = pn.Row(self.ref_x_axis_dropdown, self.ref_y_axis_dropdown, self.ref_plot_button)
+        elif self.ref_plot_type_dropdown.value == "Line":
+            #_check_if_slice_required
+            self.ref_plot_choices_row = pn.Row(self.ref_x_axis_dropdown, self.ref_plot_button)
+
+        #Insert the UI row under the variable selection even if there are plots already
+        if hasattr(self, 'ref_plot_ui_row') and self.ref_plot_ui_row in self.widget_container:
+            insert_index = self.widget_container.index(self.ref_plot_ui_row) + 1
+            self.widget_container.insert(insert_index, self.ref_plot_choices_row)
+        else:
+            self.widget_container.append(self.ref_plot_choices_row)
+        #self.widget_container.append(self.plot_pane)
+
+
     def _check_plot_validity(self):
         #add any necessary checks to see if the data will plot okay.
         plot_valid = True
         requires_slice = False
+        invalid_heatmap_data = False
+        same_axes_chosen = False
 
         #Filter which dimensions can viably be plotted on an axis
         dim_sizes = self.dataset[list(self.dataset.keys())].sizes
@@ -551,11 +670,54 @@ class UserInterface():
             chosen_axes = (self.x_axis_dropdown.value,)
 
         self.remaining_dims = [dim for dim in viable_dims if dim not in chosen_axes]
+
+        #If there are dimensions remaining in the dataset, and they are not already sliced by the user
         if len(self.remaining_dims) > 0 and not hasattr(self, 'slice_widgets'):
             plot_valid = False
             requires_slice = True
+        #If there is only one dimension plottable, and the user chose to plot a heatmap
+        elif len(viable_dims) == 1 and self.plot_type_dropdown.value == "Heatmap":
+            plot_valid = False
+            invalid_heatmap_data = True
+        #If the user has tried to plot the same variable on both axes
+        elif self.x_axis_dropdown.value == self.y_axis_dropdown.value:
+            plot_valid = False
+            same_axes_chosen = True
 
-        return plot_valid, requires_slice
+        return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen
+
+    def _ref_check_plot_validity(self):
+            #add any necessary checks to see if the data will plot okay.
+            plot_valid = True
+            requires_slice = False
+            invalid_heatmap_data = False
+            same_axes_chosen = False
+    
+            #Filter which dimensions can viably be plotted on an axis
+            dim_sizes = self.ref_dataset[list(self.ref_dataset.keys())].sizes
+            viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
+            
+            if self.ref_plot_type_dropdown.value == "Heatmap":
+                chosen_axes = (self.ref_x_axis_dropdown.value, self.ref_y_axis_dropdown.value)
+            else:
+                chosen_axes = (self.ref_x_axis_dropdown.value,)
+    
+            self.ref_remaining_dims = [dim for dim in viable_dims if dim not in chosen_axes]
+    
+            #If there are dimensions remaining in the dataset, and they are not already sliced by the user
+            if len(self.ref_remaining_dims) > 0 and not hasattr(self, 'ref_slice_widgets'):
+                plot_valid = False
+                requires_slice = True
+            #If there is only one dimension plottable, and the user chose to plot a heatmap
+            elif len(viable_dims) == 1 and self.ref_plot_type_dropdown.value == "Heatmap":
+                plot_valid = False
+                invalid_heatmap_data = True
+            #If the user has tried to plot the same variable on both axes
+            elif self.ref_x_axis_dropdown.value == self.ref_y_axis_dropdown.value:
+                plot_valid = False
+                same_axes_chosen = True
+    
+            return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen
         
     
     def _check_slice(self):
@@ -587,18 +749,34 @@ class UserInterface():
         self.plot_button.name = "Confirm Slices & Plot"
         self._update_status_text('User model status >> Action required: Select slice values and click plot again.')
 
-    def _display_ref_dataset_plot_ui(self):
-        
-        """
-        Create interactive panel plot for reference model dataset and add to widget_container. Private.
-        """
-        
-        self.ref_plot_variable_dropdown.name = 'Available reference variables'
-        self.ref_plot_variable_dropdown.options = list(self.ref_dataset.keys())
-        
-        ref_plot_ui_row = pn.Row(self.ref_plot_variable_dropdown, self.ref_plot_button)
-        self.widget_container.append(ref_plot_ui_row)
-        #self.widget_container.append(self.ref_plot_pane)
+    def _ref_check_slice(self):
+    
+        #Filter dimensions to get the remaining dimensions not selected as the axes
+        self.ref_slice_widgets = {}
+        ref_ui_components = []
+
+        #for each dimension remaining, add a dropdown to the widget row that will be added
+        for dimension in self.ref_remaining_dims:
+            # Extract coordinate values as options
+            coord_values = list(self.ref_dataset[dimension].values)
+            dropdown = pn.widgets.Select(name=f'Slice {dimension} at:', options=coord_values)
+            
+            self.ref_slice_widgets[dimension] = dropdown
+            ref_ui_components.append(dropdown)
+            
+        # Group them into a row
+        self.ref_slice_ui_row = pn.Row(*ref_ui_components)
+
+        # Insert the slice UI below the plot choices row
+        if hasattr(self, 'ref_plot_choices_row') and self.ref_plot_choices_row in self.widget_container:
+            insert_index = self.widget_container.index(self.ref_plot_choices_row) + 1
+            self.widget_container.insert(insert_index, self.ref_slice_ui_row)
+        else:
+            self.widget_container.append(self.ref_slice_ui_row)
+            
+        # Update the UI text to prompt the user
+        self.ref_plot_button.name = "Confirm Slices & Plot"
+        self._update_ref_status_text('User model status >> Action required: Select slice values and click plot again.')
         
         
     def _update_dataset_plot_ui(self):
@@ -709,11 +887,10 @@ class UserInterface():
 
         plt.grid()
         plt.tight_layout()
-        plt.legend()
         plt.close(self.fig)
         return self.fig
 
-    def _plot_ref_dataset(self, ref_variable):
+    def _plot_ref_dataset(self, ref_variable, x_axis):
         
         """
         Plot 2D time-series from reference model data. Private.
@@ -728,22 +905,30 @@ class UserInterface():
         ref_fig : matplotlib.pyplot.figure()
         """
         
-        self.ref_fig = plt.figure(figsize=[8,4])
+        self.ref_fig, ax = plt.subplots(figsize=[8,4])
         
         self.ref_figure_exists = True
+
+        sliced_data = self.ref_dataset.sel(**self.ref_chosen_slices)
         
         # Plot all model variants if multiple exist
-        if "member" in self.ref_dataset.dims:
+        if "member" in sliced_data.dims:
 
-            for mem in self.ref_dataset.member.values:
+            for mem in sliced_data.member.values:
 
-                self.ref_dataset[ref_variable].sel(member=mem).plot(label=mem)
+                sliced_data[ref_variable].sel(member=mem).plot(label=mem, x=x_axis, ax=ax)
         else:
             # Plot directly if no member dimension exists
-            self.ref_dataset[ref_variable].plot()        
+            sliced_data[ref_variable].plot(x=x_axis, ax=ax)     
         
-        plt.title(self.ref_dataset[ref_variable].attrs['long_name'], fontsize=14)
+         #Add the slice information to the title, if it is sliced data
+        
+        slice_str = ", ".join([f"{dim}: {val}" for dim, val in self.ref_chosen_slices.items()])
+        title_text = sliced_data[ref_variable].attrs.get('long_name', ref_variable)
+        if slice_str:
+            title_text += f" (Sliced by: {slice_str})"
 
+        plt.title(title_text, fontsize=14)
         plt.grid()
         plt.legend()
         plt.tight_layout()
@@ -752,24 +937,40 @@ class UserInterface():
 
         return self.ref_fig
 
-        
-    def _plot_with_slice(self, variable, slice_dim, slice_value):
-    
+    def _plot_ref_heatmap(self, ref_variable, x_axis, y_axis):
         """
-        Plot 2D time-series from model data with a slice applied. Private.
+        Plot 2D heatmap from model data. Private.
         
         Parameters
         ----------
+        dataset : xarray.Dataset
+            The dataset containing the model data.
         variable : str
-            Model data variable as selected from panel dropdown.
-        slice_dim : str
-            Dimension to slice along (e.g., 'lat', 'lon', 'member').
-        slice_value : float or int
-            Value along the slice_dim to select (e.g., 0.0 for lat=0.0).
+            Model data variable for color scale.
             
         Returns
         ----------
         fig : matplotlib.pyplot.figure()
         """
+        
+        # Create figure and explicit axis
+        self.ref_fig, ax = plt.subplots(figsize=[8,4])
 
-        print("Placeholder for plotting with slice. This function is not yet implemented.")    
+        # Slice the dataset if the user has selected any
+        heatmap_data = self.ref_dataset.sel(**self.ref_chosen_slices)
+
+        # Plot the specific DataArray onto the explicit axis
+        heatmap_data[ref_variable].plot(x=x_axis, y=y_axis, ax=ax)
+
+        #Add the slice information to the title, if it is sliced data
+        slice_str = ", ".join([f"{dim}: {val}" for dim, val in self.ref_chosen_slices.items()])
+        title_text = heatmap_data[ref_variable].attrs.get('long_name', ref_variable)
+        if slice_str:
+            title_text += f" (Sliced by: {slice_str})"
+
+        plt.title(title_text, fontsize=14)
+
+        plt.grid()
+        plt.tight_layout()
+        plt.close(self.ref_fig)
+        return self.ref_fig
