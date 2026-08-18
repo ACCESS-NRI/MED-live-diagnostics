@@ -134,4 +134,4 @@ dmypy.json
 .pixi/*
 !.pixi/config.toml
 
-.vscode/*
+.vscode/
