@@ -570,17 +570,29 @@ class UserInterface():
         # Update text box
         self._update_ref_status_text('Reference model status >> Data removed.')
 
-        # Remove reference model widgets from container one at a time
-        self.widget_container.pop(-1)
-        self.widget_container.pop(-1)
-        self.widget_container.pop(-1)
-        self.widget_container.pop(-1)
+        ui_components_to_remove = [
+            'ref_data_keys_selection_row', 
+            'ref_plot_ui_row', 
+            'ref_plot_choices_row', 
+            'ref_slice_ui_row'
+        ]
+        #For each of the components
+        for attr in ui_components_to_remove:
+            #If it currently exists
+            if hasattr(self, attr):
+                component = getattr(self, attr)
+                #Remove it
+                if component in self.widget_container:
+                    self.widget_container.remove(component)
 
-        # Remove reference model ref_model_cat
-        del self.ref_model_cat
-        
-        # Remove reference dataset ref_dataset
-        del self.ref_dataset
+        # Clear the metadata text
+        self.ref_model_metadata.value = ''
+
+        # Remove reference data attributes
+        if hasattr(self, 'ref_model_cat'):
+            del self.ref_model_cat
+        if hasattr(self, 'ref_dataset'):
+            del self.ref_dataset
 
         self.ref_figure_exists = False
 
