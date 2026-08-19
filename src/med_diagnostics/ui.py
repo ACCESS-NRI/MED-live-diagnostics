@@ -576,12 +576,11 @@ class UserInterface():
             'ref_plot_choices_row', 
             'ref_slice_ui_row'
         ]
-        #For each of the components
+
+        # Remove all generated reference UI rows from the layout
         for attr in ui_components_to_remove:
-            #If it currently exists
             if hasattr(self, attr):
                 component = getattr(self, attr)
-                #Remove it
                 if component in self.widget_container:
                     self.widget_container.remove(component)
 
@@ -598,11 +597,11 @@ class UserInterface():
 
 
     def _ref_model_info_click(self):
-
+        """
+        Create string from the selected model metadata, and update the reference status text with that string. Private.
+        """
         # Update text box
         self._update_ref_status_text('Reference model status >> Retrieving model metadata.')
-
-        # self.ref_model_metadata.value = self.access_nri_cat[self.ref_keys_dropdown.value].metadata['description']
 
         self.ref_model_metadata.value = '<div style="color: var(--jp-ui-font-color1);">' + \
                                         '<b>Model information:</b><br>' + \
@@ -746,7 +745,17 @@ class UserInterface():
 
 
     def _check_plot_validity(self):
-        #add any necessary checks to see if the data will plot okay.
+        """
+        Check if the plot being created by the user is valid. Private.
+        
+        Returns
+        ----------
+        plot_valid : bool
+        requires_slice : bool
+        invalid_heatmap_data : bool
+        same_axes_chosen : bool
+        """
+
         plot_valid = True
         requires_slice = False
         invalid_heatmap_data = False
@@ -786,47 +795,60 @@ class UserInterface():
         return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen
 
     def _ref_check_plot_validity(self):
-            #add any necessary checks to see if the data will plot okay.
-            plot_valid = True
-            requires_slice = False
-            invalid_heatmap_data = False
-            same_axes_chosen = False
-    
-            #Filter which dimensions can viably be plotted on an axis
-            dim_sizes = self.ref_dataset[list(self.ref_dataset.keys())].sizes
-            viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
-            
-            if self.ref_plot_type_dropdown.value == "Heatmap":
-                chosen_axes = (self.ref_x_axis_dropdown.value, self.ref_y_axis_dropdown.value)
-            else:
-                chosen_axes = (self.ref_x_axis_dropdown.value,)
-    
-            self.ref_remaining_dims = [dim for dim in viable_dims if dim not in chosen_axes]
-            # Check if existing reference slice widgets match the required dimensions
-            if hasattr(self, 'ref_slice_widgets'):
-                if set(self.ref_slice_widgets.keys()) != set(self.ref_remaining_dims):
-                    if hasattr(self, 'ref_slice_ui_row') and self.ref_slice_ui_row in self.widget_container:
-                        self.widget_container.remove(self.ref_slice_ui_row)
-                    del self.ref_slice_ui_row
-                    del self.ref_slice_widgets
+        """
+        Check if the reference plot being created by the user is valid. Private.
+        
+        Returns
+        ----------
+        plot_valid : bool
+        requires_slice : bool
+        invalid_heatmap_data : bool
+        same_axes_chosen : bool
+        """
+        
+        plot_valid = True
+        requires_slice = False
+        invalid_heatmap_data = False
+        same_axes_chosen = False
 
-            #If there are dimensions remaining in the dataset, and they are not already sliced by the user
-            if len(self.ref_remaining_dims) > 0 and not hasattr(self, 'ref_slice_widgets'):
-                plot_valid = False
-                requires_slice = True
-            #If there is only one dimension plottable, and the user chose to plot a heatmap
-            elif len(viable_dims) == 1 and self.ref_plot_type_dropdown.value == "Heatmap":
-                plot_valid = False
-                invalid_heatmap_data = True
-            #If the user has tried to plot the same variable on both axes
-            elif self.ref_plot_type_dropdown.value == "Heatmap" and self.ref_x_axis_dropdown.value == self.ref_y_axis_dropdown.value:
-                plot_valid = False
-                same_axes_chosen = True
-    
-            return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen
+        #Filter which dimensions can viably be plotted on an axis
+        dim_sizes = self.ref_dataset[list(self.ref_dataset.keys())].sizes
+        viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
+        
+        if self.ref_plot_type_dropdown.value == "Heatmap":
+            chosen_axes = (self.ref_x_axis_dropdown.value, self.ref_y_axis_dropdown.value)
+        else:
+            chosen_axes = (self.ref_x_axis_dropdown.value,)
+
+        self.ref_remaining_dims = [dim for dim in viable_dims if dim not in chosen_axes]
+        # Check if existing reference slice widgets match the required dimensions
+        if hasattr(self, 'ref_slice_widgets'):
+            if set(self.ref_slice_widgets.keys()) != set(self.ref_remaining_dims):
+                if hasattr(self, 'ref_slice_ui_row') and self.ref_slice_ui_row in self.widget_container:
+                    self.widget_container.remove(self.ref_slice_ui_row)
+                del self.ref_slice_ui_row
+                del self.ref_slice_widgets
+
+        #If there are dimensions remaining in the dataset, and they are not already sliced by the user
+        if len(self.ref_remaining_dims) > 0 and not hasattr(self, 'ref_slice_widgets'):
+            plot_valid = False
+            requires_slice = True
+        #If there is only one dimension plottable, and the user chose to plot a heatmap
+        elif len(viable_dims) == 1 and self.ref_plot_type_dropdown.value == "Heatmap":
+            plot_valid = False
+            invalid_heatmap_data = True
+        #If the user has tried to plot the same variable on both axes
+        elif self.ref_plot_type_dropdown.value == "Heatmap" and self.ref_x_axis_dropdown.value == self.ref_y_axis_dropdown.value:
+            plot_valid = False
+            same_axes_chosen = True
+
+        return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen
         
     
     def _check_slice(self):
+        """
+        Check if the plot being created by the user requires dimensions to be sliced to generate a valid plot. Private.
+        """
 
         #Filter dimensions to get the remaining dimensions not selected as the axes
         self.slice_widgets = {}
@@ -856,6 +878,9 @@ class UserInterface():
         self._update_status_text('User model status >> Action required: Select slice values and click plot again.')
 
     def _ref_check_slice(self):
+        """
+        Check if the reference plot being created by the user requires dimensions to be sliced to generate a valid plot. Private.
+        """
     
         #Filter dimensions to get the remaining dimensions not selected as the axes
         self.ref_slice_widgets = {}
@@ -931,8 +956,7 @@ class UserInterface():
             Model data variable as selected from panel dropdown. 
         Returns
         ----------
-        fig : matplotlib.pyplot.figure()
-        ref_fig : matplotlib.pyplot.figure()
+        self.fig : matplotlib.pyplot.figure()
         """
         # Plot primary (user) model data
         self.fig, ax = plt.subplots(figsize=[8,4])
@@ -969,11 +993,12 @@ class UserInterface():
         
         Parameters
         ----------
-        dataset : xarray.Dataset
-            The dataset containing the model data.
         variable : str
-            Model data variable for color scale.
-            
+            Model data variable as selected from panel dropdown.
+        x_axis : str
+            X-axis as selected from the panel dropdown.
+        y_axis : str
+            Y-axis as selected from the panel dropdown.
         Returns
         ----------
         fig : matplotlib.pyplot.figure()
@@ -1015,6 +1040,8 @@ class UserInterface():
         ----------
         ref_variable : str
             Reference model data variable as selected from panel dropdown.
+        x_axis : str
+            X-axis as selected from the panel dropdown. 
             
         Returns
         ----------
@@ -1064,14 +1091,15 @@ class UserInterface():
         
         Parameters
         ----------
-        dataset : xarray.Dataset
-            The dataset containing the model data.
-        variable : str
-            Model data variable for color scale.
-            
+        ref_variable : str
+            Model data variable as selected from panel dropdown.
+        x_axis : str
+            X-axis as selected from the panel dropdown.
+        y_axis : str
+            Y-axis as selected from the panel dropdown.
         Returns
         ----------
-        fig : matplotlib.pyplot.figure()
+        self.ref_fig : matplotlib.pyplot.figure()
         """
         
         # Create figure and explicit axis
