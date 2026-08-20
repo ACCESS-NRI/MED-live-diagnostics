@@ -39,23 +39,13 @@ class UserInterface():
         self.keys_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 0))
         self.plot_variable_dropdown = pn.widgets.Select()
 
-        #Additions for selecting plot type
-        self.plot_type_dropdown = pn.widgets.Select()
-        self.x_axis_dropdown = pn.widgets.Select()
-        self.y_axis_dropdown = pn.widgets.Select()
-        self.select_variable_button = pn.widgets.Button(name='Select Variable and Plot Type', button_type = "primary", margin=(23, 0, 0, 10))
-        self.ref_plot_type_dropdown = pn.widgets.Select()
-        self.ref_x_axis_dropdown = pn.widgets.Select()
-        self.ref_y_axis_dropdown = pn.widgets.Select()
-        self.ref_select_variable_button = pn.widgets.Button(name='Select Variable and Plot Type', button_type = "primary", margin=(23, 0, 0, 10))
-
         self.ref_keys_dropdown = pn.widgets.Select()
         self.ref_keys_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 0))
-        self.ref_plot_variable_dropdown = pn.widgets.Select()
+        
         
         self.ref_data_keys_dropdown = pn.widgets.Select()
         self.ref_data_keys_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 0))
-        self.ref_data_plot_variable_dropdown = pn.widgets.Select()
+        self.ref_plot_variable_dropdown = pn.widgets.Select()
 
         self.clear_ref_model_data_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 10))
         self.ref_model_info_button = pn.widgets.Button(styles={}, margin=(23, 10, 0, 0))
@@ -68,7 +58,33 @@ class UserInterface():
                 
         self.figure_exists = False
         self.ref_figure_exists = False
+
+        #Additions for selecting plot type
+        self.plot_type_dropdown = pn.widgets.Select()
+        self.x_axis_dropdown = pn.widgets.Select()
+        self.y_axis_dropdown = pn.widgets.Select()
+        self.select_variable_button = pn.widgets.Button(name='Select Variable and Plot Type', button_type = "primary", margin=(23, 0, 0, 10))
+        self.ref_plot_type_dropdown = pn.widgets.Select()
+        self.ref_x_axis_dropdown = pn.widgets.Select()
+        self.ref_y_axis_dropdown = pn.widgets.Select()
+        self.ref_select_variable_button = pn.widgets.Button(name='Select Variable and Plot Type', button_type = "primary", margin=(23, 0, 0, 10))
         
+        #Additions for plotting user data with reference model data
+        self.multiplot_status_textbox = pn.widgets.StaticText(styles={'background': 'lightblue', 'font-size': '18px', 'color': 'black', 'padding': '5px'}, margin=(10, 0, 10, 0))
+        self.multiplot_user_keys_dropdown = pn.widgets.Select()
+        self.multiplot_user_keys_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 0))
+        self.multiplot_add_variable_dropdown = pn.widgets.Select()
+        self.multiplot_select_user_variable_button = pn.widgets.Button(name='Select Variable', button_type = "primary", margin=(23, 0, 0, 10))
+
+        self.multiplot_ref_keys_dropdown = pn.widgets.Select()
+        self.multiplot_ref_keys_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 0))
+        self.multiplot_ref_plot_variable_dropdown = pn.widgets.Select()
+        self.multiplot_select_ref_variable_button = pn.widgets.Button(name='Select Variable', button_type = "primary", margin=(23, 0, 0, 10))
+
+        self.multiplot_plot_button = pn.widgets.Button(name='Plot Loaded Datasets (Overlayed)', button_type='success', margin=(23, 0, 0, 10))
+        self.multiplot_plot_pane = pn.pane.Matplotlib(tight=True)
+        self.clear_multiplot_data_button = pn.widgets.Button(name='Clear loaded data', button_type='danger', margin=(23, 0, 0, 10))
+        self.multiplot_warning_textbox = pn.widgets.StaticText(styles={'background': 'darkred', 'font-size': '18px', 'color': 'white', 'padding': '5px'}, margin=(10, 0, 10, 0))
         
         # Initialise button listener functions
         @pn.depends(self.keys_dropdown.param.value)
@@ -153,6 +169,20 @@ class UserInterface():
         def _ref_select_variable_button_click(event):                
             self._ref_display_plot_choices_ui()
 
+        def _multiplot_ref_keys_button_click(event):                
+            self._multiplot_ref_keys_button_click()
+
+        def _multiplot_select_ref_variable_button_click(event):
+            self._multiplot_display_ref_plot_choices_ui()
+
+        def _multiplot_plot_button_click(event):
+            #something
+            print("To implement")
+        
+        def _clear_multiplot_data_button_click(event):
+            #Clear overlay dictionary
+            print("To implement")
+
 
         self.plot_button.on_click(_plot_button_click)
         self.ref_plot_button.on_click(_ref_plot_button_click)  
@@ -163,8 +193,13 @@ class UserInterface():
         self.ref_model_info_button.on_click(_ref_model_info_button_click)
         self.select_variable_button.on_click(_select_variable_button_click)
         self.ref_select_variable_button.on_click(_ref_select_variable_button_click)
-            
-    
+        self.multiplot_user_keys_button.on_click(_multiplot_user_keys_button_click)
+        self.multiplot_select_user_variable_button.on_click(_multiplot_select_user_variable_button_click)
+        self.multiplot_ref_keys_button.on_click(_multiplot_ref_keys_button_click)
+        self.multiplot_select_ref_variable_button.on_click(_multiplot_select_ref_variable_button_click)
+        self.multiplot_plot_button.on_click(_multiplot_plot_button_click)
+        self.clear_multiplot_data_button.on_click(_clear_multiplot_data_button_click)
+
     def _display_status_text(self):
         
         """
@@ -192,7 +227,6 @@ class UserInterface():
         # Display widget_container in notebook
         display(self.widget_container)
         print()
-        
         
     def _update_status_text(self, text):
         
@@ -249,8 +283,20 @@ class UserInterface():
 
         # Update ref_status_textbox with text
         self.ref_status_textbox.value = str(text)
+
+    def _update_multiplot_status_text(self, text):
+        """
+        Update text displayed in _status_textbox widget. Private.
         
-        
+        Parameters
+        ----------
+        text : str
+            Text to be displayed in ref_status_textbox
+        """
+
+        # Update ref_status_textbox with text
+        self.multiplot_status_textbox.value = str(text)
+
     def _update_last_data_load_text(self, text):
         
         """
@@ -265,7 +311,6 @@ class UserInterface():
         # Update last_data_load_textbox with text
         self.last_data_load_textbox.value = str(text)
         
-        
     def _get_current_time(self):
         
         """
@@ -278,7 +323,6 @@ class UserInterface():
         """
         
         return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
         
     def _display_dataset_selection_ui(self, model_cat, access_nri_cat):
         
@@ -303,13 +347,10 @@ class UserInterface():
         self.keys_button.name = 'Load dataset'
         self.keys_button.button_type = 'primary'
         
-        # UNHIDE the widgets via property updates rather than structural appends
+        # Unhide the widgets via property updates rather than structural appends
         self.div_1.visible = True
         self.keys_selection_row.visible = True
         self.div_2.visible = True
-
-        #print(self.widget_container)
-        
         
     def _display_reference_model_selection_ui(self):
         
@@ -347,7 +388,34 @@ class UserInterface():
         
         # Add horizontal line divider to widget_container
         self.widget_container.append(pn.layout.Divider(styles={'color': 'white'}))
+
+    def _display_multiplot_user_data_selection_ui(self):
+
+        """
+        Comment.
+
+        """
+        # Add overlay data status text box
+        self.widget_container.append(self.multiplot_status_textbox)
+        self.widget_container.append(self.multiplot_warning_textbox)
+        self._update_multiplot_status_text("Overlay Plot >> Choose reference variables to compare with the current plot.")
+
+        # Populate reference/comparison model widgets
+        self.multiplot_ref_keys_dropdown.name = '3. Select one or more reference models to overlay (optional):'
+        self.multiplot_ref_keys_dropdown.options = self.access_nri_cat.keys()
+        self.multiplot_ref_keys_button.name = 'Add reference model'
+        self.multiplot_ref_keys_button.button_type = 'primary'
         
+        # Add reference/comparison widgets to ref_keys_selection_row
+        self.multiplot_ref_keys_selection_row = pn.Row()
+        self.multiplot_ref_keys_selection_row.append(self.multiplot_ref_keys_dropdown)
+        self.multiplot_ref_keys_selection_row.append(self.multiplot_ref_keys_button)
+        
+        # Add ref_keys_selection_row to widget_container
+        self.widget_container.append(self.multiplot_ref_keys_selection_row)
+        
+        # Add horizontal line divider to widget_container
+        self.widget_container.append(pn.layout.Divider(styles={'color': 'white'}))
         
     def _display_reference_dataset_selection_ui(self):
         
@@ -373,8 +441,6 @@ class UserInterface():
         # Add horizontal line divider to widget_container
         self.widget_container.append(pn.layout.Divider(styles={'color': 'white'}))
         
-        
-        
     def _keys_dropdown_click(self):
         
         """
@@ -396,11 +462,7 @@ class UserInterface():
             self.figure_exists = True
             # Create new plot
             self._display_dataset_plot_ui()
-            
-            # Add ui for loading optional reference dataset
-            #self._display_reference_model_selection_ui()
 
-            
         elif self.figure_exists == True:
 
             # Update existing plot
@@ -465,6 +527,7 @@ class UserInterface():
             # First time plotting: append plot to bottom, then generate reference UI below it
             self.widget_container.append(plot_group)
             self._display_reference_model_selection_ui()
+            self._display_multiplot_user_data_selection_ui()
          
     def _ref_plot_data_button_click(self):
 
@@ -538,7 +601,22 @@ class UserInterface():
         else:
             # Build and display the UI for the first time
             self._display_reference_dataset_selection_ui()
-                    
+
+    def _multiplot_ref_keys_button_click(self):
+        """
+        Loads selected reference model, and if it contains the correct dataset and variable, adds it to a dictionary to plot. Private.
+        """
+        self.multiplot_ref_dataset_dict = {}
+
+        selected_ref_model_cat = self.access_nri_cat.search(name=self.multiplot_ref_keys_dropdown.value).to_source()
+
+        if self.keys_dropdown.value in list(selected_ref_model_cat.keys()):
+            self._update_multiplot_status_text("Overlay Plot Status >> Loading selected reference model and associated dataset")
+            dataset = data._build_data_object(selected_ref_model_cat, self.multiplot_ref_keys_dropdown.value)
+            self.multiplot_ref_dataset_dict.update({self.multiplot_ref_keys_dropdown.value : dataset})
+            self._update_multiplot_status_text("Overlay Plot Status >> Loaded reference model, add another or plot the overlay")
+        else:
+            self._update_multiplot_status_text("Overlay Plot Status >> There is no dataset matching the user dataset in this model, please select another")
         
     def _ref_dataset_dropdown_click(self):
         
