@@ -428,12 +428,14 @@ class UserInterface():
         self.ref_data_keys_selection_row = pn.Row()
         self.ref_data_keys_selection_row.append(self.ref_data_keys_dropdown)
         self.ref_data_keys_selection_row.append(self.ref_data_keys_button)
-        
-        # Add ref_data_keys_selection_row to widget_container
-        self.widget_container.append(self.ref_data_keys_selection_row)
-        
-        # Add horizontal line divider to widget_container
-        self.widget_container.append(pn.layout.Divider(styles={'color': 'white'}))
+
+        #Insert the UI row under the reference model selection
+        if hasattr(self, 'ref_keys_selection_row') and self.ref_keys_selection_row in self.widget_container:
+            insert_index = self.widget_container.index(self.ref_keys_selection_row) + 1
+            self.widget_container.insert(insert_index, self.ref_data_keys_selection_row)
+        else:
+            self.widget_container.append(self.ref_data_keys_selection_row)
+    
         
     def _keys_dropdown_click(self):
         
