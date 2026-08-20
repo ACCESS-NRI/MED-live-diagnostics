@@ -417,7 +417,7 @@ class UserInterface():
         Label, populate and append ACCESS reference dataset selection-related widgets to widget_container. Private.
         
         """
-        
+        self._update_ref_status_text("Reference Model Status >> Select a model to load and plot data")
         # Populate reference/comparison dataset widgets
         self.ref_data_keys_dropdown.name = '2.1. Select reference dataset (optional):'
         self.ref_data_keys_dropdown.options = self.ref_model_cat.keys()
@@ -571,8 +571,16 @@ class UserInterface():
             del self.ref_slice_ui_row
             del self.ref_slice_widgets
 
-        self.widget_container.append(plot_group)
+        # Check if the reference UI already exists
+        if self.multiplot_status_textbox in self.widget_container:
+            # Find where the reference UI is
+            insert_index = self.widget_container.index(self.multiplot_status_textbox)
         
+            # Insert the new plot just above the reference UI
+            self.widget_container.insert(insert_index, plot_group)
+        else:
+            # If the multiplot UI is not present, just append the new plots to the bottom of the widget
+            self.widget_container.append(plot_group)
             
     def _ref_keys_dropdown_click(self):
         
@@ -717,7 +725,11 @@ class UserInterface():
         self.ref_plot_type_dropdown.options = ["Line", "Heatmap"]
         
         self.ref_plot_ui_row = pn.Row(self.ref_plot_variable_dropdown, self.ref_plot_type_dropdown, self.ref_select_variable_button)
-        self.widget_container.append(self.ref_plot_ui_row)
+        if hasattr(self, 'ref_keys_selection_row') and self.ref_keys_selection_row in self.widget_container:
+            insert_index = self.widget_container.index(self.ref_keys_selection_row) + 1
+            self.widget_container.insert(insert_index, self.ref_plot_ui_row)
+        else:
+            self.widget_container.append(self.ref_plot_ui_row)
         
     def _display_plot_choices_ui(self):
             
