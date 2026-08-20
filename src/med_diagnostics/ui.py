@@ -170,10 +170,7 @@ class UserInterface():
             self._ref_display_plot_choices_ui()
 
         def _multiplot_ref_keys_button_click(event):                
-            self._multiplot_ref_keys_button_click()
-
-        def _multiplot_select_ref_variable_button_click(event):
-            self._multiplot_display_ref_plot_choices_ui()
+            self._multiplot_ref_keys_dropdown_click()
 
         def _multiplot_plot_button_click(event):
             #something
@@ -193,10 +190,7 @@ class UserInterface():
         self.ref_model_info_button.on_click(_ref_model_info_button_click)
         self.select_variable_button.on_click(_select_variable_button_click)
         self.ref_select_variable_button.on_click(_ref_select_variable_button_click)
-        self.multiplot_user_keys_button.on_click(_multiplot_user_keys_button_click)
-        self.multiplot_select_user_variable_button.on_click(_multiplot_select_user_variable_button_click)
         self.multiplot_ref_keys_button.on_click(_multiplot_ref_keys_button_click)
-        self.multiplot_select_ref_variable_button.on_click(_multiplot_select_ref_variable_button_click)
         self.multiplot_plot_button.on_click(_multiplot_plot_button_click)
         self.clear_multiplot_data_button.on_click(_clear_multiplot_data_button_click)
 
@@ -602,7 +596,7 @@ class UserInterface():
             # Build and display the UI for the first time
             self._display_reference_dataset_selection_ui()
 
-    def _multiplot_ref_keys_button_click(self):
+    def _multiplot_ref_keys_dropdown_click(self):
         """
         Loads selected reference model, and if it contains the correct dataset and variable, adds it to a dictionary to plot. Private.
         """
