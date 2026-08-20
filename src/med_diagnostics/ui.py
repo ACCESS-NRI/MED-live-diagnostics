@@ -606,7 +606,7 @@ class UserInterface():
 
         if self.keys_dropdown.value in list(selected_ref_model_cat.keys()):
             self._update_multiplot_status_text("Overlay Plot Status >> Loading selected reference model and associated dataset")
-            dataset = data._build_data_object(selected_ref_model_cat, self.multiplot_ref_keys_dropdown.value)
+            dataset = data._build_data_object(selected_ref_model_cat, self.keys_dropdown.value)
             self.multiplot_ref_dataset_dict.update({self.multiplot_ref_keys_dropdown.value : dataset})
             self._update_multiplot_status_text("Overlay Plot Status >> Loaded reference model, add another or plot the overlay")
         else:
