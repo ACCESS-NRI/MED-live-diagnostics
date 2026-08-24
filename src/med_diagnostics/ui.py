@@ -9,7 +9,12 @@ import matplotlib.pyplot as plt
 import datetime
 
 from med_diagnostics import data
-from IPython.display import display
+from IPython.display import display, HTML
+import hvplot.xarray #For creating interactive plots
+import holoviews as hv
+import io
+import base64
+
 
 class UserInterface():
     
@@ -63,12 +68,14 @@ class UserInterface():
         self.plot_type_dropdown = pn.widgets.Select()
         self.x_axis_dropdown = pn.widgets.Select()
         self.y_axis_dropdown = pn.widgets.Select()
+        self.animation_axis_dropdown = pn.widgets.Select()
         self.select_variable_button = pn.widgets.Button(name='Select Variable and Plot Type', button_type = "primary", margin=(23, 0, 0, 10))
 
         #Additions for selecting plot type for refernce data
         self.ref_plot_type_dropdown = pn.widgets.Select()
         self.ref_x_axis_dropdown = pn.widgets.Select()
         self.ref_y_axis_dropdown = pn.widgets.Select()
+        self.ref_animation_axis_dropdown = pn.widgets.Select()
         self.ref_select_variable_button = pn.widgets.Button(name='Select Variable and Plot Type', button_type = "primary", margin=(23, 0, 0, 10))
         
         #Additions for plotting user data with reference model data
@@ -516,6 +523,8 @@ class UserInterface():
         self.plot_button.name = "Add Plot"    
         self.select_variable_button.name = "Add new plot with different variable/ plot type"    
         self._update_status_text('User model status >> Generating plot...')
+        fig_animated = None
+        fig = None
 
         #For each of the slices, build a dictionary so that the slices can be accessed in the plot
         self.chosen_slices = {}
@@ -531,9 +540,14 @@ class UserInterface():
         elif self.plot_type_dropdown.value == "Line":
             x_axis = self.x_axis_dropdown.value
             fig = self._plot_dataset(self.plot_variable_dropdown.value, x_axis)
-        
-        # Create a new pane for the figure
-        new_plot_pane = pn.pane.Matplotlib(fig, tight=True)
+        elif self.plot_type_dropdown.value == "Animation":
+            fig_animated = self._plot_animation()
+
+        if fig_animated:
+            new_plot_pane = fig_animated
+        else:
+            # Create a new pane for the figure
+            new_plot_pane = pn.pane.Matplotlib(fig, tight=True)
 
         # Create a remove button for each plot that is added
         remove_btn = pn.widgets.Button(name='Remove the above plot', button_type='danger', margin=(23, 0, 0, 10))
@@ -590,17 +604,25 @@ class UserInterface():
             for dim, widget in self.ref_slice_widgets.items():
                 self.ref_chosen_slices[dim] = widget.value
 
+        fig = None
+        fig_animated = None
+
         # Based on plot type change function that is used
         if self.ref_plot_type_dropdown.value == "Heatmap":
             x_axis = self.ref_x_axis_dropdown.value
             y_axis = self.ref_y_axis_dropdown.value
-            fig = self._plot_ref_heatmap(self.ref_plot_variable_dropdown.value, x_axis, y_axis) #Need to check if I need a seperate function for reference heatmaps
+            fig = self._plot_ref_heatmap(self.ref_plot_variable_dropdown.value, x_axis, y_axis)
         elif self.ref_plot_type_dropdown.value == "Line":
             x_axis = self.ref_x_axis_dropdown.value
             fig = self._plot_ref_dataset(self.ref_plot_variable_dropdown.value, x_axis)
-        
-        # Create a new pane for the figure
-        new_plot_pane = pn.pane.Matplotlib(fig, tight=True)
+        elif self.ref_plot_type_dropdown.value == "Animation":
+            fig_animated = self._plot_ref_animation()
+    
+        if fig_animated:
+            new_plot_pane = fig_animated
+        else:
+            # Create a new pane for the figure
+            new_plot_pane = pn.pane.Matplotlib(fig, tight=True)
 
         # Create a remove button for each plot that is added
         remove_btn = pn.widgets.Button(name='Remove the above plot', button_type='danger', margin=(23, 0, 0, 10))
@@ -726,7 +748,7 @@ class UserInterface():
 
         if self.multiplot_keys_dropdown.value in list(selected_ref_model_cat.keys()) and not self.multiplot_ref_keys_dropdown.value in self.multiplot_ref_dataset_dict:
             model_value = self.multiplot_ref_keys_dropdown.value
-            self._update_multiplot_status_text("Overlay Plot Status >> Loading selected reference model and associated dataset...")
+            self._update_multiplot_status_text("Overlay Plot Status >> Loading reference dataset...")
             dataset = data._build_data_object(selected_ref_model_cat, self.multiplot_keys_dropdown.value)
             self.multiplot_ref_dataset_dict.update({model_value : dataset})
             self._update_multiplot_status_text("Overlay Plot Status >> Loaded reference model, add another or plot the overlay")
@@ -828,7 +850,7 @@ class UserInterface():
         self.plot_variable_dropdown.options = list(self.dataset.keys())
         
         self.plot_type_dropdown.name = 'Select plot type'
-        self.plot_type_dropdown.options = ["Line", "Heatmap"]
+        self.plot_type_dropdown.options = ["Line", "Heatmap", "Animation"]
         
         self.plot_ui_row = pn.Row(self.plot_variable_dropdown, self.plot_type_dropdown, self.select_variable_button)
         self.widget_container.append(self.plot_ui_row)
@@ -844,7 +866,7 @@ class UserInterface():
         self.ref_plot_variable_dropdown.options = list(self.ref_dataset.keys())
         
         self.ref_plot_type_dropdown.name = 'Select plot type'
-        self.ref_plot_type_dropdown.options = ["Line", "Heatmap"]
+        self.ref_plot_type_dropdown.options = ["Line", "Heatmap", "Animation"]
         
         self.ref_plot_ui_row = pn.Row(self.ref_plot_variable_dropdown, self.ref_plot_type_dropdown, self.ref_select_variable_button)
         if hasattr(self, 'ref_data_keys_selection_row') and self.ref_data_keys_selection_row in self.widget_container:
@@ -863,7 +885,7 @@ class UserInterface():
                 self.widget_container.remove(self.plot_choices_row)
 
             #Find viable dimensions for axis selection
-            dim_sizes = self.dataset[list(self.dataset.keys())].sizes
+            dim_sizes = self.dataset[self.plot_variable_dropdown.value].sizes
             viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
 
             self.x_axis_dropdown.name = 'Select X-Axis dimension'
@@ -890,6 +912,18 @@ class UserInterface():
                     self._plot_data_button_click()
                 else:
                     self.plot_choices_row = pn.Row(self.x_axis_dropdown, self.plot_button)
+            elif self.plot_type_dropdown.value == "Animation":
+                #Check if enough dimensions to make animation, if not, throw error and don't let the user do it. 
+                if len(viable_dims) < 2:
+                    self._update_warning_text("Warning >> Not enough dimensions available for this variable to plot an animation.")
+                    self.plot_type_dropdown.value = "Line"
+                    show_plot_choices = False
+                else:
+                    self.y_axis_dropdown.name = 'Select Y-Axis dimension'
+                    self.y_axis_dropdown.options = viable_dims
+                    self.animation_axis_dropdown.name = 'Select Z-Axis dimension'
+                    self.animation_axis_dropdown.options = viable_dims
+                    self.plot_choices_row = pn.Row(self.x_axis_dropdown, self.y_axis_dropdown, self.animation_axis_dropdown, self.plot_button)
 
             #If plotting hasn't automatically occurred (in the case of the line graph with only 1 plottable dimension)
             if show_plot_choices:    
@@ -912,7 +946,7 @@ class UserInterface():
             self.widget_container.remove(self.ref_plot_choices_row)
 
         #Find viable dimensions for axis selection
-        dim_sizes = self.ref_dataset[list(self.ref_dataset.keys())].sizes
+        dim_sizes = self.ref_dataset[self.ref_plot_variable_dropdown.value].sizes
         viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
 
         self.ref_x_axis_dropdown.name = 'Select X-Axis dimension'
@@ -939,6 +973,18 @@ class UserInterface():
                 self._ref_plot_data_button_click()
             else:
                 self.ref_plot_choices_row = pn.Row(self.ref_x_axis_dropdown, self.ref_plot_button)
+        elif self.ref_plot_type_dropdown.value == "Animation":
+            #Check if enough dimensions to make animation, if not, throw error and don't let the user do it. 
+            if len(viable_dims) < 2:
+                self._update_ref_warning_text("Warning >> Not enough dimensions available for this variable to plot an animation.")
+                self.ref_plot_type_dropdown.value = "Line"
+                show_plot_choices = False
+            else:
+                self.ref_y_axis_dropdown.name = 'Select Y-Axis dimension'
+                self.ref_y_axis_dropdown.options = viable_dims
+                self.ref_animation_axis_dropdown.name = 'Select Z-Axis dimension'
+                self.ref_animation_axis_dropdown.options = viable_dims
+                self.ref_plot_choices_row = pn.Row(self.ref_x_axis_dropdown, self.ref_y_axis_dropdown, self.ref_animation_axis_dropdown, self.ref_plot_button)
             
         if show_plot_choices:
             #Insert the UI row under the variable selection even if there are plots already
@@ -955,7 +1001,7 @@ class UserInterface():
         """
 
         # Find viable dimensions for axis selection
-        dim_sizes = self.dataset[list(self.dataset.keys())].sizes
+        dim_sizes = self.dataset[self.multiplot_plot_variable_dropdown.value].sizes
         viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
 
         self.multiplot_x_axis_dropdown.name = 'Select X-Axis dimension'
@@ -1007,10 +1053,12 @@ class UserInterface():
         same_axes_chosen = False
 
         #Filter which dimensions can viably be plotted on an axis
-        dim_sizes = self.dataset[list(self.dataset.keys())].sizes
+        dim_sizes = self.dataset[self.plot_variable_dropdown.value].sizes
         viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
         
-        if self.plot_type_dropdown.value == "Heatmap":
+        if self.plot_type_dropdown.value == "Animation":
+            chosen_axes = (self.x_axis_dropdown.value, self.y_axis_dropdown.value, self.animation_axis_dropdown.value)
+        elif self.plot_type_dropdown.value == "Heatmap":
             chosen_axes = (self.x_axis_dropdown.value, self.y_axis_dropdown.value)
         else:
             chosen_axes = (self.x_axis_dropdown.value,)
@@ -1061,10 +1109,12 @@ class UserInterface():
         same_axes_chosen = False
 
         #Filter which dimensions can viably be plotted on an axis
-        dim_sizes = self.ref_dataset[list(self.ref_dataset.keys())].sizes
+        dim_sizes = self.ref_dataset[self.ref_plot_variable_dropdown.value].sizes
         viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
-        
-        if self.ref_plot_type_dropdown.value == "Heatmap":
+
+        if self.ref_plot_type_dropdown.value == "Animation":
+            chosen_axes = (self.ref_x_axis_dropdown.value, self.ref_y_axis_dropdown.value, self.ref_animation_axis_dropdown.value)
+        elif self.ref_plot_type_dropdown.value == "Heatmap":
             chosen_axes = (self.ref_x_axis_dropdown.value, self.ref_y_axis_dropdown.value)
         else:
             chosen_axes = (self.ref_x_axis_dropdown.value,)
@@ -1112,7 +1162,7 @@ class UserInterface():
         check_bounds = self._multiplot_check_bounds()
 
         # Filter which dimensions can viably be plotted on an axis
-        dim_sizes = self.dataset[list(self.dataset.keys())].sizes
+        dim_sizes = self.dataset[self.multiplot_plot_variable_dropdown.value].sizes
         viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
 
         chosen_axes = (self.multiplot_x_axis_dropdown.value,)
@@ -1682,3 +1732,76 @@ class UserInterface():
         self._update_multiplot_status_text("Overlay Plot Status >> New user dataset loaded, clearing loaded user models")
         # Clear the loaded data, as different datasets from the selected models will need to be loaded.
         self._clear_multiplot_data()
+
+    def _plot_animation(self):
+
+        data = self.dataset.sel(**self.chosen_slices)
+        plot_dataset = data[self.plot_variable_dropdown.value].load()
+        
+        #get the min and max variable values so that the heatmap is consistent for the whole animation
+        vmin = float(plot_dataset.min())
+        vmax = float(plot_dataset.max())
+        
+        
+
+        plot = plot_dataset.hvplot.quadmesh(
+            x= self.x_axis_dropdown.value,
+            y= self.y_axis_dropdown.value,
+            groupby= self.animation_axis_dropdown.value,
+            dynamic=True,
+            rasterize=True,
+            widget_type="scrubber",
+            widget_location="bottom",
+            clim=(vmin,vmax),
+            cmap='viridis',
+            width=800,
+            height=400
+        )
+
+        # Build caption string
+        variable_text = plot_dataset.attrs.get('long_name', self.plot_variable_dropdown.value)
+        slice_str = ", ".join([f"{dim}: {self._round_slice_val(val)}" for dim, val in self.chosen_slices.items()])
+        caption_text = "Variable: "+ variable_text + "<br>User model<br>Dataset: " + self.keys_dropdown.value
+        if slice_str:
+            caption_text += f"<br>Sliced by: {slice_str}"
+            
+        caption_pane = pn.pane.HTML(f"<div style='font-size: 12px; margin-left: 10%; margin-top: 10px;'>{caption_text}</div>")
+
+        # Return a Column with the plot on top and the caption underneath
+        return pn.Column(pn.panel(plot, tight=True), caption_pane)
+
+
+    def _plot_ref_animation(self):
+
+        data = self.ref_dataset.sel(**self.ref_chosen_slices)
+        plot_dataset = data[self.ref_plot_variable_dropdown.value].load()
+
+        #get the min and max variable values so that the heatmap is consistent for the whole animation
+        vmin = float(plot_dataset.min())
+        vmax = float(plot_dataset.max())
+
+        plot = plot_dataset.hvplot.quadmesh(
+            x= self.ref_x_axis_dropdown.value,
+            y= self.ref_y_axis_dropdown.value,
+            groupby= self.ref_animation_axis_dropdown.value,
+            dynamic=True,
+            rasterize=True,
+            widget_type="scrubber",
+            widget_location="bottom",
+            clim=(vmin,vmax),
+            cmap='viridis',
+            width=800,
+            height=400
+        )
+
+        # Build caption string
+        variable_text = plot_dataset.attrs.get('long_name', self.ref_plot_variable_dropdown.value)
+        slice_str = ", ".join([f"{dim}: {self._round_slice_val(val)}" for dim, val in self.ref_chosen_slices.items()])
+        caption_text = 'Variable: ' + variable_text + '<br>Model: ' + self.ref_keys_dropdown.value + '<br>Dataset: ' + self.ref_data_keys_dropdown.value
+        if slice_str:
+            caption_text += f"<br>Sliced by: {slice_str}"
+            
+        caption_pane = pn.pane.HTML(f"<div style='font-size: 12px; margin-left: 10%; margin-top: 10px;'>{caption_text}</div>")
+
+        # Return a Column with the plot on top and the caption underneath
+        return pn.Column(pn.panel(plot, tight=True), caption_pane)       
