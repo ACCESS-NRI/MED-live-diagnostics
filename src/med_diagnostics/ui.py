@@ -10,8 +10,8 @@ import datetime
 
 from med_diagnostics import data
 from IPython.display import display, HTML
-import hvplot.xarray #For creating interactive plots
-import holoviews as hv
+import hvplot.xarray # type: ignore #For creating interactive plots
+import holoviews as hv # type: ignore
 import io
 import base64
 
@@ -94,6 +94,8 @@ class UserInterface():
         self.multiplot_keys_update_button = pn.widgets.Button(name='Update Loaded Dataset', button_type='primary', margin=(23, 0, 0, 10))
         self.prompt_bounds_dropdown = pn.widgets.Select()
         self.prompt_bounds_button = pn.widgets.Button(name='Continue to plot', button_type='success', margin=(23, 0, 0, 10))
+        self.multiplot_plot_type_dropdown = pn.widgets.Select()
+        self.multiplot_y_axis_dropdown = pn.widgets.Select()
         
         # Initialise button listener functions
         @pn.depends(self.keys_dropdown.param.value)
@@ -137,7 +139,7 @@ class UserInterface():
                 self.plot_type_dropdown.value = "Line"
                 self._plot_data_button_click()
             elif same_axes_chosen:
-                self._update_warning_text("Warning >> Please select different values for the x and y axes")
+                self._update_warning_text("Warning >> Please ensure different values are selected for each axis.")
 
                 #Remove preexisting plot choices UI
                 if hasattr(self, 'plot_choices_row') and self.plot_choices_row in self.widget_container:
@@ -161,7 +163,7 @@ class UserInterface():
                 self.ref_plot_type_dropdown.value = "Line"
                 self._ref_plot_data_button_click()
             elif same_axes_chosen:
-                self._update_ref_warning_text("Warning >> Please select different values for the x and y axes")
+                self._update_ref_warning_text("Warning >> Please ensure different values are selected for each axis.")
                 if hasattr(self, 'ref_plot_choices_row') and self.ref_plot_choices_row in self.widget_container:
                     self.widget_container.remove(self.ref_plot_choices_row)
                 if hasattr(self, 'ref_slice_ui_row') and self.ref_slice_ui_row in self.widget_container:
@@ -467,6 +469,8 @@ class UserInterface():
         self.multiplot_plot_variable_dropdown.name = "Variable selection"
         self.multiplot_plot_variable_dropdown.options = self.plot_variable_dropdown.options
         self.multiplot_plot_variable_dropdown.value = self.plot_variable_dropdown.value
+        self.multiplot_plot_type_dropdown.name = "Select plot type"
+        self.multiplot_plot_type_dropdown.options = ["Line", "Heatmap (grid)"]
 
         self.multiplot_user_dataset_keys_selection_row = pn.Row()
         self.multiplot_user_dataset_keys_selection_row.append(self.multiplot_keys_dropdown)
@@ -477,12 +481,17 @@ class UserInterface():
         self.multiplot_ref_keys_selection_row.append(self.multiplot_plot_variable_dropdown)
         self.multiplot_ref_keys_selection_row.append(self.multiplot_ref_keys_dropdown)
         self.multiplot_ref_keys_selection_row.append(self.multiplot_ref_keys_button)
-        self.multiplot_ref_keys_selection_row.append(self.multiplot_select_variable_button)
         self.multiplot_ref_keys_selection_row.append(self.clear_multiplot_data_button)
+
+        self.multiplot_type_selection_row = pn.Row()
+        self.multiplot_type_selection_row.append(self.multiplot_plot_type_dropdown)
+        self.multiplot_type_selection_row.append(self.multiplot_select_variable_button)
+        
         
         # Add ref_keys_selection_row to widget_container
         self.widget_container.append(self.multiplot_user_dataset_keys_selection_row)
         self.widget_container.append(self.multiplot_ref_keys_selection_row)
+        self.widget_container.append(self.multiplot_type_selection_row)
         
         # Add horizontal line divider to widget_container
         self.widget_container.append(pn.layout.Divider(styles={'color': 'white'}))
@@ -674,11 +683,17 @@ class UserInterface():
             for dim, widget in self.multiplot_slice_widgets.items():
                 self.multiplot_chosen_slices[dim] = widget.value
 
-        x_axis = self.multiplot_x_axis_dropdown.value
-        overlay_fig = self._plot_multiplot_dataset(self.multiplot_plot_variable_dropdown.value, x_axis)
-    
+        # Based on plot type change function that is used
+        if self.multiplot_plot_type_dropdown.value == "Heatmap (grid)":
+            x_axis = self.multiplot_x_axis_dropdown.value
+            y_axis = self.multiplot_y_axis_dropdown.value
+            fig = self._plot_multiplot_heatmap_dataset(self.multiplot_plot_variable_dropdown.value, x_axis, y_axis)
+        elif self.multiplot_plot_type_dropdown.value == "Line":
+            x_axis = self.multiplot_x_axis_dropdown.value
+            fig = self._plot_multiplot_dataset(self.multiplot_plot_variable_dropdown.value, x_axis)
+
         # Create a new pane for the figure
-        new_plot_pane = pn.pane.Matplotlib(overlay_fig, tight=True)
+        new_plot_pane = pn.pane.Matplotlib(fig, tight=True)
 
         # Create a remove button for each plot that is added
         remove_btn = pn.widgets.Button(name='Remove the above plot', button_type='danger', margin=(23, 0, 0, 10))
@@ -1003,30 +1018,41 @@ class UserInterface():
         # Find viable dimensions for axis selection
         dim_sizes = self.dataset[self.multiplot_plot_variable_dropdown.value].sizes
         viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
-
+        show_plot_choices = True
         self.multiplot_x_axis_dropdown.name = 'Select X-Axis dimension'
         self.multiplot_x_axis_dropdown.options = viable_dims
-        show_plot_choices = True
+        
+        #If the user chooses to plot a heatmap, allow them to choose the Y-axis
+        if self.multiplot_plot_type_dropdown.value == "Heatmap (grid)":
+            #Check if enough dimensions to make heatmap, if not, throw warning and don't let the user do it. 
+            if len(viable_dims) < 2:
+                self._update_multiplot_warning_text("Warning >> Not enough dimensions available for this variable to plot a Heatmap.")
+                self.multiplot_plot_type_dropdown.value = "Line"
+                show_plot_choices = False
+            else:
+                self.multiplot_y_axis_dropdown.name = 'Select Y-Axis dimension'
+                self.multiplot_y_axis_dropdown.options = viable_dims
+                self.multiplot_plot_choices_row = pn.Row(self.multiplot_x_axis_dropdown, self.multiplot_y_axis_dropdown, self.multiplot_plot_button)
+        elif self.multiplot_plot_type_dropdown.value == "Line":
+            #If there is only 1 viable x-axis, plot automatically without user prompt to select x-axis.  
+            #Also check that the check_bounds does not need to be prompted.
+            needs_bounds_ui = self._multiplot_check_bounds()
+            if len(viable_dims) == 1 and not needs_bounds_ui:
+                show_plot_choices = False
+                self._update_multiplot_warning_text("Only one valid x-axis dimension, plotting automatically.")
+                self.multiplot_x_axis_dropdown.value = viable_dims[0]
+                self._multiplot_plot_data_button_click()
+            elif len(viable_dims) == 1 and needs_bounds_ui:
+                show_plot_choices = False
+                self._prompt_bounds_ui()
+            else:
+                self.multiplot_plot_choices_row = pn.Row(self.multiplot_x_axis_dropdown, self.multiplot_plot_button)
 
-        #If there is only 1 viable x-axis, plot automatically without user prompt to select x-axis.  
-        #Also check that the check_bounds does not need to be prompted.
-        needs_bounds_ui = self._multiplot_check_bounds()
-        if len(viable_dims) == 1 and not needs_bounds_ui:
-            self._update_multiplot_warning_text("Only one valid x-axis dimension, plotting automatically.")
-            self.multiplot_x_axis_dropdown.value = viable_dims[0]
-            show_plot_choices = False
-            self._multiplot_plot_data_button_click()
-        elif len(viable_dims) == 1 and needs_bounds_ui:
-            show_plot_choices = False
-            self._prompt_bounds_ui()
-        else:
-            self.multiplot_plot_choices_row = pn.Row(self.multiplot_x_axis_dropdown, self.multiplot_plot_button)
-            
         # If plotting hasn't automatically occurred (in the case of the line graph with only 1 plottable dimension)
         if show_plot_choices:    
             # Insert the UI row under the variable selection even if there are plots already
-            if hasattr(self, 'multiplot_ref_keys_selection_row') and self.multiplot_ref_keys_selection_row in self.widget_container:
-                insert_index = self.widget_container.index(self.multiplot_ref_keys_selection_row) + 1
+            if hasattr(self, 'multiplot_type_selection_row') and self.multiplot_type_selection_row in self.widget_container:
+                insert_index = self.widget_container.index(self.multiplot_type_selection_row) + 1
                 self.widget_container.insert(insert_index, self.multiplot_plot_choices_row)
             else:
                 self.widget_container.append(self.multiplot_plot_choices_row)
@@ -1081,7 +1107,7 @@ class UserInterface():
             plot_valid = False
             invalid_heatmap_data = True
         #If the user has tried to plot the same variable on both axes
-        elif self.plot_type_dropdown.value == "Heatmap" and self.x_axis_dropdown.value == self.y_axis_dropdown.value:
+        elif len(set(chosen_axes)) != len(chosen_axes):
             plot_valid = False
             same_axes_chosen = True
 
@@ -1137,7 +1163,7 @@ class UserInterface():
             plot_valid = False
             invalid_heatmap_data = True
         #If the user has tried to plot the same variable on both axes
-        elif self.ref_plot_type_dropdown.value == "Heatmap" and self.ref_x_axis_dropdown.value == self.ref_y_axis_dropdown.value:
+        elif len(set(chosen_axes)) != len(chosen_axes):
             plot_valid = False
             same_axes_chosen = True
 
@@ -1165,7 +1191,10 @@ class UserInterface():
         dim_sizes = self.dataset[self.multiplot_plot_variable_dropdown.value].sizes
         viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
 
-        chosen_axes = (self.multiplot_x_axis_dropdown.value,)
+        if self.multiplot_plot_type_dropdown.value == "Line":
+            chosen_axes = (self.multiplot_x_axis_dropdown.value,)
+        elif self.multiplot_plot_type_dropdown.value == "Heatmap (grid)":
+            chosen_axes = (self.multiplot_x_axis_dropdown.value, self.multiplot_y_axis_dropdown.value)
 
         self.multiplot_remaining_dims = [dim for dim in viable_dims if dim not in chosen_axes]
         # Check if existing reference slice widgets match the required dimensions
@@ -1563,7 +1592,6 @@ class UserInterface():
         if self.prompt_bounds_dropdown.value == "Constrain to user dataset bounds":
             x_min = self.dataset_min
             x_max = self.dataset_max
-            self.prompt_bounds_dropdown.value = "Constrain to min-max reference dataset bounds"
         else:
             x_min = self.multiplot_min
             x_max = self.multiplot_max
@@ -1599,7 +1627,8 @@ class UserInterface():
         if slice_str:
             caption_text += f"\nSliced by: {slice_str}"
 
-        ax.set_xlim(x_min, x_max) #set x-limits based on user choice
+        
+        ax.set_xlim(x_min, x_max)
         fig.tight_layout()
         ax.set_title(title_text, fontsize=14)
         fig.text(0.1, 0.01, caption_text, wrap=False, horizontalalignment='left', fontsize=10)    
@@ -1607,6 +1636,94 @@ class UserInterface():
         ax.grid()
 
         ax.legend(loc='center left', bbox_to_anchor=(1.05, 0.5))
+
+        plt.close(fig)
+
+        return fig
+
+    def _plot_multiplot_heatmap_dataset(self, variable, x_axis, y_axis):
+        """
+        Plot 2D time-series overlaying the user model and selected reference models. Private.
+
+        Parameters
+        ----------
+        variable : str
+            Model data variable as selected from panel dropdown.
+        x_axis : str
+            X-axis as selected from the panel dropdown. 
+
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+            The constructed figure of a number of heatmaps, laid out in a grid.
+        """
+        # get the number of reference variables, to calculate the grid size 
+        num_refs = len(self.multiplot_ref_dataset_dict)
+        total_plots = 1 + num_refs
+
+        # calculate grid dimensions
+        if total_plots > 1:
+            ncols = 2
+        else:
+            ncols = 1
+
+        nrows = (total_plots + 1) // 2
+        
+        sliced_user_data = self.dataset.sel(**self.multiplot_chosen_slices)
+        global_vmin = float(sliced_user_data[variable].min())
+        global_vmax = float(sliced_user_data[variable].max())
+
+        #Need to check min and max for given variable to keep colour consistent between different heatmaps
+        for dataset in self.multiplot_ref_dataset_dict.values():
+            valid_slices = {dim: val for dim, val in self.multiplot_chosen_slices.items() if dim in dataset.dims}
+            sliced_ref = dataset.sel(**valid_slices)
+            global_vmin = min(global_vmin, float(sliced_ref[variable].min()))
+            global_vmax = max(global_vmax, float(sliced_ref[variable].max()))
+
+        # Create grid
+        fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=[6 * ncols, 4 * nrows])
+        
+        # Flatten axes array for easy iteration 
+        axes_flat = axes.flatten() if hasattr(axes, 'flatten') else [axes]
+
+        # Plot User Data
+        sliced_user_data[variable].plot(
+            x=x_axis, y=y_axis, ax=axes_flat[0], 
+            vmin=global_vmin, vmax=global_vmax, 
+            cmap='viridis', cbar_kwargs={'label': variable}
+        )
+        axes_flat[0].set_title("User Dataset")
+
+        ax = 1
+        for model_key, dataset in self.multiplot_ref_dataset_dict.items():
+            valid_slices = {dim: val for dim, val in self.multiplot_chosen_slices.items() if dim in dataset.dims}
+            sliced_ref = dataset.sel(**valid_slices)
+            
+            # If the reference data has members, plot the first one to avoid issues
+            member_title = ""
+            if "member" in sliced_ref.dims:
+                sliced_ref = sliced_ref.isel(member=0)
+                member_title = f" (mem: {dataset.member.values[0]})"
+
+            sliced_ref[variable].plot(
+                x=x_axis, y=y_axis, ax=axes_flat[ax],
+                vmin=global_vmin, vmax=global_vmax,
+                cmap='viridis', cbar_kwargs={'label': variable}
+            )
+            axes_flat[ax].set_title(f"{model_key}{member_title}")
+            ax += 1
+
+        #delete empty subplots remaining
+        for i in range(total_plots, len(axes_flat)):
+            fig.delaxes(axes_flat[i])
+
+        # Add the slice information to the caption text, if it is sliced data
+        slice_str = ", ".join([f"{dim}: {self._round_slice_val(val)}" for dim, val in self.multiplot_chosen_slices.items()])
+        if slice_str:
+            fig.text(0.1, 0.01, f"Sliced by: {slice_str}", wrap=False, horizontalalignment='left', fontsize=10)
+            fig.subplots_adjust(bottom=0.15, hspace=0.3)
+        else:
+            fig.subplots_adjust(space=0.3)
 
         plt.close(fig)
 
@@ -1633,7 +1750,7 @@ class UserInterface():
             True if the reference datasets exceed the user dataset bounds, False otherwise.
         """
         
-        x_axis = self.x_axis_dropdown.value
+        x_axis = self.multiplot_x_axis_dropdown.value
         
         # Get User data bounds from the primary user dataset
         self.dataset_min = self.dataset[x_axis].min().values
@@ -1710,6 +1827,8 @@ class UserInterface():
             insert_index = current_layout.index(self.multiplot_slice_ui_row) + 1
         elif hasattr(self, 'multiplot_plot_choices_row') and self.multiplot_plot_choices_row in current_layout:
             insert_index = current_layout.index(self.multiplot_plot_choices_row) + 1
+        elif hasattr(self, 'multiplot_type_selection_row') and self.multiplot_type_selection_row in current_layout:
+            insert_index = current_layout.index(self.multiplot_type_selection_row) + 1
         elif hasattr(self, 'multiplot_ref_keys_selection_row') and self.multiplot_ref_keys_selection_row in current_layout:
             insert_index = current_layout.index(self.multiplot_ref_keys_selection_row) + 1
 
@@ -1754,8 +1873,8 @@ class UserInterface():
             widget_location="bottom",
             clim=(vmin,vmax),
             cmap='viridis',
-            width=800,
-            height=400
+            width=1200,
+            height=600
         )
 
         # Build caption string
@@ -1769,7 +1888,6 @@ class UserInterface():
 
         # Return a Column with the plot on top and the caption underneath
         return pn.Column(pn.panel(plot, tight=True), caption_pane)
-
 
     def _plot_ref_animation(self):
 
@@ -1790,8 +1908,8 @@ class UserInterface():
             widget_location="bottom",
             clim=(vmin,vmax),
             cmap='viridis',
-            width=800,
-            height=400
+            width=1200,
+            height=600
         )
 
         # Build caption string
