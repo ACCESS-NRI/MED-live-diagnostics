@@ -12,6 +12,7 @@ from med_diagnostics import data
 from IPython.display import display, HTML
 import hvplot.xarray # type: ignore #For creating interactive plots
 import holoviews as hv # type: ignore
+import xarray as xr
 import io
 import base64
 
@@ -96,7 +97,8 @@ class UserInterface():
         self.prompt_bounds_button = pn.widgets.Button(name='Continue to plot', button_type='success', margin=(23, 0, 0, 10))
         self.multiplot_plot_type_dropdown = pn.widgets.Select()
         self.multiplot_y_axis_dropdown = pn.widgets.Select()
-        
+        self.multiplot_analysis_choice_dropdown = pn.widgets.Select()
+
         # Initialise button listener functions
         @pn.depends(self.keys_dropdown.param.value)
         def _keys_button_click(event):
@@ -682,15 +684,22 @@ class UserInterface():
         if hasattr(self, 'multiplot_slice_widgets'):
             for dim, widget in self.multiplot_slice_widgets.items():
                 self.multiplot_chosen_slices[dim] = widget.value
-
+        #self.multiplot_analysis_choice_dropdown.options = ['None (plot all loaded data)', 'Plot Difference (User vs Ref. data)']
         # Based on plot type change function that is used
-        if self.multiplot_plot_type_dropdown.value == "Heatmap (grid)":
+        if self.multiplot_plot_type_dropdown.value == "Heatmap (grid)" and self.multiplot_analysis_choice_dropdown.value == "None (plot all loaded data)": 
             x_axis = self.multiplot_x_axis_dropdown.value
             y_axis = self.multiplot_y_axis_dropdown.value
             fig = self._plot_multiplot_heatmap_dataset(self.multiplot_plot_variable_dropdown.value, x_axis, y_axis)
-        elif self.multiplot_plot_type_dropdown.value == "Line":
+        elif self.multiplot_plot_type_dropdown.value == "Heatmap (grid)" and self.multiplot_analysis_choice_dropdown.value == "Plot Difference (User vs Ref. data)":
+            x_axis = self.multiplot_x_axis_dropdown.value
+            y_axis = self.multiplot_y_axis_dropdown.value
+            fig = self._plot_multiplot_difference_heatmap(self.multiplot_plot_variable_dropdown.value, x_axis, y_axis)
+        elif self.multiplot_plot_type_dropdown.value == "Line" and self.multiplot_analysis_choice_dropdown.value == "None (plot all loaded data)":
             x_axis = self.multiplot_x_axis_dropdown.value
             fig = self._plot_multiplot_dataset(self.multiplot_plot_variable_dropdown.value, x_axis)
+        elif self.multiplot_plot_type_dropdown.value == "Line" and self.multiplot_analysis_choice_dropdown.value == "Plot Difference (User vs Ref. data)":
+            x_axis = self.multiplot_x_axis_dropdown.value
+            fig = self._plot_multiplot_difference_dataset(self.multiplot_plot_variable_dropdown.value, x_axis)
 
         # Create a new pane for the figure
         new_plot_pane = pn.pane.Matplotlib(fig, tight=True)
@@ -765,6 +774,21 @@ class UserInterface():
             model_value = self.multiplot_ref_keys_dropdown.value
             self._update_multiplot_status_text("Overlay Plot Status >> Loading reference dataset...")
             dataset = data._build_data_object(selected_ref_model_cat, self.multiplot_keys_dropdown.value)
+
+            # Align calendars to prevent crashes
+            if 'time' in self.dataset.coords and 'time' in dataset.coords:
+                # Extract the target calendar from the user dataset
+                user_index = self.dataset.indexes.get('time')
+                target_cal = user_index.calendar if isinstance(user_index, xr.CFTimeIndex) else 'standard'
+                
+                # Extract the calendar from the newly loaded reference dataset
+                ref_index = dataset.indexes.get('time')
+                ref_cal = ref_index.calendar if isinstance(ref_index, xr.CFTimeIndex) else 'standard'
+                
+                # Convert the reference dataset calendar if there is a mismatch
+                if target_cal != ref_cal:
+                    dataset = dataset.convert_calendar(target_cal)
+                
             self.multiplot_ref_dataset_dict.update({model_value : dataset})
             self._update_multiplot_status_text("Overlay Plot Status >> Loaded reference model, add another or plot the overlay")
         elif self.multiplot_ref_keys_dropdown.value in self.multiplot_ref_dataset_dict:
@@ -1021,6 +1045,8 @@ class UserInterface():
         show_plot_choices = True
         self.multiplot_x_axis_dropdown.name = 'Select X-Axis dimension'
         self.multiplot_x_axis_dropdown.options = viable_dims
+        self.multiplot_analysis_choice_dropdown.name = 'Select analysis type'
+        self.multiplot_analysis_choice_dropdown.options = ['None (plot all loaded data)', 'Plot Difference (User vs Ref. data)']
         
         #If the user chooses to plot a heatmap, allow them to choose the Y-axis
         if self.multiplot_plot_type_dropdown.value == "Heatmap (grid)":
@@ -1032,21 +1058,21 @@ class UserInterface():
             else:
                 self.multiplot_y_axis_dropdown.name = 'Select Y-Axis dimension'
                 self.multiplot_y_axis_dropdown.options = viable_dims
-                self.multiplot_plot_choices_row = pn.Row(self.multiplot_x_axis_dropdown, self.multiplot_y_axis_dropdown, self.multiplot_plot_button)
+                self.multiplot_plot_choices_row = pn.Row(self.multiplot_x_axis_dropdown, self.multiplot_y_axis_dropdown, self.multiplot_analysis_choice_dropdown, self.multiplot_plot_button)
         elif self.multiplot_plot_type_dropdown.value == "Line":
             #If there is only 1 viable x-axis, plot automatically without user prompt to select x-axis.  
             #Also check that the check_bounds does not need to be prompted.
             needs_bounds_ui = self._multiplot_check_bounds()
             if len(viable_dims) == 1 and not needs_bounds_ui:
-                show_plot_choices = False
-                self._update_multiplot_warning_text("Only one valid x-axis dimension, plotting automatically.")
+                show_plot_choices = True
+                self._update_multiplot_warning_text("Only one valid x-axis dimension.")
+                self.multiplot_plot_choices_row = pn.Row(self.multiplot_analysis_choice_dropdown, self.multiplot_plot_button)
                 self.multiplot_x_axis_dropdown.value = viable_dims[0]
-                self._multiplot_plot_data_button_click()
             elif len(viable_dims) == 1 and needs_bounds_ui:
                 show_plot_choices = False
                 self._prompt_bounds_ui()
             else:
-                self.multiplot_plot_choices_row = pn.Row(self.multiplot_x_axis_dropdown, self.multiplot_plot_button)
+                self.multiplot_plot_choices_row = pn.Row(self.multiplot_x_axis_dropdown, self.multiplot_analysis_choice_dropdown, self.multiplot_plot_button)
 
         # If plotting hasn't automatically occurred (in the case of the line graph with only 1 plottable dimension)
         if show_plot_choices:    
@@ -1599,7 +1625,7 @@ class UserInterface():
         fig, ax = plt.subplots(figsize=[8,4])
 
         # Plot user data
-        sliced_user_data = self.dataset.sel(**self.multiplot_chosen_slices)
+        sliced_user_data = self.dataset.sel(**self.multiplot_chosen_slices, method='nearest')
         sliced_user_data[variable].plot(label=f"User dataset", x=x_axis, ax=ax, linewidth=2, color='black')
 
         # Loop through the dictionary adding each reference dataset
@@ -1607,12 +1633,12 @@ class UserInterface():
 
             # Apply slices if those dimensions exist in the user dataset
             valid_slices = {dim: val for dim, val in self.multiplot_chosen_slices.items() if dim in dataset.dims}
-            sliced_data = dataset.sel(**valid_slices)
+            sliced_data = dataset.sel(**valid_slices, method='nearest')
 
             # Plot all model variants if multiple exist
             if "member" in sliced_data.dims:
                 for mem in sliced_data.member.values:
-                    sliced_data[variable].sel(member=mem).plot(label=f"{model_key} (mem: {mem})", x=x_axis, ax=ax)
+                    sliced_data[variable].sel(member=mem, method='nearest').plot(label=f"{model_key} (mem: {mem})", x=x_axis, ax=ax)
             else:
                 # Plot directly if no member dimension exists
                 sliced_data[variable].plot(label=model_key, x=x_axis, ax=ax)    
@@ -1669,14 +1695,14 @@ class UserInterface():
 
         nrows = (total_plots + 1) // 2
         
-        sliced_user_data = self.dataset.sel(**self.multiplot_chosen_slices)
+        sliced_user_data = self.dataset.sel(**self.multiplot_chosen_slices, method='nearest')
         global_vmin = float(sliced_user_data[variable].min())
         global_vmax = float(sliced_user_data[variable].max())
 
         #Need to check min and max for given variable to keep colour consistent between different heatmaps
         for dataset in self.multiplot_ref_dataset_dict.values():
             valid_slices = {dim: val for dim, val in self.multiplot_chosen_slices.items() if dim in dataset.dims}
-            sliced_ref = dataset.sel(**valid_slices)
+            sliced_ref = dataset.sel(**valid_slices, method='nearest')
             global_vmin = min(global_vmin, float(sliced_ref[variable].min()))
             global_vmax = max(global_vmax, float(sliced_ref[variable].max()))
 
@@ -1697,7 +1723,7 @@ class UserInterface():
         ax = 1
         for model_key, dataset in self.multiplot_ref_dataset_dict.items():
             valid_slices = {dim: val for dim, val in self.multiplot_chosen_slices.items() if dim in dataset.dims}
-            sliced_ref = dataset.sel(**valid_slices)
+            sliced_ref = dataset.sel(**valid_slices, method='nearest')
             
             # If the reference data has members, plot the first one to avoid issues
             member_title = ""
@@ -1723,7 +1749,7 @@ class UserInterface():
             fig.text(0.1, 0.01, f"Sliced by: {slice_str}", wrap=False, horizontalalignment='left', fontsize=10)
             fig.subplots_adjust(bottom=0.15, hspace=0.3)
         else:
-            fig.subplots_adjust(space=0.3)
+            fig.subplots_adjust(hspace=0.3)
 
         plt.close(fig)
 
@@ -1751,6 +1777,8 @@ class UserInterface():
         """
         
         x_axis = self.multiplot_x_axis_dropdown.value
+        if x_axis is None:
+            return False
         
         # Get User data bounds from the primary user dataset
         self.dataset_min = self.dataset[x_axis].min().values
@@ -1923,3 +1951,133 @@ class UserInterface():
 
         # Return a Column with the plot on top and the caption underneath
         return pn.Column(pn.panel(plot, tight=True), caption_pane)       
+
+
+    def _plot_multiplot_difference_heatmap(self, variable, x_axis, y_axis):
+        # get the number of reference variables, to calculate the grid size 
+        total_plots = len(self.multiplot_ref_dataset_dict)
+
+        # calculate grid dimensions
+        if total_plots > 1:
+            ncols = 2
+        else:
+            ncols = 1
+
+        nrows = (total_plots + 1) // 2
+        
+        sliced_user_data = self.dataset.sel(**self.multiplot_chosen_slices, method='nearest')
+        global_vmin = 0
+        global_vmax = 0
+        plot_dict = {}
+
+        #Need to check min and max for given variable to keep colour consistent between different heatmaps
+        for key, dataset in self.multiplot_ref_dataset_dict.items():
+            valid_slices = {dim: val for dim, val in self.multiplot_chosen_slices.items() if dim in dataset.dims}
+            sliced_ref = dataset.sel(**valid_slices, method='nearest')
+            diff_data = sliced_ref[variable] - sliced_user_data[variable]
+            plot_dict[key] = diff_data
+            global_vmin = min(global_vmin, float(diff_data.min()))
+            global_vmax = max(global_vmax, float(diff_data.max()))
+
+        abs_max = max(abs(global_vmin), abs(global_vmax))
+        symmetric_vmin = -abs_max
+        symmetric_vmax = abs_max
+
+        # Create grid
+        fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=[6 * ncols, 4 * nrows])
+    
+        # Flatten axes array for easy iteration 
+        axes_flat = axes.flatten() if hasattr(axes, 'flatten') else [axes]
+
+        ax = 0
+        for model_key, current_diff_data in plot_dict.items():
+            
+            # If the reference data has members, plot the first one to avoid issues
+            member_title = ""
+            if "member" in current_diff_data.dims:
+                current_diff_data = current_diff_data.isel(member=0)
+                member_title = f" (mem: {current_diff_data.member.values})"
+
+            # Plot current_diff_data
+            current_diff_data.plot(
+                x=x_axis, y=y_axis, ax=axes_flat[ax],
+                vmin=symmetric_vmin, vmax=symmetric_vmax,
+                cmap='RdBu_r', # Diverging colormap (Red-Blue)
+                cbar_kwargs={'label': f"Δ {variable}"}
+            )
+            axes_flat[ax].set_title(f"User data vs {model_key}{member_title}")
+            ax += 1
+
+        #delete empty subplots remaining
+        for i in range(total_plots, len(axes_flat)):
+            fig.delaxes(axes_flat[i])
+
+        # Add the slice information to the caption text, if it is sliced data
+        slice_str = ", ".join([f"{dim}: {self._round_slice_val(val)}" for dim, val in self.multiplot_chosen_slices.items()])
+        if slice_str:
+            fig.text(0.1, 0.01, f"Sliced by: {slice_str}", wrap=False, horizontalalignment='left', fontsize=10)
+            fig.subplots_adjust(bottom=0.15, hspace=0.3)
+        else:
+            fig.subplots_adjust(hspace=0.3)
+
+        plt.close(fig)
+
+        return fig
+
+    def _plot_multiplot_difference_dataset(self, variable, x_axis):
+
+        self._multiplot_check_bounds()
+        
+        # Scale the x-axis depending on how the user has selected the bounds to be constrained. Defaults to min-max of all datasets being plotted.
+        if self.prompt_bounds_dropdown.value == "Constrain to user dataset bounds":
+            x_min = self.dataset_min
+            x_max = self.dataset_max
+        else:
+            x_min = self.multiplot_min
+            x_max = self.multiplot_max
+        
+        fig, ax = plt.subplots(figsize=[8,4])
+        
+        # Plot user data
+        sliced_user_data = self.dataset.sel(**self.multiplot_chosen_slices, method='nearest')
+        
+        # Loop through the dictionary adding each reference dataset
+        for model_key, dataset in self.multiplot_ref_dataset_dict.items():
+        
+            # Apply slices if those dimensions exist in the user dataset
+            valid_slices = {dim: val for dim, val in self.multiplot_chosen_slices.items() if dim in dataset.dims}
+            sliced_data = dataset.sel(**valid_slices, method='nearest')
+            plot_data = sliced_data-sliced_user_data
+
+            # Plot all model variants if multiple 
+            if "member" in plot_data.dims:
+                for mem in plot_data.member.values:
+                    plot_data[variable].sel(member=mem, method='nearest').plot(label=f"{model_key} (mem: {mem})", x=x_axis, ax=ax)
+            else:
+                # Plot directly if no member dimension exists
+                plot_data[variable].plot(label=model_key, x=x_axis, ax=ax)    
+        
+        # Add the slice information to the caption text, if it is sliced data
+        slice_str = ", ".join([f"{dim}: {self._round_slice_val(val)}" for dim, val in self.multiplot_chosen_slices.items()])
+        title_text = sliced_user_data[variable].attrs.get('long_name', variable)
+        
+        caption_text = ''
+        
+        # Add details of slice to caption, if the data is sliced
+        if slice_str:
+            caption_text += f"\nSliced by: {slice_str}"
+        
+        
+        ax.set_xlim(x_min, x_max)
+        fig.tight_layout()
+        ax.set_title(title_text, fontsize=14)
+        ax.axhline(0) #horizontal line at 0 to make difference more obvious
+        fig.text(0.1, 0.01, caption_text, wrap=False, horizontalalignment='left', fontsize=10)    
+        fig.subplots_adjust(bottom=0.15, right=0.7)
+        ax.grid()
+        
+        ax.legend(loc='center left', bbox_to_anchor=(1.05, 0.5))
+        
+        plt.close(fig)
+        
+        return fig
