@@ -679,6 +679,8 @@ class UserInterface():
 
         self.multiplot_plot_button.name = "Select"
         self._update_multiplot_status_text('Plot Overlay Status >> Generating plot...')
+        fig2 = None
+
         #For each of the slices, build a dictionary so that the slices can be accessed in the plot
         self.multiplot_chosen_slices = {}
         if hasattr(self, 'multiplot_slice_widgets'):
@@ -693,15 +695,29 @@ class UserInterface():
             x_axis = self.multiplot_x_axis_dropdown.value
             y_axis = self.multiplot_y_axis_dropdown.value
             fig = self._plot_multiplot_difference_heatmap(self.multiplot_plot_variable_dropdown.value, x_axis, y_axis)
+        elif self.multiplot_plot_type_dropdown.value == "Heatmap (grid)" and self.multiplot_analysis_choice_dropdown.value == "Plot All Data & Difference":
+            x_axis = self.multiplot_x_axis_dropdown.value
+            y_axis = self.multiplot_y_axis_dropdown.value
+            fig1 = self._plot_multiplot_heatmap_dataset(self.multiplot_plot_variable_dropdown.value, x_axis, y_axis)
+            fig2 = self._plot_multiplot_difference_heatmap(self.multiplot_plot_variable_dropdown.value, x_axis, y_axis)
         elif self.multiplot_plot_type_dropdown.value == "Line" and self.multiplot_analysis_choice_dropdown.value == "None (plot all loaded data)":
             x_axis = self.multiplot_x_axis_dropdown.value
             fig = self._plot_multiplot_dataset(self.multiplot_plot_variable_dropdown.value, x_axis)
         elif self.multiplot_plot_type_dropdown.value == "Line" and self.multiplot_analysis_choice_dropdown.value == "Plot Difference (User vs Ref. data)":
             x_axis = self.multiplot_x_axis_dropdown.value
             fig = self._plot_multiplot_difference_dataset(self.multiplot_plot_variable_dropdown.value, x_axis)
-
-        # Create a new pane for the figure
-        new_plot_pane = pn.pane.Matplotlib(fig, tight=True)
+        elif self.multiplot_plot_type_dropdown.value == "Line" and self.multiplot_analysis_choice_dropdown.value == "Plot All Data & Difference":
+            x_axis = self.multiplot_x_axis_dropdown.value
+            fig1 = self._plot_multiplot_dataset(self.multiplot_plot_variable_dropdown.value, x_axis)
+            fig2 = self._plot_multiplot_difference_dataset(self.multiplot_plot_variable_dropdown.value, x_axis)
+            
+        if fig2:
+            pane1 = pn.pane.Matplotlib(fig1, tight=True)
+            pane2 = pn.pane.Matplotlib(fig2, tight=True)
+            new_plot_pane = pn.Column(pane1, pane2)
+        else:
+            # Create a new pane for the figure
+            new_plot_pane = pn.pane.Matplotlib(fig, tight=True)
 
         # Create a remove button for each plot that is added
         remove_btn = pn.widgets.Button(name='Remove the above plot', button_type='danger', margin=(23, 0, 0, 10))
@@ -1045,7 +1061,7 @@ class UserInterface():
         self.multiplot_x_axis_dropdown.name = 'Select X-Axis dimension'
         self.multiplot_x_axis_dropdown.options = sorted(viable_dims)
         self.multiplot_analysis_choice_dropdown.name = 'Select analysis type'
-        self.multiplot_analysis_choice_dropdown.options = ['None (plot all loaded data)', 'Plot Difference (User vs Ref. data)']
+        self.multiplot_analysis_choice_dropdown.options = ['None (plot all loaded data)', 'Plot Difference (User vs Ref. data)', 'Plot All Data & Difference']
         
         #If the user chooses to plot a heatmap, allow them to choose the Y-axis
         if self.multiplot_plot_type_dropdown.value == "Heatmap (grid)":
@@ -1875,6 +1891,8 @@ class UserInterface():
         self.dataset = data._build_data_object(self.model_cat, self.multiplot_keys_dropdown.value)
         self.loaded_dataset_key = self.multiplot_keys_dropdown.value
         self.multiplot_plot_variable_dropdown.options = sorted(list(self.dataset.keys()))
+        self.keys_dropdown.value=self.loaded_dataset_key
+        self.plot_variable_dropdown.options = sorted(list(self.dataset.keys()))
         self._update_multiplot_status_text("Overlay Plot Status >> New user dataset loaded, clearing loaded user models")
         # Clear the loaded data, as different datasets from the selected models will need to be loaded.
         self._clear_multiplot_data()
@@ -2071,7 +2089,7 @@ class UserInterface():
         ax.set_xlim(x_min, x_max)
         fig.tight_layout()
         ax.set_title(title_text, fontsize=14)
-        ax.axhline(0) #horizontal line at 0 to make difference more obvious
+        ax.axhline(0, color='k') #horizontal line at 0
         fig.text(0.1, 0.01, caption_text, wrap=False, horizontalalignment='left', fontsize=10)    
         fig.subplots_adjust(bottom=0.15, right=0.7)
         ax.grid()
