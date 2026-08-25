@@ -378,7 +378,7 @@ class UserInterface():
         
         # Populate user model widgets
         self.keys_dropdown.name = '1. Please select a dataset to monitor:'
-        self.keys_dropdown.options = list(self.model_cat.keys())
+        self.keys_dropdown.options = sorted(list(self.model_cat.keys()))
         self.keys_button.name = 'Load dataset'
         self.keys_button.button_type = 'primary'
         
@@ -399,7 +399,7 @@ class UserInterface():
         
         # Populate reference/comparison model widgets
         self.ref_keys_dropdown.name = '2. Select reference model (optional):'
-        self.ref_keys_dropdown.options = self.access_nri_cat.keys()
+        self.ref_keys_dropdown.options = sorted(list(self.access_nri_cat.keys()))
         self.ref_keys_button.name = 'Load reference model'
         self.ref_keys_button.button_type = 'primary'
         
@@ -431,7 +431,7 @@ class UserInterface():
         """
         # Populate reference/comparison dataset widgets
         self.ref_data_keys_dropdown.name = '2.1. Select reference dataset (optional):'
-        self.ref_data_keys_dropdown.options = self.ref_model_cat.keys()
+        self.ref_data_keys_dropdown.options = sorted(list(self.ref_model_cat.keys()))
         self.ref_data_keys_button.name = 'Load reference dataset'
         self.ref_data_keys_button.button_type = 'primary'
         
@@ -462,14 +462,14 @@ class UserInterface():
 
         # Populate reference/comparison model widgets
         self.multiplot_ref_keys_dropdown.name = '3. Select one or more reference models to overlay (optional):'
-        self.multiplot_ref_keys_dropdown.options = self.access_nri_cat.keys()
+        self.multiplot_ref_keys_dropdown.options = sorted(list(self.access_nri_cat.keys()))
         self.multiplot_ref_keys_button.name = 'Add reference model'
         self.multiplot_ref_keys_button.button_type = 'primary'
         self.multiplot_keys_dropdown.name = 'Select user dataset'
-        self.multiplot_keys_dropdown.options = self.keys_dropdown.options
+        self.multiplot_keys_dropdown.options = sorted(list(self.keys_dropdown.options))
         self.multiplot_keys_dropdown.value = self.keys_dropdown.value
         self.multiplot_plot_variable_dropdown.name = "Variable selection"
-        self.multiplot_plot_variable_dropdown.options = self.plot_variable_dropdown.options
+        self.multiplot_plot_variable_dropdown.options = sorted(list(self.plot_variable_dropdown.options))
         self.multiplot_plot_variable_dropdown.value = self.plot_variable_dropdown.value
         self.multiplot_plot_type_dropdown.name = "Select plot type"
         self.multiplot_plot_type_dropdown.options = ["Line", "Heatmap (grid)"]
@@ -684,7 +684,6 @@ class UserInterface():
         if hasattr(self, 'multiplot_slice_widgets'):
             for dim, widget in self.multiplot_slice_widgets.items():
                 self.multiplot_chosen_slices[dim] = widget.value
-        #self.multiplot_analysis_choice_dropdown.options = ['None (plot all loaded data)', 'Plot Difference (User vs Ref. data)']
         # Based on plot type change function that is used
         if self.multiplot_plot_type_dropdown.value == "Heatmap (grid)" and self.multiplot_analysis_choice_dropdown.value == "None (plot all loaded data)": 
             x_axis = self.multiplot_x_axis_dropdown.value
@@ -754,7 +753,7 @@ class UserInterface():
 
         if hasattr(self, 'ref_data_keys_selection_row') and self.ref_data_keys_selection_row in self.widget_container:
             # Just update the options in the existing dropdown to match the new model
-            self.ref_data_keys_dropdown.options = list(self.ref_model_cat.keys())
+            self.ref_data_keys_dropdown.options = sorted(list(self.ref_model_cat.keys()))
         else:
             # Build and display the UI for the first time
             self._display_reference_dataset_selection_ui()
@@ -801,7 +800,7 @@ class UserInterface():
             # Load selected dataset
             self.dataset = data._build_data_object(self.model_cat, self.multiplot_keys_dropdown.value)
             self.loaded_dataset_key = self.multiplot_keys_dropdown.value
-            self.multiplot_plot_variable_dropdown.options = list(self.dataset.keys())
+            self.multiplot_plot_variable_dropdown.options = sorted(list(self.dataset.keys()))
             self._update_multiplot_status_text("Overlay Plot Status >> New user dataset loaded, clearing loaded user models")
             self._clear_multiplot_data()
 
@@ -886,7 +885,7 @@ class UserInterface():
         """
         
         self.plot_variable_dropdown.name = 'Available variables'
-        self.plot_variable_dropdown.options = list(self.dataset.keys())
+        self.plot_variable_dropdown.options = sorted(list(self.dataset.keys()))
         
         self.plot_type_dropdown.name = 'Select plot type'
         self.plot_type_dropdown.options = ["Line", "Heatmap", "Animation"]
@@ -902,7 +901,7 @@ class UserInterface():
         """
         
         self.ref_plot_variable_dropdown.name = 'Available variables'
-        self.ref_plot_variable_dropdown.options = list(self.ref_dataset.keys())
+        self.ref_plot_variable_dropdown.options = sorted(list(self.ref_dataset.keys()))
         
         self.ref_plot_type_dropdown.name = 'Select plot type'
         self.ref_plot_type_dropdown.options = ["Line", "Heatmap", "Animation"]
@@ -928,7 +927,7 @@ class UserInterface():
             viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
 
             self.x_axis_dropdown.name = 'Select X-Axis dimension'
-            self.x_axis_dropdown.options = viable_dims
+            self.x_axis_dropdown.options = sorted(viable_dims)
             show_plot_choices = True
 
             #If the user chooses to plot a heatmap, allow them to choose the Y-axis
@@ -940,7 +939,7 @@ class UserInterface():
                     show_plot_choices = False
                 else:
                     self.y_axis_dropdown.name = 'Select Y-Axis dimension'
-                    self.y_axis_dropdown.options = viable_dims
+                    self.y_axis_dropdown.options = sorted(viable_dims)
                     self.plot_choices_row = pn.Row(self.x_axis_dropdown, self.y_axis_dropdown, self.plot_button)
             elif self.plot_type_dropdown.value == "Line":
                 #If there is only 1 viable x-axis, plot automatically without user prompt to select x-axis. 
@@ -959,9 +958,9 @@ class UserInterface():
                     show_plot_choices = False
                 else:
                     self.y_axis_dropdown.name = 'Select Y-Axis dimension'
-                    self.y_axis_dropdown.options = viable_dims
+                    self.y_axis_dropdown.options = sorted(viable_dims)
                     self.animation_axis_dropdown.name = 'Select Z-Axis dimension'
-                    self.animation_axis_dropdown.options = viable_dims
+                    self.animation_axis_dropdown.options = sorted(viable_dims)
                     self.plot_choices_row = pn.Row(self.x_axis_dropdown, self.y_axis_dropdown, self.animation_axis_dropdown, self.plot_button)
 
             #If plotting hasn't automatically occurred (in the case of the line graph with only 1 plottable dimension)
@@ -989,7 +988,7 @@ class UserInterface():
         viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
 
         self.ref_x_axis_dropdown.name = 'Select X-Axis dimension'
-        self.ref_x_axis_dropdown.options = viable_dims
+        self.ref_x_axis_dropdown.options = sorted(viable_dims)
         show_plot_choices = True
 
         #If the user chooses to plot a heatmap, allow them to choose the Y-axis
@@ -1001,7 +1000,7 @@ class UserInterface():
                 show_plot_choices = False
             else:
                 self.ref_y_axis_dropdown.name = 'Select Y-Axis dimension'
-                self.ref_y_axis_dropdown.options = viable_dims
+                self.ref_y_axis_dropdown.options = sorted(viable_dims)
                 self.ref_plot_choices_row = pn.Row(self.ref_x_axis_dropdown, self.ref_y_axis_dropdown, self.ref_plot_button)
         elif self.ref_plot_type_dropdown.value == "Line":
             #Check if omly one viable dimension for line plot, if so plot it without options
@@ -1020,9 +1019,9 @@ class UserInterface():
                 show_plot_choices = False
             else:
                 self.ref_y_axis_dropdown.name = 'Select Y-Axis dimension'
-                self.ref_y_axis_dropdown.options = viable_dims
+                self.ref_y_axis_dropdown.options = sorted(viable_dims)
                 self.ref_animation_axis_dropdown.name = 'Select Z-Axis dimension'
-                self.ref_animation_axis_dropdown.options = viable_dims
+                self.ref_animation_axis_dropdown.options = sorted(viable_dims)
                 self.ref_plot_choices_row = pn.Row(self.ref_x_axis_dropdown, self.ref_y_axis_dropdown, self.ref_animation_axis_dropdown, self.ref_plot_button)
             
         if show_plot_choices:
@@ -1044,7 +1043,7 @@ class UserInterface():
         viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
         show_plot_choices = True
         self.multiplot_x_axis_dropdown.name = 'Select X-Axis dimension'
-        self.multiplot_x_axis_dropdown.options = viable_dims
+        self.multiplot_x_axis_dropdown.options = sorted(viable_dims)
         self.multiplot_analysis_choice_dropdown.name = 'Select analysis type'
         self.multiplot_analysis_choice_dropdown.options = ['None (plot all loaded data)', 'Plot Difference (User vs Ref. data)']
         
@@ -1057,7 +1056,7 @@ class UserInterface():
                 show_plot_choices = False
             else:
                 self.multiplot_y_axis_dropdown.name = 'Select Y-Axis dimension'
-                self.multiplot_y_axis_dropdown.options = viable_dims
+                self.multiplot_y_axis_dropdown.options = sorted(viable_dims)
                 self.multiplot_plot_choices_row = pn.Row(self.multiplot_x_axis_dropdown, self.multiplot_y_axis_dropdown, self.multiplot_analysis_choice_dropdown, self.multiplot_plot_button)
         elif self.multiplot_plot_type_dropdown.value == "Line":
             #If there is only 1 viable x-axis, plot automatically without user prompt to select x-axis.  
@@ -1267,7 +1266,7 @@ class UserInterface():
             # Extract coordinate values as options
             coord_values = list(self.dataset[dimension].values)
             options_dict = {self._round_slice_val(val): val for val in coord_values}
-            dropdown = pn.widgets.Select(name=f'Slice {dimension} at:', options=options_dict)
+            dropdown = pn.widgets.DiscreteSlider(name=f'Slice {dimension} at:', options=options_dict)
             
             self.slice_widgets[dimension] = dropdown
             ui_components.append(dropdown)
@@ -1300,7 +1299,7 @@ class UserInterface():
             # Extract coordinate values as options
             coord_values = list(self.ref_dataset[dimension].values)
             options_dict = {self._round_slice_val(val): val for val in coord_values}
-            dropdown = pn.widgets.Select(name=f'Slice {dimension} at:', options=options_dict)
+            dropdown = pn.widgets.DiscreteSlider(name=f'Slice {dimension} at:', options=options_dict)
             
             self.ref_slice_widgets[dimension] = dropdown
             ref_ui_components.append(dropdown)
@@ -1335,7 +1334,7 @@ class UserInterface():
             # Extract coordinate values as options
             coord_values = list(self.dataset[dimension].values)
             options_dict = {self._round_slice_val(val): val for val in coord_values}
-            dropdown = pn.widgets.Select(name=f'Slice {dimension} at:', options=options_dict)
+            dropdown = pn.widgets.DiscreteSlider(name=f'Slice {dimension} at:', options=options_dict)
 
             self.multiplot_slice_widgets[dimension] = dropdown
             multiplot_ui_components.append(dropdown)
@@ -1380,12 +1379,12 @@ class UserInterface():
         Update exisiting user model dataset plot if new data are selected. Private.
         """
 
-        self.plot_variable_dropdown.options = list(self.dataset.keys())
+        self.plot_variable_dropdown.options = sorted(list(self.dataset.keys()))
         self.plot_pane.object = None  # Clears the previous plot from the screen
         if hasattr(self, 'fig'):
             plt.close(self.fig)
         if hasattr(self, 'multiplot_ref_keys_selection_row'):
-            self.multiplot_plot_variable_dropdown.options = list(self.dataset.keys())
+            self.multiplot_plot_variable_dropdown.options = sorted(list(self.dataset.keys()))
             self.multiplot_keys_dropdown.value = self.keys_dropdown.value
         
     def _update_ref_dataset_keys_plot_ui(self):
@@ -1393,7 +1392,7 @@ class UserInterface():
         Update exisiting reference model dataset keys if new data are selected. Private.
         """
         
-        self.ref_data_keys_dropdown.options = list(self.ref_dataset.keys())
+        self.ref_data_keys_dropdown.options = sorted(list(self.ref_dataset.keys()))
         plt.close(self.ref_fig)
         
         self._update_ref_dataset_plot_ui()
@@ -1403,7 +1402,7 @@ class UserInterface():
         Update exisiting reference model dataset plot if new data are selected. Private.
         """
         
-        self.ref_plot_variable_dropdown.options = list(self.ref_dataset.keys())
+        self.ref_plot_variable_dropdown.options = sorted(list(self.ref_dataset.keys()))
         self.ref_plot_pane.object = None  # Clears the previous plot from the screen
         if hasattr(self, 'ref_fig'):
             plt.close(self.ref_fig)
@@ -1426,7 +1425,7 @@ class UserInterface():
         
         self.figure_exists = True
         # Slice the dataset if the user has selected any
-        sliced_data = self.dataset.sel(**self.chosen_slices)
+        sliced_data = self.dataset.sel(**self.chosen_slices, method="nearest")
 
         #Add the slice information to the title, if it is sliced data
         sliced_data[variable].plot(x=x_axis, ax=ax)
@@ -1471,7 +1470,7 @@ class UserInterface():
         self.fig, ax = plt.subplots(figsize=[8,4])
 
         # Slice the dataset if the user has selected any
-        heatmap_data = self.dataset.sel(**self.chosen_slices)
+        heatmap_data = self.dataset.sel(**self.chosen_slices, method="nearest")
 
         # Plot the specific DataArray onto the explicit axis
         heatmap_data[variable].plot(x=x_axis, y=y_axis, ax=ax)
@@ -1515,7 +1514,7 @@ class UserInterface():
         
         self.ref_figure_exists = True
 
-        sliced_data = self.ref_dataset.sel(**self.ref_chosen_slices)
+        sliced_data = self.ref_dataset.sel(**self.ref_chosen_slices, method="nearest")
         
         # Plot all model variants if multiple exist
         if "member" in sliced_data.dims:
@@ -1569,7 +1568,7 @@ class UserInterface():
         self.ref_fig, ax = plt.subplots(figsize=[8,4])
 
         # Slice the dataset if the user has selected any
-        heatmap_data = self.ref_dataset.sel(**self.ref_chosen_slices)
+        heatmap_data = self.ref_dataset.sel(**self.ref_chosen_slices, method="nearest")
 
         # Plot the specific DataArray onto the explicit axis
         heatmap_data[ref_variable].plot(x=x_axis, y=y_axis, ax=ax)
@@ -1875,14 +1874,14 @@ class UserInterface():
         # Load selected dataset
         self.dataset = data._build_data_object(self.model_cat, self.multiplot_keys_dropdown.value)
         self.loaded_dataset_key = self.multiplot_keys_dropdown.value
-        self.multiplot_plot_variable_dropdown.options = list(self.dataset.keys())
+        self.multiplot_plot_variable_dropdown.options = sorted(list(self.dataset.keys()))
         self._update_multiplot_status_text("Overlay Plot Status >> New user dataset loaded, clearing loaded user models")
         # Clear the loaded data, as different datasets from the selected models will need to be loaded.
         self._clear_multiplot_data()
 
     def _plot_animation(self):
 
-        data = self.dataset.sel(**self.chosen_slices)
+        data = self.dataset.sel(**self.chosen_slices, method="nearest")
         plot_dataset = data[self.plot_variable_dropdown.value].load()
         
         #get the min and max variable values so that the heatmap is consistent for the whole animation
@@ -1919,7 +1918,7 @@ class UserInterface():
 
     def _plot_ref_animation(self):
 
-        data = self.ref_dataset.sel(**self.ref_chosen_slices)
+        data = self.ref_dataset.sel(**self.ref_chosen_slices, method="nearest")
         plot_dataset = data[self.ref_plot_variable_dropdown.value].load()
 
         #get the min and max variable values so that the heatmap is consistent for the whole animation
@@ -2059,10 +2058,11 @@ class UserInterface():
         
         # Add the slice information to the caption text, if it is sliced data
         slice_str = ", ".join([f"{dim}: {self._round_slice_val(val)}" for dim, val in self.multiplot_chosen_slices.items()])
-        title_text = sliced_user_data[variable].attrs.get('long_name', variable)
+        title_text = 'Δ '
+        title_text += sliced_user_data[variable].attrs.get('long_name', variable)
         
         caption_text = ''
-        
+
         # Add details of slice to caption, if the data is sliced
         if slice_str:
             caption_text += f"\nSliced by: {slice_str}"
