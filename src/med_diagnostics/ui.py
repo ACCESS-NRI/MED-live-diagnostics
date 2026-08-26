@@ -375,7 +375,7 @@ class UserInterface():
         return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     def _variable_toggle_change(self):
-
+        """Toggles the user variable dropdown options between short names and long name."""
         if self.variable_toggle.value == True:
             self.long_names = {}
             for var in list(self.dataset.keys()):
@@ -398,7 +398,7 @@ class UserInterface():
         return self.plot_variable_dropdown.value
 
     def _ref_variable_toggle_change(self):
-    
+        """Toggles the reference variable dropdown options between short names and long name."""
         if self.ref_variable_toggle.value == True:
             self.ref_long_names = {}
             for var in list(self.ref_dataset.keys()):
@@ -412,13 +412,13 @@ class UserInterface():
             self.ref_variable_toggle.label = "Display Variable Long Names"
     
     def _ref_get_selected_variable(self):
-        """Returns the internal dataset variable key regardless of display toggle state."""
+        """Returns the reference dataset variable key regardless of display toggle state."""
         if self.ref_variable_toggle.value:
             return self.ref_long_names[self.ref_plot_variable_dropdown.value]
         return self.ref_plot_variable_dropdown.value
 
     def _multiplot_variable_toggle_change(self):
-        
+        """Toggles the multiplot variable dropdown options between short names and long name."""
         if self.multiplot_variable_toggle.value == True:
             self.multiplot_long_names = {}
             for var in list(self.dataset.keys()):
@@ -436,13 +436,12 @@ class UserInterface():
             self.variable_toggle.value = False
         
     def _multiplot_get_selected_variable(self):
-        """Returns the internal dataset variable key regardless of display toggle state."""
+        """Returns the multiplot dataset variable key regardless of display toggle state."""
         if self.multiplot_variable_toggle.value:
             return self.multiplot_long_names[self.multiplot_plot_variable_dropdown.value]
         return self.multiplot_plot_variable_dropdown.value
         
     def _display_dataset_selection_ui(self, model_cat, access_nri_cat):
-        
         """
         Label, populate and append dataset selection-related widgets to widget_container. Private.
         
@@ -470,10 +469,10 @@ class UserInterface():
         self.div_2.visible = True
         
     def _display_reference_model_selection_ui(self):
-        
         """
         Label, populate and append ACCESS reference model selection-related widgets to widget_container. Private.
         """
+        
         self._update_ref_status_text("Reference Model Status >> Select a model to load and plot data")
         # Add refrence data status text box
         self.widget_container.append(self.ref_status_textbox)
@@ -685,7 +684,7 @@ class UserInterface():
          
     def _ref_plot_data_button_click(self):
         """
-        Triggers plotting of the reference dataset after the plot data button is clicked
+        Triggers plotting of the reference dataset after the plot data button fis clicked
         """
 
         self.ref_plot_button.name = "Add Plot"    
@@ -762,7 +761,17 @@ class UserInterface():
 
         self.multiplot_plot_button.name = "Select"
         self._update_multiplot_status_text('Plot Overlay Status >> Generating plot...')
-        fig2 = None
+        fig1 = None
+
+        # remove the plot choices row since the plot has been created
+        if hasattr(self, 'multiplot_plot_choices_row') and self.multiplot_plot_choices_row in self.widget_container:
+            self.widget_container.remove(self.multiplot_plot_choices_row)
+
+
+        if hasattr(self, 'prompt_bounds_row') and self.prompt_bounds_row in self.widget_container:
+            self.widget_container.remove(self.prompt_bounds_row)
+            # Delete the attributes it resets for the next plot
+            del self.prompt_bounds_row
 
         #For each of the slices, build a dictionary so that the slices can be accessed in the plot
         self.multiplot_chosen_slices = {}
@@ -774,7 +783,7 @@ class UserInterface():
             x_axis = self.multiplot_x_axis_dropdown.value
             y_axis = self.multiplot_y_axis_dropdown.value
             fig = self._plot_multiplot_heatmap_dataset(self._multiplot_get_selected_variable(), x_axis, y_axis)
-        elif self.multiplot_plot_type_dropdown.value == "Heatmap (grid)" and self.multiplot_analysis_choice_dropdown.value == "Plot Difference (User vs Ref. data)":
+        elif self.multiplot_plot_type_dropdown.value == "Heatmap (grid)" and self.multiplot_analysis_choice_dropdown.value == "Plot Difference (Ref. - User data)":
             x_axis = self.multiplot_x_axis_dropdown.value
             y_axis = self.multiplot_y_axis_dropdown.value
             fig = self._plot_multiplot_difference_heatmap(self._multiplot_get_selected_variable(), x_axis, y_axis)
@@ -786,7 +795,7 @@ class UserInterface():
         elif self.multiplot_plot_type_dropdown.value == "Line" and self.multiplot_analysis_choice_dropdown.value == "None (plot all loaded data)":
             x_axis = self.multiplot_x_axis_dropdown.value
             fig = self._plot_multiplot_dataset(self._multiplot_get_selected_variable(), x_axis)
-        elif self.multiplot_plot_type_dropdown.value == "Line" and self.multiplot_analysis_choice_dropdown.value == "Plot Difference (User vs Ref. data)":
+        elif self.multiplot_plot_type_dropdown.value == "Line" and self.multiplot_analysis_choice_dropdown.value == "Plot Difference (Ref. - User data)":
             x_axis = self.multiplot_x_axis_dropdown.value
             fig = self._plot_multiplot_difference_dataset(self._multiplot_get_selected_variable(), x_axis)
         elif self.multiplot_plot_type_dropdown.value == "Line" and self.multiplot_analysis_choice_dropdown.value == "Plot All Data & Difference":
@@ -794,7 +803,7 @@ class UserInterface():
             fig1 = self._plot_multiplot_dataset(self._multiplot_get_selected_variable(), x_axis)
             fig2 = self._plot_multiplot_difference_dataset(self._multiplot_get_selected_variable(), x_axis)
             
-        if fig2:
+        if fig1:
             pane1 = pn.pane.Matplotlib(fig1, tight=True)
             pane2 = pn.pane.Matplotlib(fig2, tight=True)
             new_plot_pane = pn.Column(pane1, pane2)
@@ -805,6 +814,12 @@ class UserInterface():
         # Create a remove button for each plot that is added
         remove_btn = pn.widgets.Button(name='Remove the above plot', button_type='danger', margin=(23, 0, 0, 10))
 
+        if hasattr(self, 'multiplot_slice_ui_row') and self.multiplot_slice_ui_row in self.widget_container:
+                    self.widget_container.remove(self.multiplot_slice_ui_row)
+                    # Delete the attributes it resets for the next plot
+                    del self.multiplot_slice_ui_row
+                    del self.multiplot_slice_widgets
+
         # Group the plot and the button together
         plot_group = pn.Column(new_plot_pane, remove_btn, margin=(0, 0, 25, 0))
 
@@ -814,21 +829,6 @@ class UserInterface():
                 self.widget_container.remove(plot_group)
 
         remove_btn.on_click(_remove_this_plot)
-
-        # remove the plot choices row since the plot has been created
-        if hasattr(self, 'multiplot_plot_choices_row') and self.multiplot_plot_choices_row in self.widget_container:
-            self.widget_container.remove(self.multiplot_plot_choices_row)
-
-        if hasattr(self, 'multiplot_slice_ui_row') and self.multiplot_slice_ui_row in self.widget_container:
-            self.widget_container.remove(self.multiplot_slice_ui_row)
-            # Delete the attributes it resets for the next plot
-            del self.multiplot_slice_ui_row
-            del self.multiplot_slice_widgets
-
-        if hasattr(self, 'prompt_bounds_row') and self.prompt_bounds_row in self.widget_container:
-            self.widget_container.remove(self.prompt_bounds_row)
-            # Delete the attributes it resets for the next plot
-            del self.prompt_bounds_row
 
         self.widget_container.append(plot_group)
 
@@ -1015,63 +1015,63 @@ class UserInterface():
         
     def _display_plot_choices_ui(self):
             
-            """
-            Create interactive panel plot for user to choose plot options and add to widget_container. Private.
-            """
-            #Remove preexisting plot choices UI
-            if hasattr(self, 'plot_choices_row') and self.plot_choices_row in self.widget_container:
-                self.widget_container.remove(self.plot_choices_row)
+        """
+        Create interactive panel plot for user to choose plot options and add to widget_container. Private.
+        """
+        #Remove preexisting plot choices UI
+        if hasattr(self, 'plot_choices_row') and self.plot_choices_row in self.widget_container:
+            self.widget_container.remove(self.plot_choices_row)
 
-            #Find viable dimensions for axis selection
-            dim_sizes = self.dataset[self._get_selected_variable()].sizes
-            viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
+        #Find viable dimensions for axis selection
+        dim_sizes = self.dataset[self._get_selected_variable()].sizes
+        viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
 
-            self.x_axis_dropdown.name = 'Select X-Axis dimension'
-            self.x_axis_dropdown.options = sorted(viable_dims)
-            show_plot_choices = True
+        self.x_axis_dropdown.name = 'Select X-Axis dimension'
+        self.x_axis_dropdown.options = sorted(viable_dims)
+        show_plot_choices = True
 
-            #If the user chooses to plot a heatmap, allow them to choose the Y-axis
-            if self.plot_type_dropdown.value == "Heatmap":
-                #Check if enough dimensions to make heatmap, if not, throw error and don't let the user do it. 
-                if len(viable_dims) < 2:
-                    self._update_warning_text("Warning >> Not enough dimensions available for this variable to plot a Heatmap.")
-                    self.plot_type_dropdown.value = "Line"
-                    show_plot_choices = False
-                else:
-                    self.y_axis_dropdown.name = 'Select Y-Axis dimension'
-                    self.y_axis_dropdown.options = sorted(viable_dims)
-                    self.plot_choices_row = pn.Row(self.x_axis_dropdown, self.y_axis_dropdown, self.plot_button)
-            elif self.plot_type_dropdown.value == "Line":
-                #If there is only 1 viable x-axis, plot automatically without user prompt to select x-axis. 
-                if len(viable_dims) == 1:
-                    self._update_warning_text("Only one valid x-axis dimension, plotting automatically.")
-                    self.x_axis_dropdown.value = viable_dims[0]
-                    show_plot_choices = False
-                    self._plot_data_button_click()
-                else:
-                    self.plot_choices_row = pn.Row(self.x_axis_dropdown, self.plot_button)
-            elif self.plot_type_dropdown.value == "Animation":
-                #Check if enough dimensions to make animation, if not, throw error and don't let the user do it. 
-                if len(viable_dims) < 2:
-                    self._update_warning_text("Warning >> Not enough dimensions available for this variable to plot an animation.")
-                    self.plot_type_dropdown.value = "Line"
-                    show_plot_choices = False
-                else:
-                    self.y_axis_dropdown.name = 'Select Y-Axis dimension'
-                    self.y_axis_dropdown.options = sorted(viable_dims)
-                    self.animation_axis_dropdown.name = 'Select Z-Axis dimension'
-                    self.animation_axis_dropdown.options = sorted(viable_dims)
-                    self.plot_choices_row = pn.Row(self.x_axis_dropdown, self.y_axis_dropdown, self.animation_axis_dropdown, self.plot_button)
+        #If the user chooses to plot a heatmap, allow them to choose the Y-axis
+        if self.plot_type_dropdown.value == "Heatmap":
+            #Check if enough dimensions to make heatmap, if not, throw error and don't let the user do it. 
+            if len(viable_dims) < 2:
+                self._update_warning_text("Warning >> Not enough dimensions available for this variable to plot a Heatmap.")
+                self.plot_type_dropdown.value = "Line"
+                show_plot_choices = False
+            else:
+                self.y_axis_dropdown.name = 'Select Y-Axis dimension'
+                self.y_axis_dropdown.options = sorted(viable_dims)
+                self.plot_choices_row = pn.Row(self.x_axis_dropdown, self.y_axis_dropdown, self.plot_button)
+        elif self.plot_type_dropdown.value == "Line":
+            #If there is only 1 viable x-axis, plot automatically without user prompt to select x-axis. 
+            if len(viable_dims) == 1:
+                self._update_warning_text("Only one valid x-axis dimension, plotting automatically.")
+                self.x_axis_dropdown.value = viable_dims[0]
+                show_plot_choices = False
+                self._plot_data_button_click()
+            else:
+                self.plot_choices_row = pn.Row(self.x_axis_dropdown, self.plot_button)
+        elif self.plot_type_dropdown.value == "Animation":
+            #Check if enough dimensions to make animation, if not, throw error and don't let the user do it. 
+            if len(viable_dims) < 2:
+                self._update_warning_text("Warning >> Not enough dimensions available for this variable to plot an animation.")
+                self.plot_type_dropdown.value = "Line"
+                show_plot_choices = False
+            else:
+                self.y_axis_dropdown.name = 'Select Y-Axis dimension'
+                self.y_axis_dropdown.options = sorted(viable_dims)
+                self.animation_axis_dropdown.name = 'Select Z-Axis dimension'
+                self.animation_axis_dropdown.options = sorted(viable_dims)
+                self.plot_choices_row = pn.Row(self.x_axis_dropdown, self.y_axis_dropdown, self.animation_axis_dropdown, self.plot_button)
 
-            #If plotting hasn't automatically occurred (in the case of the line graph with only 1 plottable dimension)
-            if show_plot_choices:    
-                #Insert the UI row under the variable selection even if there are plots already
-                if hasattr(self, 'plot_ui_row') and self.plot_ui_row in self.widget_container:
-                    insert_index = self.widget_container.index(self.plot_ui_row) + 1
-                    self.widget_container.insert(insert_index, self.plot_choices_row)
-                else:
-                    self.widget_container.append(self.plot_choices_row)
-                #self.widget_container.append(self.plot_pane)
+        #If plotting hasn't automatically occurred (in the case of the line graph with only 1 plottable dimension)
+        if show_plot_choices:    
+            #Insert the UI row under the variable selection even if there are plots already
+            if hasattr(self, 'plot_ui_row') and self.plot_ui_row in self.widget_container:
+                insert_index = self.widget_container.index(self.plot_ui_row) + 1
+                self.widget_container.insert(insert_index, self.plot_choices_row)
+            else:
+                self.widget_container.append(self.plot_choices_row)
+            #self.widget_container.append(self.plot_pane)
 
     def _ref_display_plot_choices_ui(self):
                 
@@ -1145,7 +1145,7 @@ class UserInterface():
         self.multiplot_x_axis_dropdown.name = 'Select X-Axis dimension'
         self.multiplot_x_axis_dropdown.options = sorted(viable_dims)
         self.multiplot_analysis_choice_dropdown.name = 'Select analysis type'
-        self.multiplot_analysis_choice_dropdown.options = ['None (plot all loaded data)', 'Plot Difference (User vs Ref. data)', 'Plot All Data & Difference']
+        self.multiplot_analysis_choice_dropdown.options = ['None (plot all loaded data)', 'Plot Difference (Ref. - User data)', 'Plot All Data & Difference']
         
         #If the user chooses to plot a heatmap, allow them to choose the Y-axis
         if self.multiplot_plot_type_dropdown.value == "Heatmap (grid)":
@@ -1982,6 +1982,20 @@ class UserInterface():
         self._clear_multiplot_data()
 
     def _plot_animation(self, variable):
+        """
+        Generates an animated plot for the user dataset.
+
+        Parameters
+        ----------
+        variable : str
+            The name of the data variable to plot.
+
+        Returns
+        -------
+        panel.Column
+            A Panel layout containing the interactive hvplot animation 
+            and an HTML caption.
+        """
 
         data = self.dataset.sel(**self.chosen_slices, method="nearest")
         plot_dataset = data[variable].load()
@@ -1989,12 +2003,19 @@ class UserInterface():
         #get the min and max variable values so that the heatmap is consistent for the whole animation
         vmin = float(plot_dataset.min())
         vmax = float(plot_dataset.max())
-        
-        
 
+        x_dim = self.x_axis_dropdown.value
+        y_dim = self.y_axis_dropdown.value
+        
+        # Assign coordinates if they are missing, necessary for SeaIce datasets
+        if x_dim not in plot_dataset.coords:
+            plot_dataset = plot_dataset.assign_coords({x_dim: range(plot_dataset.sizes[x_dim])})
+        if y_dim not in plot_dataset.coords:
+            plot_dataset = plot_dataset.assign_coords({y_dim: range(plot_dataset.sizes[y_dim])})
+        
         plot = plot_dataset.hvplot.quadmesh(
-            x= self.x_axis_dropdown.value,
-            y= self.y_axis_dropdown.value,
+            x=x_dim,
+            y=y_dim,
             groupby= self.animation_axis_dropdown.value,
             dynamic=True,
             rasterize=True,
@@ -2019,17 +2040,34 @@ class UserInterface():
         return pn.Column(pn.panel(plot, tight=True), caption_pane)
 
     def _plot_ref_animation(self):
+        """
+        Generates an animated plot for the reference dataset.
 
+        Returns
+        -------
+        panel.Column
+            A Panel layout containing the interactive hvplot animation 
+            and an HTML caption.
+        """
+        
         data = self.ref_dataset.sel(**self.ref_chosen_slices, method="nearest")
         plot_dataset = data[self._ref_get_selected_variable()].load()
 
         #get the min and max variable values so that the heatmap is consistent for the whole animation
         vmin = float(plot_dataset.min())
         vmax = float(plot_dataset.max())
+        x_dim = self.x_axis_dropdown.value
+        y_dim = self.y_axis_dropdown.value
+        
+        # Assign coordinates if they are missing, necessary for SeaIce datasets
+        if x_dim not in plot_dataset.coords:
+            plot_dataset = plot_dataset.assign_coords({x_dim: range(plot_dataset.sizes[x_dim])})
+        if y_dim not in plot_dataset.coords:
+            plot_dataset = plot_dataset.assign_coords({y_dim: range(plot_dataset.sizes[y_dim])})
 
         plot = plot_dataset.hvplot.quadmesh(
-            x= self.ref_x_axis_dropdown.value,
-            y= self.ref_y_axis_dropdown.value,
+            x= x_dim,
+            y= y_dim,
             groupby= self.ref_animation_axis_dropdown.value,
             dynamic=True,
             rasterize=True,
@@ -2055,6 +2093,24 @@ class UserInterface():
 
 
     def _plot_multiplot_difference_heatmap(self, variable, x_axis, y_axis):
+        """
+        Plots a grid of difference heatmaps between reference datasets and the user dataset.
+
+        Parameters
+        ----------
+        variable : str
+            The name of the data variable to plot.
+        x_axis : str
+            The name of the dimension or coordinate to use for the x-axis.
+        y_axis : str
+            The name of the dimension or coordinate to use for the y-axis.
+
+        Returns
+        -------
+        matplotlib.figure.Figure
+            The formatted matplotlib Figure object containing the grid of difference heatmaps.
+        """
+
         # get the number of reference variables, to calculate the grid size 
         total_plots = len(self.multiplot_ref_dataset_dict)
 
@@ -2106,7 +2162,7 @@ class UserInterface():
                 cmap='RdBu_r', # Diverging colormap (Red-Blue)
                 cbar_kwargs={'label': f"Δ {variable}"}
             )
-            axes_flat[ax].set_title(f"User data vs {model_key}{member_title}")
+            axes_flat[ax].set_title(f"{model_key}{member_title} - User data")
             ax += 1
 
         #delete empty subplots remaining
@@ -2126,6 +2182,21 @@ class UserInterface():
         return fig
 
     def _plot_multiplot_difference_dataset(self, variable, x_axis):
+        """
+        Plots the difference between reference datasets and the user dataset.
+
+        Parameters
+        ----------
+        variable : str
+            The name of the data variable to plot.
+        x_axis : str
+            The name of the dimension or coordinate to use for the x-axis.
+
+        Returns
+        -------
+        matplotlib.figure.Figure
+            The formatted matplotlib Figure object containing the difference plot.
+        """
 
         self._multiplot_check_bounds()
         
@@ -2162,7 +2233,7 @@ class UserInterface():
         slice_str = ", ".join([f"{dim}: {self._round_slice_val(val)}" for dim, val in self.multiplot_chosen_slices.items()])
         title_text = 'Δ '
         title_text += sliced_user_data[variable].attrs.get('long_name', variable)
-        
+        title_text += ' (Ref. - User data)'
         caption_text = ''
 
         # Add details of slice to caption, if the data is sliced
