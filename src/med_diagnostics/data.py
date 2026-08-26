@@ -150,8 +150,17 @@ def _build_data_object(model_cat, key):
     if isinstance(model_cat, AliasedESMCatalog):
         model_cat = model_cat.unwrap()
 
+    open_kwargs = {
+        'use_cftime': True,
+        'chunks': {} 
+    }
+    combine_kwargs = { 
+        'compat' : 'override',
+        'data_vars': 'minimal',
+        'coords': 'minimal'
+    }
     # Standard Intake catalog approach for getting dataset
-    dataset = model_cat[key](xarray_open_kwargs=dict(use_cftime=True)).to_dask()
+    dataset = model_cat[key](xarray_open_kwargs=open_kwargs, xarray_combine_by_coords_kwargs=combine_kwargs).to_dask()
     return dataset
 
 
