@@ -44,6 +44,7 @@ class UserInterface():
         self.keys_dropdown = pn.widgets.Select()
         self.keys_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 0))
         self.plot_variable_dropdown = pn.widgets.Select()
+        self.variable_toggle = pn.widgets.Toggle(label='Display Variable Long Names"', name = "", color='primary', value=False, align="end")
 
         self.ref_keys_dropdown = pn.widgets.Select()
         self.ref_keys_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 0))
@@ -52,6 +53,7 @@ class UserInterface():
         self.ref_data_keys_dropdown = pn.widgets.Select()
         self.ref_data_keys_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 0))
         self.ref_plot_variable_dropdown = pn.widgets.Select()
+        self.ref_variable_toggle = pn.widgets.Toggle(label='Display Variable Long Names"', name = "", color='primary', value=False, align="end")
 
         self.clear_ref_model_data_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 10))
         self.ref_model_info_button = pn.widgets.Button(styles={}, margin=(23, 10, 0, 0))
@@ -70,14 +72,14 @@ class UserInterface():
         self.x_axis_dropdown = pn.widgets.Select()
         self.y_axis_dropdown = pn.widgets.Select()
         self.animation_axis_dropdown = pn.widgets.Select()
-        self.select_variable_button = pn.widgets.Button(name='Select Variable and Plot Type', button_type = "primary", margin=(23, 0, 0, 10))
+        self.select_variable_button = pn.widgets.Button(name='Select Variable and Plot Type', button_type = "success", margin=(23, 0, 0, 10))
 
         #Additions for selecting plot type for refernce data
         self.ref_plot_type_dropdown = pn.widgets.Select()
         self.ref_x_axis_dropdown = pn.widgets.Select()
         self.ref_y_axis_dropdown = pn.widgets.Select()
         self.ref_animation_axis_dropdown = pn.widgets.Select()
-        self.ref_select_variable_button = pn.widgets.Button(name='Select Variable and Plot Type', button_type = "primary", margin=(23, 0, 0, 10))
+        self.ref_select_variable_button = pn.widgets.Button(name='Select Variable and Plot Type', button_type = "success", margin=(23, 0, 0, 10))
         
         #Additions for plotting user data with reference model data
         self.multiplot_status_textbox = pn.widgets.StaticText(styles={'background': 'lightblue', 'font-size': '18px', 'color': 'black', 'padding': '5px'}, margin=(10, 0, 10, 0))
@@ -98,6 +100,7 @@ class UserInterface():
         self.multiplot_plot_type_dropdown = pn.widgets.Select()
         self.multiplot_y_axis_dropdown = pn.widgets.Select()
         self.multiplot_analysis_choice_dropdown = pn.widgets.Select()
+        self.multiplot_variable_toggle = pn.widgets.Toggle(label='Display Variable Long Names"', name = "", color='primary', value=False, align="end")
 
         # Initialise button listener functions
         @pn.depends(self.keys_dropdown.param.value)
@@ -206,6 +209,15 @@ class UserInterface():
         def _prompt_bounds_button_click(event):
             self._multiplot_plot_data_button_click()
 
+        def _variable_toggle_click(event):
+            self._variable_toggle_change()
+
+        def _ref_variable_toggle_click(event):
+            self._ref_variable_toggle_change()
+        
+        def _multiplot_variable_toggle_click(event):
+            self._multiplot_variable_toggle_change()
+
         self.plot_button.on_click(_plot_button_click)
         self.ref_plot_button.on_click(_ref_plot_button_click)  
         self.keys_button.on_click(_keys_button_click)
@@ -221,7 +233,10 @@ class UserInterface():
         self.multiplot_keys_update_button.on_click(_multiplot_keys_update_button_click)
         self.multiplot_select_variable_button.on_click(_multiplot_select_variable_button_click)
         self.prompt_bounds_button.on_click(_prompt_bounds_button_click)
-    
+        self.variable_toggle.param.watch(_variable_toggle_click, 'value')
+        self.ref_variable_toggle.param.watch(_ref_variable_toggle_click, 'value')
+        self.multiplot_variable_toggle.param.watch(_multiplot_variable_toggle_click, 'value')
+
     def _display_status_text(self):
         
         """
@@ -358,6 +373,73 @@ class UserInterface():
         """
         
         return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    def _variable_toggle_change(self):
+
+        if self.variable_toggle.value == True:
+            self.long_names = {}
+            for var in list(self.dataset.keys()):
+                self.long_names[(self.dataset[var].attrs.get('long_name', var))] = var
+
+            self.plot_variable_dropdown.options = list(self.long_names.keys())
+            self.variable_toggle.label = "Display Variable Short Names"
+            self.multiplot_variable_toggle.label = "Display Variable Short Names"
+            self.multiplot_variable_toggle.value = True
+        elif self.variable_toggle.value == False:
+            self.plot_variable_dropdown.options = list(self.dataset.keys())
+            self.variable_toggle.label = "Display Variable Long Names"
+            self.multiplot_variable_toggle.label = "Display Variable Long Names"
+            self.multiplot_variable_toggle.value = False
+
+    def _get_selected_variable(self):
+        """Returns the internal dataset variable key regardless of display toggle state."""
+        if self.variable_toggle.value:
+            return self.long_names[self.plot_variable_dropdown.value]
+        return self.plot_variable_dropdown.value
+
+    def _ref_variable_toggle_change(self):
+    
+        if self.ref_variable_toggle.value == True:
+            self.ref_long_names = {}
+            for var in list(self.ref_dataset.keys()):
+                self.ref_long_names[(self.ref_dataset[var].attrs.get('long_name', var))] = var
+
+            self.ref_plot_variable_dropdown.options = list(self.ref_long_names.keys())
+            self.ref_variable_toggle.label = "Display Variable Short Names"
+
+        elif self.ref_variable_toggle.value == False:
+            self.ref_plot_variable_dropdown.options = list(self.ref_dataset.keys())
+            self.ref_variable_toggle.label = "Display Variable Long Names"
+    
+    def _ref_get_selected_variable(self):
+        """Returns the internal dataset variable key regardless of display toggle state."""
+        if self.ref_variable_toggle.value:
+            return self.ref_long_names[self.ref_plot_variable_dropdown.value]
+        return self.ref_plot_variable_dropdown.value
+
+    def _multiplot_variable_toggle_change(self):
+        
+        if self.multiplot_variable_toggle.value == True:
+            self.multiplot_long_names = {}
+            for var in list(self.dataset.keys()):
+                self.multiplot_long_names[(self.dataset[var].attrs.get('long_name', var))] = var
+
+            self.multiplot_plot_variable_dropdown.options = list(self.multiplot_long_names.keys())
+            self.multiplot_variable_toggle.label = "Display Variable Short Names"
+            self.variable_toggle.label = "Display Variable Short Names"
+            self.variable_toggle.value = True
+
+        elif self.multiplot_variable_toggle.value == False:
+            self.multiplot_plot_variable_dropdown.options = list(self.dataset.keys())
+            self.multiplot_variable_toggle.label = "Display Variable Long Names"
+            self.variable_toggle.label = "Display Variable Long Names"
+            self.variable_toggle.value = False
+        
+    def _multiplot_get_selected_variable(self):
+        """Returns the internal dataset variable key regardless of display toggle state."""
+        if self.multiplot_variable_toggle.value:
+            return self.multiplot_long_names[self.multiplot_plot_variable_dropdown.value]
+        return self.multiplot_plot_variable_dropdown.value
         
     def _display_dataset_selection_ui(self, model_cat, access_nri_cat):
         
@@ -401,10 +483,10 @@ class UserInterface():
         self.ref_keys_dropdown.name = '2. Select reference model (optional):'
         self.ref_keys_dropdown.options = sorted(list(self.access_nri_cat.keys()))
         self.ref_keys_button.name = 'Load reference model'
-        self.ref_keys_button.button_type = 'primary'
+        self.ref_keys_button.button_type = 'success'
         
         self.clear_ref_model_data_button.name = 'Clear reference model'
-        self.clear_ref_model_data_button.button_type = 'primary'
+        self.clear_ref_model_data_button.button_type = 'danger'
 
         self.ref_model_info_button.name = 'Reference model information'
         self.ref_model_info_button.button_type = 'primary'
@@ -433,7 +515,7 @@ class UserInterface():
         self.ref_data_keys_dropdown.name = '2.1. Select reference dataset (optional):'
         self.ref_data_keys_dropdown.options = sorted(list(self.ref_model_cat.keys()))
         self.ref_data_keys_button.name = 'Load reference dataset'
-        self.ref_data_keys_button.button_type = 'primary'
+        self.ref_data_keys_button.button_type = 'success'
         
         # Add reference/comparison widgets to ref_data_keys_selection_row
         self.ref_data_keys_selection_row = pn.Row()
@@ -470,7 +552,7 @@ class UserInterface():
         self.multiplot_keys_dropdown.value = self.keys_dropdown.value
         self.multiplot_plot_variable_dropdown.name = "Variable selection"
         self.multiplot_plot_variable_dropdown.options = sorted(list(self.plot_variable_dropdown.options))
-        self.multiplot_plot_variable_dropdown.value = self.plot_variable_dropdown.value
+        self.multiplot_plot_variable_dropdown.value = self._get_selected_variable()
         self.multiplot_plot_type_dropdown.name = "Select plot type"
         self.multiplot_plot_type_dropdown.options = ["Line", "Heatmap (grid)"]
 
@@ -484,6 +566,7 @@ class UserInterface():
         self.multiplot_ref_keys_selection_row.append(self.multiplot_ref_keys_dropdown)
         self.multiplot_ref_keys_selection_row.append(self.multiplot_ref_keys_button)
         self.multiplot_ref_keys_selection_row.append(self.clear_multiplot_data_button)
+        self.multiplot_ref_keys_selection_row.append(self.multiplot_variable_toggle)
 
         self.multiplot_type_selection_row = pn.Row()
         self.multiplot_type_selection_row.append(self.multiplot_plot_type_dropdown)
@@ -547,12 +630,12 @@ class UserInterface():
         if self.plot_type_dropdown.value == "Heatmap":
             x_axis = self.x_axis_dropdown.value
             y_axis = self.y_axis_dropdown.value
-            fig = self._plot_heatmap(self.plot_variable_dropdown.value, x_axis, y_axis)
+            fig = self._plot_heatmap(self._get_selected_variable(), x_axis, y_axis)
         elif self.plot_type_dropdown.value == "Line":
             x_axis = self.x_axis_dropdown.value
-            fig = self._plot_dataset(self.plot_variable_dropdown.value, x_axis)
+            fig = self._plot_dataset(self._get_selected_variable(), x_axis)
         elif self.plot_type_dropdown.value == "Animation":
-            fig_animated = self._plot_animation()
+            fig_animated = self._plot_animation(self._get_selected_variable())
 
         if fig_animated:
             new_plot_pane = fig_animated
@@ -622,10 +705,10 @@ class UserInterface():
         if self.ref_plot_type_dropdown.value == "Heatmap":
             x_axis = self.ref_x_axis_dropdown.value
             y_axis = self.ref_y_axis_dropdown.value
-            fig = self._plot_ref_heatmap(self.ref_plot_variable_dropdown.value, x_axis, y_axis)
+            fig = self._plot_ref_heatmap(self._ref_get_selected_variable(), x_axis, y_axis)
         elif self.ref_plot_type_dropdown.value == "Line":
             x_axis = self.ref_x_axis_dropdown.value
-            fig = self._plot_ref_dataset(self.ref_plot_variable_dropdown.value, x_axis)
+            fig = self._plot_ref_dataset(self._ref_get_selected_variable(), x_axis)
         elif self.ref_plot_type_dropdown.value == "Animation":
             fig_animated = self._plot_ref_animation()
     
@@ -690,26 +773,26 @@ class UserInterface():
         if self.multiplot_plot_type_dropdown.value == "Heatmap (grid)" and self.multiplot_analysis_choice_dropdown.value == "None (plot all loaded data)": 
             x_axis = self.multiplot_x_axis_dropdown.value
             y_axis = self.multiplot_y_axis_dropdown.value
-            fig = self._plot_multiplot_heatmap_dataset(self.multiplot_plot_variable_dropdown.value, x_axis, y_axis)
+            fig = self._plot_multiplot_heatmap_dataset(self._multiplot_get_selected_variable(), x_axis, y_axis)
         elif self.multiplot_plot_type_dropdown.value == "Heatmap (grid)" and self.multiplot_analysis_choice_dropdown.value == "Plot Difference (User vs Ref. data)":
             x_axis = self.multiplot_x_axis_dropdown.value
             y_axis = self.multiplot_y_axis_dropdown.value
-            fig = self._plot_multiplot_difference_heatmap(self.multiplot_plot_variable_dropdown.value, x_axis, y_axis)
+            fig = self._plot_multiplot_difference_heatmap(self._multiplot_get_selected_variable(), x_axis, y_axis)
         elif self.multiplot_plot_type_dropdown.value == "Heatmap (grid)" and self.multiplot_analysis_choice_dropdown.value == "Plot All Data & Difference":
             x_axis = self.multiplot_x_axis_dropdown.value
             y_axis = self.multiplot_y_axis_dropdown.value
-            fig1 = self._plot_multiplot_heatmap_dataset(self.multiplot_plot_variable_dropdown.value, x_axis, y_axis)
-            fig2 = self._plot_multiplot_difference_heatmap(self.multiplot_plot_variable_dropdown.value, x_axis, y_axis)
+            fig1 = self._plot_multiplot_heatmap_dataset(self._multiplot_get_selected_variable(), x_axis, y_axis)
+            fig2 = self._plot_multiplot_difference_heatmap(self._multiplot_get_selected_variable(), x_axis, y_axis)
         elif self.multiplot_plot_type_dropdown.value == "Line" and self.multiplot_analysis_choice_dropdown.value == "None (plot all loaded data)":
             x_axis = self.multiplot_x_axis_dropdown.value
-            fig = self._plot_multiplot_dataset(self.multiplot_plot_variable_dropdown.value, x_axis)
+            fig = self._plot_multiplot_dataset(self._multiplot_get_selected_variable(), x_axis)
         elif self.multiplot_plot_type_dropdown.value == "Line" and self.multiplot_analysis_choice_dropdown.value == "Plot Difference (User vs Ref. data)":
             x_axis = self.multiplot_x_axis_dropdown.value
-            fig = self._plot_multiplot_difference_dataset(self.multiplot_plot_variable_dropdown.value, x_axis)
+            fig = self._plot_multiplot_difference_dataset(self._multiplot_get_selected_variable(), x_axis)
         elif self.multiplot_plot_type_dropdown.value == "Line" and self.multiplot_analysis_choice_dropdown.value == "Plot All Data & Difference":
             x_axis = self.multiplot_x_axis_dropdown.value
-            fig1 = self._plot_multiplot_dataset(self.multiplot_plot_variable_dropdown.value, x_axis)
-            fig2 = self._plot_multiplot_difference_dataset(self.multiplot_plot_variable_dropdown.value, x_axis)
+            fig1 = self._plot_multiplot_dataset(self._multiplot_get_selected_variable(), x_axis)
+            fig2 = self._plot_multiplot_difference_dataset(self._multiplot_get_selected_variable(), x_axis)
             
         if fig2:
             pane1 = pn.pane.Matplotlib(fig1, tight=True)
@@ -905,8 +988,9 @@ class UserInterface():
         
         self.plot_type_dropdown.name = 'Select plot type'
         self.plot_type_dropdown.options = ["Line", "Heatmap", "Animation"]
+        self.variable_toggle.value = False
         
-        self.plot_ui_row = pn.Row(self.plot_variable_dropdown, self.plot_type_dropdown, self.select_variable_button)
+        self.plot_ui_row = pn.Row(self.plot_variable_dropdown, self.plot_type_dropdown, self.select_variable_button, self.variable_toggle)
         self.widget_container.append(self.plot_ui_row)
         #self.widget_container.append(self.plot_pane)
     
@@ -922,7 +1006,7 @@ class UserInterface():
         self.ref_plot_type_dropdown.name = 'Select plot type'
         self.ref_plot_type_dropdown.options = ["Line", "Heatmap", "Animation"]
         
-        self.ref_plot_ui_row = pn.Row(self.ref_plot_variable_dropdown, self.ref_plot_type_dropdown, self.ref_select_variable_button)
+        self.ref_plot_ui_row = pn.Row(self.ref_plot_variable_dropdown, self.ref_plot_type_dropdown, self.ref_select_variable_button, self.ref_variable_toggle)
         if hasattr(self, 'ref_data_keys_selection_row') and self.ref_data_keys_selection_row in self.widget_container:
             insert_index = self.widget_container.index(self.ref_data_keys_selection_row) + 1
             self.widget_container.insert(insert_index, self.ref_plot_ui_row)
@@ -939,7 +1023,7 @@ class UserInterface():
                 self.widget_container.remove(self.plot_choices_row)
 
             #Find viable dimensions for axis selection
-            dim_sizes = self.dataset[self.plot_variable_dropdown.value].sizes
+            dim_sizes = self.dataset[self._get_selected_variable()].sizes
             viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
 
             self.x_axis_dropdown.name = 'Select X-Axis dimension'
@@ -1000,7 +1084,7 @@ class UserInterface():
             self.widget_container.remove(self.ref_plot_choices_row)
 
         #Find viable dimensions for axis selection
-        dim_sizes = self.ref_dataset[self.ref_plot_variable_dropdown.value].sizes
+        dim_sizes = self.ref_dataset[self._ref_get_selected_variable()].sizes
         viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
 
         self.ref_x_axis_dropdown.name = 'Select X-Axis dimension'
@@ -1055,7 +1139,7 @@ class UserInterface():
         """
 
         # Find viable dimensions for axis selection
-        dim_sizes = self.dataset[self.multiplot_plot_variable_dropdown.value].sizes
+        dim_sizes = self.dataset[self._multiplot_get_selected_variable()].sizes
         viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
         show_plot_choices = True
         self.multiplot_x_axis_dropdown.name = 'Select X-Axis dimension'
@@ -1120,7 +1204,7 @@ class UserInterface():
         same_axes_chosen = False
 
         #Filter which dimensions can viably be plotted on an axis
-        dim_sizes = self.dataset[self.plot_variable_dropdown.value].sizes
+        dim_sizes = self.dataset[self._get_selected_variable()].sizes
         viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
         
         if self.plot_type_dropdown.value == "Animation":
@@ -1176,7 +1260,7 @@ class UserInterface():
         same_axes_chosen = False
 
         #Filter which dimensions can viably be plotted on an axis
-        dim_sizes = self.ref_dataset[self.ref_plot_variable_dropdown.value].sizes
+        dim_sizes = self.ref_dataset[self._ref_get_selected_variable()].sizes
         viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
 
         if self.ref_plot_type_dropdown.value == "Animation":
@@ -1229,7 +1313,7 @@ class UserInterface():
         check_bounds = self._multiplot_check_bounds()
 
         # Filter which dimensions can viably be plotted on an axis
-        dim_sizes = self.dataset[self.multiplot_plot_variable_dropdown.value].sizes
+        dim_sizes = self.dataset[self._multiplot_get_selected_variable()].sizes
         viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
 
         if self.multiplot_plot_type_dropdown.value == "Line":
@@ -1249,7 +1333,7 @@ class UserInterface():
         # Check if the variable is contained within each of the datasets. If it is not, remove them and inform the user
         invalid_datasets = {}
         for dataset in list(self.multiplot_ref_dataset_dict.keys()):
-            if self.multiplot_plot_variable_dropdown.value not in self.multiplot_ref_dataset_dict[dataset]:
+            if self._multiplot_get_selected_variable() not in self.multiplot_ref_dataset_dict[dataset]:
                 invalid_datasets[dataset] = self.multiplot_ref_dataset_dict[dataset]
                 del self.multiplot_ref_dataset_dict[dataset]
 
@@ -1455,7 +1539,7 @@ class UserInterface():
 
         self.fig.tight_layout()
         ax.set_title(title_text, fontsize=14)
-        self.fig.text(0.1, 0.01, caption_text, wrap=False, horizontalalignment='left', fontsize=10)    
+        self.fig.text(0.1, 0.01, caption_text, wrap=True, horizontalalignment='left', fontsize=10)    
         self.fig.subplots_adjust(bottom=0.3)
 
         ax.grid()
@@ -1502,7 +1586,7 @@ class UserInterface():
 
         self.fig.tight_layout()
         ax.set_title(title_text, fontsize=14)
-        self.fig.text(0.1, 0.01, caption_text, wrap=False, horizontalalignment='left', fontsize=10)    
+        self.fig.text(0.1, 0.01, caption_text, wrap=True, horizontalalignment='left', fontsize=10)    
         self.fig.subplots_adjust(bottom=0.3)
 
         ax.grid()
@@ -1554,7 +1638,7 @@ class UserInterface():
 
         self.ref_fig.tight_layout()
         ax.set_title(title_text, fontsize=14)
-        self.ref_fig.text(0.1, 0.01, caption_text, wrap=False, horizontalalignment='left', fontsize=10)    
+        self.ref_fig.text(0.1, 0.01, caption_text, wrap=True, horizontalalignment='left', fontsize=10)    
         self.ref_fig.subplots_adjust(bottom=0.3)
         ax.grid()
         ax.legend()
@@ -1602,7 +1686,7 @@ class UserInterface():
 
         self.ref_fig.tight_layout()
         ax.set_title(title_text, fontsize=14)
-        self.ref_fig.text(0.1, 0.01, caption_text, wrap=False, horizontalalignment='left', fontsize=10)    
+        self.ref_fig.text(0.1, 0.01, caption_text, wrap=True, horizontalalignment='left', fontsize=10)    
         self.ref_fig.subplots_adjust(bottom=0.3)
 
         ax.grid()
@@ -1672,7 +1756,7 @@ class UserInterface():
         ax.set_xlim(x_min, x_max)
         fig.tight_layout()
         ax.set_title(title_text, fontsize=14)
-        fig.text(0.1, 0.01, caption_text, wrap=False, horizontalalignment='left', fontsize=10)    
+        fig.text(0.1, 0.01, caption_text, wrap=True, horizontalalignment='left', fontsize=10)    
         fig.subplots_adjust(bottom=0.15, right=0.7)
         ax.grid()
 
@@ -1761,7 +1845,7 @@ class UserInterface():
         # Add the slice information to the caption text, if it is sliced data
         slice_str = ", ".join([f"{dim}: {self._round_slice_val(val)}" for dim, val in self.multiplot_chosen_slices.items()])
         if slice_str:
-            fig.text(0.1, 0.01, f"Sliced by: {slice_str}", wrap=False, horizontalalignment='left', fontsize=10)
+            fig.text(0.1, 0.01, f"Sliced by: {slice_str}", wrap=True, horizontalalignment='left', fontsize=10)
             fig.subplots_adjust(bottom=0.15, hspace=0.3)
         else:
             fig.subplots_adjust(hspace=0.3)
@@ -1897,10 +1981,10 @@ class UserInterface():
         # Clear the loaded data, as different datasets from the selected models will need to be loaded.
         self._clear_multiplot_data()
 
-    def _plot_animation(self):
+    def _plot_animation(self, variable):
 
         data = self.dataset.sel(**self.chosen_slices, method="nearest")
-        plot_dataset = data[self.plot_variable_dropdown.value].load()
+        plot_dataset = data[variable].load()
         
         #get the min and max variable values so that the heatmap is consistent for the whole animation
         vmin = float(plot_dataset.min())
@@ -1923,7 +2007,7 @@ class UserInterface():
         )
 
         # Build caption string
-        variable_text = plot_dataset.attrs.get('long_name', self.plot_variable_dropdown.value)
+        variable_text = plot_dataset.attrs.get('long_name', variable)
         slice_str = ", ".join([f"{dim}: {self._round_slice_val(val)}" for dim, val in self.chosen_slices.items()])
         caption_text = "Variable: "+ variable_text + "<br>User model<br>Dataset: " + self.keys_dropdown.value
         if slice_str:
@@ -1937,7 +2021,7 @@ class UserInterface():
     def _plot_ref_animation(self):
 
         data = self.ref_dataset.sel(**self.ref_chosen_slices, method="nearest")
-        plot_dataset = data[self.ref_plot_variable_dropdown.value].load()
+        plot_dataset = data[self._ref_get_selected_variable()].load()
 
         #get the min and max variable values so that the heatmap is consistent for the whole animation
         vmin = float(plot_dataset.min())
@@ -1958,7 +2042,7 @@ class UserInterface():
         )
 
         # Build caption string
-        variable_text = plot_dataset.attrs.get('long_name', self.ref_plot_variable_dropdown.value)
+        variable_text = plot_dataset.attrs.get('long_name', self._ref_get_selected_variable())
         slice_str = ", ".join([f"{dim}: {self._round_slice_val(val)}" for dim, val in self.ref_chosen_slices.items()])
         caption_text = 'Variable: ' + variable_text + '<br>Model: ' + self.ref_keys_dropdown.value + '<br>Dataset: ' + self.ref_data_keys_dropdown.value
         if slice_str:
@@ -2032,7 +2116,7 @@ class UserInterface():
         # Add the slice information to the caption text, if it is sliced data
         slice_str = ", ".join([f"{dim}: {self._round_slice_val(val)}" for dim, val in self.multiplot_chosen_slices.items()])
         if slice_str:
-            fig.text(0.1, 0.01, f"Sliced by: {slice_str}", wrap=False, horizontalalignment='left', fontsize=10)
+            fig.text(0.1, 0.01, f"Sliced by: {slice_str}", wrap=True, horizontalalignment='left', fontsize=10)
             fig.subplots_adjust(bottom=0.15, hspace=0.3)
         else:
             fig.subplots_adjust(hspace=0.3)
@@ -2090,7 +2174,7 @@ class UserInterface():
         fig.tight_layout()
         ax.set_title(title_text, fontsize=14)
         ax.axhline(0, color='k') #horizontal line at 0
-        fig.text(0.1, 0.01, caption_text, wrap=False, horizontalalignment='left', fontsize=10)    
+        fig.text(0.1, 0.01, caption_text, wrap=True, horizontalalignment='left', fontsize=10)    
         fig.subplots_adjust(bottom=0.15, right=0.7)
         ax.grid()
         
