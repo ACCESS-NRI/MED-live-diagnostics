@@ -101,6 +101,8 @@ class UserInterface():
         self.multiplot_y_axis_dropdown = pn.widgets.Select()
         self.multiplot_analysis_choice_dropdown = pn.widgets.Select()
         self.multiplot_variable_toggle = pn.widgets.Toggle(label='Display Variable Long Names', name = "", color='primary', value=False, align="end")
+        self.master_layout = pn.Column(sizing_mode='stretch_width')
+        display(self.master_layout)
 
         # Initialise button listener functions
         @pn.depends(self.keys_dropdown.param.value)
@@ -270,7 +272,8 @@ class UserInterface():
 
         self.status_textbox.value = "User model status >> Waiting for initial model data catalog to be built. This can take a few minutes."
         # Display widget_container in notebook
-        display(self.widget_container)
+        
+        self.master_layout.append(self.widget_container)
         print()
         
     def _update_status_text(self, text):
@@ -519,7 +522,7 @@ class UserInterface():
         
         # Add horizontal line divider to widget_container
         self.ref_widget_container.append(pn.layout.Divider(styles={'color': 'white'}))
-        display(self.ref_widget_container)
+        self.master_layout.append(self.ref_widget_container)
 
     def _display_reference_dataset_selection_ui(self):
         
@@ -604,7 +607,7 @@ class UserInterface():
         # Add horizontal line divider to widget_container
         self.multiplot_widget_container.append(pn.layout.Divider(styles={'color': 'white'}))
 
-        display(self.multiplot_widget_container)
+        self.master_layout.append(self.multiplot_widget_container)
     
     def _keys_dropdown_click(self):
         
@@ -692,12 +695,9 @@ class UserInterface():
             del self.slice_widgets
 
         # Check if the reference UI already exists
-        if self.ref_status_textbox in self.widget_container:
+        if hasattr(self, 'ref_widget_container') and self.ref_widget_container in self.master_layout:
             # Find where the reference UI is
-            insert_index = self.widget_container.index(self.ref_status_textbox)
-            
-            # Insert the new plot just above the reference UI
-            self.widget_container.insert(insert_index, plot_group)
+            self.widget_container.append(plot_group)
         else:
             # First time plotting: append plot to bottom, then generate reference UI below it
             self.widget_container.append(plot_group)
@@ -766,16 +766,7 @@ class UserInterface():
             del self.ref_slice_ui_row
             del self.ref_slice_widgets
 
-        # Check if the reference UI already exists
-        if self.multiplot_status_textbox in self.ref_widget_container:
-            # Find where the reference UI is
-            insert_index = self.ref_widget_container.index(self.multiplot_status_textbox)
-        
-            # Insert the new plot just above the reference UI
-            self.ref_widget_container.insert(insert_index, plot_group)
-        else:
-            # If the multiplot UI is not present, just append the new plots to the bottom of the widget
-            self.ref_widget_container.append(plot_group)
+        self.ref_widget_container.append(plot_group)
 
         self._update_ref_status_text('User model status >> Plot created')
         self._update_ref_warning_text("")    
