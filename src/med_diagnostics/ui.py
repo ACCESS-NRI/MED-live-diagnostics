@@ -252,7 +252,8 @@ class UserInterface():
             title="Load and plot user data", 
             collapsible=True,
             sizing_mode='stretch_width',
-            collapsed=False
+            collapsed=False,
+            styles={'background': 'rgba(128, 128, 128, 0.1)'}
         )
         
         # Append widget_container with textbox widgets
@@ -488,7 +489,8 @@ class UserInterface():
             title="2. Load and plot reference models",
             collapsible=True,
             sizing_mode='stretch_width',
-            collapsed=True
+            collapsed=True,
+            styles={'background': 'rgba(128, 128, 128, 0.1)'}
         )
         
         self._update_ref_status_text("Reference Model Status >> Select a model to load and plot data")
@@ -560,7 +562,8 @@ class UserInterface():
             title="3. Overlay user and reference data",
             collapsible=True,
             sizing_mode='stretch_width',
-            collapsed=True
+            collapsed=True,
+            styles={'background': 'rgba(128, 128, 128, 0.1)'}
         )
         # Add overlay data status text box
         self.multiplot_widget_container.append(self.multiplot_status_textbox)
