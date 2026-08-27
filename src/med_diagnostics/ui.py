@@ -102,7 +102,6 @@ class UserInterface():
         self.multiplot_analysis_choice_dropdown = pn.widgets.Select()
         self.multiplot_variable_toggle = pn.widgets.Toggle(label='Display Variable Long Names', name = "", color='primary', value=False, align="end")
         self.master_layout = pn.Column(sizing_mode='stretch_width')
-        display(self.master_layout)
 
         # Initialise button listener functions
         @pn.depends(self.keys_dropdown.param.value)
@@ -274,7 +273,7 @@ class UserInterface():
         # Display widget_container in notebook
         
         self.master_layout.append(self.widget_container)
-        print()
+        display(self.master_layout)
         
     def _update_status_text(self, text):
         
