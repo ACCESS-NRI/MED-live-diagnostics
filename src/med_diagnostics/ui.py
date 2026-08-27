@@ -44,7 +44,7 @@ class UserInterface():
         self.keys_dropdown = pn.widgets.Select()
         self.keys_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 0))
         self.plot_variable_dropdown = pn.widgets.Select()
-        self.variable_toggle = pn.widgets.Toggle(label='Display Variable Long Names"', name = "", color='primary', value=False, align="end")
+        self.variable_toggle = pn.widgets.Toggle(label='Display Variable Long Names', name = "", color='primary', value=False, align="end")
 
         self.ref_keys_dropdown = pn.widgets.Select()
         self.ref_keys_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 0))
@@ -53,7 +53,7 @@ class UserInterface():
         self.ref_data_keys_dropdown = pn.widgets.Select()
         self.ref_data_keys_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 0))
         self.ref_plot_variable_dropdown = pn.widgets.Select()
-        self.ref_variable_toggle = pn.widgets.Toggle(label='Display Variable Long Names"', name = "", color='primary', value=False, align="end")
+        self.ref_variable_toggle = pn.widgets.Toggle(label='Display Variable Long Names', name = "", color='primary', value=False, align="end")
 
         self.clear_ref_model_data_button = pn.widgets.Button(styles={}, margin=(23, 0, 0, 10))
         self.ref_model_info_button = pn.widgets.Button(styles={}, margin=(23, 10, 0, 0))
@@ -100,7 +100,7 @@ class UserInterface():
         self.multiplot_plot_type_dropdown = pn.widgets.Select()
         self.multiplot_y_axis_dropdown = pn.widgets.Select()
         self.multiplot_analysis_choice_dropdown = pn.widgets.Select()
-        self.multiplot_variable_toggle = pn.widgets.Toggle(label='Display Variable Long Names"', name = "", color='primary', value=False, align="end")
+        self.multiplot_variable_toggle = pn.widgets.Toggle(label='Display Variable Long Names', name = "", color='primary', value=False, align="end")
 
         # Initialise button listener functions
         @pn.depends(self.keys_dropdown.param.value)
