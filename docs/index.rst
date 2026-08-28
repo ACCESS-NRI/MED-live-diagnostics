@@ -31,8 +31,13 @@ modelling community to check, monitor, visualise and evaluate model behaviour an
 NCI supercomputer Gadi <https://nci.org.au/our-systems/hpc-systems>`_. In addition to monitoring a live model, the package provides the functionality to 
 load, visualise and compare legacy ACCESS model data with the selected live user model. 
 
-This package is currently in active development within the Model Evaluation Team at the `Australian Earth System Symulator (ACCESS-NRI) <https://www.access-nri.org.au/>`_
-so watch this space for version updates containing new features, model diagnostics tools and visualisation options!
+This package is currently in active development by the Model Evaluation Team at `Australia's climate simulator (ACCESS-NRI) <https://www.access-nri.org.au/>`_. 
+
+Version 2.0 introduces advanced visualisation capabilities to your live model analysis, including:
+
+* **Interactive animations** for visualising changes over time.
+* **Multidimensional data slicing** via dynamic interface sliders.
+* **Calculated difference overlays** (Reference vs. User data) for direct model comparisons.
 
 Quick-start guide
 ==================

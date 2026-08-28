@@ -1,5 +1,5 @@
 =========================================
-ACCESS-NRI Model Live Diagnostics v1.0
+ACCESS-NRI Model Live Diagnostics v2.0
 =========================================
 
 **Framework for interactive monitoring and diagnostic analyses of the ACCESS model suite.**
@@ -15,8 +15,12 @@ visualise and compare legacy ACCESS model data with the selected live user model
 What does this package do?
 ===========================
 
-This package is currently in active development within the Model Evaluation Team at the `Australian Earth System Simulator (ACCESS-NRI) <https://www.access-nri.org.au/>`_
-so watch this space for version updates containing new features, model diagnostics tools and visualisation options! 
+This package is actively developed within the Model Evaluation Team at `Australia's climate simulator (ACCESS-NRI) <https://www.access-nri.org.au/>`_. 
+Version 2.0 introduces advanced visualisation capabilities, including:
+
+* **Interactive animations** for visualising changes over time.
+* **Multidimensional data slicing** via dynamic interface sliders.
+* **Calculated difference overlays** (Reference vs. User data) for direct model comparisons.
 
 We value your feedback, especially in the form of reporting issues/bugs or suggesting ways to improve the framework. To do so, please open an 
 `issue <https://github.com/ACCESS-NRI/MED-live-diagnostics/issues>`_.
@@ -43,7 +47,7 @@ Alternatively, the med-diagnostics package can be installed directly into your c
 
 Getting started
 =========================
-To use the med-diagnostics package use: ``import med_diagnostics``         
+To use the med-diagnostics package use: ``import med_diagnostics``        
 
 
 An example Jupyter notebook describing usage options can be found in the `docs/notebooks <https://github.com/ACCESS-NRI/MED-live-diagnostics/tree/main/docs/notebooks>`_ directory.

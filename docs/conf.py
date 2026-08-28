@@ -78,7 +78,7 @@ html_theme_options = {
     "use_edit_page_button": False,
     "github_url": "https://github.com/ACCESS-NRI/MED-live-diagnostics",
     "logo": {
-        "image_light": "_static/access_logo_rgb.svg",
-        "image_dark": "_static/access_logo_rgb.svg",
+        "image_light": "_static/ACCESS Logo 2024 (RGB).png",
+        "image_dark": "_static/ACCESS Logo 2024 (RGB).png",
     },
 }
