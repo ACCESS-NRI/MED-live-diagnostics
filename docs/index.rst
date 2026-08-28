@@ -7,6 +7,7 @@ ACCESS-NRI Model Live Diagnostics
 
    self
    notebooks/getting_started_tutorial
+   notebooks/advanced_usage
    med_diagnostics
    contributing/index
 
@@ -62,10 +63,10 @@ Start an ARE JupyterLab session
 
 #. Log into to `ARE <https://are.nci.org.au>`_ and start a ``JupyterLab`` instance with the following recommended settings:
 
-   Due to the large size of these datasets, we suggest using the 'XXLarge' compute settings below as a minimum baseline. Please note that if models or datasets are failing to load, you will likely need to allocate more compute resources:
+   Due to the large size of these datasets, we suggest using the 'XX-Large' compute settings:
 
    +-----------------------+----------------------------------------------+
-   | Compute Size          | Custom (28 cpus, 126G mem)                     |  
+   | Compute Size          | XX-Large (28 cpus, 126G mem)                 |  
    +-----------------------+----------------------------------------------+
    | Storage               | e.g. ``gdata/project1+gdata/project2``       |     
    +-----------------------+----------------------------------------------+

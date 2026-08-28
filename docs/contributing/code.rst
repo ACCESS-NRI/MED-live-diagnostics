@@ -22,9 +22,9 @@ contributions and submitting a pull request.
    good practice to include the issue number of the issue that motivated your pull request at the start of your branch 
    name::
 
-      $ git clone git@github.com:YOUR_GITHUB_USERNAME/access-nri-intake-catalog.git
-      $ cd access-nri-intake-catalog
-      $ git remote add upstream git@github.com:ACCESS-NRI/access-nri-intake-catalog.git
+      $ git clone git@github.com:YOUR_GITHUB_USERNAME/MED-live-diagnostics.git
+      $ cd MED-live-diagnostics
+      $ git remote add upstream git@github.com:ACCESS-NRI/MED-live-diagnostics.git
       $ git checkout -b <issue#_description> main
 
    .. note::

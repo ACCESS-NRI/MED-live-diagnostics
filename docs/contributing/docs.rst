@@ -18,7 +18,7 @@ Contributions to documentation should be submitted via pull requests to the Mode
 section.
 
 The documentation is built and uploaded to readthedocs automatically when changes are pushed to GitHub. When writing 
-and editing documentation, it can be useful to see the resulting build without having to push to Github. You can build 
+and editing documentation, it can be useful to see the resulting build without having to push to GitHub. You can build 
 the documentation locally by running::
 
    $ cd docs/
