@@ -833,7 +833,7 @@ class UserInterface():
         # Create a remove button for each plot that is added
         remove_btn = pn.widgets.Button(name='Remove the above plot', button_type='danger', margin=(23, 0, 0, 10))
 
-        if hasattr(self, 'multiplot_slice_ui_row') and self.multiplot_slice_ui_row in self.widget_container:
+        if hasattr(self, 'multiplot_slice_ui_row') and self.multiplot_slice_ui_row in self.multiplot_widget_container:
                     self.multiplot_widget_container.remove(self.multiplot_slice_ui_row)
                     # Delete the attributes it resets for the next plot
                     del self.multiplot_slice_ui_row
@@ -1156,6 +1156,8 @@ class UserInterface():
         """
         Generate and display the UI components for selecting the multiplot x-axis. Private.
         """
+        if hasattr(self, 'multiplot_plot_choices_row') and self.multiplot_plot_choices_row in self.multiplot_widget_container:
+            self.multiplot_widget_container.remove(self.multiplot_plot_choices_row)
 
         # Find viable dimensions for axis selection
         dim_sizes = self.dataset[self._multiplot_get_selected_variable()].sizes
