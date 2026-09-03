@@ -431,7 +431,7 @@ class UserInterface:
 
         if self.variable_toggle.value:
             self.long_names = {}
-            for var in list(self.dataset.keys()):
+            for var in self.dataset.keys():
                 self.long_names[(self.dataset[var].attrs.get("long_name", var))] = var
             self.plot_variable_dropdown.options = list(self.long_names.keys())
             self.variable_toggle.label = "Display Variable Short Names"
@@ -455,7 +455,7 @@ class UserInterface:
 
         if self.ref_variable_toggle.value:
             self.ref_long_names = {}
-            for var in list(self.ref_dataset.keys()):
+            for var in self.ref_dataset.keys():
                 self.ref_long_names[(self.ref_dataset[var].attrs.get("long_name", var))] = var
             self.ref_plot_variable_dropdown.options = list(self.ref_long_names.keys())
             self.ref_variable_toggle.label = "Display Variable Short Names"
@@ -473,9 +473,10 @@ class UserInterface:
     def _multiplot_variable_toggle_change(self):
         """Toggles the multiplot variable dropdown options between short names and long name."""
 
+        self.variable_toggle.value = self.multiplot_variable_toggle.value
         if self.multiplot_variable_toggle.value:
             self.multiplot_long_names = {}
-            for var in list(self.dataset.keys()):
+            for var in self.dataset.keys():
                 self.multiplot_long_names[(self.dataset[var].attrs.get("long_name", var))] = var
             self.multiplot_plot_variable_dropdown.options = list(self.multiplot_long_names.keys())
             self.multiplot_variable_toggle.label = "Display Variable Short Names"
