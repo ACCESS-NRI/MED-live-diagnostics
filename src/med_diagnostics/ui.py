@@ -203,6 +203,8 @@ class UserInterface:
                     del self.slice_widgets
                     self.chosen_slices = {}
                 self._display_plot_choices_ui()
+        self._plot_button_click = _plot_button_click #Just making this accessible for testing, 
+        # need to remove the logic from this function when refactoring.
 
         def _ref_plot_button_click(event):
 
@@ -226,6 +228,7 @@ class UserInterface:
                     del self.ref_slice_widgets
                     self.chosen_slices = {}
                 self._ref_display_plot_choices_ui()
+        self._ref_plot_button_click = _ref_plot_button_click 
 
         def _select_variable_button_click(event):
 
@@ -248,7 +251,8 @@ class UserInterface:
                 self._multiplot_check_slice()
             elif prompt_bounds:
                 self._prompt_bounds_ui()
-
+        self._multiplot_plot_button_click = _multiplot_plot_button_click
+        
         def _clear_multiplot_data_button_click(event):
 
             self._clear_multiplot_data()
@@ -690,7 +694,6 @@ class UserInterface:
             fig = self._plot_dataset(self._get_selected_variable(), x_axis)
         elif self.plot_type_dropdown.value == "Animation":
             fig_animated = self._plot_animation(self._get_selected_variable())
-
         if fig_animated:
             new_plot_pane = fig_animated
         else:
@@ -804,11 +807,8 @@ class UserInterface:
 
             # Insert the new plot just above the reference UI
             self.widget_container.insert(insert_index, plot_group)
-        else:
-            # If the multiplot UI is not present, just append the new plots to the bottom of the widget
-            self.widget_container.append(plot_group)
 
-        self._update_ref_status_text("User model status >> Plot created")
+        self._update_ref_status_text("Reference model status >> Plot created")
         self._update_ref_warning_text("")
 
     def _multiplot_plot_data_button_click(self):
@@ -820,6 +820,7 @@ class UserInterface:
         self._update_multiplot_status_text("Plot Overlay Status >> Generating plot...")
         self.multiplot_x_axis_dropdown.name = "Select X-Axis"
         self.multiplot_y_axis_dropdown.name = "Select Y-Axis"
+        fig = None
         fig1 = None
 
         # remove the plot choices row since the plot has been created
@@ -903,7 +904,7 @@ class UserInterface:
 
         self.widget_container.append(plot_group)
 
-        self._update_multiplot_status_text("User model status >> Plot created")
+        self._update_multiplot_status_text("Overlay plot status >> Plot created")
         self._update_ref_warning_text("")
 
     def _ref_keys_dropdown_click(self):
@@ -1333,6 +1334,10 @@ class UserInterface:
         # Filter which dimensions can viably be plotted on an axis
         dim_sizes = self.dataset[self._get_selected_variable()].sizes
         viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"]
+        if not self.x_axis_dropdown.value:
+            self._update_warning_text("Warning >> Please select a variable and plot type before plotting.")
+            plot_valid = False
+            return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen
 
         if self.plot_type_dropdown.value == "Animation":
             chosen_axes = (
@@ -1358,8 +1363,16 @@ class UserInterface:
         if len(self.remaining_dims) > 0 and not hasattr(self, "slice_widgets"):
             plot_valid = False
             requires_slice = True
-        # If there is only one dimension plottable, and the user chose to plot a heatmap
-        elif len(viable_dims) == 1 and self.plot_type_dropdown.value == "Heatmap":
+        # If the dataset lacks enough dimensions for the chosen plot type
+        if (len(viable_dims) == 1 and self.plot_type_dropdown.value == "Heatmap") or (
+            len(viable_dims) in (1, 2) and self.plot_type_dropdown.value == "Animation"
+        ):
+            plot_valid = False
+            invalid_heatmap_data = True
+        # Check if required axes are missing based on plot type
+        elif (self.plot_type_dropdown.value == "Heatmap" and not self.y_axis_dropdown.value) or (
+            self.plot_type_dropdown.value == "Animation" and not (self.y_axis_dropdown.value and self.animation_axis_dropdown.value)
+        ):
             plot_valid = False
             invalid_heatmap_data = True
         # If the user has tried to plot the same variable on both axes
@@ -1393,6 +1406,10 @@ class UserInterface:
         # Filter which dimensions can viably be plotted on an axis
         dim_sizes = self.ref_dataset[self._ref_get_selected_variable()].sizes
         viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"]
+        if not self.ref_x_axis_dropdown.value:
+            self._update_ref_warning_text("Warning >> Please select a variable and plot type before plotting.")
+            plot_valid = False
+            return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen
 
         if self.ref_plot_type_dropdown.value == "Animation":
             chosen_axes = (
@@ -1421,8 +1438,16 @@ class UserInterface:
         if len(self.ref_remaining_dims) > 0 and not hasattr(self, "ref_slice_widgets"):
             plot_valid = False
             requires_slice = True
-        # If there is only one dimension plottable, and the user chose to plot a heatmap
-        elif len(viable_dims) == 1 and self.ref_plot_type_dropdown.value == "Heatmap":
+        # If the dataset lacks enough dimensions for the chosen plot type
+        if (len(viable_dims) == 1 and self.ref_plot_type_dropdown.value == "Heatmap") or (
+            len(viable_dims) in (1, 2) and self.ref_plot_type_dropdown.value == "Animation"
+        ):
+            plot_valid = False
+            invalid_heatmap_data = True
+            # Check if required axes are missing based on plot type
+        elif (self.ref_plot_type_dropdown.value == "Heatmap" and not self.ref_y_axis_dropdown.value) or (
+            self.ref_plot_type_dropdown.value == "Animation" and not (self.ref_y_axis_dropdown.value and self.ref_animation_axis_dropdown.value)
+        ):
             plot_valid = False
             invalid_heatmap_data = True
         # If the user has tried to plot the same variable on both axes
@@ -1448,12 +1473,13 @@ class UserInterface:
 
         plot_valid = True
         requires_slice = False
-        check_bounds = self._multiplot_check_bounds()
+        check_bounds = False
 
         # Filter which dimensions can viably be plotted on an axis
         dim_sizes = self.dataset[self._multiplot_get_selected_variable()].sizes
         viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"]
 
+        # 2. Determine chosen axes safely
         if self.multiplot_plot_type_dropdown.value == "Line":
             chosen_axes = (self.multiplot_x_axis_dropdown.value,)
         elif self.multiplot_plot_type_dropdown.value == "Heatmap (grid)":
@@ -1463,6 +1489,7 @@ class UserInterface:
             )
 
         self.multiplot_remaining_dims = [dim for dim in viable_dims if dim not in chosen_axes]
+
         # Check if existing reference slice widgets match the required dimensions
         if hasattr(self, "multiplot_slice_widgets"):
             if set(self.multiplot_slice_widgets.keys()) != set(self.multiplot_remaining_dims):
@@ -1489,9 +1516,17 @@ class UserInterface:
             plot_valid = False
             requires_slice = True
 
-        # Ensure plot is not created if the user needs to be prompted about bounds.
-        if check_bounds:
+        if self.multiplot_plot_type_dropdown.value == "Heatmap (grid)" and (
+            self.multiplot_x_axis_dropdown.value == self.multiplot_y_axis_dropdown.value
+        ):
             plot_valid = False
+            requires_slice = False
+
+        #  check bounds if the plot configuration is actually valid and ready
+        if plot_valid and not requires_slice:
+            check_bounds = self._multiplot_check_bounds()
+            if check_bounds:
+                plot_valid = False
 
         return plot_valid, requires_slice, check_bounds
 
@@ -2221,9 +2256,8 @@ class UserInterface:
             caption_text += f"<br>Sliced by: {slice_str}"
 
         caption_pane = pn.pane.HTML(f"<div style='font-size: 12px; margin-left: 10%; margin-top: 10px;'>{caption_text}</div>")
-
         # Return a Column with the plot on top and the caption underneath
-        return pn.Column(pn.panel(plot, tight=True), caption_pane)
+        return pn.Column(pn.panel(plot), caption_pane)
 
     def _plot_ref_animation(self):
         """
@@ -2277,7 +2311,7 @@ class UserInterface:
         caption_pane = pn.pane.HTML(f"<div style='font-size: 12px; margin-left: 10%; margin-top: 10px;'>{caption_text}</div>")
 
         # Return a Column with the plot on top and the caption underneath
-        return pn.Column(pn.panel(plot, tight=True), caption_pane)
+        return pn.Column(pn.panel(plot), caption_pane)
 
     def _plot_multiplot_difference_heatmap(self, variable, x_axis, y_axis):
         """
