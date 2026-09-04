@@ -3,18 +3,33 @@
 
 """This is a placeholder for tests"""
 
-import sys
-import med_diagnostics
 from med_diagnostics.ui import UserInterface
 
 # from med_diagnostics.data import _build_new_catalog
 import pytest
 
 
-# Just trying out testing one of the functions
-def test_round_slice_val():
+@pytest.mark.parametrize(
+    "input_value, expected_output",
+    [
+        (3.14159, "3.14"),
+        (42, "42.0"),
+        ("2.71828", "2.72"),
+        ("not a number", "not a number"),
+        ([1, 2], "[1, 2]"),
+    ],
+)
+def test_round_slice_val(input_value, expected_output):
     ui = UserInterface()
-    assert ui._round_slice_val(3.14159) == "3.14"
-    assert ui._round_slice_val(42) == "42.0"
-    assert ui._round_slice_val("2.71828") == "2.72"
-    assert ui._round_slice_val("not a number") == "not a number"
+    assert ui._round_slice_val(input_value) == expected_output
+
+
+# make xarray dataset, one for each that it tests, 1d, 2d, 3d.
+# run the test
+
+# eeach in a seperate function, checkplotvalidity3d e.g.
+
+if __name__ == "__main__":
+    import pytest
+
+    pytest.main([__file__])
