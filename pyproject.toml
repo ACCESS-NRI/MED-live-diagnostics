@@ -43,3 +43,8 @@ platforms = ["osx-arm64", "linux-64", "win-64"]
 med-diagnostics = { path = ".", editable = true }
 
 [tool.pixi.tasks]
+
+[tool.pixi.dependencies]
+pytest = ">=9.1.1,<10"
+hvplot = ">=0.12.2,<0.13"
+access-nri-intake = ">=1.6.0,<1.7.0"
