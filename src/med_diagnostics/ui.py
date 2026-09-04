@@ -1333,6 +1333,10 @@ class UserInterface:
         # Filter which dimensions can viably be plotted on an axis
         dim_sizes = self.dataset[self._get_selected_variable()].sizes
         viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"]
+        if not self.x_axis_dropdown.value:
+            self._update_warning_text("Warning >> Please select a variable and plot type before plotting.")
+            plot_valid = False
+            return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen
 
         if self.plot_type_dropdown.value == "Animation":
             chosen_axes = (
@@ -1358,8 +1362,16 @@ class UserInterface:
         if len(self.remaining_dims) > 0 and not hasattr(self, "slice_widgets"):
             plot_valid = False
             requires_slice = True
-        # If there is only one dimension plottable, and the user chose to plot a heatmap
-        elif len(viable_dims) == 1 and self.plot_type_dropdown.value == "Heatmap":
+        # If the dataset lacks enough dimensions for the chosen plot type
+        if (len(viable_dims) == 1 and self.plot_type_dropdown.value == "Heatmap") or (
+            len(viable_dims) in (1, 2) and self.plot_type_dropdown.value == "Animation"
+        ):
+            plot_valid = False
+            invalid_heatmap_data = True
+        # Check if required axes are missing based on plot type
+        elif (self.plot_type_dropdown.value == "Heatmap" and not self.y_axis_dropdown.value) or (
+            self.plot_type_dropdown.value == "Animation" and not (self.y_axis_dropdown.value and self.animation_axis_dropdown.value)
+        ):
             plot_valid = False
             invalid_heatmap_data = True
         # If the user has tried to plot the same variable on both axes
@@ -1393,6 +1405,10 @@ class UserInterface:
         # Filter which dimensions can viably be plotted on an axis
         dim_sizes = self.ref_dataset[self._ref_get_selected_variable()].sizes
         viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"]
+        if not self.ref_x_axis_dropdown.value:
+            self._update_ref_warning_text("Warning >> Please select a variable and plot type before plotting.")
+            plot_valid = False
+            return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen
 
         if self.ref_plot_type_dropdown.value == "Animation":
             chosen_axes = (
@@ -1421,8 +1437,16 @@ class UserInterface:
         if len(self.ref_remaining_dims) > 0 and not hasattr(self, "ref_slice_widgets"):
             plot_valid = False
             requires_slice = True
-        # If there is only one dimension plottable, and the user chose to plot a heatmap
-        elif len(viable_dims) == 1 and self.ref_plot_type_dropdown.value == "Heatmap":
+        # If the dataset lacks enough dimensions for the chosen plot type
+        if (len(viable_dims) == 1 and self.ref_plot_type_dropdown.value == "Heatmap") or (
+            len(viable_dims) in (1, 2) and self.ref_plot_type_dropdown.value == "Animation"
+        ):
+            plot_valid = False
+            invalid_heatmap_data = True
+            # Check if required axes are missing based on plot type
+        elif (self.ref_plot_type_dropdown.value == "Heatmap" and not self.ref_y_axis_dropdown.value) or (
+            self.ref_plot_type_dropdown.value == "Animation" and not (self.ref_y_axis_dropdown.value and self.ref_animation_axis_dropdown.value)
+        ):
             plot_valid = False
             invalid_heatmap_data = True
         # If the user has tried to plot the same variable on both axes
@@ -1448,12 +1472,19 @@ class UserInterface:
 
         plot_valid = True
         requires_slice = False
-        check_bounds = self._multiplot_check_bounds()
+        check_bounds = False
+
+        # 1. Guard against missing x-axis selection before evaluating anything else
+        if not self.multiplot_x_axis_dropdown.value:
+            self._update_multiplot_warning_text("Warning >> Please select a variable and plot type before plotting.")
+            plot_valid = False
+            return plot_valid, requires_slice, check_bounds
 
         # Filter which dimensions can viably be plotted on an axis
         dim_sizes = self.dataset[self._multiplot_get_selected_variable()].sizes
         viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"]
 
+        # 2. Determine chosen axes safely
         if self.multiplot_plot_type_dropdown.value == "Line":
             chosen_axes = (self.multiplot_x_axis_dropdown.value,)
         elif self.multiplot_plot_type_dropdown.value == "Heatmap (grid)":
@@ -1461,8 +1492,12 @@ class UserInterface:
                 self.multiplot_x_axis_dropdown.value,
                 self.multiplot_y_axis_dropdown.value,
             )
+        else:
+            # Fallback to prevent UnboundLocalError during testing of unsupported types
+            chosen_axes = (self.multiplot_x_axis_dropdown.value,)
 
         self.multiplot_remaining_dims = [dim for dim in viable_dims if dim not in chosen_axes]
+
         # Check if existing reference slice widgets match the required dimensions
         if hasattr(self, "multiplot_slice_widgets"):
             if set(self.multiplot_slice_widgets.keys()) != set(self.multiplot_remaining_dims):
@@ -1489,9 +1524,17 @@ class UserInterface:
             plot_valid = False
             requires_slice = True
 
-        # Ensure plot is not created if the user needs to be prompted about bounds.
-        if check_bounds:
+        if self.multiplot_plot_type_dropdown.value == "Heatmap (grid)" and (
+            self.multiplot_x_axis_dropdown.value == self.multiplot_y_axis_dropdown.value
+        ):
             plot_valid = False
+            requires_slice = False
+
+        #  check bounds if the plot configuration is actually valid and ready
+        if plot_valid and not requires_slice:
+            check_bounds = self._multiplot_check_bounds()
+            if check_bounds:
+                plot_valid = False
 
         return plot_valid, requires_slice, check_bounds
 
