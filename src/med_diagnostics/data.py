@@ -74,7 +74,8 @@ def _build_new_catalog(model_path, model_type):
             model_type_builder = AccessEsm16Builder
         case 'mom6':
             model_type_builder = Mom6Builder
-
+        case _:
+            raise ValueError(f"Unsupported model_type: {model_type!r}")
     # Set builder kwargs based on model type, if model_type is one of the builders that requires the ensemble argument, set it to False, otherwise set it to an empty dictionary.
     if model_type_builder in [AccessEsm15Builder, AccessEsm16Builder, AccessCm2Builder, AccessCm3Builder]:
         builder_kwargs_set = {'ensemble': False}

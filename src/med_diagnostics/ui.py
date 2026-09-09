@@ -226,7 +226,7 @@ class UserInterface:
                     # Delete the attributes so it resets for the next plot
                     del self.ref_slice_ui_row
                     del self.ref_slice_widgets
-                    self.chosen_slices = {}
+                    self.ref_chosen_slices = {}
                 self._ref_display_plot_choices_ui()
         self._ref_plot_button_click = _ref_plot_button_click 
 
@@ -476,21 +476,20 @@ class UserInterface:
 
     def _multiplot_variable_toggle_change(self):
         """Toggles the multiplot variable dropdown options between short names and long name."""
-
         self.variable_toggle.value = self.multiplot_variable_toggle.value
-        if self.multiplot_variable_toggle.value:
+        if self.multiplot_variable_toggle.value == True:
             self.multiplot_long_names = {}
-            for var in self.dataset.keys():
-                self.multiplot_long_names[(self.dataset[var].attrs.get("long_name", var))] = var
+            for var in list(self.dataset.keys()):
+                self.multiplot_long_names[(self.dataset[var].attrs.get('long_name', var))] = var
+
             self.multiplot_plot_variable_dropdown.options = list(self.multiplot_long_names.keys())
             self.multiplot_variable_toggle.label = "Display Variable Short Names"
             self.variable_toggle.label = "Display Variable Short Names"
-            self.variable_toggle.value = True
-        else:
+
+        elif self.multiplot_variable_toggle.value == False:
             self.multiplot_plot_variable_dropdown.options = list(self.dataset.keys())
             self.multiplot_variable_toggle.label = "Display Variable Long Names"
             self.variable_toggle.label = "Display Variable Long Names"
-            self.variable_toggle.value = False
 
     def _multiplot_get_selected_variable(self):
         """Returns the multiplot dataset variable key regardless of display toggle state."""
@@ -747,7 +746,7 @@ class UserInterface:
 
         self.ref_plot_button.name = "Add Plot"
         self.ref_select_variable_button.name = "Add new plot with different variable/ plot type"
-        self._update_ref_status_text("User model status >> Generating plot...")
+        self._update_ref_status_text("Reference model status >> Generating plot...")
         self.ref_x_axis_dropdown.name = "Select X-Axis"
         self.ref_y_axis_dropdown.name = "Select Y-Axis"
 
@@ -905,7 +904,7 @@ class UserInterface:
         self.widget_container.append(plot_group)
 
         self._update_multiplot_status_text("Overlay plot status >> Plot created")
-        self._update_ref_warning_text("")
+        self._update_multiplot_warning_text("")
 
     def _ref_keys_dropdown_click(self):
         """
@@ -1594,7 +1593,7 @@ class UserInterface:
 
         # Update the UI text to prompt the user
         self.ref_plot_button.name = "Confirm Slices & Plot"
-        self._update_ref_status_text("User model status >> Action required: Select slice values and click plot again.")
+        self._update_ref_status_text("Reference model status >> Action required: Select slice values and click plot again.")
 
     def _multiplot_check_slice(self):
         """
@@ -2276,8 +2275,8 @@ class UserInterface:
         # get the min and max variable values so that the heatmap is consistent for the whole animation
         vmin = float(plot_dataset.min())
         vmax = float(plot_dataset.max())
-        x_dim = self.x_axis_dropdown.value
-        y_dim = self.y_axis_dropdown.value
+        x_dim = self.ref_x_axis_dropdown.value
+        y_dim = self.ref_y_axis_dropdown.value
 
         # Assign coordinates if they are missing, necessary for SeaIce datasets
         if x_dim not in plot_dataset.coords:

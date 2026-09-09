@@ -1521,8 +1521,8 @@ def test_plot_data_button_click(
 
     # Verify that plot choices and slice UI components are removed from the widget container
     assert ui.plot_choices_row not in ui.widget_container
-    assert not hasattr(ui.widget_container, "slice_ui_row")
-    assert not hasattr(ui.widget_container, "slice_widgets")
+    assert not hasattr(ui, "slice_ui_row")
+    assert not hasattr(ui, "slice_widgets")
 
 @pytest.mark.parametrize(
     "plot_type, slice_dict",
@@ -2786,9 +2786,8 @@ def test_ref_select_variable_button_click(ui, monkeypatch):
     # Verify the bound function was executed
     mock_display_plot_choices_ui.assert_called_once()
 
-def test_multiplot_select_variable_button_click(ui, monkeypatch):
+def test_multiplot_ref_keys_button_click_triggers_load(ui, monkeypatch):
     """Test that pressing the multiplot_ref_keys_button triggers the correct internal method."""
-    
     mock_multiplot_ref_keys_dropdown_click = MagicMock()
     monkeypatch.setattr(ui, "_multiplot_ref_keys_dropdown_click", mock_multiplot_ref_keys_dropdown_click)
 
