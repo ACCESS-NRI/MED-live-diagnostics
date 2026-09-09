@@ -2508,12 +2508,19 @@ def test_plot_button_click(ui, monkeypatch, plot_valid, requires_slice, invalid_
     mock_display_plot_choices_ui = MagicMock()
     monkeypatch.setattr(ui, "_display_plot_choices_ui", mock_display_plot_choices_ui)
 
+    ui.plot_choices_row = pn.Row(name = "plot choices row")
+    ui.widget_container.append(ui.plot_choices_row)
+    ui.slice_ui_row = pn.Row()
+    ui.slice_widgets = {"dim": pn.pane.Markdown("A widget")}
+    ui.widget_container.append(ui.slice_ui_row)
+    
     # Trigger the plot button click handler with a dummy event argument
     ui._plot_button_click(None)
 
     # Verify that the correct action or warning is executed based on the plot validity and error flags
     if plot_valid:
         mock_plot_data_button_click.assert_called()
+        
     elif requires_slice:
         mock_check_slice.assert_called_once()
     elif invalid_heatmap_data:
@@ -2523,6 +2530,9 @@ def test_plot_button_click(ui, monkeypatch, plot_valid, requires_slice, invalid_
     elif same_axes_chosen:
         assert ui.warning_textbox.value == "Warning >> Please ensure different values are selected for each axis."
         mock_display_plot_choices_ui.assert_called_once()
+        assert ui.plot_choices_row not in ui.widget_container
+        assert not hasattr(ui, "slice_ui_row")
+
 
 
 @pytest.mark.parametrize(
@@ -2561,6 +2571,12 @@ def test_ref_plot_button_click(
         ui, "_ref_display_plot_choices_ui", mock_display_plot_choices_ui
     )
 
+    ui.ref_plot_choices_row = pn.Row(name = "plot choices row")
+    ui.widget_container.append(ui.ref_plot_choices_row)
+    ui.ref_slice_ui_row = pn.Row()
+    ui.ref_slice_widgets = {"dim": pn.pane.Markdown("A widget")}
+    ui.widget_container.append(ui.ref_slice_ui_row)
+
     # Trigger the reference plot button click handler with a dummy event argument
     ui._ref_plot_button_click(None)
 
@@ -2582,6 +2598,8 @@ def test_ref_plot_button_click(
             == "Warning >> Please ensure different values are selected for each axis."
         )
         mock_display_plot_choices_ui.assert_called_once()
+        assert ui.ref_plot_choices_row not in ui.widget_container
+        assert not hasattr(ui, "ref_slice_ui_row")
 
 @pytest.mark.parametrize(
     "plot_valid, requires_slice, prompt_bounds",
@@ -2623,3 +2641,161 @@ def test_multiplot_plot_button_click(ui, monkeypatch, plot_valid, requires_slice
         mock_check_slice.assert_called_once()
     elif prompt_bounds:
         mock_prompt_bounds_ui.assert_called_once()
+
+
+def test_keys_button_click(ui, monkeypatch):
+    """Test that pressing the keys button triggers the correct internal method."""
+    
+    mock_keys_dropdown_click = MagicMock()
+    monkeypatch.setattr(ui, "_keys_dropdown_click", mock_keys_dropdown_click)
+
+    # Simulate clicking the button
+    ui.keys_button.clicks += 1
+    
+    # Verify the bound function was executed
+    mock_keys_dropdown_click.assert_called_once()
+
+def test_ref_keys_button_click(ui, monkeypatch):
+    """Test that pressing the ref keys button triggers the correct internal method."""
+    
+    mock_keys_dropdown_click = MagicMock()
+    monkeypatch.setattr(ui, "_ref_keys_dropdown_click", mock_keys_dropdown_click)
+
+    # Simulate clicking the button
+    ui.ref_keys_button.clicks += 1
+    
+    # Verify the bound function was executed
+    mock_keys_dropdown_click.assert_called_once()
+
+def test_ref_data_keys_button_click(ui, monkeypatch):
+    """Test that pressing the ref data keys button triggers the correct internal method."""
+    
+    mock_ref_data_keys_button_click = MagicMock()
+    monkeypatch.setattr(ui, "_ref_dataset_dropdown_click", mock_ref_data_keys_button_click)
+
+    # Simulate clicking the button
+    ui.ref_data_keys_button.clicks += 1
+    
+    # Verify the bound function was executed
+    mock_ref_data_keys_button_click.assert_called_once()
+
+def test_ref_model_info_button_click(ui, monkeypatch):
+    """Test that pressing the ref model info button triggers the correct internal method."""
+    
+    mock_ref_model_info_click = MagicMock()
+    monkeypatch.setattr(ui, "_ref_model_info_click", mock_ref_model_info_click)
+
+    # Simulate clicking the button
+    ui.ref_model_info_button.clicks += 1
+    
+    # Verify the bound function was executed
+    mock_ref_model_info_click.assert_called_once()
+
+def test_ref_clear_data_button_click(ui, monkeypatch):
+    """Test that pressing the ref clear data button triggers the correct internal method."""
+    
+    mock_ref_clear_data_click = MagicMock()
+    monkeypatch.setattr(ui, "_ref_clear_data_click", mock_ref_clear_data_click)
+
+    # Simulate clicking the button
+    ui.clear_ref_model_data_button.clicks += 1
+    
+    # Verify the bound function was executed
+    mock_ref_clear_data_click.assert_called_once()
+
+def test_select_variable_button_click(ui, monkeypatch):
+    """Test that pressing the select variabel button triggers the correct internal method."""
+    
+    mock_display_plot_choices_ui = MagicMock()
+    monkeypatch.setattr(ui, "_display_plot_choices_ui", mock_display_plot_choices_ui)
+
+    # Simulate clicking the button
+    ui.select_variable_button.clicks += 1
+    
+    # Verify the bound function was executed
+    mock_display_plot_choices_ui.assert_called_once()
+
+def test_ref_select_variable_button_click(ui, monkeypatch):
+    """Test that pressing the ref select variabel button triggers the correct internal method."""
+    
+    mock_display_plot_choices_ui = MagicMock()
+    monkeypatch.setattr(ui, "_ref_display_plot_choices_ui", mock_display_plot_choices_ui)
+
+    # Simulate clicking the button
+    ui.ref_select_variable_button.clicks += 1
+    
+    # Verify the bound function was executed
+    mock_display_plot_choices_ui.assert_called_once()
+
+def test_multiplot_select_variable_button_click(ui, monkeypatch):
+    """Test that pressing the multiplot_ref_keys_button triggers the correct internal method."""
+    
+    mock_multiplot_ref_keys_dropdown_click = MagicMock()
+    monkeypatch.setattr(ui, "_multiplot_ref_keys_dropdown_click", mock_multiplot_ref_keys_dropdown_click)
+
+    # Simulate clicking the button
+    ui.multiplot_ref_keys_button.clicks += 1
+    
+    # Verify the bound function was executed
+    mock_multiplot_ref_keys_dropdown_click.assert_called_once()
+
+def test_clear_multiplot_data_button_click(ui, monkeypatch):
+    """Test that pressing the clear_multiplot_data_button triggers the correct internal method."""
+    
+    mock_clear_multiplot_data = MagicMock()
+    monkeypatch.setattr(ui, "_clear_multiplot_data", mock_clear_multiplot_data)
+
+    # Simulate clicking the button
+    ui.clear_multiplot_data_button.clicks += 1
+    
+    # Verify the bound function was executed
+    mock_clear_multiplot_data.assert_called_once()
+
+def test_multiplot_keys_update_button_click(ui, monkeypatch):
+    """Test that pressing the multiplot_keys_update_button triggers the correct internal method."""
+    
+    mock_update_multiplot_dataset = MagicMock()
+    monkeypatch.setattr(ui, "_update_multiplot_dataset", mock_update_multiplot_dataset)
+
+    # Simulate clicking the button
+    ui.multiplot_keys_update_button.clicks += 1
+    
+    # Verify the bound function was executed
+    mock_update_multiplot_dataset.assert_called_once()
+
+
+def test_multiplot_select_variable_button_click(ui, monkeypatch):
+    """Test that pressing the multiplot_select_variable_button triggers the correct internal method."""
+    
+    mock_display_multiplot_plot_choices_ui = MagicMock()
+    monkeypatch.setattr(ui, "_display_multiplot_plot_choices_ui", mock_display_multiplot_plot_choices_ui)
+
+    # Simulate clicking the button
+    ui.multiplot_select_variable_button.clicks += 1
+    
+    # Verify the bound function was executed
+    mock_display_multiplot_plot_choices_ui.assert_called_once()
+
+def test_multiplot_ref_keys_button_click(ui, monkeypatch):
+    """Test that pressing the multiplot_ref_keys_button triggers the correct internal method."""
+    
+    mock_display_multiplot_plot_choices_ui  = MagicMock()
+    monkeypatch.setattr(ui, "_multiplot_ref_keys_dropdown_click", mock_display_multiplot_plot_choices_ui)
+
+    # Simulate clicking the button
+    ui.multiplot_ref_keys_button.clicks += 1
+    
+    # Verify the bound function was executed
+    mock_display_multiplot_plot_choices_ui.assert_called_once()
+
+def test_prompt_bounds_button_click(ui, monkeypatch):
+    """Test that pressing the prompt_bounds_button triggers the correct internal method."""
+    
+    mock_multiplot_plot_data_button_click  = MagicMock()
+    monkeypatch.setattr(ui, "_multiplot_plot_data_button_click", mock_multiplot_plot_data_button_click)
+
+    # Simulate clicking the button
+    ui.prompt_bounds_button.clicks += 1
+    
+    # Verify the bound function was executed
+    mock_multiplot_plot_data_button_click.assert_called_once()
