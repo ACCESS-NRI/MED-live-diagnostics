@@ -133,4 +133,8 @@ dmypy.json
 # pixi environments
 .pixi/*
 !.pixi/config.toml
-.vscode/settings.json
+
+.vscode/
+
+coverage.xml
+.coverage
