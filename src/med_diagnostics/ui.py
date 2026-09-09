@@ -8,12 +8,10 @@ import matplotlib.pyplot as plt
 import datetime
 
 from med_diagnostics import data
-from IPython.display import display, HTML
+from IPython.display import display
 import hvplot.xarray  # type: ignore #For creating interactive plots
-import holoviews as hv  # type: ignore
 import xarray as xr
-import io
-import base64
+
 
 
 class UserInterface:
