@@ -581,8 +581,7 @@ class UserInterface:
             y_axis = self.y_axis_dropdown.value
             fig = self._plot_heatmap(self._get_selected_variable(), x_axis, y_axis)
         elif self.plot_type_dropdown.value == "Line":
-            x_axis = self.x_axis_dropdown.value
-            fig = self._plot_dataset(self._get_selected_variable(), x_axis)
+            fig = self._plot_dataset_helper(is_ref = False)
         elif self.plot_type_dropdown.value == "Animation":
             fig_animated = self._plot_animation(self._get_selected_variable())
         if fig_animated:
@@ -657,8 +656,7 @@ class UserInterface:
             y_axis = self.ref_y_axis_dropdown.value
             fig = self._plot_ref_heatmap(self._ref_get_selected_variable(), x_axis, y_axis)
         elif self.ref_plot_type_dropdown.value == "Line":
-            x_axis = self.ref_x_axis_dropdown.value
-            fig = self._plot_ref_dataset(self._ref_get_selected_variable(), x_axis)
+            fig = self._plot_dataset_helper(is_ref = True)
         elif self.ref_plot_type_dropdown.value == "Animation":
             fig_animated = self._plot_ref_animation()
 
@@ -1434,7 +1432,7 @@ class UserInterface:
         for dimension in self.remaining_dims:
             # Extract coordinate values as options
             coord_values = list(self.dataset[dimension].values)
-            options_dict = {self._round_slice_val(val): val for val in coord_values}
+            options_dict = {controller.round_slice_val(val): val for val in coord_values}
             dropdown = pn.widgets.DiscreteSlider(name=f"Slice {dimension} at:", options=options_dict)
 
             self.slice_widgets[dimension] = dropdown
@@ -1467,7 +1465,7 @@ class UserInterface:
         for dimension in self.ref_remaining_dims:
             # Extract coordinate values as options
             coord_values = list(self.ref_dataset[dimension].values)
-            options_dict = {self._round_slice_val(val): val for val in coord_values}
+            options_dict = {controller.round_slice_val(val): val for val in coord_values}
             dropdown = pn.widgets.DiscreteSlider(name=f"Slice {dimension} at:", options=options_dict)
 
             self.ref_slice_widgets[dimension] = dropdown
@@ -1502,7 +1500,7 @@ class UserInterface:
         for dimension in self.multiplot_remaining_dims:
             # Extract coordinate values as options
             coord_values = list(self.dataset[dimension].values)
-            options_dict = {self._round_slice_val(val): val for val in coord_values}
+            options_dict = {controller.round_slice_val(val): val for val in coord_values}
             dropdown = pn.widgets.DiscreteSlider(name=f"Slice {dimension} at:", options=options_dict)
 
             self.multiplot_slice_widgets[dimension] = dropdown
@@ -1521,27 +1519,6 @@ class UserInterface:
         # Update the UI text to prompt the user
         self.multiplot_plot_button.name = "Confirm Slices & Plot"
         controller.update_textbox_text(self.multiplot_status_textbox, "Overlay Plot >> Action required: Select slice values and click plot again.")
-
-    def _round_slice_val(self, val):
-        """
-        Round numerical values to a maximum of 2 decimal places for display.
-
-        Parameters
-        ----------
-        val : int, float, or str
-            The value to be rounded.
-
-        Returns
-        -------
-        str
-            The rounded value as a string, or the original value as a string
-            if it cannot be converted to a float.
-        """
-
-        try:
-            return str(round(float(val), 2))
-        except (ValueError, TypeError):
-            return str(val)
 
     def _update_dataset_plot_ui(self):
         """
@@ -1562,7 +1539,8 @@ class UserInterface:
         """
 
         self.ref_data_keys_dropdown.options = sorted(list(self.ref_dataset.keys()))
-        plt.close(self.ref_fig)
+        if hasattr(self, "ref_fig"):
+            plt.close(self.ref_fig)
 
         self._update_ref_dataset_plot_ui()
 
@@ -1575,47 +1553,6 @@ class UserInterface:
         self.ref_plot_pane.object = None  # Clears the previous plot from the screen
         if hasattr(self, "ref_fig"):
             plt.close(self.ref_fig)
-
-    def _plot_dataset(self, variable, x_axis):
-        """
-        Plot 2D time-series from model data. Private.
-
-        Parameters
-        ----------
-        variable : str
-            Model data variable as selected from panel dropdown.
-        Returns
-        ----------
-        self.fig : matplotlib.pyplot.figure()
-        """
-        # Plot primary (user) model data
-        self.fig, ax = plt.subplots(figsize=[8, 4])
-
-        self.figure_exists = True
-        # Slice the dataset if the user has selected any
-        sliced_data = self.dataset.sel(**self.chosen_slices, method="nearest")
-
-        # Add the slice information to the title, if it is sliced data
-        sliced_data[variable].plot(x=x_axis, ax=ax)
-        slice_str = ", ".join([f"{dim}: {self._round_slice_val(val)}" for dim, val in self.chosen_slices.items()])
-        title_text = sliced_data[variable].attrs.get("long_name", variable)
-        caption_text = "User model \nDataset: " + self.keys_dropdown.value
-
-        # Add details of slice to caption, if the data is sliced
-        if slice_str:
-            caption_text += f"\nSliced by: {slice_str}"
-
-        self.fig.tight_layout()
-        ax.set_title(title_text, fontsize=14)
-        self.fig.text(0.1, 0.01, caption_text, wrap=True, horizontalalignment="left", fontsize=10)
-        self.fig.subplots_adjust(bottom=0.3)
-
-        ax.grid()
-        ax.legend()
-
-        plt.close(self.fig)
-
-        return self.fig
 
     def _plot_heatmap(self, variable, x_axis, y_axis):
         """
@@ -1644,7 +1581,7 @@ class UserInterface:
         heatmap_data[variable].plot(x=x_axis, y=y_axis, ax=ax)
 
         # Add the slice information to the title, if it is sliced data
-        slice_str = ", ".join([f"{dim}: {self._round_slice_val(val)}" for dim, val in self.chosen_slices.items()])
+        slice_str = ", ".join([f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.chosen_slices.items()])
         title_text = heatmap_data[variable].attrs.get("long_name", variable)
         caption_text = "User model \nDataset: " + self.keys_dropdown.value
 
@@ -1661,58 +1598,6 @@ class UserInterface:
         plt.close(self.fig)
         return self.fig
 
-    def _plot_ref_dataset(self, ref_variable, x_axis):
-        """
-        Plot 2D time-series from reference model data. Private.
-
-        Parameters
-        ----------
-        ref_variable : str
-            Reference model data variable as selected from panel dropdown.
-        x_axis : str
-            X-axis as selected from the panel dropdown.
-
-        Returns
-        ----------
-        ref_fig : matplotlib.pyplot.figure()
-        """
-
-        self.ref_fig, ax = plt.subplots(figsize=[8, 4])
-
-        self.ref_figure_exists = True
-
-        sliced_data = self.ref_dataset.sel(**self.ref_chosen_slices, method="nearest")
-
-        # Plot all model variants if multiple exist
-        if "member" in sliced_data.dims:
-
-            for mem in sliced_data.member.values:
-
-                sliced_data[ref_variable].sel(member=mem).plot(label=mem, x=x_axis, ax=ax)
-        else:
-            # Plot directly if no member dimension exists
-            sliced_data[ref_variable].plot(x=x_axis, ax=ax)
-
-        # Add the slice information to the title, if it is sliced data
-
-        slice_str = ", ".join([f"{dim}: {self._round_slice_val(val)}" for dim, val in self.ref_chosen_slices.items()])
-        title_text = sliced_data[ref_variable].attrs.get("long_name", ref_variable)
-        caption_text = "Model: " + self.ref_keys_dropdown.value + "\nDataset: " + self.ref_data_keys_dropdown.value
-
-        # Add details of slice to caption, if the data is sliced
-        if slice_str:
-            caption_text += f"\nSliced by: {slice_str}"
-
-        self.ref_fig.tight_layout()
-        ax.set_title(title_text, fontsize=14)
-        self.ref_fig.text(0.1, 0.01, caption_text, wrap=True, horizontalalignment="left", fontsize=10)
-        self.ref_fig.subplots_adjust(bottom=0.3)
-        ax.grid()
-        ax.legend()
-
-        plt.close(self.ref_fig)
-
-        return self.ref_fig
 
     def _plot_ref_heatmap(self, ref_variable, x_axis, y_axis):
         """
@@ -1742,7 +1627,7 @@ class UserInterface:
 
         # Add the slice information to the title, if it is sliced data
 
-        slice_str = ", ".join([f"{dim}: {self._round_slice_val(val)}" for dim, val in self.ref_chosen_slices.items()])
+        slice_str = ", ".join([f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.ref_chosen_slices.items()])
         title_text = heatmap_data[ref_variable].attrs.get("long_name", ref_variable)
         caption_text = "Model: " + self.ref_keys_dropdown.value + "\nDataset: " + self.ref_data_keys_dropdown.value
 
@@ -1810,7 +1695,7 @@ class UserInterface:
                 sliced_data[variable].plot(label=model_key, x=x_axis, ax=ax)
 
         # Add the slice information to the caption text, if it is sliced data
-        slice_str = ", ".join([f"{dim}: {self._round_slice_val(val)}" for dim, val in self.multiplot_chosen_slices.items()])
+        slice_str = ", ".join([f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.multiplot_chosen_slices.items()])
         title_text = sliced_user_data[variable].attrs.get("long_name", variable)
 
         caption_text = ""
@@ -1917,7 +1802,7 @@ class UserInterface:
             fig.delaxes(axes_flat[i])
 
         # Add the slice information to the caption text, if it is sliced data
-        slice_str = ", ".join([f"{dim}: {self._round_slice_val(val)}" for dim, val in self.multiplot_chosen_slices.items()])
+        slice_str = ", ".join([f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.multiplot_chosen_slices.items()])
         if slice_str:
             fig.text(
                 0.1,
@@ -2141,7 +2026,7 @@ class UserInterface:
 
         # Build caption string
         variable_text = plot_dataset.attrs.get("long_name", variable)
-        slice_str = ", ".join([f"{dim}: {self._round_slice_val(val)}" for dim, val in self.chosen_slices.items()])
+        slice_str = ", ".join([f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.chosen_slices.items()])
         caption_text = "Variable: " + variable_text + "<br>User model<br>Dataset: " + self.keys_dropdown.value
         if slice_str:
             caption_text += f"<br>Sliced by: {slice_str}"
@@ -2192,7 +2077,7 @@ class UserInterface:
 
         # Build caption string
         variable_text = plot_dataset.attrs.get("long_name", self._ref_get_selected_variable())
-        slice_str = ", ".join([f"{dim}: {self._round_slice_val(val)}" for dim, val in self.ref_chosen_slices.items()])
+        slice_str = ", ".join([f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.ref_chosen_slices.items()])
         caption_text = (
             "Variable: " + variable_text + "<br>Model: " + self.ref_keys_dropdown.value + "<br>Dataset: " + self.ref_data_keys_dropdown.value
         )
@@ -2285,7 +2170,7 @@ class UserInterface:
             fig.delaxes(axes_flat[i])
 
         # Add the slice information to the caption text, if it is sliced data
-        slice_str = ", ".join([f"{dim}: {self._round_slice_val(val)}" for dim, val in self.multiplot_chosen_slices.items()])
+        slice_str = ", ".join([f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.multiplot_chosen_slices.items()])
         if slice_str:
             fig.text(
                 0.1,
@@ -2352,7 +2237,7 @@ class UserInterface:
                 plot_data[variable].plot(label=model_key, x=x_axis, ax=ax)
 
         # Add the slice information to the caption text, if it is sliced data
-        slice_str = ", ".join([f"{dim}: {self._round_slice_val(val)}" for dim, val in self.multiplot_chosen_slices.items()])
+        slice_str = ", ".join([f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.multiplot_chosen_slices.items()])
         title_text = "Δ "
         title_text += sliced_user_data[variable].attrs.get("long_name", variable)
         title_text += " (Ref. - User data)"
@@ -2375,3 +2260,15 @@ class UserInterface:
         plt.close(fig)
 
         return fig
+
+    def _plot_dataset_helper(self, is_ref = False):
+        if is_ref:
+            self.ref_fig = controller.plot_dataset(self.ref_dataset, self.ref_keys_dropdown.value, self._ref_get_selected_variable(), self.ref_x_axis_dropdown.value, self.ref_chosen_slices, is_ref, self.ref_keys_dropdown.value)
+            self.ref_figure_exists = True
+
+            return self.ref_fig
+        else:
+            self.fig = controller.plot_dataset(self.dataset, self.keys_dropdown.value, self._get_selected_variable(), self.x_axis_dropdown.value, self.chosen_slices, is_ref)
+            self.figure_exists = True 
+
+            return self.fig

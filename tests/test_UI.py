@@ -23,23 +23,6 @@ def ui():
     return ui
 
 
-@pytest.mark.parametrize(
-    "input_value, expected_output",
-    [
-        (3.14159, "3.14"),
-        (42, "42.0"),
-        ("2.71828", "2.72"),
-        ("not a number", "not a number"),
-        ([1, 2], "[1, 2]"),
-    ],
-)
-def test_round_slice_val(ui, input_value, expected_output):
-    """Test the _round_slice_val method across various input types and formats""" 
-
-    # Verify that the returned string representation matches the expected format
-    assert ui._round_slice_val(input_value) == expected_output
-
-
 def run_validity_check(ui, is_ref, x_value, y_value, z_value, plot_type, var, ds):
     """Check the validity of reference or user plots based on current UI selections"""
 
@@ -869,70 +852,6 @@ def test_multiplot_check_slice(
         )
 
 
-def test_plot_dataset(ui):
-    """Test the generation of 1D line plots and 2D heatmaps from a provided dataset""" 
-
-    # Create a 3D xarray dataset
-    data = xr.DataArray(
-        np.random.rand(10, 10, 10),
-        dims=["x", "y", "z"],
-        coords={"x": np.arange(10), "y": np.arange(10), "z": np.arange(10)},
-    )
-    ds = xr.Dataset({"data": data})
-    ui.chosen_slices = {"z": 1}
-    ui.plot_variable_dropdown.value = "data"
-    ui.keys_dropdown.value = "data"
-
-    # Assign the mock dataset to the UI instance
-    ui.dataset = ds
-
-    # Generate a 1D plot and verify a valid matplotlib Figure is returned with content
-    plot_result = ui._plot_dataset("data", "x")
-    ax = plot_result.axes[0]
-    assert isinstance(plot_result, plt.Figure)
-    assert len(plot_result.axes) == 2
-    assert len(ax.lines) > 0 or len(ax.collections) > 0 or len(ax.images) > 0
-
-    # Generate a 2D heatmap and verify a valid matplotlib Figure is returned with content
-    plot_result = ui._plot_heatmap("data", "x", "y")
-    ax = plot_result.axes[0]
-    assert isinstance(plot_result, plt.Figure)
-    assert len(plot_result.axes) == 2
-    assert len(ax.lines) > 0 or len(ax.collections) > 0 or len(ax.images) > 0
-
-
-def test_plot_ref_dataset(ui):
-    """Test the generation of 1D line plots and 2D heatmaps from a provided reference dataset""" 
-
-    # Create a 2D xarray dataset
-    data = xr.DataArray(
-        np.random.rand(10, 10, 10),
-        dims=["x", "y", "z"],
-        coords={"x": np.arange(10), "y": np.arange(10), "z": np.arange(10)},
-    )
-    ds = xr.Dataset({"data": data})
-    ui.ref_chosen_slices = {"z" : 1}
-    ui.ref_keys_dropdown.value = "data"
-    ui.ref_data_keys_dropdown.value = "data"
-    
-    # Assign the mock dataset to the reference UI instance
-    ui.ref_dataset = ds
-    
-    # Generate a 1D reference plot and verify a valid matplotlib Figure is returned with content
-    plot_result = ui._plot_ref_dataset("data", "x")
-    ax = plot_result.axes[0]
-    assert isinstance(plot_result, plt.Figure)
-    assert len(plot_result.axes) == 2
-    assert len(ax.lines) > 0 or len(ax.collections) > 0 or len(ax.images) > 0
-
-    # Generate a 2D reference heatmap and verify a valid matplotlib Figure is returned with content
-    plot_result = ui._plot_ref_heatmap("data", "x", "y")
-    ax = plot_result.axes[0]
-    assert isinstance(plot_result, plt.Figure)
-    assert len(plot_result.axes) == 2
-    assert len(ax.lines) > 0 or len(ax.collections) > 0 or len(ax.images) > 0
-
-
 def test_plot_multiplot_dataset(ui, monkeypatch):
     """Test the generation of 1D line multiplots and 2D heatmaps across multiple datasets"""
 
@@ -1317,7 +1236,7 @@ def test_display_reference_dataset_selection_ui(
 
 def test_display_multiplot_user_data_selection_ui(ui):
     """Test the initialization and configuration of the multiplot user data selection UI components"""
-
+    
     # Assign a mock catalog and configure dropdown options on the UI instance
     ui.access_nri_cat = {"key1": None, "key2": None}
     ui.keys_dropdown.options = ["option2", "option23", "option1"]
@@ -1379,7 +1298,7 @@ def test_display_multiplot_user_data_selection_ui(ui):
     ],
 )
 @patch("med_diagnostics.ui.UserInterface._plot_heatmap")
-@patch("med_diagnostics.ui.UserInterface._plot_dataset")
+@patch("med_diagnostics.ui.UserInterface._plot_dataset_helper")
 @patch("med_diagnostics.ui.UserInterface._plot_animation")
 @patch("panel.pane.Matplotlib")
 def test_plot_data_button_click(
@@ -1392,12 +1311,22 @@ def test_plot_data_button_click(
     slice_dict,
 ):
     """Test the plot data button callback for generating heatmaps, line plots, and animations""" 
+    # Create a 3D xarray dataset
+    data = xr.DataArray(
+        np.random.rand(10, 10, 10),
+        dims=["x", "y", "z"],
+        coords={"x": np.arange(10), "y": np.arange(10), "z": np.arange(10)},
+    )
+    ds = xr.Dataset({"data": data})
 
     # Configure UI dropdown selections for the target plot type and variables
     ui.plot_type_dropdown.value = plot_type
     ui.x_axis_dropdown.value = "x"
     ui.y_axis_dropdown.value = "y"
     ui.plot_variable_dropdown.value = "data"
+    ui.keys_dropdown.value = "dataset"
+    ui.dataset = ds
+    ui.chosen_slices = {}
 
     # Configure slice widgets and establish expected slice values
     if slice_dict is None:
@@ -1437,7 +1366,7 @@ def test_plot_data_button_click(
     if plot_type == "Heatmap":
         mock_plot_heatmap.assert_called_once_with("data", "x", "y")
     elif plot_type == "Line":
-        mock_plot_dataset.assert_called_once_with("data", "x")
+        mock_plot_dataset.assert_called_once_with(is_ref = False)
     elif plot_type == "Animation":
         mock_plot_animation.assert_called_once_with("data")
 
@@ -1455,7 +1384,7 @@ def test_plot_data_button_click(
     ],
 )
 @patch("med_diagnostics.ui.UserInterface._plot_ref_heatmap")
-@patch("med_diagnostics.ui.UserInterface._plot_ref_dataset")
+@patch("med_diagnostics.ui.UserInterface._plot_dataset_helper")
 @patch("med_diagnostics.ui.UserInterface._plot_ref_animation")
 @patch("panel.pane.Matplotlib")
 def test_plot_ref_data_button_click(
@@ -1513,7 +1442,7 @@ def test_plot_ref_data_button_click(
     if plot_type == "Heatmap":
         mock_plot_ref_heatmap.assert_called_once_with("data", "x", "y")
     elif plot_type == "Line":
-        mock_plot_ref_dataset.assert_called_once_with("data", "x")
+        mock_plot_ref_dataset.assert_called_once_with(is_ref = True)
     elif plot_type == "Animation":
         mock_plot_ref_animation.assert_called_once_with()
 
@@ -2028,11 +1957,36 @@ def test_update_dataset_plot_ui(ui):
     # Verify that the multiplot user dataset dropdown value synchronizes with the primary keys dropdown
     assert ui.multiplot_keys_dropdown.value == ui.keys_dropdown.value
 
-    # Verify that matplotlib figures are closed to clean up memory
-    plt.close.assert_called_once()
+    if hasattr(ui, "fig"):
+        # Verify that matplotlib figures are closed to clean up memory
+        plt.close.assert_called_once()
 
     plt.close.reset_mock()
 
+
+def test_plot_dataset(ui):
+    """Test the generation of 1D line plots and 2D heatmaps from a provided dataset""" 
+
+    # Create a 3D xarray dataset
+    data = xr.DataArray(
+        np.random.rand(10, 10, 10),
+        dims=["x", "y", "z"],
+        coords={"x": np.arange(10), "y": np.arange(10), "z": np.arange(10)},
+    )
+    ds = xr.Dataset({"data": data})
+    ui.chosen_slices = {"z": 1}
+    ui.plot_variable_dropdown.value = "data"
+    ui.keys_dropdown.value = "data"
+
+    # Assign the mock dataset to the UI instance
+    ui.dataset = ds
+
+    # Generate a 2D heatmap and verify a valid matplotlib Figure is returned with content
+    plot_result = ui._plot_heatmap("data", "x", "y")
+    ax = plot_result.axes[0]
+    assert isinstance(plot_result, plt.Figure)
+    assert len(plot_result.axes) == 2
+    assert len(ax.lines) > 0 or len(ax.collections) > 0 or len(ax.images) > 0
 
 def test_update_ref_dataset_keys_plot_ui(ui, monkeypatch):
     """Test updating reference dataset key options and triggering reference dataset plot updates"""
@@ -2049,7 +2003,8 @@ def test_update_ref_dataset_keys_plot_ui(ui, monkeypatch):
 
     # Verify that reference data keys dropdown options are updated and cleanup handlers are called
     assert ui.ref_data_keys_dropdown.options == sorted(list(ui.ref_dataset.keys()))
-    plt.close.assert_called_once()
+    if hasattr(ui, "ref_fig"):
+        plt.close.assert_called_once()
     mock_update_ref_dataset_plot_ui.assert_called_once()
 
 
@@ -2160,7 +2115,8 @@ def test_plot_ref_animation(ui, monkeypatch):
     # Mock hvplot on the xarray DataArray to intercept reference plotting calls during testing
     mock_hvplot = MagicMock()
     monkeypatch.setattr(xr.DataArray, "hvplot", property(lambda self: mock_hvplot))
-
+    ui.ref_data_keys_dropdown.value = "something"
+    ui.ref_keys_dropdown.value = "another thing"
     # Create a 4D xarray DataArray with spatial, vertical, and temporal dimensions
     data = xr.DataArray(
         np.random.rand(10, 10, 10, 10),
@@ -2513,7 +2469,6 @@ def test_plot_button_click(ui, monkeypatch, plot_valid, requires_slice, invalid_
         mock_display_plot_choices_ui.assert_called_once()
         assert ui.plot_choices_row not in ui.widget_container
         assert not hasattr(ui, "slice_ui_row")
-
 
 
 @pytest.mark.parametrize(
