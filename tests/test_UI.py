@@ -263,6 +263,17 @@ def test_check_plot_validity_4d(
             "w": np.arange(10),
         },
     )
+    
+    if requires_slice_output:
+        if is_ref:
+            ui.ref_slice_widgets = {"widget": pn.pane.Markdown("a widget")}
+            ui.ref_slice_ui_row = pn.Row(name="ref slice ui row")
+            ui.widget_container.append(ui.ref_slice_ui_row)
+        else:
+            ui.slice_widgets = {"widget": pn.pane.Markdown("a widget")}
+            ui.slice_ui_row = pn.Row(name="slice ui row")
+            ui.widget_container.append(ui.slice_ui_row)
+
     ds = xr.Dataset({"data": data})
 
     results = run_validity_check(
@@ -276,7 +287,19 @@ def test_check_plot_validity_4d(
         invalid_heatmap_output,
         same_axes_output,
     )
+    if requires_slice_output:
+        # Determine which attributes we should be checking
+        row_attr = "ref_slice_ui_row" if is_ref else "slice_ui_row"
+        widget_attr = "ref_slice_widgets" if is_ref else "slice_widgets"
 
+        # If the function exits early due to no x_axis, the cleanup never happens
+        if not x_value:
+            assert hasattr(ui, row_attr)
+            assert getattr(ui, row_attr) in ui.widget_container
+        else:
+            # Otherwise, the cleanup runs because the slice widgets don't match remaining dims
+            assert not hasattr(ui, row_attr)
+            assert not hasattr(ui, widget_attr)
 
 @pytest.mark.parametrize(
     "x_value, y_value, plot_type, variable_value, plot_valid_output, requires_slice_output, check_bounds_output",
@@ -489,11 +512,24 @@ def test_multiplot_check_plot_validity_3d(
     ui.multiplot_y_axis_dropdown.value = y_value
     ui.multiplot_plot_type_dropdown.value = plot_type
     ui.multiplot_plot_variable_dropdown.value = variable_value
+    if requires_slice_output:
+        ui.multiplot_slice_widgets = {"widget": pn.pane.Markdown("a widget")}
+        ui.multiplot_slice_ui_row = pn.Row(name="multiplot slice ui row")
+        ui.widget_container.append(ui.multiplot_slice_ui_row)
     
     results = ui._check_multiplot_plot_validity()
     
     # Verify that the validity check returns the expected configuration flags
     assert results == (plot_valid_output, requires_slice_output, check_bounds_output)
+    if requires_slice_output:
+        # If the function exits early due to no x_axis, the cleanup never happens
+        if not x_value:
+            assert hasattr(ui, "multiplot_slice_ui_row")
+            assert getattr(ui, "multiplot_slice_widgets") in ui.widget_container
+        else:
+            # Otherwise, the cleanup runs because the slice widgets don't match remaining dims
+            assert not hasattr(ui, "multiplot_slice_ui_row")
+            assert not hasattr(ui, "multiplot_slice_widgets")
 
 
 @pytest.mark.parametrize(
@@ -870,12 +906,12 @@ def test_plot_ref_dataset(ui):
 
     # Create a 2D xarray dataset
     data = xr.DataArray(
-        np.random.rand(10, 10),
-        dims=["x", "y"],
-        coords={"x": np.arange(10), "y": np.arange(10)},
+        np.random.rand(10, 10, 10),
+        dims=["x", "y", "z"],
+        coords={"x": np.arange(10), "y": np.arange(10), "z": np.arange(10)},
     )
     ds = xr.Dataset({"data": data})
-    ui.ref_chosen_slices = {}
+    ui.ref_chosen_slices = {"z" : 1}
     ui.ref_keys_dropdown.value = "data"
     ui.ref_data_keys_dropdown.value = "data"
     
@@ -1032,33 +1068,56 @@ def test_multiplot_check_bounds_calendar(ui, ref_start, ref_end, expected_trigge
     result = ui._multiplot_check_bounds()
     assert result == expected_triggered
 
-def test_plot_multiplot_differences(ui):
+@pytest.mark.parametrize(
+    "constrain_bounds",
+    [
+        True, 
+        False
+    ],
+)
+def test_plot_multiplot_difference_dataset(ui, constrain_bounds):
     """Test the generation of 1D line and 2D heatmap difference plots across multiple datasets""" 
 
     # Create a 2D xarray dataset
     data = xr.DataArray(
-        np.random.rand(10, 10),
-        dims=["x", "y"],
-        coords={"x": np.arange(10), "y": np.arange(10)},
+        np.random.rand(10, 10, 10),
+        dims=["x", "y", "z"],
+        coords={"x": np.arange(10), "y": np.arange(10), "z": np.arange(10)},
     )
     ds = xr.Dataset({"data": data})
-    ui.multiplot_chosen_slices = {}
+    ui.multiplot_chosen_slices = {"z": 1}
     
     # Assign datasets and multiplot state to the UI instance
     ui.dataset = ds
     ui.multiplot_ref_dataset_dict = {"key": ds, "key2": ds}
     ui.multiplot_x_axis_dropdown.value = "x"
     ui.multiplot_y_axis_dropdown.value = "y"
+    ui.dataset_min = 0
+    ui.dataset_max = 1000
+    ui.multiplot_min = -1
+    ui.multiplot_max = 1001
+
+    if constrain_bounds:
+        ui.prompt_bounds_dropdown.value = "Constrain to user dataset bounds"
+    else:
+        ui.prompt_bounds_dropdown.value = ""
 
     # Generate a 2D multiplot difference heatmap and verify a valid matplotlib Figure is returned
     plot_result = ui._plot_multiplot_difference_heatmap("data", "x", "y")
+    ax = plot_result.axes[0]
+    xmin, xmax = ax.get_xlim()
     assert isinstance(plot_result, plt.Figure)
     assert len(plot_result.axes) == 4  # axes for each difference plotted
+    assert any("Sliced by: " in t.get_text() for t in plot_result.texts)
 
     # Generate a 1D multiplot difference plot and verify a valid matplotlib Figure is returned
     plot_result = ui._plot_multiplot_difference_dataset("data", "x")
+    ax = plot_result.axes[0]
+    xmin, xmax = ax.get_xlim()
     assert isinstance(plot_result, plt.Figure)
     assert len(plot_result.axes) == 3  # axes for each difference plotted + legend
+    assert any("Sliced by: " in t.get_text() for t in plot_result.texts)
+
 
 def test_display_status_text(ui):
     """Test the initialization and default values of the UI status display widgets""" 
