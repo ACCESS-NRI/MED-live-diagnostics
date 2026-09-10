@@ -149,3 +149,15 @@ def variable_toggle_change(variable_toggle, variable_dropdown, dataset):
         variable_toggle.label = "Display Variable Long Names"
 
     return long_names
+
+
+def get_selected_variable(
+    variable_toggle,
+    variable_dropdown,
+    long_names={}
+):
+    """Returns the internal dataset variable key regardless of display toggle state."""
+
+    if variable_toggle.value and long_names:
+        return long_names[variable_dropdown.value]
+    return variable_dropdown.value

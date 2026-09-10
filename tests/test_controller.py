@@ -141,3 +141,31 @@ def test_variable_toggle_change(toggle_value):
     else:  
         assert variable_dropdown_widget.options == ["data"]
         assert toggle_widget.label == "Display Variable Long Names"
+
+
+@pytest.mark.parametrize(
+    "toggle_value, long_names",
+    [
+        (True, {"long name": "data"}), 
+        (False, {"long name": "data"}), 
+        (True, {}), 
+        (False, {})
+     ],
+)
+def test_get_selected_variable(toggle_value, long_names):
+
+    toggle_widget = pn.widgets.Toggle(value=toggle_value)
+    variable_dropdown_widget = pn.widgets.Select()
+    if toggle_value:
+        variable_dropdown_widget.options = ["long name"]
+        variable_dropdown_widget.value = "long name"
+    else:
+        variable_dropdown_widget.options = ["data"]
+        variable_dropdown_widget.value = "data"
+
+    result = controller.get_selected_variable(toggle_widget, variable_dropdown_widget, long_names)
+
+    if toggle_value and long_names:
+        assert result == long_names[variable_dropdown_widget.value]
+    else:
+        assert result == variable_dropdown_widget.value
