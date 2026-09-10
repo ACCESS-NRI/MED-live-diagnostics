@@ -182,3 +182,4 @@ def add_to_dataset_dict(dataset_dict, model, catalog, data_to_load, user_data):
 
     dataset_dict.update({model: dataset})
     return dataset_dict
+

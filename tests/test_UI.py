@@ -1217,7 +1217,7 @@ def test_plot_data_button_click(
         mock_plot_animation.assert_called_once_with("data")
 
     # Verify that plot choices and slice UI components are removed from the widget container
-    assert ui.plot_choices_row not in ui.widget_container
+    assert not hasattr(ui, "plot_choices_row")
     assert not hasattr(ui, "slice_ui_row")
     assert not hasattr(ui, "slice_widgets")
 
@@ -2279,7 +2279,7 @@ def test_plot_button_click(ui, monkeypatch, plot_valid, requires_slice, invalid_
     elif same_axes_chosen:
         assert ui.warning_textbox.value == "Warning >> Please ensure different values are selected for each axis."
         mock_display_plot_choices_ui.assert_called_once()
-        assert ui.plot_choices_row not in ui.widget_container
+        assert not hasattr(ui, "plot_choices_row")
         assert not hasattr(ui, "slice_ui_row")
 
 
@@ -2346,7 +2346,7 @@ def test_ref_plot_button_click(
             == "Warning >> Please ensure different values are selected for each axis."
         )
         mock_display_plot_choices_ui.assert_called_once()
-        assert ui.ref_plot_choices_row not in ui.widget_container
+        assert not hasattr(ui, "ref_plot_choices_row")
         assert not hasattr(ui, "ref_slice_ui_row")
 
 @pytest.mark.parametrize(

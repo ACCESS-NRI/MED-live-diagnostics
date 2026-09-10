@@ -190,14 +190,11 @@ class UserInterface:
                 controller.update_textbox_text(self.warning_textbox, "Warning >> Please ensure different values are selected for each axis.")
 
                 # Remove preexisting plot choices UI
-                if hasattr(self, "plot_choices_row") and self.plot_choices_row in self.widget_container:
-                    self.widget_container.remove(self.plot_choices_row)
-                if hasattr(self, "slice_ui_row") and self.slice_ui_row in self.widget_container:
-                    self.widget_container.remove(self.slice_ui_row)
-                    # Delete the attributes so it resets for the next plot
-                    del self.slice_ui_row
-                    del self.slice_widgets
-                    self.chosen_slices = {}
+                self._safe_remove_widget_object(self.widget_container, "plot_choices_row")
+                self._safe_remove_widget_object(self.widget_container, "slice_ui_row")
+                self._safe_remove_widget_object(self.widget_container, "slice_widgets")
+                self.chosen_slices = {}
+
                 self._display_plot_choices_ui()
         self._plot_button_click = _plot_button_click #Just making this accessible for testing, 
         # need to remove the logic from this function when refactoring.
@@ -215,14 +212,11 @@ class UserInterface:
                 self._ref_plot_data_button_click()
             elif same_axes_chosen:
                 controller.update_textbox_text(self.ref_warning_textbox, "Warning >> Please ensure different values are selected for each axis.")
-                if hasattr(self, "ref_plot_choices_row") and self.ref_plot_choices_row in self.widget_container:
-                    self.widget_container.remove(self.ref_plot_choices_row)
-                if hasattr(self, "ref_slice_ui_row") and self.ref_slice_ui_row in self.widget_container:
-                    self.widget_container.remove(self.ref_slice_ui_row)
-                    # Delete the attributes so it resets for the next plot
-                    del self.ref_slice_ui_row
-                    del self.ref_slice_widgets
-                    self.ref_chosen_slices = {}
+                # Remove previous plot selection UI
+                self._safe_remove_widget_object(self.widget_container, "ref_plot_choices_row")
+                self._safe_remove_widget_object(self.widget_container, "ref_slice_ui_row")
+                self._safe_remove_widget_object(self.widget_container, "ref_slice_widgets")
+                self.ref_chosen_slices = {}
                 self._ref_display_plot_choices_ui()
         self._ref_plot_button_click = _ref_plot_button_click 
 
@@ -542,14 +536,9 @@ class UserInterface:
         remove_btn.on_click(_remove_this_plot)
 
         # remove the plot choices row since the plot has been created
-        if hasattr(self, "plot_choices_row") and self.plot_choices_row in self.widget_container:
-            self.widget_container.remove(self.plot_choices_row)
-
-        if hasattr(self, "slice_ui_row") and self.slice_ui_row in self.widget_container:
-            self.widget_container.remove(self.slice_ui_row)
-            # Delete the attributes it resets for the next plot
-            del self.slice_ui_row
-            del self.slice_widgets
+        self._safe_remove_widget_object(self.widget_container, "plot_choices_row")
+        self._safe_remove_widget_object(self.widget_container, "slice_ui_row")
+        self._safe_remove_widget_object(self.widget_container, "slice_widgets")
 
         # Check if the reference UI already exists
         if self.ref_status_textbox in self.widget_container:
@@ -766,9 +755,9 @@ class UserInterface:
             self.multiplot_ref_dataset_dict = {}
 
         controller.update_textbox_text(self.multiplot_warning_textbox, "")
-        
+
         selected_ref_model_cat = self.access_nri_cat.search(name=self.multiplot_ref_keys_dropdown.value).to_source()
-        
+
         if (
             self.multiplot_keys_dropdown.value in list(selected_ref_model_cat.keys())
             and not self.multiplot_ref_keys_dropdown.value in self.multiplot_ref_dataset_dict
@@ -828,10 +817,7 @@ class UserInterface:
 
         # Remove all generated reference UI rows from the layout
         for attr in ui_components_to_remove:
-            if hasattr(self, attr):
-                component = getattr(self, attr)
-                if component in self.widget_container:
-                    self.widget_container.remove(component)
+            self._safe_remove_widget_object(self.widget_container, attr)
 
         # Clear the metadata text
         self.ref_model_metadata.value = ""
@@ -931,8 +917,7 @@ class UserInterface:
         Create interactive panel plot for user to choose plot options and add to widget_container. Private.
         """
         # Remove preexisting plot choices UI
-        if hasattr(self, "plot_choices_row") and self.plot_choices_row in self.widget_container:
-            self.widget_container.remove(self.plot_choices_row)
+        self._safe_remove_widget_object(self.widget_container, "plot_choices_row")
 
         variable = self._get_variable_helper("user")
 
@@ -999,8 +984,7 @@ class UserInterface:
         """
 
         # Remove preexisting plot choices UI
-        if hasattr(self, "ref_plot_choices_row") and self.ref_plot_choices_row in self.widget_container:
-            self.widget_container.remove(self.ref_plot_choices_row)
+        self._safe_remove_widget_object(self.widget_container, "ref_plot_choices_row")
 
         variable = self._get_variable_helper("ref")  
         # Find viable dimensions for axis selection
@@ -1170,10 +1154,8 @@ class UserInterface:
         # Check if existing slice widgets match the currently required dimensions
         if hasattr(self, "slice_widgets"):
             if set(self.slice_widgets.keys()) != set(self.remaining_dims):
-                if hasattr(self, "slice_ui_row") and self.slice_ui_row in self.widget_container:
-                    self.widget_container.remove(self.slice_ui_row)
-                del self.slice_ui_row
-                del self.slice_widgets
+                self._safe_remove_widget_object(self.widget_container, "slice_ui_row")
+                self._safe_remove_widget_object(self.widget_container, "slice_widgets")
 
         # If there are dimensions remaining in the dataset, and they are not already sliced by the user
         if len(self.remaining_dims) > 0 and not hasattr(self, "slice_widgets"):
@@ -1245,10 +1227,8 @@ class UserInterface:
         # Check if existing reference slice widgets match the required dimensions
         if hasattr(self, "ref_slice_widgets"):
             if set(self.ref_slice_widgets.keys()) != set(self.ref_remaining_dims):
-                if hasattr(self, "ref_slice_ui_row") and self.ref_slice_ui_row in self.widget_container:
-                    self.widget_container.remove(self.ref_slice_ui_row)
-                del self.ref_slice_ui_row
-                del self.ref_slice_widgets
+                self._safe_remove_widget_object(self.widget_container, "ref_slice_ui_row")
+                self._safe_remove_widget_object(self.widget_container, "ref_slice_widgets")
 
         # If there are dimensions remaining in the dataset, and they are not already sliced by the user
         if len(self.ref_remaining_dims) > 0 and not hasattr(self, "ref_slice_widgets"):
@@ -1309,10 +1289,8 @@ class UserInterface:
         # Check if existing reference slice widgets match the required dimensions
         if hasattr(self, "multiplot_slice_widgets"):
             if set(self.multiplot_slice_widgets.keys()) != set(self.multiplot_remaining_dims):
-                if hasattr(self, "multiplot_slice_ui_row") and self.multiplot_slice_ui_row in self.widget_container:
-                    self.widget_container.remove(self.multiplot_slice_ui_row)
-                del self.multiplot_slice_ui_row
-                del self.multiplot_slice_widgets
+                self._safe_remove_widget_object(self.widget_container, "multiplot_slice_ui_row")
+                self._safe_remove_widget_object(self.widget_container, "multiplot_slice_widgets")
 
         # Check if the variable is contained within each of the datasets. If it is not, remove them and inform the user
         invalid_datasets = {}
@@ -1466,7 +1444,6 @@ class UserInterface:
         """
 
         self.ref_data_keys_dropdown.options = sorted(list(self.ref_dataset.keys()))
-        
 
     def _plot_heatmap(self, variable, x_axis, y_axis):
         """
@@ -2227,3 +2204,21 @@ class UserInterface:
             return controller.get_selected_variable(self.multiplot_variable_toggle, self.multiplot_plot_variable_dropdown, self.multiplot_long_names)
         else:
             return controller.get_selected_variable(self.variable_toggle, self.plot_variable_dropdown, self.long_names)
+
+    def _safe_remove_widget_object(self, widget_container, item_to_remove):
+        if hasattr(self, item_to_remove):
+            component = getattr(self, item_to_remove)
+            if component in widget_container:
+                widget_container.remove(component)
+
+            delattr(self, item_to_remove)
+
+    #TODO
+    #Return the index of an item inside a widget container, or -1 if it is not found? Somethign like that
+    def _safe_get_index_widget_object(self, widget_container, item_to_get_index):
+            if hasattr(self, item_to_remove):
+                component = getattr(self, item_to_remove)
+                if component in widget_container:
+                    widget_container.remove(component)
+    
+                delattr(self, item_to_remove)
