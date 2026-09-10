@@ -13,36 +13,6 @@ from access_nri_intake.source.builders import AccessCm2Builder, AccessOm2Builder
 from access_nri_intake.experiment import use_datastore
 from access_nri_intake.aliases import AliasedESMCatalog
         
-def _check_for_new_data(model_path, model_data, model_type):
-
-    """
-    Check monitored directory for new data and build new catalog if found.
-    
-    Parameters
-    ----------
-    model_path : str
-        Path to model output directory/files on Gadi.
-    model_data : list
-        List of datafiles present in nominated source directory.
-        
-    Returns
-    ----------
-    new_model_data : intake ESM datastore
-        Returns intake ESM datastore of user model data if data found.
-    """
-
-    # Let the intake catalog _use_datastore function handle checking the directory and loading/rebuilding the catalog
-    ds = _build_new_catalog(model_path, model_type)
-    
-    # Get the current list of files directly from the catalog's dataframe
-    current_model_data = ds.df['path'].tolist()
-    
-    # Check if the catalog contains new/different files compared to the previous list of files. If so, return the new list of files; otherwise, return None.
-    if current_model_data != model_data:
-        return current_model_data
-    else:
-        return None
-        
 def _build_new_catalog(model_path, model_type):
     
     """
