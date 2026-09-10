@@ -12,37 +12,46 @@ import intake
 from access_nri_intake.source.builders import AccessCm2Builder, AccessOm2Builder, AccessCm3Builder, AccessOm3Builder, AccessEsm15Builder, AccessEsm16Builder, Mom6Builder
 from access_nri_intake.experiment import use_datastore
 from access_nri_intake.aliases import AliasedESMCatalog
-        
-def _check_for_new_data(model_path, model_data, model_type):
 
+
+def _check_for_new_data(model_path, model_data, model_type):
     """
     Check monitored directory for new data and build new catalog if found.
-    
+
     Parameters
     ----------
     model_path : str
         Path to model output directory/files on Gadi.
     model_data : list
         List of datafiles present in nominated source directory.
-        
+
     Returns
     ----------
     new_model_data : intake ESM datastore
         Returns intake ESM datastore of user model data if data found.
     """
 
-    # Let the intake catalog _use_datastore function handle checking the directory and loading/rebuilding the catalog
-    ds = _build_new_catalog(model_path, model_type)
-    
-    # Get the current list of files directly from the catalog's dataframe
-    current_model_data = ds.df['path'].tolist()
-    
-    # Check if the catalog contains new/different files compared to the previous list of files. If so, return the new list of files; otherwise, return None.
+    # Return contents of nominated model data directory
+    current_model_data = [
+        f for f in os.listdir(model_path) if os.path.isfile(os.path.join(model_path, f))
+    ]
+
+    # Check if any files have changed
     if current_model_data != model_data:
-        return current_model_data
+
+        # Set new_model_data to current_model_data
+        new_model_data = current_model_data
+
+        # Build ESM catalog to include new data
+        _build_new_catalog(model_path, model_type)
+
+        return new_model_data
+
     else:
+
         return None
-        
+
+
 def _build_new_catalog(model_path, model_type):
     
     """
@@ -94,7 +103,7 @@ def _build_new_catalog(model_path, model_type):
         
     return ds
 
-    
+
 def _load_new_catalog():
             
     """

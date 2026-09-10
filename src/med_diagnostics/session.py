@@ -85,7 +85,9 @@ class CreateModelDiagnosticsSession():
         """
 
         # Check for new data
-        new_model_data = data._check_for_new_data(self.model_path, self.model_data, self.model_type)
+        _new_data = data._check_for_new_data(self.model_path, self.model_data, self.model_type)
+        if _new_data is not None:
+            self.model_data = _new_data
         
         # Update status text
         self.ui._update_status_text('User model status >> Model data catalog built.')
