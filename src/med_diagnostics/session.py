@@ -78,31 +78,28 @@ class CreateModelDiagnosticsSession():
         print('------------------------ Live diagnostics session ended ------------------------')
 
     def _get_data(self):
-
-        """
-        Check nominated model data path for new data. Private.
-        """
-
-        # Check for new data
-        new_model_data = data._check_for_new_data(self.model_path, self.model_data, self.model_type)
-
-        # Update status text
-        controller.update_textbox_text(self.ui.status_textbox, 'User model status >> Model data catalog built.')
-        controller.update_textbox_text(self.ui.last_data_load_textbox,
-            "Last model data catalog build >> " + controller.get_current_time()
-        )
-
-        # Update self.model_data with new data
-        self.model_data = new_model_data
-
-        # Load new catalog
-        self.model_cat = data._load_new_catalog()
-
-        # Load access_nri catalog for model comparison filtered by model type
-        self.access_nri_cat = data._load_access_nri_catalog(self.model_type)
-
-        # Generate UI
-        self.ui._display_dataset_selection_ui(self.model_cat, self.access_nri_cat)
+            """
+            Check nominated model data path for new data. Private.
+            """
+            data._build_new_catalog(self.model_path, self.model_type)
+            
+    
+            # Update status text
+            self.ui._update_status_text(
+                "User model status >> Model data catalog built."
+            )
+            self.ui._update_last_data_load_text(
+                "Last model data catalog build >> " + self.ui._get_current_time()
+            )
+    
+            # Load new catalog
+            self.model_cat = data._load_new_catalog()
+    
+            # Load access_nri catalog for model comparison filtered by model type
+            self.access_nri_cat = data._load_access_nri_catalog(self.model_type)
+    
+            # Generate UI
+            self.ui._display_dataset_selection_ui(self.model_cat, self.access_nri_cat)
 
     def return_model_data_catalog(self):
 
