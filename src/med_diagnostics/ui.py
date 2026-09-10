@@ -766,31 +766,16 @@ class UserInterface:
             self.multiplot_ref_dataset_dict = {}
 
         controller.update_textbox_text(self.multiplot_warning_textbox, "")
+        
         selected_ref_model_cat = self.access_nri_cat.search(name=self.multiplot_ref_keys_dropdown.value).to_source()
-
+        
         if (
             self.multiplot_keys_dropdown.value in list(selected_ref_model_cat.keys())
             and not self.multiplot_ref_keys_dropdown.value in self.multiplot_ref_dataset_dict
         ):
             model_value = self.multiplot_ref_keys_dropdown.value
             controller.update_textbox_text(self.multiplot_status_textbox, "Overlay Plot Status >> Loading reference dataset...")
-            dataset = data._build_data_object(selected_ref_model_cat, self.multiplot_keys_dropdown.value)
-
-            # Align calendars to prevent crashes
-            if "time" in self.dataset.coords and "time" in dataset.coords:
-                # Extract the target calendar from the user dataset
-                user_index = self.dataset.indexes.get("time")
-                target_cal = user_index.calendar if isinstance(user_index, xr.CFTimeIndex) else "standard"
-
-                # Extract the calendar from the newly loaded reference dataset
-                ref_index = dataset.indexes.get("time")
-                ref_cal = ref_index.calendar if isinstance(ref_index, xr.CFTimeIndex) else "standard"
-
-                # Convert the reference dataset calendar if there is a mismatch
-                if target_cal != ref_cal:
-                    dataset = dataset.convert_calendar(target_cal)
-
-            self.multiplot_ref_dataset_dict.update({model_value: dataset})
+            self.multiplot_ref_dataset_dict = controller.add_to_dataset_dict(self.multiplot_ref_dataset_dict, model_value, selected_ref_model_cat, self.multiplot_keys_dropdown.value, self.dataset)
             controller.update_textbox_text(self.multiplot_status_textbox, "Overlay Plot Status >> Loaded reference model, add another or plot the overlay")
         elif self.multiplot_ref_keys_dropdown.value in self.multiplot_ref_dataset_dict:
             controller.update_textbox_text(self.multiplot_warning_textbox, "Warning >> Model has already been added, skipping duplicate")
@@ -805,6 +790,7 @@ class UserInterface:
             self.dataset = data._build_data_object(self.model_cat, self.multiplot_keys_dropdown.value)
             self.loaded_dataset_key = self.multiplot_keys_dropdown.value
             self.multiplot_plot_variable_dropdown.options = sorted(list(self.dataset.keys()))
+
             controller.update_textbox_text(self.multiplot_status_textbox, "Overlay Plot Status >> New user dataset loaded, clearing loaded user models")
             self._clear_multiplot_data()
 
@@ -818,15 +804,12 @@ class UserInterface:
         controller.update_textbox_text(self.ref_status_textbox, "Reference model status >> Reference dataset successfully loaded.")
         # Check if plot already exists
         if not self.ref_figure_exists:
-
-            self.ref_figure_exists = True
             # Create new plot
             self._ref_display_dataset_plot_ui()
 
         elif self.ref_figure_exists:
-
             # Update existing plot
-            self._update_ref_dataset_plot_ui()
+            self.ref_plot_variable_dropdown.options = sorted(list(self.ref_dataset.keys()))
 
     def _ref_clear_data_click(self):
         """
@@ -1483,20 +1466,7 @@ class UserInterface:
         """
 
         self.ref_data_keys_dropdown.options = sorted(list(self.ref_dataset.keys()))
-        if hasattr(self, "ref_fig"):
-            plt.close(self.ref_fig)
-
-        self._update_ref_dataset_plot_ui()
-
-    def _update_ref_dataset_plot_ui(self):
-        """
-        Update exisiting reference model dataset plot if new data are selected. Private.
-        """
-
-        self.ref_plot_variable_dropdown.options = sorted(list(self.ref_dataset.keys()))
-        self.ref_plot_pane.object = None  # Clears the previous plot from the screen
-        if hasattr(self, "ref_fig"):
-            plt.close(self.ref_fig)
+        
 
     def _plot_heatmap(self, variable, x_axis, y_axis):
         """

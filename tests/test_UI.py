@@ -1830,38 +1830,11 @@ def test_plot_dataset(ui):
 def test_update_ref_dataset_keys_plot_ui(ui, monkeypatch):
     """Test updating reference dataset key options and triggering reference dataset plot updates"""
 
-    # Mock matplotlib close and the reference dataset plot update method
-    plt.close = MagicMock()
-    mock_update_ref_dataset_plot_ui = MagicMock()
-    monkeypatch.setattr(
-        ui, "_update_ref_dataset_plot_ui", mock_update_ref_dataset_plot_ui
-    )
-
     # Trigger the reference dataset keys plot UI update method
     ui._update_ref_dataset_keys_plot_ui()
 
     # Verify that reference data keys dropdown options are updated and cleanup handlers are called
     assert ui.ref_data_keys_dropdown.options == sorted(list(ui.ref_dataset.keys()))
-    if hasattr(ui, "ref_fig"):
-        plt.close.assert_called_once()
-    mock_update_ref_dataset_plot_ui.assert_called_once()
-
-
-def test_update_ref_dataset_plot_ui(ui):
-    """Test updating reference dataset plot variables and clearing existing reference figure panes"""
-
-    # Mock matplotlib close and assign a mock reference figure and dataset
-    plt.close = MagicMock()
-    ui.ref_fig = "Figure"
-    ui.ref_dataset = {"key1": None, "key4": None}
-
-    # Trigger the reference dataset plot UI update method
-    ui._update_ref_dataset_plot_ui()
-
-    # Verify that reference variable dropdown options match the dataset keys and the plot pane object is cleared
-    assert ui.ref_plot_variable_dropdown.options == sorted(list(ui.ref_dataset.keys()))
-    assert not ui.ref_plot_pane.object
-    plt.close.assert_called_once()
 
 
 @pytest.mark.parametrize(
@@ -2209,10 +2182,6 @@ def test_ref_dataset_dropdown_click(ui, monkeypatch, fig_exists):
         ui, "_ref_display_dataset_plot_ui", mock_ref_display_dataset_plot_ui
     )
 
-    mock_update_ref_dataset_plot_ui = MagicMock()
-    monkeypatch.setattr(
-        ui, "_update_ref_dataset_plot_ui", mock_update_ref_dataset_plot_ui
-    )
 
     # Configure reference figure existence state based on parameters
     if fig_exists:
@@ -2232,7 +2201,7 @@ def test_ref_dataset_dropdown_click(ui, monkeypatch, fig_exists):
 
     # Verify that either the reference dataset plot UI update or initial display method is called based on figure existence
     if fig_exists:
-        mock_update_ref_dataset_plot_ui.assert_called_once()
+        assert ui.ref_plot_variable_dropdown.options == sorted(list(ui.ref_dataset.keys()))
     else:
         mock_ref_display_dataset_plot_ui.assert_called_once()
 

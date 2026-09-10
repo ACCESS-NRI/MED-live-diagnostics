@@ -161,3 +161,24 @@ def get_selected_variable(
     if variable_toggle.value and long_names:
         return long_names[variable_dropdown.value]
     return variable_dropdown.value
+
+
+def add_to_dataset_dict(dataset_dict, model, catalog, data_to_load, user_data):
+    dataset = data._build_data_object(catalog, data_to_load)
+
+    # Align calendars to prevent crashes
+    if "time" in user_data.coords and "time" in dataset.coords:
+        # Extract the target calendar from the user dataset
+        user_index = user_data.indexes.get("time")
+        target_cal = user_index.calendar if isinstance(user_index, xr.CFTimeIndex) else "standard"
+
+        # Extract the calendar from the newly loaded reference dataset
+        ref_index = dataset.indexes.get("time")
+        ref_cal = ref_index.calendar if isinstance(ref_index, xr.CFTimeIndex) else "standard"
+
+        # Convert the reference dataset calendar if there is a mismatch
+        if target_cal != ref_cal:
+            dataset = dataset.convert_calendar(target_cal)
+
+    dataset_dict.update({model: dataset})
+    return dataset_dict
