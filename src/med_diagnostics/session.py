@@ -13,13 +13,13 @@ from distributed import Client
 
 
 class CreateModelDiagnosticsSession():
-    
+
     """
     Primary class for starting a model diagnostics session
     """
-    
+
     def __init__(self, model_type, model_path, timezone=None):
-        
+
         """
         Initialise a CreateLiveSession instance to start a model diagnostics session.
 
@@ -33,20 +33,20 @@ class CreateModelDiagnosticsSession():
             Timezone required for scheduler in tinfo 'Region/Location' format. 
             
         """
-        
+
         # Set local variables
         self.model_type = str(model_type).lower()
         # self.model_realm = str(model_realm)
         self.model_path = str(model_path)
         self.model_data = []
-        
+
         self.timezone = str(timezone) if timezone != None else 'Australia/Canberra'
-        
+
         self.data_update = False
-        
+
         # Start dask client
         self.client = Client(threads_per_worker=1)
-        
+
         print()
         print('----------------------- Live diagnostics session started -----------------------')
         print()
@@ -57,59 +57,61 @@ class CreateModelDiagnosticsSession():
         print()
         print('--------------------------------------------------------------------------------')
         print()
-        
+
         # Start UserUI instance and display initial status text
         self.ui = ui.UserInterface()
         self.ui._display_status_text()
 
         # Get initial model data
         self._get_data()
-        
+
     def end_session(self):
 
         """
         Stop background scheduler and close dask client to end current CreateModelDiagnosticsSession instance.
         """
-        
+
         self.client.close()
 
         self.ui.widget_container.clear()
-        
+
         print('------------------------ Live diagnostics session ended ------------------------')
-        
-        
+
     def _get_data(self):
-        
         """
         Check nominated model data path for new data. Private.
         """
 
         # Check for new data
-        _new_data = data._check_for_new_data(self.model_path, self.model_data, self.model_type)
+        _new_data = data._check_for_new_data(
+            self.model_path, self.model_data, self.model_type
+        )
+
+        # Only update internal lists and status text if new data was found
         if _new_data is not None:
+
+            # Update self.model_data with new data
             self.model_data = _new_data
-        
-        # Update status text
-        self.ui._update_status_text('User model status >> Model data catalog built.')
-        self.ui._update_last_data_load_text('Last model data catalog build >> ' + self.ui._get_current_time())
-        
-            
-        # Update self.model_data with new data
-        self.model_data = new_model_data
+
+            # Update status text
+            self.ui._update_status_text(
+                "User model status >> Model data catalog built."
+            )
+            self.ui._update_last_data_load_text(
+                "Last model data catalog build >> " + self.ui._get_current_time()
+            )
 
         # Load new catalog
         self.model_cat = data._load_new_catalog()
-        
+
         # Load access_nri catalog for model comparison filtered by model type
         self.access_nri_cat = data._load_access_nri_catalog(self.model_type)
 
         # Generate UI
         self.ui._display_dataset_selection_ui(self.model_cat, self.access_nri_cat)
-            
-                
-        
+
     def return_model_data_catalog(self):
-        
+
         """
         Convenience function to return currently loaded model data catalog.
         
@@ -118,10 +120,5 @@ class CreateModelDiagnosticsSession():
         Intake-ESM datastore object
             Intake catalog of user model data.
         """
-        
-        return self.model_cat
-    
-    
-    
 
-        
+        return self.model_cat
