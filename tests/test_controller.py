@@ -110,3 +110,34 @@ def test_plot_dataset(is_ref):
     assert len(plot_result.axes) == 2
     assert len(ax.lines) > 0 or len(ax.collections) > 0 or len(ax.images) > 0
     """
+
+
+@pytest.mark.parametrize(
+    "toggle_value",
+    [True, False],
+)
+def test_variable_toggle_change(toggle_value):
+    """Test updating the multiplot variable dropdown options based on the multiplot variable toggle state"""
+
+    # Create a 2D xarray dataset with a long_name attribute and assign it to the UI instance
+    data = xr.DataArray(
+        np.random.rand(10, 10),
+        dims=["x", "y"],
+        coords={"x": np.arange(10), "y": np.arange(10)},
+        attrs={"long_name": "long name"},
+    )
+    ds = xr.Dataset({"data": data})
+    toggle_widget = pn.widgets.Toggle(value = toggle_value)
+    variable_dropdown_widget = pn.widgets.Select()
+    if toggle_value:
+        variable_dropdown_widget.options = ["data"]
+    else:  
+        variable_dropdown_widget.options = ["long name"]
+
+    controller.variable_toggle_change(toggle_widget, variable_dropdown_widget, ds)
+    if toggle_value:
+        assert variable_dropdown_widget.options == ["long name"]
+        assert toggle_widget.label == "Display Variable Short Names"
+    else:  
+        assert variable_dropdown_widget.options == ["data"]
+        assert toggle_widget.label == "Display Variable Long Names"

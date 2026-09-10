@@ -247,7 +247,7 @@ class UserInterface:
             elif prompt_bounds:
                 self._prompt_bounds_ui()
         self._multiplot_plot_button_click = _multiplot_plot_button_click
-        
+
         def _clear_multiplot_data_button_click(event):
 
             self._clear_multiplot_data()
@@ -266,15 +266,19 @@ class UserInterface:
 
         def _variable_toggle_click(event):
 
-            self._variable_toggle_change()
+            self.long_names = controller.variable_toggle_change(self.variable_toggle, self.plot_variable_dropdown, self.dataset)
 
         def _ref_variable_toggle_click(event):
 
-            self._ref_variable_toggle_change()
+            self.ref_long_names = controller.variable_toggle_change(self.ref_variable_toggle, self.ref_plot_variable_dropdown, self.ref_dataset)
 
         def _multiplot_variable_toggle_click(event):
 
-            self._multiplot_variable_toggle_change()
+            self.multiplot_long_names = controller.variable_toggle_change(
+                self.multiplot_variable_toggle,
+                self.multiplot_plot_variable_dropdown,
+                self.dataset
+            )
 
         self.plot_button.on_click(_plot_button_click)
         self.ref_plot_button.on_click(_ref_plot_button_click)
@@ -316,28 +320,12 @@ class UserInterface:
         self.widget_container.append(self.div_1)
         self.widget_container.append(self.keys_selection_row)
         self.widget_container.append(self.div_2)
-    
+
         controller.update_textbox_text(self.status_textbox, "User model status >> Waiting for initial model data catalog to be built. This can take a few minutes.")
         # Display widget_container in notebook
         display(self.widget_container)
         print()
 
-    def _variable_toggle_change(self):
-        """Toggles the user variable dropdown options between short names and long name."""
-
-        if self.variable_toggle.value:
-            self.long_names = {}
-            for var in self.dataset.keys():
-                self.long_names[(self.dataset[var].attrs.get("long_name", var))] = var
-            self.plot_variable_dropdown.options = list(self.long_names.keys())
-            self.variable_toggle.label = "Display Variable Short Names"
-            self.multiplot_variable_toggle.label = "Display Variable Short Names"
-            self.multiplot_variable_toggle.value = True
-        else:
-            self.plot_variable_dropdown.options = list(self.dataset.keys())
-            self.variable_toggle.label = "Display Variable Long Names"
-            self.multiplot_variable_toggle.label = "Display Variable Long Names"
-            self.multiplot_variable_toggle.value = False
 
     def _get_selected_variable(self):
         """Returns the internal dataset variable key regardless of display toggle state."""
@@ -346,18 +334,6 @@ class UserInterface:
             return self.long_names[self.plot_variable_dropdown.value]
         return self.plot_variable_dropdown.value
 
-    def _ref_variable_toggle_change(self):
-        """Toggles the reference variable dropdown options between short names and long name."""
-
-        if self.ref_variable_toggle.value:
-            self.ref_long_names = {}
-            for var in self.ref_dataset.keys():
-                self.ref_long_names[(self.ref_dataset[var].attrs.get("long_name", var))] = var
-            self.ref_plot_variable_dropdown.options = list(self.ref_long_names.keys())
-            self.ref_variable_toggle.label = "Display Variable Short Names"
-        else:
-            self.ref_plot_variable_dropdown.options = list(self.ref_dataset.keys())
-            self.ref_variable_toggle.label = "Display Variable Long Names"
 
     def _ref_get_selected_variable(self):
         """Returns the reference dataset variable key regardless of display toggle state."""
@@ -365,23 +341,6 @@ class UserInterface:
         if self.ref_variable_toggle.value:
             return self.ref_long_names[self.ref_plot_variable_dropdown.value]
         return self.ref_plot_variable_dropdown.value
-
-    def _multiplot_variable_toggle_change(self):
-        """Toggles the multiplot variable dropdown options between short names and long name."""
-        self.variable_toggle.value = self.multiplot_variable_toggle.value
-        if self.multiplot_variable_toggle.value == True:
-            self.multiplot_long_names = {}
-            for var in list(self.dataset.keys()):
-                self.multiplot_long_names[(self.dataset[var].attrs.get('long_name', var))] = var
-
-            self.multiplot_plot_variable_dropdown.options = list(self.multiplot_long_names.keys())
-            self.multiplot_variable_toggle.label = "Display Variable Short Names"
-            self.variable_toggle.label = "Display Variable Short Names"
-
-        elif self.multiplot_variable_toggle.value == False:
-            self.multiplot_plot_variable_dropdown.options = list(self.dataset.keys())
-            self.multiplot_variable_toggle.label = "Display Variable Long Names"
-            self.variable_toggle.label = "Display Variable Long Names"
 
     def _multiplot_get_selected_variable(self):
         """Returns the multiplot dataset variable key regardless of display toggle state."""
@@ -1598,7 +1557,6 @@ class UserInterface:
         plt.close(self.fig)
         return self.fig
 
-
     def _plot_ref_heatmap(self, ref_variable, x_axis, y_axis):
         """
         Plot 2D heatmap from model data. Private.
@@ -2261,9 +2219,9 @@ class UserInterface:
 
         return fig
 
-    def _plot_dataset_helper(self, is_ref = False):
+    def _plot_dataset_helper(self, is_ref = False, is_multiplot = False):
         if is_ref:
-            self.ref_fig = controller.plot_dataset(self.ref_dataset, self.ref_keys_dropdown.value, self._ref_get_selected_variable(), self.ref_x_axis_dropdown.value, self.ref_chosen_slices, is_ref, self.ref_keys_dropdown.value)
+            self.ref_fig = controller.plot_dataset(self.ref_dataset, self.ref_data_keys_dropdown.value, self._ref_get_selected_variable(), self.ref_x_axis_dropdown.value, self.ref_chosen_slices, is_ref, self.ref_keys_dropdown.value)
             self.ref_figure_exists = True
 
             return self.ref_fig

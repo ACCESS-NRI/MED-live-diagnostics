@@ -13,13 +13,33 @@ import matplotlib.pyplot as plt
 import cftime
 from unittest.mock import MagicMock, patch
 
-@pytest.fixture(scope="session")
-def ui():
-    """Return a session-scoped UserInterface instance for testing""" 
 
+def mock_dataset():
+    data = xr.DataArray(
+        np.random.rand(10, 10, 10),
+        dims=["x", "y", "z"],
+        coords={"x": np.arange(10), "y": np.arange(10), "z": np.arange(10)},
+    )
+    return xr.Dataset({"data": data})
+# Create the mock dataset once when the test file is loaded
+_CACHED_MOCK_DATASET = mock_dataset()
+
+@pytest.fixture(scope="function")
+def ui():
+    """Return a function-scoped UserInterface instance for testing""" 
     ui = UserInterface()
-    # Initialise the user interface widget container to prepare it for test execution
+    ui._display_status_text()
     ui.widget_container = pn.Column() 
+    
+    # Assign the pre-cached dataset instantly instead of generating a new one
+    ui.dataset = _CACHED_MOCK_DATASET
+    ui.ref_dataset = _CACHED_MOCK_DATASET
+    
+    ui.model_cat = {"fake": None, "catalog": None}
+    ui.access_nri_cat = {"fake": None, "catalog": None}
+    ui.ref_model_cat = {"fake": None, "catalog": None}
+    ui.ref_plot_choices_row = pn.Row(name="blank row")
+
     return ui
 
 
@@ -177,17 +197,9 @@ def test_check_plot_validity_3d(
     same_axes_output,
 ):
     """Test plot validity and configuration flags for 3D datasets across various axes and plot types""" 
-
-    # Create a 3D xarray dataset
-    data = xr.DataArray(
-        np.random.rand(10, 10, 10),
-        dims=["x", "y", "z"],
-        coords={"x": np.arange(10), "y": np.arange(10), "z": np.arange(10)},
-    )
-    ds = xr.Dataset({"data": data})
     
     results = run_validity_check(
-        ui, is_ref, x_value, y_value, z_value, plot_type, variable_value, ds
+        ui, is_ref, x_value, y_value, z_value, plot_type, variable_value, ui.dataset
     )
     
     # Verify that the validity check returns the expected configuration flags
@@ -479,18 +491,8 @@ def test_multiplot_check_plot_validity_3d(
     check_bounds_output,
 ):
     """Test multiplot validity and configuration flags for 3D datasets""" 
-
-    # Create a 3D xarray dataset
-    data = xr.DataArray(
-        np.random.rand(10, 10, 10),
-        dims=["x", "y", "z"],
-        coords={"x": np.arange(10), "y": np.arange(10), "z": np.arange(10)},
-    )
-    ds = xr.Dataset({"data": data})
     
-    # Assign dataset and multiplot reference state on the UI instance
-    ui.dataset = ds
-    ui.multiplot_ref_dataset_dict = {"key": ds, "key2": ds}
+    ui.multiplot_ref_dataset_dict = {"key": ui.dataset, "key2": ui.dataset}
     ui.multiplot_x_axis_dropdown.value = x_value
     ui.multiplot_y_axis_dropdown.value = y_value
     ui.multiplot_plot_type_dropdown.value = plot_type
@@ -536,18 +538,9 @@ def test_multiplot_check_plot_validity_3d_bounds(
 ):
     """Test multiplot validity and coordinate/bounds mismatch flags for 3D datasets""" 
 
-    # Create a 3D xarray dataset
-    data = xr.DataArray(
-        np.random.rand(10, 10, 10),
-        dims=["x", "y", "z"],
-        coords={"x": np.arange(10), "y": np.arange(10), "z": np.arange(10)},
-    )
-    ds = xr.Dataset({"data": data})
-    ui.dataset = ds
-    
     # Introduce mismatched coordinates and values across datasets to trigger bounds checking
-    ds_different_bounds = ds.assign_coords(x=ds["x"] * 2)
-    ui.multiplot_ref_dataset_dict = {"key": ds_different_bounds * 2, "key2": ds}
+    ds_different_bounds = ui.dataset.assign_coords(x=ui.dataset["x"] * 2)
+    ui.multiplot_ref_dataset_dict = {"key": ds_different_bounds * 2, "key2": ui.dataset}
     ui.multiplot_x_axis_dropdown.value = x_value
     ui.multiplot_y_axis_dropdown.value = y_value
     ui.multiplot_plot_type_dropdown.value = plot_type
@@ -567,7 +560,6 @@ def test_multiplot_check_plot_validity_3d_bounds(
 )
 def test_get_selected_variable(ui, variable_name_short, variable_name_long, is_long):
     """Test retrieving the short variable name based on the UI variable toggle state""" 
-
     # Configure the UI toggle state and set the appropriate variable name in the dropdown
     ui.variable_toggle.value = is_long
     if is_long:
@@ -591,7 +583,6 @@ def test_ref_get_selected_variable(
     ui, variable_name_short, variable_name_long, is_long
 ):
     """Test retrieving the short reference variable name based on the reference UI variable toggle state""" 
-
     # Configure the reference UI toggle state and set the appropriate variable name in the dropdown
     ui.ref_variable_toggle.value = is_long
     if is_long:
@@ -855,18 +846,10 @@ def test_multiplot_check_slice(
 def test_plot_multiplot_dataset(ui, monkeypatch):
     """Test the generation of 1D line multiplots and 2D heatmaps across multiple datasets"""
 
-    # Create a 3D xarray dataset
-    data = xr.DataArray(
-        np.random.rand(10, 10, 10),
-        dims=["x", "y", "z"],
-        coords={"x": np.arange(10), "y": np.arange(10), "z": np.arange(10)},
-    )
-    ds = xr.Dataset({"data": data})
     ui.multiplot_chosen_slices = {}
-
-    # Assign datasets and multiplot state to the UI instance, and mock the bounds checking method
-    ui.dataset = ds
-    ui.multiplot_ref_dataset_dict = {"key": ds, "key2": ds}
+    ui.multiplot_min = 0
+    ui.multiplot_max = 100
+    ui.multiplot_ref_dataset_dict = {"key": ui.dataset, "key2": ui.dataset}
     ui.multiplot_chosen_slices = {"z": 1}
     mock_multiplot_check_bounds = MagicMock()
     monkeypatch.setattr(ui, "_multiplot_check_bounds", mock_multiplot_check_bounds)
@@ -1058,78 +1041,6 @@ def test_display_status_text(ui):
         == "User model status >> Waiting for initial model data catalog to be built. This can take a few minutes."
     )
 
-def test_variable_toggle_change(ui):
-    """Test updating the variable dropdown options based on the variable toggle state""" 
-
-    # Create a 2D xarray dataset with a long_name attribute
-    data = xr.DataArray(
-        np.random.rand(10, 10),
-        dims=["x", "y"],
-        coords={"x": np.arange(10), "y": np.arange(10)},
-        attrs={"long_name": "long name"},
-    )
-    ds = xr.Dataset({"data": data})
-    ui.dataset = ds
-    
-    # Set toggle to True and verify the dropdown options display the long name
-    ui.variable_toggle.value = True
-    ui._variable_toggle_change()
-    assert ui.plot_variable_dropdown.options == ["long name"]
-
-    # Set toggle to False and verify the dropdown options revert to the short variable name
-    ui.variable_toggle.value = False
-    ui._variable_toggle_change()
-    assert ui.plot_variable_dropdown.options == ["data"]
-
-
-def test_ref_variable_toggle_change(ui):
-    """Test updating the reference variable dropdown options based on the reference variable toggle state""" 
-
-    # Create a 2D xarray dataset with a long_name attribute and assign it to the reference UI instance
-    data = xr.DataArray(
-        np.random.rand(10, 10),
-        dims=["x", "y"],
-        coords={"x": np.arange(10), "y": np.arange(10)},
-        attrs={"long_name": "long name"},
-    )
-    ds = xr.Dataset({"data": data})
-    ui.ref_dataset = ds
-    
-    # Set the reference toggle to True and verify the dropdown options display the long name
-    ui.ref_variable_toggle.value = True
-    ui._ref_variable_toggle_change()
-    assert ui.ref_plot_variable_dropdown.options == ["long name"]
-
-    # Set the reference toggle to False and verify the dropdown options revert to the short variable name
-    ui.ref_variable_toggle.value = False
-    ui._ref_variable_toggle_change()
-    assert ui.ref_plot_variable_dropdown.options == ["data"]
-
-
-def test_multiplot_variable_toggle_change(ui):
-    """Test updating the multiplot variable dropdown options based on the multiplot variable toggle state""" 
-
-    # Create a 2D xarray dataset with a long_name attribute and assign it to the UI instance
-    data = xr.DataArray(
-        np.random.rand(10, 10),
-        dims=["x", "y"],
-        coords={"x": np.arange(10), "y": np.arange(10)},
-        attrs={"long_name": "long name"},
-    )
-    ds = xr.Dataset({"data": data})
-    ui.dataset = ds
-    
-    # Set the multiplot toggle to True and verify the dropdown options display the long name
-    ui.multiplot_variable_toggle.value = True
-    ui._multiplot_variable_toggle_change()
-    assert ui.multiplot_plot_variable_dropdown.options == ["long name"]
-
-    # Set the multiplot toggle to False and verify the dropdown options revert to the short variable name
-    ui.multiplot_variable_toggle.value = False
-    ui._multiplot_variable_toggle_change()
-    assert ui.multiplot_plot_variable_dropdown.options == ["data"]
-
-
 def test_display_dataset_selection_ui(ui):
     """Test the initialization and visibility of the dataset selection UI components""" 
 
@@ -1236,13 +1147,23 @@ def test_display_reference_dataset_selection_ui(
 
 def test_display_multiplot_user_data_selection_ui(ui):
     """Test the initialization and configuration of the multiplot user data selection UI components"""
-    
+    data = xr.DataArray(np.random.rand(10, 10), dims=["x", "y"])
+    ui.dataset = xr.Dataset({
+        "option1": data, 
+        "option2": data, 
+        "option23": data
+    })
+
     # Assign a mock catalog and configure dropdown options on the UI instance
     ui.access_nri_cat = {"key1": None, "key2": None}
     ui.keys_dropdown.options = ["option2", "option23", "option1"]
     ui.keys_dropdown.value = "option1"
     ui.plot_variable_dropdown.options = ["option2", "option23", "option1"]
     ui.plot_variable_dropdown.value = "option1"
+    ui.multiplot_long_names = {"option1": "option1", "option2": "option2", "option23": "option23"}
+    ui.multiplot_variable_toggle.value = False
+    ui.long_names = {"option1": "option1", "option2": "option2", "option23": "option23"}
+    ui.variable_toggle.value = False
 
     # Trigger the multiplot user data selection UI display
     ui._display_multiplot_user_data_selection_ui()
@@ -1311,13 +1232,6 @@ def test_plot_data_button_click(
     slice_dict,
 ):
     """Test the plot data button callback for generating heatmaps, line plots, and animations""" 
-    # Create a 3D xarray dataset
-    data = xr.DataArray(
-        np.random.rand(10, 10, 10),
-        dims=["x", "y", "z"],
-        coords={"x": np.arange(10), "y": np.arange(10), "z": np.arange(10)},
-    )
-    ds = xr.Dataset({"data": data})
 
     # Configure UI dropdown selections for the target plot type and variables
     ui.plot_type_dropdown.value = plot_type
@@ -1325,8 +1239,8 @@ def test_plot_data_button_click(
     ui.y_axis_dropdown.value = "y"
     ui.plot_variable_dropdown.value = "data"
     ui.keys_dropdown.value = "dataset"
-    ui.dataset = ds
     ui.chosen_slices = {}
+    ui.variable_toggle.value = False
 
     # Configure slice widgets and establish expected slice values
     if slice_dict is None:
@@ -1403,6 +1317,7 @@ def test_plot_ref_data_button_click(
     ui.ref_x_axis_dropdown.value = "x"
     ui.ref_y_axis_dropdown.value = "y"
     ui.ref_plot_variable_dropdown.value = "data"
+    ui.ref_variable_toggle.value = False
 
     # Configure reference slice widgets and establish expected slice values
     if slice_dict is None:
@@ -1499,6 +1414,7 @@ def test_plot_multiplot_data_button_click(
     ui.multiplot_y_axis_dropdown.value = "y"
     ui.multiplot_plot_variable_dropdown.value = "data"
     ui.multiplot_analysis_choice_dropdown.value = analysis_type
+    ui.multiplot_variable_toggle.value = False
 
     # Configure multiplot slice widgets and establish expected slice values
     if slice_dict is None:
@@ -1562,7 +1478,7 @@ def test_display_dataset_plot_ui(ui):
     # Assign a mock dataset to the UI instance
     dataset = {"key2": None, "Key1": None}
     ui.dataset = dataset
-
+    ui.multiplot_variable_toggle.value = False
     # Trigger the dataset plot UI display
     ui._display_dataset_plot_ui()
 
@@ -1746,7 +1662,7 @@ def test_ref_display_plot_choices_ui(
         np.random.rand(*size), dims=list(dim_dict.keys()), coords=coords
     )
     ui.ref_dataset = xr.Dataset({"data": data_array})
-
+    ui.ref_variable_toggle.value = False
     ui.ref_plot_variable_dropdown.value = "data"
 
     # Mock the reference plot button click handler to prevent automated callback execution during testing
@@ -1862,6 +1778,7 @@ def test_display_multiplot_plot_choices_ui(
     )
     ui.dataset = xr.Dataset({"data": data_array})
     ui._multiplot_check_bounds = MagicMock(return_value=bounds)
+    ui.multiplot_variable_toggle.value = False
 
     # Mock the bounds UI prompt handler to prevent interactive display during testing
     mock_prompt_bounds_ui = MagicMock()
@@ -1967,19 +1884,9 @@ def test_update_dataset_plot_ui(ui):
 def test_plot_dataset(ui):
     """Test the generation of 1D line plots and 2D heatmaps from a provided dataset""" 
 
-    # Create a 3D xarray dataset
-    data = xr.DataArray(
-        np.random.rand(10, 10, 10),
-        dims=["x", "y", "z"],
-        coords={"x": np.arange(10), "y": np.arange(10), "z": np.arange(10)},
-    )
-    ds = xr.Dataset({"data": data})
     ui.chosen_slices = {"z": 1}
     ui.plot_variable_dropdown.value = "data"
     ui.keys_dropdown.value = "data"
-
-    # Assign the mock dataset to the UI instance
-    ui.dataset = ds
 
     # Generate a 2D heatmap and verify a valid matplotlib Figure is returned with content
     plot_result = ui._plot_heatmap("data", "x", "y")
@@ -2117,6 +2024,8 @@ def test_plot_ref_animation(ui, monkeypatch):
     monkeypatch.setattr(xr.DataArray, "hvplot", property(lambda self: mock_hvplot))
     ui.ref_data_keys_dropdown.value = "something"
     ui.ref_keys_dropdown.value = "another thing"
+    ui.multiplot_variable_toggle.value = False
+
     # Create a 4D xarray DataArray with spatial, vertical, and temporal dimensions
     data = xr.DataArray(
         np.random.rand(10, 10, 10, 10),
@@ -2135,8 +2044,10 @@ def test_plot_ref_animation(ui, monkeypatch):
     ui.ref_y_axis_dropdown.value = "y"
     ui.ref_animation_axis_dropdown.value = "time"
     ds = xr.Dataset({"data": data})
+
     ui.ref_dataset = ds
     ui.ref_chosen_slices = {"z": 1}
+    ui.ref_plot_variable_dropdown.value = "data"
 
     # Execute the reference animation plotting method
     panel_returned = ui._plot_ref_animation()
