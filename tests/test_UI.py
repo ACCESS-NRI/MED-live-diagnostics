@@ -1294,10 +1294,10 @@ def test_plot_ref_data_button_click(
         mock_plot_ref_animation.assert_called_once_with()
 
     # Verify that reference plot choices and slice UI components are removed from the widget container
-    assert ui.ref_plot_choices_row not in ui.widget_container
-    assert not hasattr(ui.widget_container, "ref_slice_ui_row")
-    assert not hasattr(ui.widget_container, "ref_slice_widgets")
-
+    assert not hasattr(ui, "ref_plot_choices_row")
+    assert not hasattr(ui, "ref_slice_ui_row")
+    assert not hasattr(ui, "ref_slice_widgets")
+ 
 
 @pytest.mark.parametrize(
     "plot_type, analysis_type, slice_dict",

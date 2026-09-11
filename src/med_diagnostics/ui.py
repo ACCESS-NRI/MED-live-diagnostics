@@ -401,14 +401,10 @@ class UserInterface:
         self.ref_data_keys_selection_row.append(self.ref_data_keys_button)
 
         # Insert the UI row under the reference model selection
-        if hasattr(self, "ref_model_metadata") and self.ref_model_metadata in self.widget_container:
-            insert_index = self.widget_container.index(self.ref_model_metadata) + 1
-            self.widget_container.insert(insert_index, self.ref_data_keys_selection_row)
-        elif hasattr(self, "ref_keys_selection_row") and self.ref_keys_selection_row in self.widget_container:
-            insert_index = self.widget_container.index(self.ref_keys_selection_row) + 1
-            self.widget_container.insert(insert_index, self.ref_data_keys_selection_row)
-        else:
-            self.widget_container.append(self.ref_data_keys_selection_row)
+        priority_insert_list = ["ref_model_metadata", "ref_keys_selection_row"] 
+
+        # Insert the UI under the first item of this list that exists. If none exist, then append.
+        self._safe_add_to_widget(self.widget_container, priority_insert_list, self.ref_data_keys_selection_row, append=True)
 
     def _display_multiplot_user_data_selection_ui(self):
         """
@@ -540,16 +536,9 @@ class UserInterface:
         self._safe_remove_widget_object(self.widget_container, "slice_ui_row")
         self._safe_remove_widget_object(self.widget_container, "slice_widgets")
 
+        appended = self._safe_add_to_widget(self.widget_container, ["self.ref_status_textbox"], plot_group, append = True)
         # Check if the reference UI already exists
-        if self.ref_status_textbox in self.widget_container:
-            # Find where the reference UI is
-            insert_index = self.widget_container.index(self.ref_status_textbox)
-
-            # Insert the new plot just above the reference UI
-            self.widget_container.insert(insert_index, plot_group)
-        else:
-            # First time plotting: append plot to bottom, then generate reference UI below it
-            self.widget_container.append(plot_group)
+        if appended:
             self._display_reference_model_selection_ui()
             self._display_multiplot_user_data_selection_ui()
 
@@ -608,23 +597,12 @@ class UserInterface:
         remove_btn.on_click(_remove_this_plot)
 
         # remove the plot choices row since the plot has been created
-        if hasattr(self, "ref_plot_choices_row") and self.ref_plot_choices_row in self.widget_container:
-            self.widget_container.remove(self.ref_plot_choices_row)
+        self._safe_remove_widget_object(self.widget_container, "ref_plot_choices_row")
+        self._safe_remove_widget_object(self.widget_container, "ref_slice_ui_row")
+        self._safe_remove_widget_object(self.widget_container, "ref_slice_widgets")
 
-        if hasattr(self, "ref_slice_ui_row") and self.ref_slice_ui_row in self.widget_container:
-            self.widget_container.remove(self.ref_slice_ui_row)
-            # Delete the attributes it resets for the next plot
-            del self.ref_slice_ui_row
-            del self.ref_slice_widgets
-
-        # Check if the reference UI already exists
-        if self.multiplot_status_textbox in self.widget_container:
-            # Find where the reference UI is
-            insert_index = self.widget_container.index(self.multiplot_status_textbox)
-
-            # Insert the new plot just above the reference UI
-            self.widget_container.insert(insert_index, plot_group)
-
+        # Add plot above the multiplot widgets
+        self._safe_add_to_widget(self.widget_container, ["multiplot_status_textbox"], plot_group, append=True, above=True)
         controller.update_textbox_text(self.ref_status_textbox, "Reference model status >> Plot created")
         controller.update_textbox_text(self.ref_warning_textbox, "")
 
@@ -641,13 +619,8 @@ class UserInterface:
         fig1 = None
 
         # remove the plot choices row since the plot has been created
-        if hasattr(self, "multiplot_plot_choices_row") and self.multiplot_plot_choices_row in self.widget_container:
-            self.widget_container.remove(self.multiplot_plot_choices_row)
-
-        if hasattr(self, "prompt_bounds_row") and self.prompt_bounds_row in self.widget_container:
-            self.widget_container.remove(self.prompt_bounds_row)
-            # Delete the attributes it resets for the next plot
-            del self.prompt_bounds_row
+        self._safe_remove_widget_object(self.widget_container, "multiplot_plot_choices_row")
+        self._safe_remove_widget_object(self.widget_container, "prompt_bounds_row")
 
         variable = self._get_variable_helper("multiplot")
         # For each of the slices, build a dictionary so that the slices can be accessed in the plot
@@ -704,11 +677,8 @@ class UserInterface:
         remove_btn = pn.widgets.Button(**self.STYLES.get("remove_button"))
         remove_btn.name = "Remove Plot"
 
-        if hasattr(self, "multiplot_slice_ui_row") and self.multiplot_slice_ui_row in self.widget_container:
-            self.widget_container.remove(self.multiplot_slice_ui_row)
-            # Delete the attributes it resets for the next plot
-            del self.multiplot_slice_ui_row
-            del self.multiplot_slice_widgets
+        self._safe_remove_widget_object(self.widget_container, "multiplot_slice_ui_row")
+        self._safe_remove_widget_object(self.widget_container, "multiplot_slice_widgets")
 
         # Group the plot and the button together
         plot_group = pn.Column(new_plot_pane, remove_btn, margin=(0, 0, 25, 0))
@@ -823,10 +793,8 @@ class UserInterface:
         self.ref_model_metadata.value = ""
 
         # Remove reference data attributes
-        if hasattr(self, "ref_model_cat"):
-            del self.ref_model_cat
-        if hasattr(self, "ref_dataset"):
-            del self.ref_dataset
+        self._safe_remove_widget_object(self.widget_container, "ref_model_cat")
+        self._safe_remove_widget_object(self.widget_container, "ref_dataset")
 
         self.ref_figure_exists = False
 
@@ -906,11 +874,7 @@ class UserInterface:
             self.ref_select_variable_button,
             self.ref_variable_toggle,
         )
-        if hasattr(self, "ref_data_keys_selection_row") and self.ref_data_keys_selection_row in self.widget_container:
-            insert_index = self.widget_container.index(self.ref_data_keys_selection_row) + 1
-            self.widget_container.insert(insert_index, self.ref_plot_ui_row)
-        else:
-            self.widget_container.append(self.ref_plot_ui_row)
+        self._safe_add_to_widget(self.widget_container, ["ref_data_keys_selection_row"], self.ref_plot_ui_row, append=True)
 
     def _display_plot_choices_ui(self):
         """
@@ -970,13 +934,13 @@ class UserInterface:
 
         # If plotting hasn't automatically occurred (in the case of the line graph with only 1 plottable dimension)
         if show_plot_choices:
-            # Insert the UI row under the variable selection even if there are plots already
-            if hasattr(self, "plot_ui_row") and self.plot_ui_row in self.widget_container:
-                insert_index = self.widget_container.index(self.plot_ui_row) + 1
-                self.widget_container.insert(insert_index, self.plot_choices_row)
-            else:
-                self.widget_container.append(self.plot_choices_row)
-            # self.widget_container.append(self.plot_pane)
+            self._safe_add_to_widget(
+                self.widget_container,
+                ["plot_ui_row"],
+                self.plot_choices_row,
+                append=True,
+                above=False,
+            )
 
     def _ref_display_plot_choices_ui(self):
         """
@@ -1039,18 +1003,12 @@ class UserInterface:
                 )
 
         if show_plot_choices:
-            # Insert the UI row under the variable selection even if there are plots already
-            if hasattr(self, "ref_plot_ui_row") and self.ref_plot_ui_row in self.widget_container:
-                insert_index = self.widget_container.index(self.ref_plot_ui_row) + 1
-                self.widget_container.insert(insert_index, self.ref_plot_choices_row)
-            else:
-                self.widget_container.append(self.ref_plot_choices_row)
+            self._safe_add_to_widget(self.widget_container, ["ref_plot_ui_row"], self.ref_plot_choices_row, append=True, above=False)
 
     def _display_multiplot_plot_choices_ui(self):
         """
         Generate and display the UI components for selecting the multiplot x-axis. Private.
         """
-
         # Find viable dimensions for axis selection
         dim_sizes = self.dataset[self._get_variable_helper("multiplot")].sizes
         viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"]
@@ -1102,12 +1060,7 @@ class UserInterface:
 
         # If plotting hasn't automatically occurred (in the case of the line graph with only 1 plottable dimension)
         if show_plot_choices:
-            # Insert the UI row under the variable selection even if there are plots already
-            if hasattr(self, "multiplot_type_selection_row") and self.multiplot_type_selection_row in self.widget_container:
-                insert_index = self.widget_container.index(self.multiplot_type_selection_row) + 1
-                self.widget_container.insert(insert_index, self.multiplot_plot_choices_row)
-            else:
-                self.widget_container.append(self.multiplot_plot_choices_row)
+            self._safe_add_to_widget(self.widget_container, ["multiplot_type_selection_row"], self.multiplot_plot_choices_row, append=True)
 
     def _check_plot_validity(self):
         """
@@ -1347,11 +1300,12 @@ class UserInterface:
         self.slice_ui_row = pn.Row(*ui_components)
 
         # Insert the slice UI below the plot choices row
-        if hasattr(self, "plot_choices_row") and self.plot_choices_row in self.widget_container:
-            insert_index = self.widget_container.index(self.plot_choices_row) + 1
-            self.widget_container.insert(insert_index, self.slice_ui_row)
-        else:
-            self.widget_container.append(self.slice_ui_row)
+        self._safe_add_to_widget(
+            self.widget_container,
+            ["plot_choices_row"],
+            self.slice_ui_row,
+            append=True
+        )
 
         # Update the UI text to prompt the user
         self.plot_button.name = "Confirm Slices & Plot"
@@ -1378,13 +1332,9 @@ class UserInterface:
 
         # Group them into a row
         self.ref_slice_ui_row = pn.Row(*ref_ui_components)
-
-        # Insert the slice UI below the plot choices row
-        if hasattr(self, "ref_plot_choices_row") and self.ref_plot_choices_row in self.widget_container:
-            insert_index = self.widget_container.index(self.ref_plot_choices_row) + 1
-            self.widget_container.insert(insert_index, self.ref_slice_ui_row)
-        else:
-            self.widget_container.append(self.ref_slice_ui_row)
+        self._safe_add_to_widget(
+            self.widget_container, ["ref_plot_choices_row"], self.ref_slice_ui_row, append=True
+        )
 
         # Update the UI text to prompt the user
         self.ref_plot_button.name = "Confirm Slices & Plot"
@@ -1415,11 +1365,12 @@ class UserInterface:
         self.multiplot_slice_ui_row = pn.Row(*multiplot_ui_components)
 
         # Insert the slice UI below the plot choices row
-        if hasattr(self, "multiplot_plot_choices_row") and self.multiplot_plot_choices_row in self.widget_container:
-            insert_index = self.widget_container.index(self.multiplot_plot_choices_row) + 1
-            self.widget_container.insert(insert_index, self.multiplot_slice_ui_row)
-        else:
-            self.widget_container.append(self.multiplot_slice_ui_row)
+        self._safe_add_to_widget(
+            self.widget_container,
+            ["multiplot_plot_choices_row"],
+            self.multiplot_slice_ui_row,
+            append=True
+        )
 
         # Update the UI text to prompt the user
         self.multiplot_plot_button.name = "Confirm Slices & Plot"
@@ -1837,20 +1788,20 @@ class UserInterface:
         self.prompt_bounds_row = pn.Row(self.prompt_bounds_dropdown, self.prompt_bounds_button)
 
         # Determine the insertion index based on a hierarchy of existing UI elements
-        if hasattr(self, "multiplot_slice_ui_row") and self.multiplot_slice_ui_row in current_layout:
-            insert_index = current_layout.index(self.multiplot_slice_ui_row) + 1
-        elif hasattr(self, "multiplot_plot_choices_row") and self.multiplot_plot_choices_row in current_layout:
-            insert_index = current_layout.index(self.multiplot_plot_choices_row) + 1
-        elif hasattr(self, "multiplot_type_selection_row") and self.multiplot_type_selection_row in current_layout:
-            insert_index = current_layout.index(self.multiplot_type_selection_row) + 1
-        elif hasattr(self, "multiplot_ref_keys_selection_row") and self.multiplot_ref_keys_selection_row in current_layout:
-            insert_index = current_layout.index(self.multiplot_ref_keys_selection_row) + 1
+        priority_list = [
+            "multiplot_slice_ui_row",
+            "multiplot_plot_choices_row",
+            "multiplot_type_selection_row",
+            "multiplot_ref_keys_selection_row",
+        ]
 
-        # Insert the new row into the extracted list
-        current_layout.insert(insert_index, self.prompt_bounds_row)
-
-        # Apply the slice assignment to force a front-end UI update
-        self.widget_container[:] = current_layout
+        # Insert the slice UI below the plot choices row
+        self._safe_add_to_widget(
+            self.widget_container,
+            priority_list,
+            self.prompt_bounds_row,
+            append=True
+        )
 
     def _update_multiplot_dataset(self):
         """
@@ -2189,7 +2140,7 @@ class UserInterface:
         Parameters
         ----------
         section : str, optional
-            The section of the UI to query. Options are "user", "ref", or 
+            The section of the UI to query. Valid options are "user", "ref", or 
             "multiplot". Defaults to "user".
 
         Returns
@@ -2206,6 +2157,21 @@ class UserInterface:
             return controller.get_selected_variable(self.variable_toggle, self.plot_variable_dropdown, self.long_names)
 
     def _safe_remove_widget_object(self, widget_container, item_to_remove):
+        """
+        Safely remove a widget from a container and delete its corresponding attribute.
+
+        Checks if the UI instance possesses the specified attribute. If it does, 
+        removes the component from the provided widget container and deletes the 
+        attribute from the class instance to reset the state.
+
+        Parameters
+        ----------
+        widget_container : panel.layout.Panel or list
+            The UI container from which the widget should be removed.
+        item_to_remove : str
+            The string name of the attribute to remove and delete.
+        """
+
         if hasattr(self, item_to_remove):
             component = getattr(self, item_to_remove)
             if component in widget_container:
@@ -2213,12 +2179,52 @@ class UserInterface:
 
             delattr(self, item_to_remove)
 
-    #TODO
-    #Return the index of an item inside a widget container, or -1 if it is not found? Somethign like that
-    def _safe_get_index_widget_object(self, widget_container, item_to_get_index):
-            if hasattr(self, item_to_remove):
-                component = getattr(self, item_to_remove)
-                if component in widget_container:
-                    widget_container.remove(component)
-    
-                delattr(self, item_to_remove)
+    def _safe_add_to_widget(self, widget_container, target_attributes, item_to_add, append=False, above=False):
+        """
+        Insert a UI component into a container relative to the first matching target attribute.
+
+        Iterates through a prioritised list of target attribute strings. Upon finding the 
+        first target that exists and is currently rendered in the container, it inserts the 
+        new item either directly above or below it.
+
+        Parameters
+        ----------
+        widget_container : panel.layout.Panel or list
+            The UI container to modify.
+        target_attributes : list of str
+            A prioritised list of attribute names to search for within the container.
+        item_to_add : object
+            The Panel UI component to insert into the container.
+        append : bool, optional
+            If True, appends the new item to the end of the container if none of the 
+            target attributes are found. Defaults to False.
+        above : bool, optional
+            If True, inserts the new item directly above the found target. If False, 
+            inserts it directly below. Defaults to False.
+
+        Returns
+        -------
+        bool
+            True if the item was appended to the bottom (meaning no targets were found 
+            but append was True), False otherwise.
+        """
+
+        for attr_name in target_attributes:
+            target = getattr(self, attr_name, None)
+
+            # If the attribute exists and is currently rendered on screen
+            if target is not None and target in widget_container:
+                insert_index = widget_container.index(target)
+                if above:
+                    insert_index -= 1
+                else:
+                    insert_index += 1
+                widget_container.insert(insert_index, item_to_add)
+                return False # Item was successfully inserted
+
+        # If it found none of the targets, append to the bottom
+        if append:
+            widget_container.append(item_to_add)
+            return True
+
+        return False
