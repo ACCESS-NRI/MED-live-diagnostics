@@ -11,6 +11,7 @@ from IPython.display import display
 import hvplot.xarray  # type: ignore #For creating interactive plots
 import xarray as xr
 
+
 class UserInterface:
     """
     Primary class for user interface (UI) components and deployment
@@ -95,7 +96,11 @@ class UserInterface:
         self.plot_button = pn.widgets.Button(**self.STYLES.get("green_button"))
         self.plot_pane = pn.pane.Matplotlib(tight=True)
         self.plot_type_dropdown = pn.widgets.Select()
-        self.x_axis_dropdown, self.y_axis_dropdown, self.animation_axis_dropdown = pn.widgets.Select(), pn.widgets.Select(), pn.widgets.Select()
+        self.x_axis_dropdown, self.y_axis_dropdown, self.animation_axis_dropdown = (
+            pn.widgets.Select(),
+            pn.widgets.Select(),
+            pn.widgets.Select(),
+        )
         self.select_variable_button = pn.widgets.Button(**self.STYLES.get("green_button"))
 
         # Build reference panel status text
@@ -177,17 +182,22 @@ class UserInterface:
 
         def _plot_button_click(event):
 
-            plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen = self._check_plot_validity()
+            plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen = self._check_plot_validity_helper(section="user")
             if plot_valid:
                 self._plot_data_button_click()
             elif requires_slice:
-                self._check_slice(section = "user")
+                self._check_slice(section="user")
             elif invalid_heatmap_data:
-                controller.update_textbox_text(self.warning_textbox, "Warning >> The dataset only has one plottable dimension. Defaulting to line plot.")
+                controller.update_textbox_text(
+                    self.warning_textbox,
+                    "Warning >> The dataset only has one plottable dimension. Defaulting to line plot.",
+                )
                 self.plot_type_dropdown.value = "Line"
                 self._plot_data_button_click()
             elif same_axes_chosen:
-                controller.update_textbox_text(self.warning_textbox, "Warning >> Please ensure different values are selected for each axis.")
+                controller.update_textbox_text(
+                    self.warning_textbox, "Warning >> Please ensure different values are selected for each axis."
+                )
 
                 # Remove preexisting plot choices UI
                 self._safe_remove_widget_object(self.widget_container, "plot_choices_row")
@@ -196,29 +206,36 @@ class UserInterface:
                 self.chosen_slices = {}
 
                 self._display_plot_choices_ui()
-        self._plot_button_click = _plot_button_click #Just making this accessible for testing, 
+
+        self._plot_button_click = _plot_button_click  # Just making this accessible for testing,
         # need to remove the logic from this function when refactoring.
 
         def _ref_plot_button_click(event):
 
-            plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen = self._ref_check_plot_validity()
+            plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen = self._check_plot_validity_helper(section="ref")
             if plot_valid:
                 self._ref_plot_data_button_click()
             elif requires_slice:
-                self._check_slice(section = "ref")
+                self._check_slice(section="ref")
             elif invalid_heatmap_data:
-                controller.update_textbox_text(self.ref_warning_textbox, "Warning >> The dataset only has one plottable dimension. Defaulting to line plot.")
+                controller.update_textbox_text(
+                    self.ref_warning_textbox,
+                    "Warning >> The dataset only has one plottable dimension. Defaulting to line plot.",
+                )
                 self.ref_plot_type_dropdown.value = "Line"
                 self._ref_plot_data_button_click()
             elif same_axes_chosen:
-                controller.update_textbox_text(self.ref_warning_textbox, "Warning >> Please ensure different values are selected for each axis.")
+                controller.update_textbox_text(
+                    self.ref_warning_textbox, "Warning >> Please ensure different values are selected for each axis."
+                )
                 # Remove previous plot selection UI
                 self._safe_remove_widget_object(self.widget_container, "ref_plot_choices_row")
                 self._safe_remove_widget_object(self.widget_container, "ref_slice_ui_row")
                 self._safe_remove_widget_object(self.widget_container, "ref_slice_widgets")
                 self.ref_chosen_slices = {}
                 self._ref_display_plot_choices_ui()
-        self._ref_plot_button_click = _ref_plot_button_click 
+
+        self._ref_plot_button_click = _ref_plot_button_click
 
         def _select_variable_button_click(event):
 
@@ -238,9 +255,10 @@ class UserInterface:
             if plot_valid:
                 self._multiplot_plot_data_button_click()
             elif requires_slice:
-                self._check_slice(section = "multiplot")
+                self._check_slice(section="multiplot")
             elif prompt_bounds:
                 self._prompt_bounds_ui()
+
         self._multiplot_plot_button_click = _multiplot_plot_button_click
 
         def _clear_multiplot_data_button_click(event):
@@ -261,18 +279,20 @@ class UserInterface:
 
         def _variable_toggle_click(event):
 
-            self.long_names = controller.variable_toggle_change(self.variable_toggle, self.plot_variable_dropdown, self.dataset)
+            self.long_names = controller.variable_toggle_change(
+                self.variable_toggle, self.plot_variable_dropdown, self.dataset
+            )
 
         def _ref_variable_toggle_click(event):
 
-            self.ref_long_names = controller.variable_toggle_change(self.ref_variable_toggle, self.ref_plot_variable_dropdown, self.ref_dataset)
+            self.ref_long_names = controller.variable_toggle_change(
+                self.ref_variable_toggle, self.ref_plot_variable_dropdown, self.ref_dataset
+            )
 
         def _multiplot_variable_toggle_click(event):
 
             self.multiplot_long_names = controller.variable_toggle_change(
-                self.multiplot_variable_toggle,
-                self.multiplot_plot_variable_dropdown,
-                self.dataset
+                self.multiplot_variable_toggle, self.multiplot_plot_variable_dropdown, self.dataset
             )
 
         self.plot_button.on_click(_plot_button_click)
@@ -316,7 +336,10 @@ class UserInterface:
         self.widget_container.append(self.keys_selection_row)
         self.widget_container.append(self.div_2)
 
-        controller.update_textbox_text(self.status_textbox, "User model status >> Waiting for initial model data catalog to be built. This can take a few minutes.")
+        controller.update_textbox_text(
+            self.status_textbox,
+            "User model status >> Waiting for initial model data catalog to be built. This can take a few minutes.",
+        )
         # Display widget_container in notebook
         display(self.widget_container)
         print()
@@ -353,7 +376,9 @@ class UserInterface:
         Label, populate and append ACCESS reference model selection-related widgets to widget_container. Private.
         """
 
-        controller.update_textbox_text(self.ref_status_textbox, "Reference Model Status >> Select a model to load and plot data")
+        controller.update_textbox_text(
+            self.ref_status_textbox, "Reference Model Status >> Select a model to load and plot data"
+        )
         # Add refrence data status text box
         self.widget_container.append(self.ref_status_textbox)
         self.widget_container.append(self.ref_warning_textbox)
@@ -401,10 +426,12 @@ class UserInterface:
         self.ref_data_keys_selection_row.append(self.ref_data_keys_button)
 
         # Insert the UI row under the reference model selection
-        priority_insert_list = ["ref_model_metadata", "ref_keys_selection_row"] 
+        priority_insert_list = ["ref_model_metadata", "ref_keys_selection_row"]
 
         # Insert the UI under the first item of this list that exists. If none exist, then append.
-        self._safe_add_to_widget(self.widget_container, priority_insert_list, self.ref_data_keys_selection_row, append=True)
+        self._safe_add_to_widget(
+            self.widget_container, priority_insert_list, self.ref_data_keys_selection_row, append=True
+        )
 
     def _display_multiplot_user_data_selection_ui(self):
         """
@@ -414,7 +441,10 @@ class UserInterface:
         # Add overlay data status text box
         self.widget_container.append(self.multiplot_status_textbox)
         self.widget_container.append(self.multiplot_warning_textbox)
-        controller.update_textbox_text(self.multiplot_status_textbox, "Overlay Plot >> Choose reference variables to compare with the current plot.")
+        controller.update_textbox_text(
+            self.multiplot_status_textbox,
+            "Overlay Plot >> Choose reference variables to compare with the current plot.",
+        )
 
         # Populate reference/comparison model widgets
         self.multiplot_ref_keys_dropdown.name = "Select one or more reference models to overlay (optional):"
@@ -428,7 +458,7 @@ class UserInterface:
         self.multiplot_keys_update_button.name = "Update loaded dataset"
         self.multiplot_plot_variable_dropdown.name = "Variable selection"
         self.multiplot_plot_variable_dropdown.options = sorted(list(self.plot_variable_dropdown.options))
-        self.multiplot_plot_variable_dropdown.value = self._get_variable_helper(section = "user")
+        self.multiplot_plot_variable_dropdown.value = self._get_variable_helper(section="user")
         self.multiplot_plot_type_dropdown.name = "Select plot type"
         self.multiplot_plot_type_dropdown.options = ["Line", "Heatmap (grid)"]
 
@@ -509,7 +539,7 @@ class UserInterface:
             y_axis = self.y_axis_dropdown.value
             fig = self._plot_heatmap(variable, x_axis, y_axis)
         elif self.plot_type_dropdown.value == "Line":
-            fig = self._plot_dataset_helper(is_ref = False)
+            fig = self._plot_dataset_helper(is_ref=False)
         elif self.plot_type_dropdown.value == "Animation":
             fig_animated = self._plot_animation(variable)
         if fig_animated:
@@ -536,7 +566,7 @@ class UserInterface:
         self._safe_remove_widget_object(self.widget_container, "slice_ui_row")
         self._safe_remove_widget_object(self.widget_container, "slice_widgets")
 
-        appended = self._safe_add_to_widget(self.widget_container, ["self.ref_status_textbox"], plot_group, append = True)
+        appended = self._safe_add_to_widget(self.widget_container, ["self.ref_status_textbox"], plot_group, append=True)
         # Check if the reference UI already exists
         if appended:
             self._display_reference_model_selection_ui()
@@ -573,7 +603,7 @@ class UserInterface:
             variable = self._get_variable_helper("ref")
             fig = self._plot_ref_heatmap(variable, x_axis, y_axis)
         elif self.ref_plot_type_dropdown.value == "Line":
-            fig = self._plot_dataset_helper(is_ref = True)
+            fig = self._plot_dataset_helper(is_ref=True)
         elif self.ref_plot_type_dropdown.value == "Animation":
             fig_animated = self._plot_ref_animation()
 
@@ -602,7 +632,9 @@ class UserInterface:
         self._safe_remove_widget_object(self.widget_container, "ref_slice_widgets")
 
         # Add plot above the multiplot widgets
-        self._safe_add_to_widget(self.widget_container, ["multiplot_status_textbox"], plot_group, append=True, above=True)
+        self._safe_add_to_widget(
+            self.widget_container, ["multiplot_status_textbox"], plot_group, append=True, above=True
+        )
         controller.update_textbox_text(self.ref_status_textbox, "Reference model status >> Plot created")
         controller.update_textbox_text(self.ref_warning_textbox, "")
 
@@ -651,7 +683,10 @@ class UserInterface:
             y_axis = self.multiplot_y_axis_dropdown.value
             fig1 = self._plot_multiplot_heatmap_dataset(variable, x_axis, y_axis)
             fig2 = self._plot_multiplot_difference_heatmap(variable, x_axis, y_axis)
-        elif self.multiplot_plot_type_dropdown.value == "Line" and self.multiplot_analysis_choice_dropdown.value == "None (plot all loaded data)":
+        elif (
+            self.multiplot_plot_type_dropdown.value == "Line"
+            and self.multiplot_analysis_choice_dropdown.value == "None (plot all loaded data)"
+        ):
             x_axis = self.multiplot_x_axis_dropdown.value
             fig = self._plot_multiplot_dataset(variable, x_axis)
         elif (
@@ -660,7 +695,10 @@ class UserInterface:
         ):
             x_axis = self.multiplot_x_axis_dropdown.value
             fig = self._plot_multiplot_difference_dataset(variable, x_axis)
-        elif self.multiplot_plot_type_dropdown.value == "Line" and self.multiplot_analysis_choice_dropdown.value == "Plot All Data & Difference":
+        elif (
+            self.multiplot_plot_type_dropdown.value == "Line"
+            and self.multiplot_analysis_choice_dropdown.value == "Plot All Data & Difference"
+        ):
             x_axis = self.multiplot_x_axis_dropdown.value
             fig1 = self._plot_multiplot_dataset(variable, x_axis)
             fig2 = self._plot_multiplot_difference_dataset(variable, x_axis)
@@ -707,7 +745,9 @@ class UserInterface:
         self.ref_model_cat = self.access_nri_cat.search(name=self.ref_keys_dropdown.value).to_source()
 
         # Update text box
-        controller.update_textbox_text(self.ref_status_textbox, "Reference model status >> Data catalog successfully loaded.")
+        controller.update_textbox_text(
+            self.ref_status_textbox, "Reference model status >> Data catalog successfully loaded."
+        )
 
         if hasattr(self, "ref_data_keys_selection_row") and self.ref_data_keys_selection_row in self.widget_container:
             # Just update the options in the existing dropdown to match the new model
@@ -733,34 +773,58 @@ class UserInterface:
             and not self.multiplot_ref_keys_dropdown.value in self.multiplot_ref_dataset_dict
         ):
             model_value = self.multiplot_ref_keys_dropdown.value
-            controller.update_textbox_text(self.multiplot_status_textbox, "Overlay Plot Status >> Loading reference dataset...")
-            self.multiplot_ref_dataset_dict = controller.add_to_dataset_dict(self.multiplot_ref_dataset_dict, model_value, selected_ref_model_cat, self.multiplot_keys_dropdown.value, self.dataset)
-            controller.update_textbox_text(self.multiplot_status_textbox, "Overlay Plot Status >> Loaded reference model, add another or plot the overlay")
+            controller.update_textbox_text(
+                self.multiplot_status_textbox, "Overlay Plot Status >> Loading reference dataset..."
+            )
+            self.multiplot_ref_dataset_dict = controller.add_to_dataset_dict(
+                self.multiplot_ref_dataset_dict,
+                model_value,
+                selected_ref_model_cat,
+                self.multiplot_keys_dropdown.value,
+                self.dataset,
+            )
+            controller.update_textbox_text(
+                self.multiplot_status_textbox,
+                "Overlay Plot Status >> Loaded reference model, add another or plot the overlay",
+            )
         elif self.multiplot_ref_keys_dropdown.value in self.multiplot_ref_dataset_dict:
-            controller.update_textbox_text(self.multiplot_warning_textbox, "Warning >> Model has already been added, skipping duplicate")
+            controller.update_textbox_text(
+                self.multiplot_warning_textbox, "Warning >> Model has already been added, skipping duplicate"
+            )
         else:
-            controller.update_textbox_text(self.multiplot_warning_textbox, 
-                "Overlay Plot Status >> There is no dataset matching the user dataset in this model, please select another"
+            controller.update_textbox_text(
+                self.multiplot_warning_textbox,
+                "Overlay Plot Status >> There is no dataset matching the user dataset in this model, please select another",
             )
 
         if self.multiplot_keys_dropdown.value != self.loaded_dataset_key:
-            controller.update_textbox_text(self.multiplot_status_textbox, "Overlay Plot Status >> User dataset selection changed, reloading user dataset...")
+            controller.update_textbox_text(
+                self.multiplot_status_textbox,
+                "Overlay Plot Status >> User dataset selection changed, reloading user dataset...",
+            )
             # Load selected dataset
             self.dataset = data._build_data_object(self.model_cat, self.multiplot_keys_dropdown.value)
             self.loaded_dataset_key = self.multiplot_keys_dropdown.value
             self.multiplot_plot_variable_dropdown.options = sorted(list(self.dataset.keys()))
 
-            controller.update_textbox_text(self.multiplot_status_textbox, "Overlay Plot Status >> New user dataset loaded, clearing loaded user models")
+            controller.update_textbox_text(
+                self.multiplot_status_textbox,
+                "Overlay Plot Status >> New user dataset loaded, clearing loaded user models",
+            )
             self._clear_multiplot_data()
 
     def _ref_dataset_dropdown_click(self):
         """
         Loads selected reference model dataset from ref_data_keys_dropdown and creates new interactive plot. Private.
         """
-        controller.update_textbox_text(self.ref_status_textbox, "Reference model status >> Loading reference dataset...")
+        controller.update_textbox_text(
+            self.ref_status_textbox, "Reference model status >> Loading reference dataset..."
+        )
         # Load selected access_nri catalog dataset
         self.ref_dataset = data._build_data_object(self.ref_model_cat, self.ref_data_keys_dropdown.value)
-        controller.update_textbox_text(self.ref_status_textbox, "Reference model status >> Reference dataset successfully loaded.")
+        controller.update_textbox_text(
+            self.ref_status_textbox, "Reference model status >> Reference dataset successfully loaded."
+        )
         # Check if plot already exists
         if not self.ref_figure_exists:
             # Create new plot
@@ -804,33 +868,10 @@ class UserInterface:
         """
         # Update text box
         controller.update_textbox_text(self.ref_status_textbox, "Reference model status >> Retrieving model metadata.")
-
-        self.ref_model_metadata.value = (
-            '<div style="color: var(--jp-ui-font-color1);">'
-            + "<b>Model information:</b><br>"
-            + "<b>Model:   </b>"
-            + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata["model"])
-            + "<br>"
-            + "<b>Short description:   </b>"
-            + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata["description"])
-            + "<br>"
-            + "<b>Nominal resolution:   </b>"
-            + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata["nominal_resolution"])
-            + "<br>"
-            + "<b>Parent experiment:   </b>"
-            + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata["parent_experiment"])
-            + "<br>"
-            + "<b>Long description:   </b>"
-            + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata["long_description"])
-            + "<br>"
-            + "<b>Contact:   </b>"
-            + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata["contact"])
-            + "<br>"
-            + "<b>Email:   </b>"
-            + str(self.access_nri_cat[self.ref_keys_dropdown.value].metadata["email"])
-            + "<br>"
+        # Generate the metadata string
+        self.ref_model_metadata.value = controller.get_metadata(
+            self.access_nri_cat[self.ref_keys_dropdown.value].metadata
         )
-
         # Update text box
         controller.update_textbox_text(self.ref_status_textbox, "")
 
@@ -874,7 +915,9 @@ class UserInterface:
             self.ref_select_variable_button,
             self.ref_variable_toggle,
         )
-        self._safe_add_to_widget(self.widget_container, ["ref_data_keys_selection_row"], self.ref_plot_ui_row, append=True)
+        self._safe_add_to_widget(
+            self.widget_container, ["ref_data_keys_selection_row"], self.ref_plot_ui_row, append=True
+        )
 
     def _display_plot_choices_ui(self):
         """
@@ -898,7 +941,10 @@ class UserInterface:
         if self.plot_type_dropdown.value == "Heatmap":
             # Check if enough dimensions to make heatmap, if not, throw error and don't let the user do it.
             if len(viable_dims) < 2:
-                controller.update_textbox_text(self.warning_textbox, "Warning >> Not enough dimensions available for this variable to plot a Heatmap.")
+                controller.update_textbox_text(
+                    self.warning_textbox,
+                    "Warning >> Not enough dimensions available for this variable to plot a Heatmap.",
+                )
                 self.plot_type_dropdown.value = "Line"
                 show_plot_choices = False
             else:
@@ -908,7 +954,9 @@ class UserInterface:
         elif self.plot_type_dropdown.value == "Line":
             # If there is only 1 viable x-axis, plot automatically without user prompt to select x-axis.
             if len(viable_dims) == 1:
-                controller.update_textbox_text(self.warning_textbox, "Only one valid x-axis dimension, plotting automatically.")
+                controller.update_textbox_text(
+                    self.warning_textbox, "Only one valid x-axis dimension, plotting automatically."
+                )
                 self.x_axis_dropdown.value = viable_dims[0]
                 show_plot_choices = False
                 self._plot_data_button_click()
@@ -917,7 +965,10 @@ class UserInterface:
         elif self.plot_type_dropdown.value == "Animation":
             # Check if enough dimensions to make animation, if not, throw error and don't let the user do it.
             if len(viable_dims) < 2:
-                controller.update_textbox_text(self.warning_textbox, "Warning >> Not enough dimensions available for this variable to plot an animation.")
+                controller.update_textbox_text(
+                    self.warning_textbox,
+                    "Warning >> Not enough dimensions available for this variable to plot an animation.",
+                )
                 self.plot_type_dropdown.value = "Line"
                 show_plot_choices = False
             else:
@@ -950,7 +1001,7 @@ class UserInterface:
         # Remove preexisting plot choices UI
         self._safe_remove_widget_object(self.widget_container, "ref_plot_choices_row")
 
-        variable = self._get_variable_helper("ref")  
+        variable = self._get_variable_helper("ref")
         # Find viable dimensions for axis selection
         dim_sizes = self.ref_dataset[variable].sizes
         viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"]
@@ -964,7 +1015,10 @@ class UserInterface:
         if self.ref_plot_type_dropdown.value == "Heatmap":
             # Check if enough dimensions to make heatmap, if not, throw warning and don't let the user do it.
             if len(viable_dims) < 2:
-                controller.update_textbox_text(self.ref_warning_textbox, "Warning >> Not enough dimensions available for this variable to plot a Heatmap.")
+                controller.update_textbox_text(
+                    self.ref_warning_textbox,
+                    "Warning >> Not enough dimensions available for this variable to plot a Heatmap.",
+                )
                 self.ref_plot_type_dropdown.value = "Line"
                 show_plot_choices = False
             else:
@@ -979,7 +1033,9 @@ class UserInterface:
             # Check if omly one viable dimension for line plot, if so plot it without options
             if len(viable_dims) == 1:
                 show_plot_choices = False
-                controller.update_textbox_text(self.ref_warning_textbox, "Only one valid x-axis dimension, plotting automatically.")
+                controller.update_textbox_text(
+                    self.ref_warning_textbox, "Only one valid x-axis dimension, plotting automatically."
+                )
                 self.ref_x_axis_dropdown.value = viable_dims[0]
                 self._ref_plot_data_button_click()
             else:
@@ -987,7 +1043,10 @@ class UserInterface:
         elif self.ref_plot_type_dropdown.value == "Animation":
             # Check if enough dimensions to make animation, if not, throw error and don't let the user do it.
             if len(viable_dims) < 2:
-                controller.update_textbox_text(self.ref_warning_textbox, "Warning >> Not enough dimensions available for this variable to plot an animation.")
+                controller.update_textbox_text(
+                    self.ref_warning_textbox,
+                    "Warning >> Not enough dimensions available for this variable to plot an animation.",
+                )
                 self.ref_plot_type_dropdown.value = "Line"
                 show_plot_choices = False
             else:
@@ -1003,7 +1062,9 @@ class UserInterface:
                 )
 
         if show_plot_choices:
-            self._safe_add_to_widget(self.widget_container, ["ref_plot_ui_row"], self.ref_plot_choices_row, append=True, above=False)
+            self._safe_add_to_widget(
+                self.widget_container, ["ref_plot_ui_row"], self.ref_plot_choices_row, append=True, above=False
+            )
 
     def _display_multiplot_plot_choices_ui(self):
         """
@@ -1027,7 +1088,10 @@ class UserInterface:
         if self.multiplot_plot_type_dropdown.value == "Heatmap (grid)":
             # Check if enough dimensions to make heatmap, if not, throw warning and don't let the user do it.
             if len(viable_dims) < 2:
-                controller.update_textbox_text(self.multiplot_warning_textbox, "Warning >> Not enough dimensions available for this variable to plot a Heatmap.")
+                controller.update_textbox_text(
+                    self.multiplot_warning_textbox,
+                    "Warning >> Not enough dimensions available for this variable to plot a Heatmap.",
+                )
                 self.multiplot_plot_type_dropdown.value = "Line"
                 show_plot_choices = False
             else:
@@ -1046,7 +1110,9 @@ class UserInterface:
             if len(viable_dims) == 1 and not needs_bounds_ui:
                 show_plot_choices = True
                 controller.update_textbox_text(self.multiplot_warning_textbox, "Only one valid x-axis dimension.")
-                self.multiplot_plot_choices_row = pn.Row(self.multiplot_analysis_choice_dropdown, self.multiplot_plot_button)
+                self.multiplot_plot_choices_row = pn.Row(
+                    self.multiplot_analysis_choice_dropdown, self.multiplot_plot_button
+                )
                 self.multiplot_x_axis_dropdown.value = viable_dims[0]
             elif len(viable_dims) == 1 and needs_bounds_ui:
                 show_plot_choices = False
@@ -1060,151 +1126,9 @@ class UserInterface:
 
         # If plotting hasn't automatically occurred (in the case of the line graph with only 1 plottable dimension)
         if show_plot_choices:
-            self._safe_add_to_widget(self.widget_container, ["multiplot_type_selection_row"], self.multiplot_plot_choices_row, append=True)
-
-    def _check_plot_validity(self):
-        """
-        Check if the plot being created by the user is valid. Private.
-
-        Returns
-        -------
-        plot_valid : bool
-            True if the current plot configuration is valid, False otherwise.
-        requires_slice : bool
-            True if there are unplotted dimensions that require slicing, False otherwise.
-        invalid_heatmap_data : bool
-            True if a heatmap was requested but only one viable dimension exists, False otherwise.
-        same_axes_chosen : bool
-            True if a heatmap was requested with the same variable on both axes, False otherwise.
-        """
-
-        plot_valid = True
-        requires_slice = False
-        invalid_heatmap_data = False
-        same_axes_chosen = False
-        variable = self._get_variable_helper("user")
-
-        # Filter which dimensions can viably be plotted on an axis
-        dim_sizes = self.dataset[variable].sizes
-        viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"]
-        if not self.x_axis_dropdown.value:
-            controller.update_textbox_text(self.warning_textbox, "Warning >> Please select a variable and plot type before plotting.")
-            plot_valid = False
-            return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen
-
-        if self.plot_type_dropdown.value == "Animation":
-            chosen_axes = (
-                self.x_axis_dropdown.value,
-                self.y_axis_dropdown.value,
-                self.animation_axis_dropdown.value,
+            self._safe_add_to_widget(
+                self.widget_container, ["multiplot_type_selection_row"], self.multiplot_plot_choices_row, append=True
             )
-        elif self.plot_type_dropdown.value == "Heatmap":
-            chosen_axes = (self.x_axis_dropdown.value, self.y_axis_dropdown.value)
-        else:
-            chosen_axes = (self.x_axis_dropdown.value,)
-
-        self.remaining_dims = [dim for dim in viable_dims if dim not in chosen_axes]
-        # Check if existing slice widgets match the currently required dimensions
-        if hasattr(self, "slice_widgets"):
-            if set(self.slice_widgets.keys()) != set(self.remaining_dims):
-                self._safe_remove_widget_object(self.widget_container, "slice_ui_row")
-                self._safe_remove_widget_object(self.widget_container, "slice_widgets")
-
-        # If there are dimensions remaining in the dataset, and they are not already sliced by the user
-        if len(self.remaining_dims) > 0 and not hasattr(self, "slice_widgets"):
-            plot_valid = False
-            requires_slice = True
-        # If the dataset lacks enough dimensions for the chosen plot type
-        if (len(viable_dims) == 1 and self.plot_type_dropdown.value == "Heatmap") or (
-            len(viable_dims) in (1, 2) and self.plot_type_dropdown.value == "Animation"
-        ):
-            plot_valid = False
-            invalid_heatmap_data = True
-        # Check if required axes are missing based on plot type
-        elif (self.plot_type_dropdown.value == "Heatmap" and not self.y_axis_dropdown.value) or (
-            self.plot_type_dropdown.value == "Animation" and not (self.y_axis_dropdown.value and self.animation_axis_dropdown.value)
-        ):
-            plot_valid = False
-            invalid_heatmap_data = True
-        # If the user has tried to plot the same variable on both axes
-        elif len(set(chosen_axes)) != len(chosen_axes):
-            plot_valid = False
-            same_axes_chosen = True
-
-        return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen
-
-    def _ref_check_plot_validity(self):
-        """
-        Check if the reference plot being created by the user is valid. Private.
-
-        Returns
-        -------
-        plot_valid : bool
-            True if the current plot configuration is valid, False otherwise.
-        requires_slice : bool
-            True if there are unplotted dimensions that require slicing, False otherwise.
-        invalid_heatmap_data : bool
-            True if a heatmap was requested but only one viable dimension exists, False otherwise.
-        same_axes_chosen : bool
-            True if a heatmap was requested with the same variable on both axes, False otherwise.
-        """
-
-        plot_valid = True
-        requires_slice = False
-        invalid_heatmap_data = False
-        same_axes_chosen = False
-
-        # Filter which dimensions can viably be plotted on an axis
-        dim_sizes = self.ref_dataset[self._get_variable_helper("ref")].sizes
-        viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"]
-        if not self.ref_x_axis_dropdown.value:
-            controller.update_textbox_text(self.ref_warning_textbox, "Warning >> Please select a variable and plot type before plotting.")
-            plot_valid = False
-            return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen
-
-        if self.ref_plot_type_dropdown.value == "Animation":
-            chosen_axes = (
-                self.ref_x_axis_dropdown.value,
-                self.ref_y_axis_dropdown.value,
-                self.ref_animation_axis_dropdown.value,
-            )
-        elif self.ref_plot_type_dropdown.value == "Heatmap":
-            chosen_axes = (
-                self.ref_x_axis_dropdown.value,
-                self.ref_y_axis_dropdown.value,
-            )
-        else:
-            chosen_axes = (self.ref_x_axis_dropdown.value,)
-
-        self.ref_remaining_dims = [dim for dim in viable_dims if dim not in chosen_axes]
-        # Check if existing reference slice widgets match the required dimensions
-        if hasattr(self, "ref_slice_widgets"):
-            if set(self.ref_slice_widgets.keys()) != set(self.ref_remaining_dims):
-                self._safe_remove_widget_object(self.widget_container, "ref_slice_ui_row")
-                self._safe_remove_widget_object(self.widget_container, "ref_slice_widgets")
-
-        # If there are dimensions remaining in the dataset, and they are not already sliced by the user
-        if len(self.ref_remaining_dims) > 0 and not hasattr(self, "ref_slice_widgets"):
-            plot_valid = False
-            requires_slice = True
-        # If the dataset lacks enough dimensions for the chosen plot type
-        if (len(viable_dims) == 1 and self.ref_plot_type_dropdown.value == "Heatmap") or (
-            len(viable_dims) in (1, 2) and self.ref_plot_type_dropdown.value == "Animation"
-        ):
-            plot_valid = False
-            invalid_heatmap_data = True
-            # Check if required axes are missing based on plot type
-        elif (self.ref_plot_type_dropdown.value == "Heatmap" and not self.ref_y_axis_dropdown.value) or (
-            self.ref_plot_type_dropdown.value == "Animation" and not (self.ref_y_axis_dropdown.value and self.ref_animation_axis_dropdown.value)
-        ):
-            plot_valid = False
-            invalid_heatmap_data = True
-        # If the user has tried to plot the same variable on both axes
-        elif len(set(chosen_axes)) != len(chosen_axes):
-            plot_valid = False
-            same_axes_chosen = True
-
-        return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen
 
     def _check_multiplot_plot_validity(self):
         """
@@ -1254,8 +1178,9 @@ class UserInterface:
 
         if invalid_datasets:
             invalid_str = ", ".join(invalid_datasets.keys())
-            controller.update_textbox_text(self.multiplot_warning_textbox, 
-                f"Warning >> The following models were removed as they do not contain the selected variable: {invalid_str}"
+            controller.update_textbox_text(
+                self.multiplot_warning_textbox,
+                f"Warning >> The following models were removed as they do not contain the selected variable: {invalid_str}",
             )
 
         # If there are dimensions remaining in the dataset, and they are not already sliced by the user
@@ -1369,7 +1294,9 @@ class UserInterface:
 
         # Add the slice information to the title, if it is sliced data
 
-        slice_str = ", ".join([f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.ref_chosen_slices.items()])
+        slice_str = ", ".join(
+            [f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.ref_chosen_slices.items()]
+        )
         title_text = heatmap_data[ref_variable].attrs.get("long_name", ref_variable)
         caption_text = "Model: " + self.ref_keys_dropdown.value + "\nDataset: " + self.ref_data_keys_dropdown.value
 
@@ -1431,13 +1358,17 @@ class UserInterface:
             # Plot all model variants if multiple exist
             if "member" in sliced_data.dims:
                 for mem in sliced_data.member.values:
-                    sliced_data[variable].sel(member=mem, method="nearest").plot(label=f"{model_key} (mem: {mem})", x=x_axis, ax=ax)
+                    sliced_data[variable].sel(member=mem, method="nearest").plot(
+                        label=f"{model_key} (mem: {mem})", x=x_axis, ax=ax
+                    )
             else:
                 # Plot directly if no member dimension exists
                 sliced_data[variable].plot(label=model_key, x=x_axis, ax=ax)
 
         # Add the slice information to the caption text, if it is sliced data
-        slice_str = ", ".join([f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.multiplot_chosen_slices.items()])
+        slice_str = ", ".join(
+            [f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.multiplot_chosen_slices.items()]
+        )
         title_text = sliced_user_data[variable].attrs.get("long_name", variable)
 
         caption_text = ""
@@ -1544,7 +1475,9 @@ class UserInterface:
             fig.delaxes(axes_flat[i])
 
         # Add the slice information to the caption text, if it is sliced data
-        slice_str = ", ".join([f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.multiplot_chosen_slices.items()])
+        slice_str = ", ".join(
+            [f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.multiplot_chosen_slices.items()]
+        )
         if slice_str:
             fig.text(
                 0.1,
@@ -1568,7 +1501,9 @@ class UserInterface:
         """
 
         self.multiplot_ref_dataset_dict = {}
-        controller.update_textbox_text(self.multiplot_status_textbox, "Overlay Plot Status >> Cleared loaded reference models")
+        controller.update_textbox_text(
+            self.multiplot_status_textbox, "Overlay Plot Status >> Cleared loaded reference models"
+        )
 
     def _multiplot_check_bounds(self):
         """
@@ -1697,26 +1632,25 @@ class UserInterface:
         ]
 
         # Insert the slice UI below the plot choices row
-        self._safe_add_to_widget(
-            self.widget_container,
-            priority_list,
-            self.prompt_bounds_row,
-            append=True
-        )
+        self._safe_add_to_widget(self.widget_container, priority_list, self.prompt_bounds_row, append=True)
 
     def _update_multiplot_dataset(self):
         """
         Load a new user dataset based on the current dropdown selection and update UI components. Private.
         """
 
-        controller.update_textbox_text(self.multiplot_status_textbox, "Overlay Plot Status >> Loading new user dataset...")
+        controller.update_textbox_text(
+            self.multiplot_status_textbox, "Overlay Plot Status >> Loading new user dataset..."
+        )
         # Load selected dataset
         self.dataset = data._build_data_object(self.model_cat, self.multiplot_keys_dropdown.value)
         self.loaded_dataset_key = self.multiplot_keys_dropdown.value
         self.multiplot_plot_variable_dropdown.options = sorted(list(self.dataset.keys()))
         self.keys_dropdown.value = self.loaded_dataset_key
         self.plot_variable_dropdown.options = sorted(list(self.dataset.keys()))
-        controller.update_textbox_text(self.multiplot_status_textbox, "Overlay Plot Status >> New user dataset loaded, clearing loaded user models")
+        controller.update_textbox_text(
+            self.multiplot_status_textbox, "Overlay Plot Status >> New user dataset loaded, clearing loaded user models"
+        )
         # Clear the loaded data, as different datasets from the selected models will need to be loaded.
         self._clear_multiplot_data()
 
@@ -1773,7 +1707,9 @@ class UserInterface:
         if slice_str:
             caption_text += f"<br>Sliced by: {slice_str}"
 
-        caption_pane = pn.pane.HTML(f"<div style='font-size: 12px; margin-left: 10%; margin-top: 10px;'>{caption_text}</div>")
+        caption_pane = pn.pane.HTML(
+            f"<div style='font-size: 12px; margin-left: 10%; margin-top: 10px;'>{caption_text}</div>"
+        )
         # Return a Column with the plot on top and the caption underneath
         return pn.Column(pn.panel(plot), caption_pane)
 
@@ -1819,14 +1755,23 @@ class UserInterface:
 
         # Build caption string
         variable_text = plot_dataset.attrs.get("long_name", self._get_variable_helper("ref"))
-        slice_str = ", ".join([f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.ref_chosen_slices.items()])
+        slice_str = ", ".join(
+            [f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.ref_chosen_slices.items()]
+        )
         caption_text = (
-            "Variable: " + variable_text + "<br>Model: " + self.ref_keys_dropdown.value + "<br>Dataset: " + self.ref_data_keys_dropdown.value
+            "Variable: "
+            + variable_text
+            + "<br>Model: "
+            + self.ref_keys_dropdown.value
+            + "<br>Dataset: "
+            + self.ref_data_keys_dropdown.value
         )
         if slice_str:
             caption_text += f"<br>Sliced by: {slice_str}"
 
-        caption_pane = pn.pane.HTML(f"<div style='font-size: 12px; margin-left: 10%; margin-top: 10px;'>{caption_text}</div>")
+        caption_pane = pn.pane.HTML(
+            f"<div style='font-size: 12px; margin-left: 10%; margin-top: 10px;'>{caption_text}</div>"
+        )
 
         # Return a Column with the plot on top and the caption underneath
         return pn.Column(pn.panel(plot), caption_pane)
@@ -1912,7 +1857,9 @@ class UserInterface:
             fig.delaxes(axes_flat[i])
 
         # Add the slice information to the caption text, if it is sliced data
-        slice_str = ", ".join([f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.multiplot_chosen_slices.items()])
+        slice_str = ", ".join(
+            [f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.multiplot_chosen_slices.items()]
+        )
         if slice_str:
             fig.text(
                 0.1,
@@ -1973,13 +1920,17 @@ class UserInterface:
             # Plot all model variants if multiple
             if "member" in plot_data.dims:
                 for mem in plot_data.member.values:
-                    plot_data[variable].sel(member=mem, method="nearest").plot(label=f"{model_key} (mem: {mem})", x=x_axis, ax=ax)
+                    plot_data[variable].sel(member=mem, method="nearest").plot(
+                        label=f"{model_key} (mem: {mem})", x=x_axis, ax=ax
+                    )
             else:
                 # Plot directly if no member dimension exists
                 plot_data[variable].plot(label=model_key, x=x_axis, ax=ax)
 
         # Add the slice information to the caption text, if it is sliced data
-        slice_str = ", ".join([f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.multiplot_chosen_slices.items()])
+        slice_str = ", ".join(
+            [f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.multiplot_chosen_slices.items()]
+        )
         title_text = "Δ "
         title_text += sliced_user_data[variable].attrs.get("long_name", variable)
         title_text += " (Ref. - User data)"
@@ -2003,7 +1954,7 @@ class UserInterface:
 
         return fig
 
-    def _plot_dataset_helper(self, is_ref = False):
+    def _plot_dataset_helper(self, is_ref=False):
         """
         Plot either the user or reference dataset based on the current UI state.
 
@@ -2023,25 +1974,35 @@ class UserInterface:
 
         if is_ref:
             variable = self._get_variable_helper("ref")
-            self.ref_fig = controller.plot_dataset(self.ref_dataset, self.ref_data_keys_dropdown.value, variable, self.ref_x_axis_dropdown.value, self.ref_chosen_slices, is_ref, self.ref_keys_dropdown.value)
+            self.ref_fig = controller.plot_dataset(
+                self.ref_dataset,
+                self.ref_data_keys_dropdown.value,
+                variable,
+                self.ref_x_axis_dropdown.value,
+                self.ref_chosen_slices,
+                is_ref,
+                self.ref_keys_dropdown.value,
+            )
             self.ref_figure_exists = True
 
             return self.ref_fig
         else:
             variable = self._get_variable_helper("user")
-            self.fig = controller.plot_dataset(self.dataset, self.keys_dropdown.value, variable, self.x_axis_dropdown.value, self.chosen_slices, is_ref)
-            self.figure_exists = True 
+            self.fig = controller.plot_dataset(
+                self.dataset, self.keys_dropdown.value, variable, self.x_axis_dropdown.value, self.chosen_slices, is_ref
+            )
+            self.figure_exists = True
 
             return self.fig
 
-    def _get_variable_helper(self, section = "user"):
+    def _get_variable_helper(self, section="user"):
         """
         Retrieve the selected dataset variable key for the specified UI section.
 
         Parameters
         ----------
         section : str, optional
-            The section of the UI to query. Valid options are "user", "ref", or 
+            The section of the UI to query. Valid options are "user", "ref", or
             "multiplot". Defaults to "user".
 
         Returns
@@ -2051,9 +2012,13 @@ class UserInterface:
         """
 
         if section == "ref":
-            return controller.get_selected_variable(self.ref_variable_toggle, self.ref_plot_variable_dropdown, self.ref_long_names)
+            return controller.get_selected_variable(
+                self.ref_variable_toggle, self.ref_plot_variable_dropdown, self.ref_long_names
+            )
         elif section == "multiplot":
-            return controller.get_selected_variable(self.multiplot_variable_toggle, self.multiplot_plot_variable_dropdown, self.multiplot_long_names)
+            return controller.get_selected_variable(
+                self.multiplot_variable_toggle, self.multiplot_plot_variable_dropdown, self.multiplot_long_names
+            )
         else:
             return controller.get_selected_variable(self.variable_toggle, self.plot_variable_dropdown, self.long_names)
 
@@ -2061,8 +2026,8 @@ class UserInterface:
         """
         Safely remove a widget from a container and delete its corresponding attribute.
 
-        Checks if the UI instance possesses the specified attribute. If it does, 
-        removes the component from the provided widget container and deletes the 
+        Checks if the UI instance possesses the specified attribute. If it does,
+        removes the component from the provided widget container and deletes the
         attribute from the class instance to reset the state.
 
         Parameters
@@ -2084,8 +2049,8 @@ class UserInterface:
         """
         Insert a UI component into a container relative to the first matching target attribute.
 
-        Iterates through a prioritised list of target attribute strings. Upon finding the 
-        first target that exists and is currently rendered in the container, it inserts the 
+        Iterates through a prioritised list of target attribute strings. Upon finding the
+        first target that exists and is currently rendered in the container, it inserts the
         new item either directly above or below it.
 
         Parameters
@@ -2097,16 +2062,16 @@ class UserInterface:
         item_to_add : object
             The Panel UI component to insert into the container.
         append : bool, optional
-            If True, appends the new item to the end of the container if none of the 
+            If True, appends the new item to the end of the container if none of the
             target attributes are found. Defaults to False.
         above : bool, optional
-            If True, inserts the new item directly above the found target. If False, 
+            If True, inserts the new item directly above the found target. If False,
             inserts it directly below. Defaults to False.
 
         Returns
         -------
         bool
-            True if the item was appended to the bottom (meaning no targets were found 
+            True if the item was appended to the bottom (meaning no targets were found
             but append was True), False otherwise.
         """
 
@@ -2121,7 +2086,7 @@ class UserInterface:
                 else:
                     insert_index += 1
                 widget_container.insert(insert_index, item_to_add)
-                return False # Item was successfully inserted
+                return False  # Item was successfully inserted
 
         # If it found none of the targets, append to the bottom
         if append:
@@ -2130,7 +2095,7 @@ class UserInterface:
 
         return False
 
-    def _check_slice(self, section = "user"):
+    def _check_slice(self, section="user"):
         """
         Check if the plot requires dimensions to be sliced and generate the slicing UI. Private.
 
@@ -2145,7 +2110,6 @@ class UserInterface:
             The UI section being evaluated. Valid options are "user", "ref", or
             "multiplot". Defaults to "user".
         """
-
 
         if section == "multiplot":
             remaining_dims = self.multiplot_remaining_dims
@@ -2197,13 +2161,87 @@ class UserInterface:
             status_prefix = "User model status"
 
         # Insert the slice UI below the plot choices row
-        self._safe_add_to_widget(
-            self.widget_container,
-            position,
-            slice_ui_row,
-            append=True
-        )
+        self._safe_add_to_widget(self.widget_container, position, slice_ui_row, append=True)
 
         # Update the UI text to prompt the user
         button.name = "Confirm Slices & Plot"
-        controller.update_textbox_text(textbox, f"{status_prefix} >> Action required: Select slice values and click plot again.")
+        controller.update_textbox_text(
+            textbox, f"{status_prefix} >> Action required: Select slice values and click plot again."
+        )
+
+    def _check_plot_validity_helper(self, section="user"):
+        """
+        Gather section-specific widget configurations and delegate plot validation to the controller.
+
+        Inspects the dropdown values and active datasets for the specified UI section, 
+        evaluates slice widget states, and coordinates layout cleanups if dataset dimensions 
+        or slice requirements have changed.
+
+        Parameters
+        ----------
+        section : str, optional
+            The UI section being evaluated. Valid options are "user", "ref", or 
+            "multiplot". Defaults to "user".
+
+        Returns
+        -------
+        tuple of (bool, bool, bool, bool)
+            A 4-tuple containing:
+            - plot_valid : bool
+              True if the configuration is valid and ready to plot.
+            - requires_slice : bool
+              True if unplotted dimensions require slicing.
+            - invalid_heatmap_data : bool
+              True if the chosen plot type lacks sufficient viable dimensions or axes.
+            - same_axes_chosen : bool
+              True if identical axes were selected.
+        """
+        
+        if section == "ref":
+            dataset = self.ref_dataset
+            plot_type = self.ref_plot_type_dropdown.value
+            x = self.ref_x_axis_dropdown.value
+            y = self.ref_y_axis_dropdown.value
+            z = self.ref_animation_axis_dropdown.value
+            widget_attr, row_attr = "ref_slice_widgets", "ref_slice_ui_row"
+        elif section == "multiplot":
+            dataset = self.dataset
+            plot_type = self.multiplot_plot_type_dropdown.value
+            x = self.multiplot_x_axis_dropdown.value
+            y = self.multiplot_y_axis_dropdown.value
+            z = self.multiplot_animation_axis_dropdown.value
+            widget_attr, row_attr = "multiplot_slice_widgets", "multiplot_slice_ui_row"
+        else:
+            dataset = self.dataset
+            plot_type = self.plot_type_dropdown.value
+            x = self.x_axis_dropdown.value
+            y = self.y_axis_dropdown.value
+            z = self.animation_axis_dropdown.value
+            widget_attr, row_attr = "slice_widgets", "slice_ui_row"
+
+        variable = self._get_variable_helper(section)
+        has_slice_widgets = hasattr(self, widget_attr)
+        existing_keys = list(getattr(self, widget_attr).keys()) if has_slice_widgets else []
+
+        plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, remaining_dims = controller.check_plot_validity(
+            dataset=dataset, variable=variable, plot_type=plot_type, x=x, y=y, z=z, has_slice_widgets=has_slice_widgets
+        )
+
+        # Handle UI cleanup if slice requirements changed
+        if has_slice_widgets and existing_keys != remaining_dims:
+            self._safe_remove_widget_object(self.widget_container, row_attr)
+            self._safe_remove_widget_object(self.widget_container, widget_attr)
+            # Re-evaluate with no slice widgets now that they are cleared
+            plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, remaining_dims = controller.check_plot_validity(
+                dataset=dataset, variable=variable, plot_type=plot_type, x=x, y=y, z=z, has_slice_widgets=False
+            )
+
+        # Save remaining dims back to the correct attribute on self
+        if section == "ref":
+            self.ref_remaining_dims = remaining_dims
+        elif section == "multiplot":
+            self.multiplot_remaining_dims = remaining_dims
+        else:
+            self.remaining_dims = remaining_dims
+
+        return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen
