@@ -353,6 +353,8 @@ def check_plot_validity(dataset, variable, plot_type, x, y=None, z=None, has_sli
     invalid_heatmap_data = False
     same_axes_chosen = False
 
+    heatmaps = ["Heatmap", "Heatmap (grid)"]
+
     if not x:
         plot_valid = False
         return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, []
@@ -360,7 +362,9 @@ def check_plot_validity(dataset, variable, plot_type, x, y=None, z=None, has_sli
     # 1. Build chosen_axes first so we can filter dimensions
     if plot_type == "Animation":
         chosen_axes = (x, y, z)
-    elif plot_type == "Heatmap":
+    elif plot_type in heatmaps:
+        chosen_axes = (x, y)
+    elif plot_type == "Heatmap (grid)":
         chosen_axes = (x, y)
     else:
         chosen_axes = (x,)
@@ -375,10 +379,10 @@ def check_plot_validity(dataset, variable, plot_type, x, y=None, z=None, has_sli
         requires_slice = True
 
     # If the dataset lacks enough dimensions for the chosen plot type
-    if (len(viable_dims) == 1 and plot_type == "Heatmap") or (len(viable_dims) in (1, 2) and plot_type == "Animation"):
+    if (len(viable_dims) == 1 and plot_type in heatmaps) or (len(viable_dims) in (1, 2) and plot_type == "Animation"):
         plot_valid = False
         invalid_heatmap_data = True
-    elif (plot_type == "Heatmap" and not y) or (plot_type == "Animation" and not (y and z)):
+    elif (plot_type in heatmaps and not y) or (plot_type == "Animation" and not (y and z)):
         plot_valid = False
         invalid_heatmap_data = True
     elif len(set(chosen_axes)) != len(chosen_axes):

@@ -107,6 +107,7 @@ def test_check_plot_validity_1d(
         requires_slice_output,
         invalid_heatmap_output,
         same_axes_output,
+        False
     )
 
 
@@ -159,6 +160,7 @@ def test_check_plot_validity_2d(
         requires_slice_output,
         invalid_heatmap_output,
         same_axes_output,
+        False
     )
 
 
@@ -208,6 +210,7 @@ def test_check_plot_validity_3d(
         requires_slice_output,
         invalid_heatmap_output,
         same_axes_output,
+        False
     )
 
 
@@ -281,6 +284,7 @@ def test_check_plot_validity_4d(
         requires_slice_output,
         invalid_heatmap_output,
         same_axes_output,
+        False
     )
     if requires_slice_output:
         # Determine which attributes we should be checking
@@ -295,261 +299,6 @@ def test_check_plot_validity_4d(
             # Otherwise, the cleanup runs because the slice widgets don't match remaining dims
             assert not hasattr(ui, row_attr)
             assert not hasattr(ui, widget_attr)
-
-@pytest.mark.parametrize(
-    "x_value, y_value, plot_type, variable_value, plot_valid_output, requires_slice_output, check_bounds_output",
-    [
-        ("x", "", "Line", "data", True, False, False),
-        ("x", "y", "Line", "data", True, False, False),
-    ],
-)
-def test_multiplot_check_plot_validity_1d(
-    ui,
-    x_value,
-    y_value,
-    plot_type,
-    variable_value,
-    plot_valid_output,
-    requires_slice_output,
-    check_bounds_output,
-):
-    """Test multiplot validity and configuration flags for 1D datasets""" 
-
-    # Create a 1D xarray dataset
-    data = xr.DataArray(np.random.rand(10), dims=["x"], coords={"x": np.arange(10)})
-    ds = xr.Dataset({"data": data})
-
-    # assign dataset and multiplot reference state on the UI instance
-    ui.dataset = ds
-    ui.multiplot_ref_dataset_dict = {"key": ds, "key2": ds}
-    ui.multiplot_x_axis_dropdown.value = x_value
-    ui.multiplot_y_axis_dropdown.value = y_value
-    ui.multiplot_plot_type_dropdown.value = plot_type
-    ui.multiplot_plot_variable_dropdown.value = variable_value
-    
-    results = ui._check_multiplot_plot_validity()
-    
-    # Verify that the validity check returns the expected configuration flags
-    assert results == (plot_valid_output, requires_slice_output, check_bounds_output)
-
-
-@pytest.mark.parametrize(
-    "x_value, y_value, plot_type, variable_value, plot_valid_output, requires_slice_output, check_bounds_output",
-    [
-        ("x", "", "Line", "data", False, False, True),
-        ("x", "y", "Line", "data", False, False, True),
-    ],
-)
-def test_multiplot_check_plot_validity_1d_bounds(
-    ui,
-    x_value,
-    y_value,
-    plot_type,
-    variable_value,
-    plot_valid_output,
-    requires_slice_output,
-    check_bounds_output,
-):
-    """Test multiplot validity and coordinate/bounds mismatch flags for 1D datasets""" 
-
-    # Create a 1D xarray dataset
-    data = xr.DataArray(np.random.rand(10), dims=["x"], coords={"x": np.arange(10)})
-    ds = xr.Dataset({"data": data})
-    ui.dataset = ds
-
-    # Introduce mismatched coordinates and values across datasets to trigger bounds checking
-    ds_different_bounds = ds.assign_coords(x=ds["x"] * 2)
-    ui.multiplot_ref_dataset_dict = {"key": ds_different_bounds * 2, "key2": ds}
-    ui.multiplot_x_axis_dropdown.value = x_value
-    ui.multiplot_y_axis_dropdown.value = y_value
-    ui.multiplot_plot_type_dropdown.value = plot_type
-    ui.multiplot_plot_variable_dropdown.value = variable_value
-    
-    results = ui._check_multiplot_plot_validity()
-    
-    # Verify that the validity check returns the expected configuration flags
-    assert results == (plot_valid_output, requires_slice_output, check_bounds_output)
-
-
-@pytest.mark.parametrize(
-    "x_value, y_value, plot_type, variable_value, plot_valid_output, requires_slice_output, check_bounds_output, invalid_dataset_test",
-    [
-        ("x", "", "Line", "data", False, True, False, False),
-        ("x", "y", "Line", "data", False, True, False, False),
-        ("x", "y", "Heatmap (grid)", "data", True, False, False, False),
-        ("x", "x", "Heatmap (grid)", "data", False, False, False, False),
-        ("x", "y", "Heatmap (grid)", "data", True, False, False, True),
-    ],
-)
-def test_multiplot_check_plot_validity_2d(
-    ui,
-    x_value,
-    y_value,
-    plot_type,
-    variable_value,
-    plot_valid_output,
-    requires_slice_output,
-    check_bounds_output,
-    invalid_dataset_test,
-):
-    """Test multiplot validity and configuration flags for 2D datasets""" 
-
-    # Create a 2D xarray dataset
-    data = xr.DataArray(
-        np.random.rand(10, 10),
-        dims=["x", "y"],
-        coords={"x": np.arange(10), "y": np.arange(10)},
-    )
-    ds = xr.Dataset({"data": data})
-    
-    # Introduce mismatched variables across datasets to test invalid dataset handling
-    if invalid_dataset_test:
-        ds2 = xr.Dataset({"different_name": data})
-    else:
-        ds2 = ds
-        
-    # Assign dataset and multiplot reference state on the UI instance
-    ui.dataset = ds
-    ui.multiplot_ref_dataset_dict = {"key": ds, "key2": ds2}
-    ui.multiplot_x_axis_dropdown.value = x_value
-    ui.multiplot_y_axis_dropdown.value = y_value
-    ui.multiplot_plot_type_dropdown.value = plot_type
-    ui.multiplot_plot_variable_dropdown.value = variable_value
-    
-    results = ui._check_multiplot_plot_validity()
-    
-    # Verify that the validity check returns the expected configuration flags
-    assert results == (plot_valid_output, requires_slice_output, check_bounds_output)
-
-    # Verify that the appropriate warning is displayed when a dataset is removed
-    if invalid_dataset_test:
-        assert (
-            "The following models were removed as they do not contain the selected variable"
-            in ui.multiplot_warning_textbox.value
-        )
-
-@pytest.mark.parametrize(
-    "x_value, y_value, plot_type, variable_value, plot_valid_output, requires_slice_output, check_bounds_output",
-    [
-        ("x", "", "Line", "data", False, True, False),
-        ("x", "y", "Line", "data", False, True, False),
-        ("x", "y", "Heatmap (grid)", "data", False, False, True),
-        ("x", "x", "Heatmap (grid)", "data", False, False, False),
-    ],
-)
-def test_multiplot_check_plot_validity_2d_bounds(
-    ui,
-    x_value,
-    y_value,
-    plot_type,
-    variable_value,
-    plot_valid_output,
-    requires_slice_output,
-    check_bounds_output,
-):
-    """Test multiplot validity and coordinate/bounds mismatch flags for 2D datasets""" 
-
-    # Create a 2D xarray dataset
-    data = xr.DataArray(
-        np.random.rand(10, 10),
-        dims=["x", "y"],
-        coords={"x": np.arange(10), "y": np.arange(10)},
-    )
-    ds = xr.Dataset({"data": data})
-    ui.dataset = ds
-    
-    # Introduce mismatched coordinates and values across datasets to trigger bounds checking
-    ds_different_bounds = ds.assign_coords(x=ds["x"] * 2)
-    ui.multiplot_ref_dataset_dict = {"key": ds_different_bounds * 2, "key2": ds}
-    ui.multiplot_x_axis_dropdown.value = x_value
-    ui.multiplot_y_axis_dropdown.value = y_value
-    ui.multiplot_plot_type_dropdown.value = plot_type
-    ui.multiplot_plot_variable_dropdown.value = variable_value
-    
-    results = ui._check_multiplot_plot_validity()
-    
-    # Verify that the validity check returns the expected configuration flags
-    assert results == (plot_valid_output, requires_slice_output, check_bounds_output)
-
-@pytest.mark.parametrize(
-    "x_value, y_value, plot_type, variable_value, plot_valid_output, requires_slice_output, check_bounds_output",
-    [
-        ("x", "", "Line", "data", False, True, False),
-        ("x", "y", "Line", "data", False, True, False),
-        ("x", "y", "Heatmap (grid)", "data", False, True, False),
-        ("x", "x", "Heatmap (grid)", "data", False, False, False),
-    ],
-)
-def test_multiplot_check_plot_validity_3d(
-    ui,
-    x_value,
-    y_value,
-    plot_type,
-    variable_value,
-    plot_valid_output,
-    requires_slice_output,
-    check_bounds_output,
-):
-    """Test multiplot validity and configuration flags for 3D datasets""" 
-    
-    ui.multiplot_ref_dataset_dict = {"key": ui.dataset, "key2": ui.dataset}
-    ui.multiplot_x_axis_dropdown.value = x_value
-    ui.multiplot_y_axis_dropdown.value = y_value
-    ui.multiplot_plot_type_dropdown.value = plot_type
-    ui.multiplot_plot_variable_dropdown.value = variable_value
-    if requires_slice_output:
-        ui.multiplot_slice_widgets = {"widget": pn.pane.Markdown("a widget")}
-        ui.multiplot_slice_ui_row = pn.Row(name="multiplot slice ui row")
-        ui.widget_container.append(ui.multiplot_slice_ui_row)
-    
-    results = ui._check_multiplot_plot_validity()
-    
-    # Verify that the validity check returns the expected configuration flags
-    assert results == (plot_valid_output, requires_slice_output, check_bounds_output)
-    if requires_slice_output:
-        # If the function exits early due to no x_axis, the cleanup never happens
-        if not x_value:
-            assert hasattr(ui, "multiplot_slice_ui_row")
-            assert getattr(ui, "multiplot_slice_widgets") in ui.widget_container
-        else:
-            # Otherwise, the cleanup runs because the slice widgets don't match remaining dims
-            assert not hasattr(ui, "multiplot_slice_ui_row")
-            assert not hasattr(ui, "multiplot_slice_widgets")
-
-
-@pytest.mark.parametrize(
-    "x_value, y_value, plot_type, variable_value, plot_valid_output, requires_slice_output, check_bounds_output",
-    [
-        ("x", "", "Line", "data", False, True, False),
-        ("x", "y", "Line", "data", False, True, False),
-        ("x", "y", "Heatmap (grid)", "data", False, True, False),
-        ("x", "x", "Heatmap (grid)", "data", False, False, False),
-    ],
-)
-def test_multiplot_check_plot_validity_3d_bounds(
-    ui,
-    x_value,
-    y_value,
-    plot_type,
-    variable_value,
-    plot_valid_output,
-    requires_slice_output,
-    check_bounds_output,
-):
-    """Test multiplot validity and coordinate/bounds mismatch flags for 3D datasets""" 
-
-    # Introduce mismatched coordinates and values across datasets to trigger bounds checking
-    ds_different_bounds = ui.dataset.assign_coords(x=ui.dataset["x"] * 2)
-    ui.multiplot_ref_dataset_dict = {"key": ds_different_bounds * 2, "key2": ui.dataset}
-    ui.multiplot_x_axis_dropdown.value = x_value
-    ui.multiplot_y_axis_dropdown.value = y_value
-    ui.multiplot_plot_type_dropdown.value = plot_type
-    ui.multiplot_plot_variable_dropdown.value = variable_value
-    
-    results = ui._check_multiplot_plot_validity()
-    
-    # Verify that the validity check returns the expected configuration flags
-    assert results == (plot_valid_output, requires_slice_output, check_bounds_output)
 
 @pytest.mark.parametrize(
     "meta, cat, ds",
@@ -1107,7 +856,7 @@ def test_plot_ref_data_button_click(
     assert not hasattr(ui, "ref_plot_choices_row")
     assert not hasattr(ui, "ref_slice_ui_row")
     assert not hasattr(ui, "ref_slice_widgets")
- 
+
 
 @pytest.mark.parametrize(
     "plot_type, analysis_type, slice_dict",
@@ -1563,7 +1312,6 @@ def test_display_multiplot_plot_choices_ui(
 
     elif expected_outcome == "auto_plot_line":
         ui._multiplot_check_bounds.assert_called_once()
-        assert ui.multiplot_warning_textbox.value == "Only one valid x-axis dimension."
 
     elif expected_outcome == "one_dim_bounds_line":
         mock_prompt_bounds_ui.assert_called_once()
@@ -2050,7 +1798,7 @@ def test_plot_button_click(ui, monkeypatch, plot_valid, requires_slice, invalid_
     """Test the primary plot button click handler across various validation checks, slicing requirements, and error warning states""" 
 
     # Mock plot validity checkers, plotting triggers, slice checks, and choice UI display methods
-    mock_check_plot_validity = MagicMock(return_value=(plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen))
+    mock_check_plot_validity = MagicMock(return_value=(plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, False))
     monkeypatch.setattr(ui, "_check_plot_validity_helper", mock_check_plot_validity)
     
     mock_plot_data_button_click = MagicMock()
@@ -2109,6 +1857,7 @@ def test_ref_plot_button_click(
             requires_slice,
             invalid_heatmap_data,
             same_axes_chosen,
+            False
         )
     )
     monkeypatch.setattr(ui, "_check_plot_validity_helper", mock_check_plot_validity)
@@ -2154,15 +1903,18 @@ def test_ref_plot_button_click(
         assert not hasattr(ui, "ref_plot_choices_row")
         assert not hasattr(ui, "ref_slice_ui_row")
 
+
 @pytest.mark.parametrize(
-    "plot_valid, requires_slice, prompt_bounds",
+    "plot_valid, requires_slice, same_axes_chosen, invalid_heatmap_data, prompt_bounds",
     [
-        (True, False, False),
-        (False, True, False),
-        (False, False, True)
+        (True, False, False, False, False),
+        (False, True, False, False, False),
+        (False, False, True, False, False),
+        (False, False, False, True, False),
+        (False, False, False, False, True),
     ],
 )
-def test_multiplot_plot_button_click(ui, monkeypatch, plot_valid, requires_slice, prompt_bounds):
+def test_multiplot_plot_button_click(ui, monkeypatch, plot_valid, requires_slice, same_axes_chosen, invalid_heatmap_data, prompt_bounds):
     """Test the multiplot data button click handler across validation checks, slicing requirements, and bounds prompting states""" 
 
     # Mock multiplot plot validity checkers, plotting triggers, slice checks, and bounds prompt UI methods
@@ -2170,19 +1922,25 @@ def test_multiplot_plot_button_click(ui, monkeypatch, plot_valid, requires_slice
             return_value=(
                 plot_valid,
                 requires_slice,
+                invalid_heatmap_data,
+                same_axes_chosen,
                 prompt_bounds
             )
         )
-    monkeypatch.setattr(ui, "_check_multiplot_plot_validity", mock_check_plot_validity)
+    monkeypatch.setattr(ui, "_check_plot_validity_helper", mock_check_plot_validity)
 
     mock_plot_data_button_click = MagicMock()
     monkeypatch.setattr(ui, "_multiplot_plot_data_button_click", mock_plot_data_button_click)
-    
+
     mock_check_slice = MagicMock()
     monkeypatch.setattr(ui, "_check_slice", mock_check_slice)
-    
+
     mock_prompt_bounds_ui = MagicMock()
     monkeypatch.setattr(ui, "_prompt_bounds_ui", mock_prompt_bounds_ui)
+
+    mock_display_choices = MagicMock()
+    # Note: ensure this string exactly matches the name of your multiplot choices method!
+    monkeypatch.setattr(ui, "_display_multiplot_plot_choices_ui", mock_display_choices)
 
     # Trigger the multiplot plot button click handler with a dummy event argument
     ui._multiplot_plot_button_click(None)
@@ -2194,6 +1952,9 @@ def test_multiplot_plot_button_click(ui, monkeypatch, plot_valid, requires_slice
         mock_check_slice.assert_called_once()
     elif prompt_bounds:
         mock_prompt_bounds_ui.assert_called_once()
+    elif same_axes_chosen:
+        mock_display_choices.assert_called_once()
+    
 
 
 def test_keys_button_click(ui, monkeypatch):

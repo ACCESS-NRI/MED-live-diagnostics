@@ -181,12 +181,12 @@ class UserInterface:
             self._ref_clear_data_click()
 
         def _plot_button_click(event):
-            plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen = self._check_plot_validity_helper(section="user")
+            plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, prompt_bounds = self._check_plot_validity_helper(section="user")
             self._plot_button_click_display_choices(plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, section="user")
         self._plot_button_click = _plot_button_click  # Just making this accessible for testing
 
         def _ref_plot_button_click(event):
-            plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen = self._check_plot_validity_helper(section="ref")
+            plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, prompt_bounds = self._check_plot_validity_helper(section="ref")
             self._plot_button_click_display_choices(plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, section="ref")
         self._ref_plot_button_click = _ref_plot_button_click
 
@@ -203,14 +203,9 @@ class UserInterface:
             self._multiplot_ref_keys_dropdown_click()
 
         def _multiplot_plot_button_click(event):
+            plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, prompt_bounds = self._check_plot_validity_helper(section="multiplot")
 
-            plot_valid, requires_slice, prompt_bounds = self._check_multiplot_plot_validity()
-            if plot_valid:
-                self._multiplot_plot_data_button_click()
-            elif requires_slice:
-                self._check_slice(section="multiplot")
-            elif prompt_bounds:
-                self._prompt_bounds_ui()
+            self._plot_button_click_display_choices(plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, prompt_bounds, section="multiplot")
 
         self._multiplot_plot_button_click = _multiplot_plot_button_click
 
@@ -1027,7 +1022,6 @@ class UserInterface:
             needs_bounds_ui = self._multiplot_check_bounds()
             if len(viable_dims) == 1 and not needs_bounds_ui:
                 show_plot_choices = True
-                controller.update_textbox_text(self.multiplot_warning_textbox, "Only one valid x-axis dimension.")
                 self.multiplot_plot_choices_row = pn.Row(
                     self.multiplot_analysis_choice_dropdown, self.multiplot_plot_button
                 )
@@ -1035,6 +1029,7 @@ class UserInterface:
             elif len(viable_dims) == 1 and needs_bounds_ui:
                 show_plot_choices = False
                 self._prompt_bounds_ui()
+                return
             else:
                 self.multiplot_plot_choices_row = pn.Row(
                     self.multiplot_x_axis_dropdown,
@@ -1047,78 +1042,6 @@ class UserInterface:
             self._safe_add_to_widget(
                 self.widget_container, ["multiplot_type_selection_row"], self.multiplot_plot_choices_row, append=True
             )
-
-    def _check_multiplot_plot_validity(self):
-        """
-        Check if the current UI configuration allows for a valid plot. Private.
-
-        Returns
-        -------
-        plot_valid : bool
-            True if the plot can be generated immediately, False otherwise.
-        requires_slice : bool
-            True if the data has remaining dimensions requiring UI slice widgets.
-        check_bounds : bool
-            True if reference dataset bounds exceed the user dataset x-axis limits.
-        """
-
-        plot_valid = True
-        requires_slice = False
-        check_bounds = False
-
-        # Filter which dimensions can viably be plotted on an axis
-        dim_sizes = self.dataset[self._get_variable_helper("multiplot")].sizes
-        viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"]
-
-        # 2. Determine chosen axes safely
-        if self.multiplot_plot_type_dropdown.value == "Line":
-            chosen_axes = (self.multiplot_x_axis_dropdown.value,)
-        elif self.multiplot_plot_type_dropdown.value == "Heatmap (grid)":
-            chosen_axes = (
-                self.multiplot_x_axis_dropdown.value,
-                self.multiplot_y_axis_dropdown.value,
-            )
-
-        self.multiplot_remaining_dims = [dim for dim in viable_dims if dim not in chosen_axes]
-
-        # Check if existing reference slice widgets match the required dimensions
-        if hasattr(self, "multiplot_slice_widgets"):
-            if set(self.multiplot_slice_widgets.keys()) != set(self.multiplot_remaining_dims):
-                self._safe_remove_widget_object(self.widget_container, "multiplot_slice_ui_row")
-                self._safe_remove_widget_object(self.widget_container, "multiplot_slice_widgets")
-
-        # Check if the variable is contained within each of the datasets. If it is not, remove them and inform the user
-        invalid_datasets = {}
-        for dataset in list(self.multiplot_ref_dataset_dict.keys()):
-            if self._get_variable_helper("multiplot") not in self.multiplot_ref_dataset_dict[dataset]:
-                invalid_datasets[dataset] = self.multiplot_ref_dataset_dict[dataset]
-                del self.multiplot_ref_dataset_dict[dataset]
-
-        if invalid_datasets:
-            invalid_str = ", ".join(invalid_datasets.keys())
-            controller.update_textbox_text(
-                self.multiplot_warning_textbox,
-                f"Warning >> The following models were removed as they do not contain the selected variable: {invalid_str}",
-            )
-
-        # If there are dimensions remaining in the dataset, and they are not already sliced by the user
-        if len(self.multiplot_remaining_dims) > 0 and not hasattr(self, "multiplot_slice_widgets"):
-            plot_valid = False
-            requires_slice = True
-
-        if self.multiplot_plot_type_dropdown.value == "Heatmap (grid)" and (
-            self.multiplot_x_axis_dropdown.value == self.multiplot_y_axis_dropdown.value
-        ):
-            plot_valid = False
-            requires_slice = False
-
-        #  check bounds if the plot configuration is actually valid and ready
-        if plot_valid and not requires_slice:
-            check_bounds = self._multiplot_check_bounds()
-            if check_bounds:
-                plot_valid = False
-
-        return plot_valid, requires_slice, check_bounds
 
     def _update_dataset_plot_ui(self):
         """
@@ -2114,7 +2037,7 @@ class UserInterface:
             - same_axes_chosen : bool
               True if identical axes were selected.
         """
-
+        prompt_bounds = False
         if section == "ref":
             dataset = self.ref_dataset
             plot_type = self.ref_plot_type_dropdown.value
@@ -2127,8 +2050,13 @@ class UserInterface:
             plot_type = self.multiplot_plot_type_dropdown.value
             x = self.multiplot_x_axis_dropdown.value
             y = self.multiplot_y_axis_dropdown.value
-            z = self.multiplot_animation_axis_dropdown.value
+            z = None
             widget_attr, row_attr = "multiplot_slice_widgets", "multiplot_slice_ui_row"
+            # ONLY check bounds if it's a Line plot!
+            if plot_type == "Line":
+                prompt_bounds = self._multiplot_check_bounds()
+            else:
+                prompt_bounds = False
         else:
             dataset = self.dataset
             plot_type = self.plot_type_dropdown.value
@@ -2159,13 +2087,15 @@ class UserInterface:
             self.ref_remaining_dims = remaining_dims
         elif section == "multiplot":
             self.multiplot_remaining_dims = remaining_dims
+            if prompt_bounds:
+                plot_valid = False
         else:
             self.remaining_dims = remaining_dims
 
-        return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen
+        return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, prompt_bounds
 
     def _plot_button_click_display_choices(
-        self, plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, section="user"
+        self, plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, prompt_bounds=False, section="user"
     ):
         """
         Handle UI state transitions and displays based on plot validation results.
@@ -2187,7 +2117,7 @@ class UserInterface:
             slice_row = "multiplot_slice_ui_row"
             slice_widgets_attr = "multiplot_slice_widgets"
             plot_action = self._multiplot_plot_data_button_click
-            #display_choices = self._multiplot_display_plot_choices_ui
+            display_choices = self._display_multiplot_plot_choices_ui
             self.chosen_slices = {}
         else:
             warning_box = self.warning_textbox
@@ -2209,7 +2139,8 @@ class UserInterface:
                 "Warning >> The dataset only has one plottable dimension. Defaulting to line plot.",
             )
             plot_type_dd.value = "Line"
-            plot_action()
+            if not section == "multiplot":
+                plot_action()
         elif same_axes_chosen:
             controller.update_textbox_text(
                 warning_box, "Warning >> Please ensure different values are selected for each axis."
@@ -2222,6 +2153,8 @@ class UserInterface:
 
             display_choices()
 
+        elif prompt_bounds:
+            self._prompt_bounds_ui()
 
     def _add_remove_btn(self, plot_pane):
 
@@ -2238,4 +2171,4 @@ class UserInterface:
 
         remove_btn.on_click(_remove_this_plot)
 
-        return plot_pane
+        return plot_group
