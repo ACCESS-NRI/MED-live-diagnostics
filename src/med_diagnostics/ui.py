@@ -519,7 +519,7 @@ class UserInterface:
         self._safe_remove_widget_object(self.widget_container, "slice_ui_row")
         self._safe_remove_widget_object(self.widget_container, "slice_widgets")
 
-        appended = self._safe_add_to_widget(self.widget_container, ["self.ref_status_textbox"], plot_group, append=True)
+        appended = self._safe_add_to_widget(self.widget_container, ["ref_status_textbox"], plot_group, append=True, above = True)
         # Check if the reference UI already exists
         if appended:
             self._display_reference_model_selection_ui()
