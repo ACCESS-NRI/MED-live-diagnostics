@@ -181,60 +181,13 @@ class UserInterface:
             self._ref_clear_data_click()
 
         def _plot_button_click(event):
-
             plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen = self._check_plot_validity_helper(section="user")
-            if plot_valid:
-                self._plot_data_button_click()
-            elif requires_slice:
-                self._check_slice(section="user")
-            elif invalid_heatmap_data:
-                controller.update_textbox_text(
-                    self.warning_textbox,
-                    "Warning >> The dataset only has one plottable dimension. Defaulting to line plot.",
-                )
-                self.plot_type_dropdown.value = "Line"
-                self._plot_data_button_click()
-            elif same_axes_chosen:
-                controller.update_textbox_text(
-                    self.warning_textbox, "Warning >> Please ensure different values are selected for each axis."
-                )
-
-                # Remove preexisting plot choices UI
-                self._safe_remove_widget_object(self.widget_container, "plot_choices_row")
-                self._safe_remove_widget_object(self.widget_container, "slice_ui_row")
-                self._safe_remove_widget_object(self.widget_container, "slice_widgets")
-                self.chosen_slices = {}
-
-                self._display_plot_choices_ui()
-
-        self._plot_button_click = _plot_button_click  # Just making this accessible for testing,
-        # need to remove the logic from this function when refactoring.
+            self._plot_button_click_display_choices(plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, section="user")
+        self._plot_button_click = _plot_button_click  # Just making this accessible for testing
 
         def _ref_plot_button_click(event):
-
             plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen = self._check_plot_validity_helper(section="ref")
-            if plot_valid:
-                self._ref_plot_data_button_click()
-            elif requires_slice:
-                self._check_slice(section="ref")
-            elif invalid_heatmap_data:
-                controller.update_textbox_text(
-                    self.ref_warning_textbox,
-                    "Warning >> The dataset only has one plottable dimension. Defaulting to line plot.",
-                )
-                self.ref_plot_type_dropdown.value = "Line"
-                self._ref_plot_data_button_click()
-            elif same_axes_chosen:
-                controller.update_textbox_text(
-                    self.ref_warning_textbox, "Warning >> Please ensure different values are selected for each axis."
-                )
-                # Remove previous plot selection UI
-                self._safe_remove_widget_object(self.widget_container, "ref_plot_choices_row")
-                self._safe_remove_widget_object(self.widget_container, "ref_slice_ui_row")
-                self._safe_remove_widget_object(self.widget_container, "ref_slice_widgets")
-                self.ref_chosen_slices = {}
-                self._ref_display_plot_choices_ui()
-
+            self._plot_button_click_display_choices(plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, section="ref")
         self._ref_plot_button_click = _ref_plot_button_click
 
         def _select_variable_button_click(event):
@@ -2196,7 +2149,7 @@ class UserInterface:
             - same_axes_chosen : bool
               True if identical axes were selected.
         """
-        
+
         if section == "ref":
             dataset = self.ref_dataset
             plot_type = self.ref_plot_type_dropdown.value
@@ -2245,3 +2198,61 @@ class UserInterface:
             self.remaining_dims = remaining_dims
 
         return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen
+
+    def _plot_button_click_display_choices(
+        self, plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, section="user"
+    ):
+        """
+        Handle UI state transitions and displays based on plot validation results.
+        """
+        # Map section strings to the correct instance attributes
+        if section == "ref":
+            warning_box = self.ref_warning_textbox
+            plot_type_dd = self.ref_plot_type_dropdown
+            choices_row = "ref_plot_choices_row"
+            slice_row = "ref_slice_ui_row"
+            slice_widgets_attr = "ref_slice_widgets"
+            plot_action = self._ref_plot_data_button_click
+            display_choices = (self._ref_display_plot_choices_ui)  # or whatever your ref plot choices method is called
+            self.chosen_slices = {}  # or ref_chosen_slices if separated
+        elif section == "multiplot":
+            warning_box = self.multiplot_warning_textbox
+            plot_type_dd = self.multiplot_plot_type_dropdown
+            choices_row = "multiplot_plot_choices_row"
+            slice_row = "multiplot_slice_ui_row"
+            slice_widgets_attr = "multiplot_slice_widgets"
+            plot_action = self._multiplot_plot_data_button_click
+            #display_choices = self._multiplot_display_plot_choices_ui
+            self.chosen_slices = {}
+        else:
+            warning_box = self.warning_textbox
+            plot_type_dd = self.plot_type_dropdown
+            choices_row = "plot_choices_row"
+            slice_row = "slice_ui_row"
+            slice_widgets_attr = "slice_widgets"
+            plot_action = self._plot_data_button_click
+            display_choices = self._display_plot_choices_ui
+            self.chosen_slices = {}
+
+        if plot_valid:
+            plot_action()
+        elif requires_slice:
+            self._check_slice(section=section)
+        elif invalid_heatmap_data:
+            controller.update_textbox_text(
+                warning_box,
+                "Warning >> The dataset only has one plottable dimension. Defaulting to line plot.",
+            )
+            plot_type_dd.value = "Line"
+            plot_action()
+        elif same_axes_chosen:
+            controller.update_textbox_text(
+                warning_box, "Warning >> Please ensure different values are selected for each axis."
+            )
+
+            # Remove preexisting plot choices UI using strings
+            self._safe_remove_widget_object(self.widget_container, choices_row)
+            self._safe_remove_widget_object(self.widget_container, slice_row)
+            self._safe_remove_widget_object(self.widget_container, slice_widgets_attr)
+
+            display_choices()
