@@ -501,25 +501,13 @@ class UserInterface:
             # Create a new pane for the figure
             new_plot_pane = pn.pane.Matplotlib(fig, tight=True)
 
-        # Create a remove button for each plot that is added
-        remove_btn = pn.widgets.Button(**self.STYLES.get("remove_button"))
-        remove_btn.name = "Remove Plot"
-        # Group the plot and the button together
-        plot_group = pn.Column(new_plot_pane, remove_btn, margin=(0, 0, 25, 0))
-
-        # Local callback to destroy this specific plot group
-        def _remove_this_plot(event):
-            if plot_group in self.widget_container:
-                self.widget_container.remove(plot_group)
-
-        remove_btn.on_click(_remove_this_plot)
-
+        new_plot_pane = self._add_remove_btn(new_plot_pane)
         # remove the plot choices row since the plot has been created
         self._safe_remove_widget_object(self.widget_container, "plot_choices_row")
         self._safe_remove_widget_object(self.widget_container, "slice_ui_row")
         self._safe_remove_widget_object(self.widget_container, "slice_widgets")
 
-        appended = self._safe_add_to_widget(self.widget_container, ["ref_status_textbox"], plot_group, append=True, above = True)
+        appended = self._safe_add_to_widget(self.widget_container, ["ref_status_textbox"], plot_group, append=True, above=True)
         # Check if the reference UI already exists
         if appended:
             self._display_reference_model_selection_ui()
@@ -566,18 +554,7 @@ class UserInterface:
             # Create a new pane for the figure
             new_plot_pane = pn.pane.Matplotlib(fig, tight=True)
 
-        # Create a remove button for each plot that is added
-        remove_btn = pn.widgets.Button(**self.STYLES.get("remove_button"))
-        remove_btn.name = "Remove Plot"
-        # Group the plot and the button together
-        plot_group = pn.Column(new_plot_pane, remove_btn, margin=(0, 0, 25, 0))
-
-        # Local callback to destroy this specific plot group
-        def _remove_this_plot(event):
-            if plot_group in self.widget_container:
-                self.widget_container.remove(plot_group)
-
-        remove_btn.on_click(_remove_this_plot)
+        new_plot_pane = self._add_remove_btn(new_plot_pane)
 
         # remove the plot choices row since the plot has been created
         self._safe_remove_widget_object(self.widget_container, "ref_plot_choices_row")
@@ -664,24 +641,12 @@ class UserInterface:
             # Create a new pane for the figure
             new_plot_pane = pn.pane.Matplotlib(fig, tight=True)
 
-        # Create a remove button for each plot that is added
-        remove_btn = pn.widgets.Button(**self.STYLES.get("remove_button"))
-        remove_btn.name = "Remove Plot"
+        new_plot_pane = self._add_remove_btn(new_plot_pane)
 
         self._safe_remove_widget_object(self.widget_container, "multiplot_slice_ui_row")
         self._safe_remove_widget_object(self.widget_container, "multiplot_slice_widgets")
 
-        # Group the plot and the button together
-        plot_group = pn.Column(new_plot_pane, remove_btn, margin=(0, 0, 25, 0))
-
-        # Local callback to destroy this specific plot group
-        def _remove_this_plot(event):
-            if plot_group in self.widget_container:
-                self.widget_container.remove(plot_group)
-
-        remove_btn.on_click(_remove_this_plot)
-
-        self.widget_container.append(plot_group)
+        self.widget_container.append(new_plot_pane)
 
         controller.update_textbox_text(self.multiplot_status_textbox, "Overlay plot status >> Plot created")
         controller.update_textbox_text(self.multiplot_warning_textbox, "")
@@ -2256,3 +2221,21 @@ class UserInterface:
             self._safe_remove_widget_object(self.widget_container, slice_widgets_attr)
 
             display_choices()
+
+
+    def _add_remove_btn(self, plot_pane):
+
+        # Create a remove button for each plot that is added
+        remove_btn = pn.widgets.Button(**self.STYLES.get("remove_button"))
+        remove_btn.name = "Remove Plot"
+        # Group the plot and the button together
+        plot_group = pn.Column(plot_pane, remove_btn, margin=(0, 0, 25, 0))
+
+        # Local callback to destroy this specific plot group
+        def _remove_this_plot(event):
+            if plot_group in self.widget_container:
+                self.widget_container.remove(plot_group)
+
+        remove_btn.on_click(_remove_this_plot)
+
+        return plot_pane
