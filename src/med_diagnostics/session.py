@@ -83,11 +83,9 @@ class CreateModelDiagnosticsSession():
         """
         data._build_new_catalog(self.model_path, self.model_type)
 
-        # Update status text
-        self.ui._update_status_text("User model status >> Model data catalog built.")
-        self.ui._update_last_data_load_text(
-            "Last model data catalog build >> " + self.ui._get_current_time()
-        )
+        # Update status text 
+        controller.update_textbox_text(self.ui.status_textbox, "User model status >> Model data catalog built.")
+        controller.update_textbox_text(self.ui.last_data_load_textbox, "Last model data catalog build >> " + controller.get_current_time())
 
         # Load new catalog
         self.model_cat = data._load_new_catalog()
