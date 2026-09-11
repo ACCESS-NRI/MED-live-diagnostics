@@ -501,7 +501,7 @@ class UserInterface:
             # Create a new pane for the figure
             new_plot_pane = pn.pane.Matplotlib(fig, tight=True)
 
-        new_plot_pane = self._add_remove_btn(new_plot_pane)
+        plot_group = self._add_remove_btn(new_plot_pane)
         # remove the plot choices row since the plot has been created
         self._safe_remove_widget_object(self.widget_container, "plot_choices_row")
         self._safe_remove_widget_object(self.widget_container, "slice_ui_row")
@@ -554,7 +554,7 @@ class UserInterface:
             # Create a new pane for the figure
             new_plot_pane = pn.pane.Matplotlib(fig, tight=True)
 
-        new_plot_pane = self._add_remove_btn(new_plot_pane)
+        plot_group = self._add_remove_btn(new_plot_pane)
 
         # remove the plot choices row since the plot has been created
         self._safe_remove_widget_object(self.widget_container, "ref_plot_choices_row")
@@ -641,12 +641,12 @@ class UserInterface:
             # Create a new pane for the figure
             new_plot_pane = pn.pane.Matplotlib(fig, tight=True)
 
-        new_plot_pane = self._add_remove_btn(new_plot_pane)
+        plot_group = self._add_remove_btn(new_plot_pane)
 
         self._safe_remove_widget_object(self.widget_container, "multiplot_slice_ui_row")
         self._safe_remove_widget_object(self.widget_container, "multiplot_slice_widgets")
 
-        self.widget_container.append(new_plot_pane)
+        self.widget_container.append(plot_group)
 
         controller.update_textbox_text(self.multiplot_status_textbox, "Overlay plot status >> Plot created")
         controller.update_textbox_text(self.multiplot_warning_textbox, "")
