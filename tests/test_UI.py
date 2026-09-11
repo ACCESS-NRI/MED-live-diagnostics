@@ -585,196 +585,6 @@ def test_ref_clear_data_click(ui, meta, cat, ds):
     assert hasattr(ui, "ref_dataset") == False
 
 
-@pytest.mark.parametrize(
-    "n_dims, x_value, y_value, z_value, plot_choices_exists, remaining_dims, expected_n_slices",
-    [
-        (1, "x", None, None, False, [], 0),
-        (2, "x", None, None, False, ["y"], 1),
-        (3, "x", None, None, False, ["y", "z"], 2),
-        (4, "x", None, None, False, ["y", "z", "dim3"], 3),
-        (2, "x", "y", None, False, [], 0),
-        (3, "x", "y", None, False, ["z"], 1),
-        (4, "x", "y", None, False, ["z", "dim3"], 2),
-        (3, "x", "y", "z", False, [], 0),
-        (4, "x", "y", "z", False, ["dim3"], 1),
-        (3, "x", "y", None, True, ["z"], 1),
-        
-    ],
-)
-def test_check_slice(
-    ui,
-    n_dims,
-    x_value,
-    y_value,
-    z_value,
-    plot_choices_exists,
-    remaining_dims,
-    expected_n_slices,
-):
-    """Test the generation and placement of slice UI widgets based on dataset dimensions and axis selections""" 
-
-    # Create an xarray dataset with the specified number of dimensions
-    target_names = ["x", "y", "z"]
-    dims = [target_names[i] if i < 3 else f"dim{i}" for i in range(n_dims)]
-    ui.remaining_dims = remaining_dims  # Set remaining_dims for the UI
-    coords = {dim: np.arange(10) for dim in dims}
-    data_array = xr.DataArray(
-            np.random.rand(*([10] * n_dims)), dims=dims, coords=coords
-        )
-    ds = xr.Dataset({"data": data_array})
-
-    # Assign dataset and axis selections to the UI instance
-    ui.dataset = ds
-    
-    # Conditionally append a plot choices row to the widget container to test slice UI placement
-    if plot_choices_exists:
-        ui.plot_choices_row = pn.Row(pn.pane.Markdown("something"), name="old")
-        ui.widget_container.append(ui.plot_choices_row)
-    elif hasattr(ui, "plot_choices_row"):
-        del ui.plot_choices_row
-
-    ui.plot_variable_dropdown.value = "data"
-    ui.x_axis_dropdown.value = x_value
-    ui.y_axis_dropdown.value = y_value
-    ui.animation_axis_dropdown.value = z_value
-
-    # Trigger the slice check
-    ui._check_slice()
-    
-    # Verify that the correct number of slice widgets are generated
-    assert len(ui.slice_ui_row) == expected_n_slices
-
-    # Verify that the slice UI row is positioned immediately after the plot choices row
-    if plot_choices_exists:
-        assert (
-            ui.widget_container.index(ui.slice_ui_row)
-            == ui.widget_container.index(ui.plot_choices_row) + 1
-        )
-
-
-@pytest.mark.parametrize(
-    "n_dims, x_value, y_value, z_value, plot_choices_exists, remaining_dims, expected_n_slices",
-    [
-        (1, "x", None, None, False, [], 0),
-        (2, "x", None, None, False, ["y"], 1),
-        (3, "x", None, None, False, ["y", "z"], 2),
-        (4, "x", None, None, False, ["y", "z", "dim3"], 3),
-        (2, "x", "y", None, False, [], 0),
-        (3, "x", "y", None, False, ["z"], 1),
-        (4, "x", "y", None, False, ["z", "dim3"], 2),
-        (3, "x", "y", "z", False, [], 0),
-        (4, "x", "y", "z", False, ["dim3"], 1),
-        (3, "x", "y", None, True, ["z"], 1),
-    ],
-)
-def test_ref_check_slice(
-    ui,
-    n_dims,
-    x_value,
-    y_value,
-    z_value,
-    plot_choices_exists, remaining_dims,
-    expected_n_slices,
-):
-    """Test the generation and placement of reference slice UI widgets based on dataset dimensions and axis selections"""
-
-    # Create an xarray dataset with the specified number of dimensions
-    target_names = ["x", "y", "z"]
-    dims = [target_names[i] if i < 3 else f"dim{i}" for i in range(n_dims)]
-    ui.ref_remaining_dims = remaining_dims  # Set remaining_dims for the UI
-    coords = {dim: np.arange(10) for dim in dims}
-    data_array = xr.DataArray(
-        np.random.rand(*([10] * n_dims)), dims=dims, coords=coords
-    )
-    ds = xr.Dataset({"data": data_array})
-
-    # Conditionally append a reference plot choices row to the widget container to test slice UI placement
-    if plot_choices_exists:
-        ui.ref_plot_choices_row = pn.Row(pn.pane.Markdown("something"), name="old")
-        ui.widget_container.append(ui.ref_plot_choices_row)
-    elif hasattr(ui, "ref_plot_choices_row"):
-        del ui.ref_plot_choices_row
-
-    # Assign reference dataset and axis selections to the UI instance
-    ui.ref_dataset = ds
-    ui.ref_plot_variable_dropdown.value = "data"
-    ui.ref_x_axis_dropdown.value = x_value
-    ui.ref_y_axis_dropdown.value = y_value
-    ui.ref_animation_axis_dropdown.value = z_value
-
-    # Trigger the reference slice check
-    ui._ref_check_slice()
-
-    # Verify that the correct number of reference slice widgets are generated
-    assert len(ui.ref_slice_ui_row) == expected_n_slices
-
-    # Verify that the reference slice UI row is positioned immediately after the reference plot choices row
-    if plot_choices_exists:
-        assert (
-            ui.widget_container.index(ui.ref_slice_ui_row)
-            == ui.widget_container.index(ui.ref_plot_choices_row) + 1
-        )
-
-
-@pytest.mark.parametrize(
-    "n_dims, x_value, y_value, z_value, plot_choices_exists, remaining_dims, expected_n_slices",
-    [
-        (1, "x", None, None, False, [], 0),
-        (2, "x", None, None, False, ["y"], 1),
-        (3, "x", None, None, False, ["y", "z"], 2),
-        (4, "x", None, None, False, ["y", "z", "dim3"], 3),
-        (2, "x", "y", None, False, [], 0),
-        (3, "x", "y", None, False, ["z"], 1),
-        (4, "x", "y", None, False, ["z", "dim3"], 2),
-        (3, "x", "y", "z", False, ["z"], 1),
-        (4, "x", "y", "z", False, ["z", "dim3"], 2),
-        (3, "x", "y", None, True, ["z"], 1),
-    ],
-)
-def test_multiplot_check_slice(
-    ui, n_dims, x_value, y_value, z_value, plot_choices_exists, remaining_dims, expected_n_slices
-):
-    """Test the generation and placement of multiplot slice UI widgets based on dataset dimensions and axis selections"""
-
-    # Create an xarray dataset with the specified number of dimensions
-    target_names = ["x", "y", "z"]
-    dims = [target_names[i] if i < 3 else f"dim{i}" for i in range(n_dims)]
-    ui.multiplot_remaining_dims = remaining_dims  # Set remaining_dims for the UI
-    coords = {dim: np.arange(10) for dim in dims}
-    data_array = xr.DataArray(
-        np.random.rand(*([10] * n_dims)), dims=dims, coords=coords
-    )
-    ds = xr.Dataset({"data": data_array})
-
-    # Conditionally append a multiplot choices row to the widget container to test slice UI placement
-    if plot_choices_exists:
-        ui.multiplot_plot_choices_row = pn.Row(
-            pn.pane.Markdown("something"), name="old"
-        )
-        ui.widget_container.append(ui.multiplot_plot_choices_row)
-    elif hasattr(ui, "ref_plot_choices_row"):
-        del ui.ref_plot_choices_row
-
-    # Assign multiplot dataset and axis selections to the UI instance
-    ui.dataset = ds
-    ui.multiplot_plot_variable_dropdown.value = "data"
-    ui.multiplot_x_axis_dropdown.value = x_value
-    ui.multiplot_y_axis_dropdown.value = y_value
-
-    # Trigger the multiplot slice check
-    ui._multiplot_check_slice()
-
-    # Verify that the correct number of multiplot slice widgets are generated
-    assert len(ui.multiplot_slice_ui_row) == expected_n_slices
-
-    # Verify that the multiplot slice UI row is positioned immediately after the multiplot choices row
-    if plot_choices_exists:
-        assert (
-            ui.widget_container.index(ui.multiplot_slice_ui_row)
-            == ui.widget_container.index(ui.multiplot_plot_choices_row) + 1
-        )
-
-
 def test_plot_multiplot_dataset(ui, monkeypatch):
     """Test the generation of 1D line multiplots and 2D heatmaps across multiple datasets"""
 
@@ -2312,7 +2122,7 @@ def test_ref_plot_button_click(
     monkeypatch.setattr(ui, "_ref_plot_data_button_click", mock_plot_data_button_click)
 
     mock_check_slice = MagicMock()
-    monkeypatch.setattr(ui, "_ref_check_slice", mock_check_slice)
+    monkeypatch.setattr(ui, "_check_slice", mock_check_slice)
 
     mock_display_plot_choices_ui = MagicMock()
     monkeypatch.setattr(
@@ -2374,7 +2184,7 @@ def test_multiplot_plot_button_click(ui, monkeypatch, plot_valid, requires_slice
     monkeypatch.setattr(ui, "_multiplot_plot_data_button_click", mock_plot_data_button_click)
     
     mock_check_slice = MagicMock()
-    monkeypatch.setattr(ui, "_multiplot_check_slice", mock_check_slice)
+    monkeypatch.setattr(ui, "_check_slice", mock_check_slice)
     
     mock_prompt_bounds_ui = MagicMock()
     monkeypatch.setattr(ui, "_prompt_bounds_ui", mock_prompt_bounds_ui)

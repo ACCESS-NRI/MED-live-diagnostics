@@ -181,7 +181,7 @@ class UserInterface:
             if plot_valid:
                 self._plot_data_button_click()
             elif requires_slice:
-                self._check_slice()
+                self._check_slice(section = "user")
             elif invalid_heatmap_data:
                 controller.update_textbox_text(self.warning_textbox, "Warning >> The dataset only has one plottable dimension. Defaulting to line plot.")
                 self.plot_type_dropdown.value = "Line"
@@ -205,7 +205,7 @@ class UserInterface:
             if plot_valid:
                 self._ref_plot_data_button_click()
             elif requires_slice:
-                self._ref_check_slice()
+                self._check_slice(section = "ref")
             elif invalid_heatmap_data:
                 controller.update_textbox_text(self.ref_warning_textbox, "Warning >> The dataset only has one plottable dimension. Defaulting to line plot.")
                 self.ref_plot_type_dropdown.value = "Line"
@@ -238,7 +238,7 @@ class UserInterface:
             if plot_valid:
                 self._multiplot_plot_data_button_click()
             elif requires_slice:
-                self._multiplot_check_slice()
+                self._check_slice(section = "multiplot")
             elif prompt_bounds:
                 self._prompt_bounds_ui()
         self._multiplot_plot_button_click = _multiplot_plot_button_click
@@ -1277,105 +1277,6 @@ class UserInterface:
 
         return plot_valid, requires_slice, check_bounds
 
-    def _check_slice(self):
-        """
-        Check if the plot being created by the user requires dimensions to be sliced to generate a valid plot. Private.
-        """
-
-        # Filter dimensions to get the remaining dimensions not selected as the axes
-        self.slice_widgets = {}
-        ui_components = []
-
-        # for each dimension remaining, add a dropdown to the widget row that will be added
-        for dimension in self.remaining_dims:
-            # Extract coordinate values as options
-            coord_values = list(self.dataset[dimension].values)
-            options_dict = {controller.round_slice_val(val): val for val in coord_values}
-            dropdown = pn.widgets.DiscreteSlider(name=f"Slice {dimension} at:", options=options_dict)
-
-            self.slice_widgets[dimension] = dropdown
-            ui_components.append(dropdown)
-
-        # Group them into a row
-        self.slice_ui_row = pn.Row(*ui_components)
-
-        # Insert the slice UI below the plot choices row
-        self._safe_add_to_widget(
-            self.widget_container,
-            ["plot_choices_row"],
-            self.slice_ui_row,
-            append=True
-        )
-
-        # Update the UI text to prompt the user
-        self.plot_button.name = "Confirm Slices & Plot"
-        controller.update_textbox_text(self.status_textbox, "User model status >> Action required: Select slice values and click plot again.")
-
-    def _ref_check_slice(self):
-        """
-        Check if the reference plot being created by the user requires dimensions to be sliced to generate a valid plot. Private.
-        """
-
-        # Filter dimensions to get the remaining dimensions not selected as the axes
-        self.ref_slice_widgets = {}
-        ref_ui_components = []
-
-        # for each dimension remaining, add a dropdown to the widget row that will be added
-        for dimension in self.ref_remaining_dims:
-            # Extract coordinate values as options
-            coord_values = list(self.ref_dataset[dimension].values)
-            options_dict = {controller.round_slice_val(val): val for val in coord_values}
-            dropdown = pn.widgets.DiscreteSlider(name=f"Slice {dimension} at:", options=options_dict)
-
-            self.ref_slice_widgets[dimension] = dropdown
-            ref_ui_components.append(dropdown)
-
-        # Group them into a row
-        self.ref_slice_ui_row = pn.Row(*ref_ui_components)
-        self._safe_add_to_widget(
-            self.widget_container, ["ref_plot_choices_row"], self.ref_slice_ui_row, append=True
-        )
-
-        # Update the UI text to prompt the user
-        self.ref_plot_button.name = "Confirm Slices & Plot"
-        controller.update_textbox_text(self.ref_status_textbox, "Reference model status >> Action required: Select slice values and click plot again.")
-
-    def _multiplot_check_slice(self):
-        """
-        Check if the overlay plot requires dimensions to be sliced and generate the slicing UI. Private.
-
-        Dynamically creates dropdown widgets for any remaining dimensions that need to be sliced and
-        inserts them into the widget container.
-        """
-
-        self.multiplot_slice_widgets = {}
-        multiplot_ui_components = []
-
-        # For each dimension remaining, add a dropdown to the widget row that will be added
-        for dimension in self.multiplot_remaining_dims:
-            # Extract coordinate values as options
-            coord_values = list(self.dataset[dimension].values)
-            options_dict = {controller.round_slice_val(val): val for val in coord_values}
-            dropdown = pn.widgets.DiscreteSlider(name=f"Slice {dimension} at:", options=options_dict)
-
-            self.multiplot_slice_widgets[dimension] = dropdown
-            multiplot_ui_components.append(dropdown)
-
-        # Group them into a row
-        self.multiplot_slice_ui_row = pn.Row(*multiplot_ui_components)
-
-        # Insert the slice UI below the plot choices row
-        self._safe_add_to_widget(
-            self.widget_container,
-            ["multiplot_plot_choices_row"],
-            self.multiplot_slice_ui_row,
-            append=True
-        )
-
-        # Update the UI text to prompt the user
-        self.multiplot_plot_button.name = "Confirm Slices & Plot"
-        controller.update_textbox_text(self.multiplot_status_textbox, "Overlay Plot >> Action required: Select slice values and click plot again.")
-
     def _update_dataset_plot_ui(self):
         """
         Update exisiting user model dataset plot if new data are selected. Private.
@@ -2228,3 +2129,81 @@ class UserInterface:
             return True
 
         return False
+
+    def _check_slice(self, section = "user"):
+        """
+        Check if the plot requires dimensions to be sliced and generate the slicing UI. Private.
+
+        Dynamically inspects the remaining unselected dimensions for the specified section,
+        creates discrete slider widgets for coordinate selection, groups them into a row,
+        and inserts the row into the widget container below the plot choices. It also updates
+        the section's plot button label and status text to prompt the user.
+
+        Parameters
+        ----------
+        section : str, optional
+            The UI section being evaluated. Valid options are "user", "ref", or
+            "multiplot". Defaults to "user".
+        """
+
+
+        if section == "multiplot":
+            remaining_dims = self.multiplot_remaining_dims
+            dataset = self.dataset
+        elif section == "ref":
+            remaining_dims = self.ref_remaining_dims
+            dataset = self.ref_dataset
+        elif section == "user":
+            remaining_dims = self.remaining_dims
+            dataset = self.dataset
+
+        # Filter dimensions to get the remaining dimensions not selected as the axes
+        ui_components = []
+        slice_widgets = {}
+
+        # for each dimension remaining, add a dropdown to the widget row that will be added
+        for dimension in remaining_dims:
+            # Extract coordinate values as options
+            coord_values = list(dataset[dimension].values)
+            options_dict = {controller.round_slice_val(val): val for val in coord_values}
+            dropdown = pn.widgets.DiscreteSlider(name=f"Slice {dimension} at:", options=options_dict)
+
+            slice_widgets[dimension] = dropdown
+            ui_components.append(dropdown)
+
+        # Group them into a row
+        slice_ui_row = pn.Row(*ui_components)
+
+        if section == "multiplot":
+            self.multiplot_slice_widgets = slice_widgets
+            self.multiplot_slice_ui_row = slice_ui_row
+            position = ["multiplot_plot_choices_row"]
+            button = self.multiplot_plot_button
+            textbox = self.multiplot_status_textbox
+            status_prefix = "Overlay Plot"
+        elif section == "ref":
+            self.ref_slice_widgets = slice_widgets
+            self.ref_slice_ui_row = slice_ui_row
+            position = ["ref_plot_choices_row"]
+            button = self.ref_plot_button
+            textbox = self.ref_status_textbox
+            status_prefix = "Reference model status"
+        elif section == "user":
+            self.slice_widgets = slice_widgets
+            self.slice_ui_row = slice_ui_row
+            position = ["plot_choices_row"]
+            button = self.plot_button
+            textbox = self.status_textbox
+            status_prefix = "User model status"
+
+        # Insert the slice UI below the plot choices row
+        self._safe_add_to_widget(
+            self.widget_container,
+            position,
+            slice_ui_row,
+            append=True
+        )
+
+        # Update the UI text to prompt the user
+        button.name = "Confirm Slices & Plot"
+        controller.update_textbox_text(textbox, f"{status_prefix} >> Action required: Select slice values and click plot again.")
