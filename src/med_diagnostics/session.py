@@ -48,7 +48,7 @@ class CreateModelDiagnosticsSession():
         self.client = Client(threads_per_worker=1)
 
         print()
-        print('----------------------- Live diagnostics session started -----------------------')
+        print('----------------------- Live diagnostics session started (version 15-9-26 9am) -----------------------')
         print()
         print('Model type:', str(model_type))
         print('Model data path:', self.model_path)

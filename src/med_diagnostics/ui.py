@@ -279,30 +279,26 @@ class UserInterface:
         Create widget_container then add status_textbox and last_data_load_textbox widgets. Private.
         """
 
-        # Create panel column
-        self.widget_container = pn.Column()
-
-        # Append widget_container with textbox widgets
-        self.widget_container.append(self.last_data_load_textbox)
-        self.widget_container.append(self.status_textbox)
-        self.widget_container.append(self.warning_textbox)
-
-        # pre build but hide the dataset selection UI elements
         self.div_1 = pn.layout.Divider(styles={"color": "white"}, visible=False)
         self.keys_selection_row = pn.Row(self.keys_dropdown, self.keys_button, visible=False)
         self.div_2 = pn.layout.Divider(styles={"color": "white"}, visible=False)
 
-        self.widget_container.append(self.div_1)
-        self.widget_container.append(self.keys_selection_row)
-        self.widget_container.append(self.div_2)
+        self.widget_container = pn.Column(
+            self.last_data_load_textbox,
+            self.status_textbox,
+            self.warning_textbox,
+            self.div_1,
+            self.keys_selection_row,
+            self.div_2,
+        )
 
         controller.update_textbox_text(
             self.status_textbox,
             "User model status >> Waiting for initial model data catalog to be built. This can take a few minutes.",
         )
-        # Display widget_container in notebook
+
         display(self.widget_container)
-        print()
+        print() # spacer in notebook
 
     def _display_dataset_selection_ui(self, model_cat, access_nri_cat):
         """
@@ -339,9 +335,6 @@ class UserInterface:
         controller.update_textbox_text(
             self.ref_status_textbox, "Reference Model Status >> Select a model to load and plot data"
         )
-        # Add refrence data status text box
-        self.widget_container.append(self.ref_status_textbox)
-        self.widget_container.append(self.ref_warning_textbox)
 
         # Populate reference/comparison model widgets
         self.ref_keys_dropdown.name = "2. Select reference model (optional):"
@@ -355,19 +348,22 @@ class UserInterface:
         self.ref_model_info_button.name = "Reference model information"
         self.ref_model_info_button.button_type = "primary"
 
-        # Add reference/comparison widgets to ref_keys_selection_row
-        self.ref_keys_selection_row = pn.Row()
-        self.ref_keys_selection_row.append(self.ref_keys_dropdown)
-        self.ref_keys_selection_row.append(self.ref_model_info_button)
-        self.ref_keys_selection_row.append(self.ref_keys_button)
-        self.ref_keys_selection_row.append(self.clear_ref_model_data_button)
+        # Build reference selection row cleanly
+        self.ref_keys_selection_row = pn.Row(
+            self.ref_keys_dropdown,
+            self.ref_model_info_button,
+            self.ref_keys_button,
+            self.clear_ref_model_data_button,
+        )
 
-        # Add ref_keys_selection_row to widget_container
-        self.widget_container.append(self.ref_keys_selection_row)
-        self.widget_container.append(self.ref_model_metadata)
-
-        # Add horizontal line divider to widget_container
-        self.widget_container.append(pn.layout.Divider(styles={"color": "white"}))
+        # Append all reference elements to the main widget container simultaneously
+        self.widget_container.extend([
+            self.ref_status_textbox,
+            self.ref_warning_textbox,
+            self.ref_keys_selection_row,
+            self.ref_model_metadata,
+            pn.layout.Divider(styles={"color": "white"}),
+        ])
 
     def _display_reference_dataset_selection_ui(self):
         """
@@ -381,9 +377,7 @@ class UserInterface:
         self.ref_data_keys_button.button_type = "success"
 
         # Add reference/comparison widgets to ref_data_keys_selection_row
-        self.ref_data_keys_selection_row = pn.Row()
-        self.ref_data_keys_selection_row.append(self.ref_data_keys_dropdown)
-        self.ref_data_keys_selection_row.append(self.ref_data_keys_button)
+        self.ref_data_keys_selection_row = pn.Row(self.ref_data_keys_dropdown, self.ref_data_keys_button)
 
         # Insert the UI row under the reference model selection
         priority_insert_list = ["ref_model_metadata", "ref_keys_selection_row"]
@@ -593,7 +587,6 @@ class UserInterface:
         self._safe_remove_widget_object(self.widget_container, "multiplot_plot_choices_row")
         self._safe_remove_widget_object(self.widget_container, "prompt_bounds_row")
 
-        variable = self._get_variable_helper("multiplot")
         # For each of the slices, build a dictionary so that the slices can be accessed in the plot
         self.multiplot_chosen_slices = {}
         if hasattr(self, "multiplot_slice_widgets"):
@@ -976,6 +969,14 @@ class UserInterface:
 
         self.multiplot_x_axis_dropdown.name = "Select X-Axis dimension"
         self.multiplot_x_axis_dropdown.options = viable_dims
+        
+        # Ensure x_axis has a valid default selection if viable dims exist
+        if viable_dims:
+            if self.multiplot_x_axis_dropdown.value not in viable_dims:
+                self.multiplot_x_axis_dropdown.value = viable_dims[0]
+        else:
+            self.multiplot_x_axis_dropdown.value = None
+
         self.multiplot_analysis_choice_dropdown.name = "Select analysis type"
         self.multiplot_analysis_choice_dropdown.options = [
             "None (plot all loaded data)",
@@ -994,10 +995,16 @@ class UserInterface:
                     "Warning >> Not enough dimensions available for this variable to plot a Heatmap.",
                 )
                 self.multiplot_plot_type_dropdown.value = "Line"
-                return  # Stop generating the heatmap UI; the dropdown change will trigger a new callback
+                return  # Stop generating the heatmap UI; dropdown change triggers a new callback
 
             self.multiplot_y_axis_dropdown.name = "Select Y-Axis dimension"
             self.multiplot_y_axis_dropdown.options = viable_dims
+            # Default Y to a different dimension if possible
+            if len(viable_dims) > 1 and self.multiplot_x_axis_dropdown.value == viable_dims[0]:
+                self.multiplot_y_axis_dropdown.value = viable_dims[1]
+            elif viable_dims:
+                self.multiplot_y_axis_dropdown.value = viable_dims[0]
+
             self.multiplot_plot_choices_row = pn.Row(
                 self.multiplot_x_axis_dropdown,
                 self.multiplot_y_axis_dropdown,
@@ -1005,15 +1012,13 @@ class UserInterface:
                 self.multiplot_plot_button,
             )
         elif plot_type == "Line":
-            if len(viable_dims) == 1:
-                self.multiplot_x_axis_dropdown.value = viable_dims[0]
-
             x_axis = self.multiplot_x_axis_dropdown.value
 
-            # Check bounds safely
-            needs_bounds_ui, self.global_min, self.global_max, self.dataset_min, self.dataset_max = (
-                controller.check_bounds(self.dataset, x_axis, self.multiplot_ref_dataset_dict)
-            )
+            needs_bounds_ui = False
+            if x_axis:
+                needs_bounds_ui, self.global_min, self.global_max, self.dataset_min, self.dataset_max = (
+                    controller.check_bounds(self.dataset, x_axis, self.multiplot_ref_dataset_dict)
+                )
 
             if len(viable_dims) == 1 and needs_bounds_ui:
                 self._prompt_bounds_ui()
@@ -1410,16 +1415,17 @@ class UserInterface:
             widget_attr, row_attr = "ref_slice_widgets", "ref_slice_ui_row"
         elif section == "multiplot":
             dataset = self.dataset
-            plot_type = self.multiplot_plot_type_dropdown.value
+            ui_plot_type = self.multiplot_plot_type_dropdown.value
+            plot_type = "Heatmap" if "Heatmap" in ui_plot_type else "Line"
             x = self.multiplot_x_axis_dropdown.value
             y = self.multiplot_y_axis_dropdown.value
             z = None
             widget_attr, row_attr = "multiplot_slice_widgets", "multiplot_slice_ui_row"
-            # ONLY check bounds if it's a Line plot!
-            if plot_type == "Line":
+
+            if plot_type == "Line" and x:
                 prompt_bounds, self.global_min, self.global_max, self.dataset_min, self.dataset_max = (
                     controller.check_bounds(
-                        self.dataset, self.multiplot_x_axis_dropdown.value, self.multiplot_ref_dataset_dict
+                        dataset, x, self.multiplot_ref_dataset_dict
                     )
                 )
             else:
@@ -1581,8 +1587,9 @@ class UserInterface:
             return controller.plot_multiplot_heatmap_dataset(
                 self.dataset,
                 variable,
+                self.multiplot_ref_dataset_dict,
                 self.multiplot_chosen_slices,
                 x_axis,
                 self.multiplot_y_axis_dropdown.value,
-                plot_diff=plot_diff
+                plot_diff=plot_diff,
             )

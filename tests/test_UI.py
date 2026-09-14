@@ -10,6 +10,7 @@ import pytest
 import xarray as xr
 import numpy as np
 import panel as pn
+import pandas as pd
 import matplotlib.pyplot as plt
 import cftime
 from unittest.mock import MagicMock, patch, call
@@ -2221,7 +2222,7 @@ def test_display_multiplot_plot_choices_ui(
     mock_variable = "test_var"
     mock_get_variable = MagicMock(return_value=mock_variable)
     monkeypatch.setattr(ui, "_get_variable_helper", mock_get_variable)
-    
+
     mock_data_array = MagicMock()
     mock_data_array.sizes = dim_sizes
     ui.dataset = {mock_variable: mock_data_array}
@@ -2245,13 +2246,13 @@ def test_display_multiplot_plot_choices_ui(
     assert ui.multiplot_x_axis_dropdown.name == "Select X-Axis dimension"
     assert ui.multiplot_analysis_choice_dropdown.name == "Select analysis type"
     assert ui.multiplot_plot_button.name == "Plot data"
-    
+
     assert ui.multiplot_analysis_choice_dropdown.options == [
         "None (plot all loaded data)",
         "Plot Difference (Ref. - User data)",
         "Plot All Data & Difference",
     ]
-    
+
     viable_dims = sorted([dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"])
     assert ui.multiplot_x_axis_dropdown.options == viable_dims
 
@@ -2267,7 +2268,7 @@ def test_display_multiplot_plot_choices_ui(
     elif expected_scenario == "heatmap_valid":
         assert ui.multiplot_y_axis_dropdown.name == "Select Y-Axis dimension"
         assert ui.multiplot_y_axis_dropdown.options == viable_dims
-        
+
         # Verify Row was created with 4 elements (X, Y, Analysis, Button)
         assert isinstance(ui.multiplot_plot_choices_row, pn.Row)
         assert len(ui.multiplot_plot_choices_row) == 4
@@ -2278,7 +2279,7 @@ def test_display_multiplot_plot_choices_ui(
     elif expected_scenario == "line_1dim_nobounds":
         mock_check_bounds.assert_called_once()
         assert ui.multiplot_x_axis_dropdown.value == viable_dims[0]
-        
+
         # Verify Row was created with 2 elements (Analysis, Button)
         assert isinstance(ui.multiplot_plot_choices_row, pn.Row)
         assert len(ui.multiplot_plot_choices_row) == 2
@@ -2293,10 +2294,245 @@ def test_display_multiplot_plot_choices_ui(
 
     elif expected_scenario == "line_multidim":
         mock_check_bounds.assert_called_once()
-        
+
         # Verify Row was created with 3 elements (X, Analysis, Button)
         assert isinstance(ui.multiplot_plot_choices_row, pn.Row)
         assert len(ui.multiplot_plot_choices_row) == 3
         mock_safe_add.assert_called_once_with(
             ui.widget_container, ["multiplot_type_selection_row"], ui.multiplot_plot_choices_row, append=True
         )
+
+
+@pytest.mark.parametrize(
+    "plot_type, plot_diff, bounds_dropdown_val, expected_xmin, expected_xmax",
+    [
+        # 1. Line plot, no diff, constrain to user bounds
+        ("Line", False, "Constrain to user dataset bounds", 2, 8),
+        # 2. Line plot, diff, use global bounds (simulating "Expand bounds to fit all" or similar)
+        ("Line", True, "Expand bounds", 0, 10),
+        # 3. Heatmap, no diff (bounds don't matter)
+        ("Heatmap (grid)", False, "Constrain to user dataset bounds", None, None),
+        # 4. Heatmap, diff (bounds don't matter)
+        ("Heatmap (grid)", True, "Expand bounds", None, None),
+    ],
+)
+def test_multiplot_plot_dataset_helper(
+    ui, monkeypatch, plot_type, plot_diff, bounds_dropdown_val, expected_xmin, expected_xmax
+):
+    """
+    Verifies that the helper correctly extracts UI state and passes the right
+    arguments to the controller plotting functions.
+    """
+    # 1. Mock the controller's plotting functions
+    mock_plot_line = MagicMock(return_value="line_figure")
+    monkeypatch.setattr(controller, "plot_multiplot_dataset", mock_plot_line)
+
+    mock_plot_heatmap = MagicMock(return_value="heatmap_figure")
+    monkeypatch.setattr(controller, "plot_multiplot_heatmap_dataset", mock_plot_heatmap)
+
+    # Mock check_bounds to return: prompt_bounds, g_min, g_max, d_min, d_max
+    mock_check_bounds = MagicMock(return_value=(False, 0, 10, 2, 8))
+    monkeypatch.setattr(controller, "check_bounds", mock_check_bounds)
+
+    # 2. Mock the UI state and widgets
+    mock_variable = "test_var"
+    monkeypatch.setattr(ui, "_get_variable_helper", MagicMock(return_value=mock_variable))
+
+    ui.multiplot_x_axis_dropdown = MagicMock(value="time")
+    ui.multiplot_y_axis_dropdown = MagicMock(value="lat")
+    ui.prompt_bounds_dropdown = MagicMock(value=bounds_dropdown_val)
+
+    # Set dummy dataset attributes
+    ui.dataset = "mock_primary_ds"
+    ui.multiplot_ref_dataset_dict = {"ref1": "mock_ref_ds"}
+    ui.multiplot_chosen_slices = {"z": 0}
+
+    # 3. Run the function
+    result = ui._multiplot_plot_dataset_helper(plot_diff=plot_diff, plot_type=plot_type)
+
+    # 4. Assertions
+    if plot_type == "Line":
+        # Check that bounds were calculated
+        mock_check_bounds.assert_called_once_with("mock_primary_ds", "time", {"ref1": "mock_ref_ds"})
+
+        # Check that the controller was called with the exact right variables
+        mock_plot_line.assert_called_once_with(
+            "mock_primary_ds",
+            mock_variable,
+            {"ref1": "mock_ref_ds"},
+            {"z": 0},
+            "time",
+            expected_xmin,
+            expected_xmax,
+            plot_diff=plot_diff,
+        )
+        assert result == "line_figure"
+        mock_plot_heatmap.assert_not_called()
+
+    else: # Heatmap
+        # Check that bounds were NOT calculated
+        mock_check_bounds.assert_not_called()
+        
+        # Check that the controller was called with the exact right variables
+        mock_plot_heatmap.assert_called_once_with(
+            "mock_primary_ds",
+            mock_variable,
+            {"ref1": "mock_ref_ds"},  # <--- Added the missing dictionary here!
+            {"z": 0},
+            "time",
+            "lat",
+            plot_diff=plot_diff
+        )
+        assert result == "heatmap_figure"
+        mock_plot_line.assert_not_called()
+
+
+@pytest.fixture
+def mock_multiplot_datasets():
+    """Build synthetic 1D time-series datasets replicating user and reference models."""
+    time_coords = np.arange(10)
+
+    ds_user = xr.Dataset(
+        {"salt_surface_ave": (["time"], np.random.rand(10))},
+        coords={"time": time_coords},
+        attrs={"long_name": "Sea Surface Salinity"},
+    )
+
+    ds_ref = xr.Dataset(
+        {"salt_surface_ave": (["time"], np.random.rand(10) + 0.1)},
+        coords={"time": time_coords},
+        attrs={"long_name": "Sea Surface Salinity"},
+    )
+
+    return ds_user, ds_ref
+
+
+def test_multiplot_plot_data_button_click_line(ui, mock_multiplot_datasets):
+    """Test full execution of line plot generation in multiplot section."""
+    ds_user, ds_ref = mock_multiplot_datasets
+
+    # Configure UI state as if selected in the notebook
+    ui.dataset = ds_user
+    ui.multiplot_ref_dataset_dict = {"ref_model_1": ds_ref}
+    ui.multiplot_plot_variable_dropdown.value = "salt_surface_ave"
+    ui.multiplot_x_axis_dropdown.value = "time"
+    ui.multiplot_plot_type_dropdown.value = "Line"
+    ui.multiplot_analysis_choice_dropdown.value = "None (plot all loaded data)"
+    ui.prompt_bounds_dropdown.value = "Global bounds"
+
+    # Initial container check
+    initial_widget_count = len(ui.widget_container)
+
+    # Execute button click directly
+    ui._multiplot_plot_data_button_click()
+
+    # Assert status text updated to final state
+    assert ui.multiplot_status_textbox.value == "Overlay plot status >> Plot created"
+    assert ui.multiplot_warning_textbox.value == ""
+
+    # Assert a new plot layout was appended to widget container
+    assert len(ui.widget_container) == initial_widget_count + 1
+    plot_group = ui.widget_container[-1]
+    assert isinstance(plot_group, pn.Column)
+
+    # Assert Matplotlib pane exists within the group and holds an active figure
+    plot_pane = plot_group[0]
+    assert isinstance(plot_pane, pn.pane.Matplotlib)
+    assert isinstance(plot_pane.object, plt.Figure)
+
+
+@pytest.mark.parametrize(
+    "analysis_choice",
+    [
+        "None (plot all loaded data)",
+        "Plot Difference (Ref. - User data)",
+        "Plot All Data & Difference",
+    ],
+)
+def test_multiplot_plot_data_button_click_all_analysis_modes(ui, mock_multiplot_datasets, analysis_choice):
+    """Test multiplot line generation across all analysis difference modes."""
+    ds_user, ds_ref = mock_multiplot_datasets
+
+    ui.dataset = ds_user
+    ui.multiplot_ref_dataset_dict = {"ref_model_1": ds_ref}
+    ui.multiplot_plot_variable_dropdown.value = "salt_surface_ave"
+    ui.multiplot_x_axis_dropdown.value = "time"
+    ui.multiplot_plot_type_dropdown.value = "Line"
+    ui.multiplot_analysis_choice_dropdown.value = analysis_choice
+    ui.prompt_bounds_dropdown.value = "Constrain to user dataset bounds"
+
+    ui._multiplot_plot_data_button_click()
+
+    assert ui.multiplot_status_textbox.value == "Overlay plot status >> Plot created"
+    assert ui.multiplot_warning_textbox.value == ""
+    assert isinstance(ui.widget_container[-1], pn.Column)
+
+def test_reproduce_live_multiplot_flow(ui, mock_multiplot_datasets):
+    """Simulate the exact user interaction cycle in the multiplot UI from variable selection to plot rendering."""
+    ds_user, ds_ref = mock_multiplot_datasets
+
+    # 1. State representing initial data load in multiplot
+    ui.dataset = ds_user
+    ui.multiplot_ref_dataset_dict = {"ref_model_1": ds_ref}
+    ui.multiplot_plot_variable_dropdown.value = "salt_surface_ave"
+    ui.multiplot_plot_type_dropdown.value = "Line"
+
+    # 2. Simulate clicking "Select variable and plot type"
+    # Ensure any preexisting row isn't present
+    if hasattr(ui, "multiplot_plot_choices_row"):
+        ui._safe_remove_widget_object(ui.widget_container, "multiplot_plot_choices_row")
+
+    ui._multiplot_select_variable_button_click(None)
+
+    # Verify choices UI rendered into the layout and x-axis populated
+    assert hasattr(ui, "multiplot_plot_choices_row")
+    assert ui.multiplot_plot_choices_row in ui.widget_container
+    assert ui.multiplot_x_axis_dropdown.value == "time"
+    assert ui.multiplot_plot_button.name == "Plot data"
+
+    # Set prompt bounds choice if prompted, matching default UI behavior
+    if hasattr(ui, "prompt_bounds_dropdown"):
+        ui.prompt_bounds_dropdown.value = "Global bounds"
+
+    # 3. Simulate clicking "Plot data"
+    initial_widget_count = len(ui.widget_container)
+    ui._multiplot_plot_button_click(None)
+
+    # 4. Verify execution reached the end without freezing on 'Generating plot...'
+    assert ui.multiplot_warning_textbox.value == ""
+    assert ui.multiplot_status_textbox.value == "Overlay plot status >> Plot created"
+    assert len(ui.widget_container) >= initial_widget_count
+
+    # Verify choices row was cleaned up and new plot column was appended
+    assert not hasattr(ui, "multiplot_plot_choices_row")
+    latest_widget = ui.widget_container[-1]
+    assert isinstance(latest_widget, pn.Column)
+
+
+def test_multiplot_plot_dataset_helper_reproduce(ui):
+    # Use standard datetimes to bypass the local nc-time-axis requirement
+    times_user = pd.date_range("2000-01-01", periods=12, freq="MS")
+    times_ref = pd.date_range("1995-01-01", periods=24, freq="MS")
+
+    ds_user = xr.Dataset(
+        {"salt_surface_ave": (["time"], np.random.rand(12))},
+        coords={"time": times_user},
+        attrs={"long_name": "Sea Surface Salinity"},
+    )
+    ds_ref = xr.Dataset(
+        {"salt_surface_ave": (["time"], np.random.rand(24))},
+        coords={"time": times_ref},
+        attrs={"long_name": "Sea Surface Salinity"},
+    )
+
+    ui.dataset = ds_user
+    ui.multiplot_ref_dataset_dict = {"ref_model": ds_ref}
+    ui.multiplot_plot_variable_dropdown.value = "salt_surface_ave"
+    ui.multiplot_x_axis_dropdown.value = "time"
+    ui.multiplot_plot_type_dropdown.value = "Line"
+    ui.multiplot_chosen_slices = {}
+    ui.prompt_bounds_dropdown.value = "Constrain to user dataset bounds"
+
+    # Call the helper directly
+    fig = ui._multiplot_plot_dataset_helper(plot_diff=False, plot_type="Line")
+    assert fig is not None

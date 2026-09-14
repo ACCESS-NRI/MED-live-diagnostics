@@ -295,3 +295,87 @@ def test_multiplot_check_bounds_mismatched_types():
     assert result is False
     assert global_min == 0
     assert global_max == 10
+
+
+@pytest.fixture
+def multiplot_datasets():
+    """Create a primary dataset and a reference dictionary for plotting tests."""
+    ds_user = xr.Dataset(
+        {"data": (["time", "lat"], np.random.rand(5, 5))}, coords={"time": [1, 2, 3, 4, 5], "lat": [10, 20, 30, 40, 50]}
+    )
+    ds_user.data.attrs["long_name"] = "Temperature"
+
+    # Reference 1: Standard
+    ds_ref1 = ds_user * 1.5
+
+    # Reference 2: With members
+    ds_ref2 = xr.Dataset(
+        {"data": (["member", "time", "lat"], np.random.rand(2, 5, 5))},
+        coords={"member": [0, 1], "time": [1, 2, 3, 4, 5], "lat": [10, 20, 30, 40, 50]},
+    )
+
+    return ds_user, {"Model A": ds_ref1, "Model B": ds_ref2}
+
+
+@pytest.mark.parametrize("plot_diff", [True, False])
+def test_plot_multiplot_dataset(multiplot_datasets, monkeypatch, plot_diff):
+    """Test line plotting logic and difference calculation."""
+    ds_user, ref_dict = multiplot_datasets
+
+    # Mock standard formatter to just return the figure so we can verify the ax
+    monkeypatch.setattr(controller, "apply_standard_plot_formatting", lambda fig, **kwargs: fig)
+
+    fig = controller.plot_multiplot_dataset(
+        dataset=ds_user,
+        variable="data",
+        ref_dict=ref_dict,
+        chosen_slices={"lat": 30},
+        x_axis="time",
+        x_min=1,
+        x_max=5,
+        plot_diff=plot_diff,
+    )
+
+    assert isinstance(fig, plt.Figure)
+    ax = fig.axes[0]
+
+    # Check x limits were applied
+    assert ax.get_xlim() == (1, 5)
+
+    # Verify number of lines plotted
+    # No-diff: 1 (User) + 1 (Model A) + 2 (Model B mems) = 4 lines
+    # Diff: 1 (Model A diff) + 2 (Model B mems diff) + 1 (hline) = 4 lines
+    assert len(ax.lines) == 4
+
+
+@pytest.mark.parametrize("plot_diff", [True, False])
+def test_plot_multiplot_heatmap_dataset(multiplot_datasets, plot_diff):
+    """Test heatmap grid generation and difference calculation."""
+    ds_user, ref_dict = multiplot_datasets
+
+    fig = controller.plot_multiplot_heatmap_dataset(
+        dataset=ds_user,
+        variable="data",
+        ref_dict=ref_dict,
+        chosen_slices={},  # No slices for heatmap
+        x_axis="time",
+        y_axis="lat",
+        plot_diff=plot_diff,
+    )
+
+    assert isinstance(fig, plt.Figure)
+
+    # 3 total plots: User + Model A + Model B (which slices member=0)
+    # 2 columns means 2 rows needed for 3 plots (4 axes total, 1 deleted)
+    assert len(fig.axes) >= 3  # Includes colorbars, so length will actually be 6
+
+    # Check titles to verify correct data routing
+    titles = [ax.get_title() for ax in fig.axes if ax.get_title()]
+    assert "User Dataset" in titles
+
+    if plot_diff:
+        assert "Δ Model A" in titles
+        assert "Δ Model B (mem: 0)" in titles
+    else:
+        assert "Model A" in titles
+        assert "Model B (mem: 0)" in titles

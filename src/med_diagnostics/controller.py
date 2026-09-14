@@ -157,7 +157,6 @@ def apply_standard_plot_formatting(
         ax.legend()
 
     ax.grid()
-    plt.close(fig)
     return fig
 
 
@@ -539,59 +538,43 @@ def plot_multiplot_dataset(
         caption_text="",
     )
 
-def plot_multiplot_heatmap_dataset(dataset,
-    variable,
-    ref_dict,
-    chosen_slices,
-    x_axis,
-    y_axis,
-    plot_diff = False
-    ):
-    """
-    Plot 2D time-series overlaying the user model and selected reference models. Private.
-
-    Parameters
-    ----------
-    variable : str
-        Model data variable as selected from panel dropdown.
-    x_axis : str
-        X-axis as selected from the panel dropdown.
-
-    Returns
-    -------
-    fig : matplotlib.figure.Figure
-        The constructed figure of a number of heatmaps, laid out in a grid.
-    """
+def plot_multiplot_heatmap_dataset(dataset, variable, ref_dict, chosen_slices, x_axis, y_axis, plot_diff=False):
     # get the number of reference variables, to calculate the grid size
     num_refs = len(ref_dict)
     total_plots = 1 + num_refs
 
     # calculate grid dimensions
-    if total_plots > 1:
-        ncols = 2
-    else:
-        ncols = 1
-
+    ncols = 2 if total_plots > 1 else 1
     nrows = (total_plots + 1) // 2
 
+    # Slice user data
     sliced_user_data = dataset.sel(**chosen_slices, method="nearest")
+
+    # FIX: Ensure user data is 2D for heatmap plotting!
+    if "member" in sliced_user_data.dims:
+        sliced_user_data = sliced_user_data.isel(member=0)
+
     global_vmin = float(sliced_user_data[variable].min())
     global_vmax = float(sliced_user_data[variable].max())
 
-    # Need to check min and max for given variable to keep colour consistent between different heatmaps
-    for dataset in ref_dict.values():
-        valid_slices = {dim: val for dim, val in chosen_slices.items() if dim in dataset.dims}
-        sliced_ref = dataset.sel(**valid_slices, method="nearest")
+    # Need to check min and max for given variable to keep colour consistent
+    for ref_ds in ref_dict.values():
+        valid_slices = {dim: val for dim, val in chosen_slices.items() if dim in ref_ds.dims}
+        sliced_ref = ref_ds.sel(**valid_slices, method="nearest")
 
+        # Ensure ref data is also 2D for the min/max calculation!
+        if "member" in sliced_ref.dims:
+            sliced_ref = sliced_ref.isel(member=0)
+
+        # Calculate diff if needed
         plot_data = (sliced_ref - sliced_user_data) if plot_diff else sliced_ref
 
-        global_vmin = min(global_vmin, float(sliced_ref[variable].min()))
-        global_vmax = max(global_vmax, float(sliced_ref[variable].max()))
+        # Calculate bounds using plot_data
+        global_vmin = min(global_vmin, float(plot_data[variable].min()))
+        global_vmax = max(global_vmax, float(plot_data[variable].max()))
 
     # Create grid
     fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=[6 * ncols, 4 * nrows])
-
-    # Flatten axes array for easy iteration
     axes_flat = axes.flatten() if hasattr(axes, "flatten") else [axes]
 
     # Plot User Data
@@ -604,7 +587,10 @@ def plot_multiplot_heatmap_dataset(dataset,
         cmap="viridis",
         cbar_kwargs={"label": variable},
     )
-    axes_flat[0].set_title("User Dataset")
+
+    # If the user data had members, note that we are only showing the first one
+    user_member_title = f" (mem: {dataset.member.values[0]})" if "member" in dataset.dims else ""
+    axes_flat[0].set_title(f"User Dataset{user_member_title}")
 
     ax = 1
     for model_key, dataset in ref_dict.items():
@@ -629,7 +615,7 @@ def plot_multiplot_heatmap_dataset(dataset,
             cmap="viridis",
             cbar_kwargs={"label": variable},
         )
-        axes_flat[ax].set_title(f"{model_key}{member_title}")
+        axes_flat[ax].set_title(f"{title_prefix}{model_key}{member_title}")
         ax += 1
 
     # delete empty subplots remaining
@@ -653,24 +639,17 @@ def plot_multiplot_heatmap_dataset(dataset,
     else:
         fig.subplots_adjust(hspace=0.3)
 
-    plt.close(fig)
-
     return fig
 
 
 def check_bounds(dataset, x_axis, ref_dict):
     """
     Calculate the absolute minimum and maximum x-axis bounds across all datasets.
-
-    Compares the user dataset bounds against all loaded reference datasets.
-
-    Returns
-    -------
-    tuple
-        (bounds_widened, global_min, global_max, dataset_min, dataset_max)
     """
-    dataset_min = dataset[x_axis].min().values
-    dataset_max = dataset[x_axis].max().values
+    # Safely extract pure Python scalars from Xarray DataArrays using .item()
+    # This prevents 0D NumPy arrays from crashing Matplotlib's set_xlim
+    dataset_min = dataset[x_axis].min().values[()]
+    dataset_max = dataset[x_axis].max().values[()]
 
     global_min = dataset_min
     global_max = dataset_max
@@ -684,8 +663,9 @@ def check_bounds(dataset, x_axis, ref_dict):
     # Iterate through the reference datasets to find the absolute min and max
     for ref_ds in ref_dict.values():
         if x_axis in ref_ds:
-            ref_min = ref_ds[x_axis].min().values
-            ref_max = ref_ds[x_axis].max().values
+            # Crucial: Apply .item() to reference bounds as well!
+            ref_min = ref_ds[x_axis].min().item()
+            ref_max = ref_ds[x_axis].max().item()
 
             try:
                 # Attempt standard numerical or exact-calendar comparison first
@@ -708,8 +688,6 @@ def check_bounds(dataset, x_axis, ref_dict):
                         bounds_widened = True
                 except AttributeError:
                     # Raised when trying to get .year from an int/float.
-                    # The datasets have fundamentally incompatible axis types (numeric vs date).
-                    # Skip expanding bounds for this reference dataset.
                     pass
 
     return bounds_widened, global_min, global_max, dataset_min, dataset_max
