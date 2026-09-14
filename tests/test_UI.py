@@ -5,6 +5,7 @@ from access_nri_intake import data
 
 from med_diagnostics.ui import UserInterface
 import med_diagnostics.data as med_data
+import med_diagnostics.controller as controller
 import pytest
 import xarray as xr
 import numpy as np
@@ -43,18 +44,29 @@ def ui():
     return ui
 
 
-def run_validity_check(ui, is_ref, x_value, y_value, z_value, plot_type, var, ds):
+def run_validity_check(ui, section, x_value, y_value, z_value, plot_type, var, ds):
     """Check the validity of reference or user plots based on current UI selections"""
 
     # Assign to correct UI attributes based on whether it is the reference data functions or user data
-    if is_ref:
+    if section == "ref":
         ui.ref_dataset = ds
         ui.ref_x_axis_dropdown.value = x_value
         ui.ref_y_axis_dropdown.value = y_value
         ui.ref_animation_axis_dropdown.value = z_value
         ui.ref_plot_type_dropdown.value = plot_type
         ui.ref_plot_variable_dropdown.value = var
-        return ui._check_plot_validity_helper(section="ref")
+        return ui._check_plot_validity_helper(section=section)
+    if section == "multiplot":
+        if plot_type == "Animation":
+            pytest.skip("Multiplot tab does not plot animation plot type, skipping")
+        else:
+            ui.dataset = ds
+            ui.multiplot_ref_dataset_dict = {"Key1": ds, "Key2": ds}
+            ui.multiplot_x_axis_dropdown.value = x_value
+            ui.multiplot_y_axis_dropdown.value = y_value
+            ui.multiplot_plot_type_dropdown.value = plot_type
+            ui.multiplot_plot_variable_dropdown.value = var
+            return ui._check_plot_validity_helper(section=section)
     else:
         ui.dataset = ds
         ui.x_axis_dropdown.value = x_value
@@ -62,10 +74,10 @@ def run_validity_check(ui, is_ref, x_value, y_value, z_value, plot_type, var, ds
         ui.animation_axis_dropdown.value = z_value
         ui.plot_type_dropdown.value = plot_type
         ui.plot_variable_dropdown.value = var
-        return ui._check_plot_validity_helper(section="user")
+        return ui._check_plot_validity_helper(section=section)
 
 
-@pytest.mark.parametrize("is_ref", [False, True])
+@pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
 @pytest.mark.parametrize(
     "x_value, y_value, z_value, plot_type, variable_value, plot_valid_output, requires_slice_output, invalid_heatmap_output, same_axes_output",
     [
@@ -80,7 +92,7 @@ def run_validity_check(ui, is_ref, x_value, y_value, z_value, plot_type, var, ds
 )
 def test_check_plot_validity_1d(
     ui,
-    is_ref,
+    section,
     x_value,
     y_value,
     z_value,
@@ -98,7 +110,7 @@ def test_check_plot_validity_1d(
     ds = xr.Dataset({"data": data})
 
     results = run_validity_check(
-        ui, is_ref, x_value, y_value, z_value, plot_type, variable_value, ds
+        ui, section, x_value, y_value, z_value, plot_type, variable_value, ds
     )
     
     # Verify that the validity check returns the expected configuration flags
@@ -111,7 +123,7 @@ def test_check_plot_validity_1d(
     )
 
 
-@pytest.mark.parametrize("is_ref", [False, True])
+@pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
 @pytest.mark.parametrize(
     "x_value, y_value, z_value, plot_type, variable_value, plot_valid_output, requires_slice_output, invalid_heatmap_output, same_axes_output",
     [
@@ -129,7 +141,7 @@ def test_check_plot_validity_1d(
 )
 def test_check_plot_validity_2d(
     ui,
-    is_ref,
+    section,
     x_value,
     y_value,
     z_value,
@@ -151,9 +163,9 @@ def test_check_plot_validity_2d(
     ds = xr.Dataset({"data": data})
 
     results = run_validity_check(
-        ui, is_ref, x_value, y_value, z_value, plot_type, variable_value, ds
+        ui, section, x_value, y_value, z_value, plot_type, variable_value, ds
     )
-    
+
     # Verify that the validity check returns the expected configuration flags
     assert results == (
         plot_valid_output,
@@ -164,7 +176,7 @@ def test_check_plot_validity_2d(
     )
 
 
-@pytest.mark.parametrize("is_ref", [False, True])
+@pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
 @pytest.mark.parametrize(
     "x_value, y_value, z_value, plot_type, variable_value, plot_valid_output, requires_slice_output, invalid_heatmap_output, same_axes_output",
     [
@@ -187,7 +199,7 @@ def test_check_plot_validity_2d(
 )
 def test_check_plot_validity_3d(
     ui,
-    is_ref,
+    section,
     x_value,
     y_value,
     z_value,
@@ -199,11 +211,11 @@ def test_check_plot_validity_3d(
     same_axes_output,
 ):
     """Test plot validity and configuration flags for 3D datasets across various axes and plot types""" 
-    
+
     results = run_validity_check(
-        ui, is_ref, x_value, y_value, z_value, plot_type, variable_value, ui.dataset
+        ui, section, x_value, y_value, z_value, plot_type, variable_value, ui.dataset
     )
-    
+
     # Verify that the validity check returns the expected configuration flags
     assert results == (
         plot_valid_output,
@@ -214,7 +226,7 @@ def test_check_plot_validity_3d(
     )
 
 
-@pytest.mark.parametrize("is_ref", [False, True])
+@pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
 @pytest.mark.parametrize(
     "x_value, y_value, z_value, plot_type, variable_value, plot_valid_output, requires_slice_output, invalid_heatmap_output, same_axes_output",
     [
@@ -237,7 +249,7 @@ def test_check_plot_validity_3d(
 )
 def test_check_plot_validity_4d(
     ui,
-    is_ref,
+    section,
     x_value,
     y_value,
     z_value,
@@ -263,19 +275,27 @@ def test_check_plot_validity_4d(
     )
     
     if requires_slice_output:
-        if is_ref:
-            ui.ref_slice_widgets = {"widget": pn.pane.Markdown("a widget")}
-            ui.ref_slice_ui_row = pn.Row(name="ref slice ui row")
-            ui.widget_container.append(ui.ref_slice_ui_row)
+        # Determine which attributes we should be checking
+        if section == "ref":
+            row_attr, widget_attr = "ref_slice_ui_row", "ref_slice_widgets"
+        elif section == "multiplot":
+            row_attr, widget_attr = "multiplot_slice_ui_row", "multiplot_slice_widgets"
         else:
-            ui.slice_widgets = {"widget": pn.pane.Markdown("a widget")}
-            ui.slice_ui_row = pn.Row(name="slice ui row")
-            ui.widget_container.append(ui.slice_ui_row)
+            row_attr, widget_attr = "slice_ui_row", "slice_widgets"
+
+        # If the function exits early due to no x_axis, the cleanup never happens
+        if not x_value:
+            assert hasattr(ui, row_attr)
+            assert getattr(ui, row_attr) in ui.widget_container
+        else:
+            # Otherwise, the cleanup runs because the slice widgets don't match remaining dims
+            assert not hasattr(ui, row_attr)
+            assert not hasattr(ui, widget_attr)
 
     ds = xr.Dataset({"data": data})
 
     results = run_validity_check(
-        ui, is_ref, x_value, y_value, z_value, plot_type, variable_value, ds
+        ui, section, x_value, y_value, z_value, plot_type, variable_value, ds
     )
 
     # Verify that the validity check returns the expected configuration flags
@@ -288,8 +308,8 @@ def test_check_plot_validity_4d(
     )
     if requires_slice_output:
         # Determine which attributes we should be checking
-        row_attr = "ref_slice_ui_row" if is_ref else "slice_ui_row"
-        widget_attr = "ref_slice_widgets" if is_ref else "slice_widgets"
+        row_attr = "ref_slice_ui_row" if section == "ref" else "slice_ui_row"
+        widget_attr = "ref_slice_widgets" if section == "ref" else "slice_widgets"
 
         # If the function exits early due to no x_axis, the cleanup never happens
         if not x_value:
@@ -1954,7 +1974,6 @@ def test_multiplot_plot_button_click(ui, monkeypatch, plot_valid, requires_slice
         mock_prompt_bounds_ui.assert_called_once()
     elif same_axes_chosen:
         mock_display_choices.assert_called_once()
-    
 
 
 def test_keys_button_click(ui, monkeypatch):
@@ -2112,3 +2131,294 @@ def test_prompt_bounds_button_click(ui, monkeypatch):
     
     # Verify the bound function was executed
     mock_multiplot_plot_data_button_click.assert_called_once()
+
+
+@pytest.mark.parametrize("section, plot_type", [
+    ("user", "Line"),
+    ("ref", "Line"),
+    ("multiplot", "Line"),
+    ("user", "Heatmap"),
+    ("ref", "Heatmap"),
+    ("multiplot", "Heatmap (grid)"),
+    ("user", "Animation"),
+    ("ref", "Animation")
+])
+@pytest.mark.parametrize("bounds_return", [True, False])
+def test_check_plot_validity_routing(ui, monkeypatch, section, plot_type, bounds_return):
+    """Tests variable routing, controller calls, and multiplot bounds logic."""
+    
+    mock_get_variable_helper = MagicMock(return_value="data")
+    monkeypatch.setattr(ui, "_get_variable_helper", mock_get_variable_helper)
+
+    mock_multiplot_check_bounds = MagicMock(return_value=bounds_return)
+    monkeypatch.setattr(ui, "_multiplot_check_bounds", mock_multiplot_check_bounds)
+    
+    # Base mock return: plot_valid is True
+    mock_return_value = (True, False, False, False, ["remaining_dims"])
+    mock_check_plot_validity = MagicMock(return_value=mock_return_value)
+    monkeypatch.setattr(controller, "check_plot_validity", mock_check_plot_validity)
+
+    # Setup UI mocks based on section
+    ds = mock_dataset()
+    if section == "ref":
+        ui.ref_dataset = ds
+        ui.ref_plot_type_dropdown.value = plot_type
+        ui.ref_x_axis_dropdown.value = "x"
+        ui.ref_y_axis_dropdown.value = "y"
+        ui.ref_animation_axis_dropdown.value = "z"
+    elif section == "multiplot":
+        ui.dataset = ds
+        ui.multiplot_plot_type_dropdown.value = plot_type
+        ui.multiplot_x_axis_dropdown.value = "x"
+        ui.multiplot_y_axis_dropdown.value = "y"
+    else:
+        ui.dataset = ds
+        ui.plot_type_dropdown.value = plot_type
+        ui.x_axis_dropdown.value = "x"
+        ui.y_axis_dropdown.value = "y"
+        ui.animation_axis_dropdown.value = "z"
+
+    # Run the function
+    results = ui._check_plot_validity_helper(section=section)
+
+    mock_get_variable_helper.assert_called_once_with(section)
+    mock_check_plot_validity.assert_called_once()
+
+    # Determine expected outputs based on multiplot bounds logic
+    expected_plot_valid = True
+    expected_prompt_bounds = False
+
+    if section == "multiplot" and plot_type == "Line":
+        mock_multiplot_check_bounds.assert_called_once()
+        expected_prompt_bounds = bounds_return
+        if bounds_return:
+            expected_plot_valid = False # plot_valid gets flipped to False if bounds need prompting!
+
+    # Verify the final returned tuple
+    assert results == (expected_plot_valid, False, False, False, expected_prompt_bounds)
+
+
+@pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
+@pytest.mark.parametrize("keys_match", [True, False])
+def test_check_plot_validity_slice_cleanup(ui, monkeypatch, section, keys_match):
+    """Tests the layout cleanup logic when slice dimensions change."""
+    
+    monkeypatch.setattr(ui, "_get_variable_helper", MagicMock(return_value="data"))
+    monkeypatch.setattr(ui, "_multiplot_check_bounds", MagicMock(return_value=False))
+    mock_safe_remove = MagicMock()
+    monkeypatch.setattr(ui, "_safe_remove_widget_object", mock_safe_remove)
+
+    # Controller says the remaining dimensions are ["time", "lat"]
+    mock_return = (True, False, False, False, ["time", "lat"])
+    mock_check_plot_validity = MagicMock(return_value=mock_return)
+    monkeypatch.setattr(controller, "check_plot_validity", mock_check_plot_validity)
+
+    # Simulate existing slice widgets on the UI
+    if keys_match:
+        mock_widgets = {"time": MagicMock(), "lat": MagicMock()} # Matches controller!
+    else:
+        mock_widgets = {"old_dim": MagicMock()} # Mismatch! Will trigger cleanup.
+
+    ds = mock_dataset()
+    if section == "ref":
+        ui.ref_dataset = ds
+        ui.ref_plot_type_dropdown.value = "Heatmap"
+        ui.ref_x_axis_dropdown.value = "x"
+        ui.ref_y_axis_dropdown.value = "y"
+        ui.ref_animation_axis_dropdown.value = "z"
+        ui.ref_slice_widgets = mock_widgets
+        ui.ref_slice_ui_row = "dummy_row"
+    elif section == "multiplot":
+        ui.dataset = ds
+        ui.multiplot_plot_type_dropdown.value = "Heatmap (grid)"
+        ui.multiplot_x_axis_dropdown.value = "x"
+        ui.multiplot_y_axis_dropdown.value = "y"
+        ui.multiplot_slice_widgets = mock_widgets
+        ui.multiplot_slice_ui_row = "dummy_row"
+    else:
+        ui.dataset = ds
+        ui.plot_type_dropdown.value = "Heatmap"
+        ui.x_axis_dropdown.value = "x"
+        ui.y_axis_dropdown.value = "y"
+        ui.animation_axis_dropdown.value = "z"
+        ui.slice_widgets = mock_widgets
+        ui.slice_ui_row = "dummy_row"
+
+    ui._check_plot_validity_helper(section=section)
+
+    if keys_match:
+        # If keys match, cleanup should NOT run. Controller is only called once.
+        mock_safe_remove.assert_not_called()
+        mock_check_plot_validity.assert_called_once()
+    else:
+        # If keys mismatch, cleanup SHOULD run. Controller is evaluated a second time!
+        assert mock_safe_remove.call_count == 2
+        assert mock_check_plot_validity.call_count == 2
+
+
+@pytest.mark.parametrize(
+    "section, expected_attr_prefix, expected_position, expected_status_prefix, expected_dims",
+    [
+        ("user", "", ["plot_choices_row"], "User model status", ["time", "lat"]),
+        ("ref", "ref_", ["ref_plot_choices_row"], "Reference model status", ["time"]),
+        ("multiplot", "multiplot_", ["multiplot_plot_choices_row"], "Overlay Plot", ["lat"]),
+    ],
+)
+def test_check_slice(
+    ui,
+    monkeypatch,
+    section,
+    expected_attr_prefix,
+    expected_position,
+    expected_status_prefix,
+    expected_dims
+):
+    """Test that slice widgets are generated and routed to the correct UI attributes based on section."""
+
+    # Setup mock datasets and remaining dims
+    data = xr.DataArray(
+        np.random.rand(2, 3), 
+        dims=["time", "lat"], 
+        coords={"time": [1, 2], "lat": [10, 20, 30]}
+    )
+    ds = xr.Dataset({"data": data})
+
+    ui.dataset = ds
+    ui.ref_dataset = ds
+    ui.remaining_dims = ["time", "lat"]
+    ui.ref_remaining_dims = ["time"]
+    ui.multiplot_remaining_dims = ["lat"]
+
+    ui.widget_container = [] # Mock container list
+
+    # Mock all necessary UI components
+    ui.plot_button = MagicMock()
+    ui.status_textbox = MagicMock()
+    ui.ref_plot_button = MagicMock()
+    ui.ref_status_textbox = MagicMock()
+    ui.multiplot_plot_button = MagicMock()
+    ui.multiplot_status_textbox = MagicMock()
+
+    # Mock round_slice_val to simply return a string version of the input
+    mock_round_slice = MagicMock(side_effect=lambda x: f"round_{x}")
+    monkeypatch.setattr(controller, "round_slice_val", mock_round_slice)
+
+    mock_update_text = MagicMock()
+    monkeypatch.setattr(controller, "update_textbox_text", mock_update_text)
+
+    mock_safe_add = MagicMock()
+    monkeypatch.setattr(ui, "_safe_add_to_widget", mock_safe_add)
+
+    ui._check_slice(section=section)
+
+    # Determine the target UI components based on the parameterised section
+    if section == "user":
+        btn = ui.plot_button
+        txt = ui.status_textbox
+    elif section == "ref":
+        btn = ui.ref_plot_button
+        txt = ui.ref_status_textbox
+    else:
+        btn = ui.multiplot_plot_button
+        txt = ui.multiplot_status_textbox
+
+    # Check the dynamic attributes were set correctly
+    widget_attr = f"{expected_attr_prefix}slice_widgets" if expected_attr_prefix else "slice_widgets"
+    row_attr = f"{expected_attr_prefix}slice_ui_row" if expected_attr_prefix else "slice_ui_row"
+
+    assert hasattr(ui, widget_attr)
+    assert hasattr(ui, row_attr)
+
+    widgets_dict = getattr(ui, widget_attr)
+    ui_row = getattr(ui, row_attr)
+
+    # Verify the dictionary contains the correct dimensions and Panel widgets
+    assert list(widgets_dict.keys()) == expected_dims
+    for dim in expected_dims:
+        assert isinstance(widgets_dict[dim], pn.widgets.DiscreteSlider)
+        assert widgets_dict[dim].name == f"Slice {dim} at:"
+
+    # Verify the layout row was built
+    assert isinstance(ui_row, pn.Row)
+    assert len(ui_row) == len(expected_dims)
+
+    # Verify layout integration
+    mock_safe_add.assert_called_once_with(ui.widget_container, expected_position, ui_row, append=True)
+
+    # Verify status and button text updates
+    assert btn.name == "Confirm Slices & Plot"
+    mock_update_text.assert_called_once_with(
+        txt, f"{expected_status_prefix} >> Action required: Select slice values and click plot again."
+    )
+
+
+@pytest.mark.parametrize(
+    "is_ref, expected_section",
+    [
+        (True, "ref"),
+        (False, "user"),
+    ],
+)
+def test_plot_dataset_helper(ui, monkeypatch, is_ref, expected_section):
+    """Test that the plot dataset helper routes to the correct controller function with the right attributes."""
+
+    # Mock external dependencies
+    mock_fig = MagicMock(name="mock_matplotlib_figure")
+    mock_plot_dataset = MagicMock(return_value=mock_fig)
+    monkeypatch.setattr(controller, "plot_dataset", mock_plot_dataset)
+
+    mock_variable = "test_variable"
+    mock_get_variable_helper = MagicMock(return_value=mock_variable)
+    monkeypatch.setattr(ui, "_get_variable_helper", mock_get_variable_helper)
+
+    # Setup mock UI attributes for the User branch
+    ui.dataset = "mock_user_dataset"
+    ui.keys_dropdown = MagicMock(value="user_model_key")
+    ui.x_axis_dropdown = MagicMock(value="user_x_axis")
+    ui.chosen_slices = {"user_dim": 0}
+    ui.figure_exists = False
+
+    # Setup mock UI attributes for the Reference branch
+    ui.ref_dataset = "mock_ref_dataset"
+    ui.ref_keys_dropdown = MagicMock(value="ref_model_key")
+    ui.ref_data_keys_dropdown = MagicMock(value="ref_dataset_key")
+    ui.ref_x_axis_dropdown = MagicMock(value="ref_x_axis")
+    ui.ref_chosen_slices = {"ref_dim": 1}
+    ui.ref_figure_exists = False
+
+    result = ui._plot_dataset_helper(is_ref=is_ref)
+
+    # Ensure the helper successfully pulled the variable string
+    mock_get_variable_helper.assert_called_once_with(expected_section)
+    # Ensure the function returns the figure generated by the controller
+    assert result == mock_fig
+
+    if is_ref:
+        # Verify state changes
+        assert ui.ref_figure_exists is True
+        assert ui.ref_fig == mock_fig
+        
+        # Verify the controller was called with the exact reference attributes
+        mock_plot_dataset.assert_called_once_with(
+            "mock_ref_dataset",
+            "ref_dataset_key",
+            mock_variable,
+            "ref_x_axis",
+            {"ref_dim": 1},
+            True,
+            "ref_model_key",
+        )
+    else:
+        # Verify state changes
+        assert ui.figure_exists is True
+        assert ui.fig == mock_fig
+        
+        # Verify the controller was called with the exact user attributes
+        mock_plot_dataset.assert_called_once_with(
+            "mock_user_dataset",
+            "user_model_key",
+            mock_variable,
+            "user_x_axis",
+            {"user_dim": 0},
+            False,
+        )
