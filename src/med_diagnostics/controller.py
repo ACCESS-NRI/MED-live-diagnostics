@@ -697,12 +697,19 @@ def check_bounds(dataset, x_axis, ref_dict):
                     bounds_widened = True
 
             except TypeError:
-                # Raised when cftime calendars clash. Fallback to tuple comparison.
-                if _to_time_tup(ref_min) < _to_time_tup(global_min):
-                    global_min = ref_min
-                    bounds_widened = True
-                if _to_time_tup(ref_max) > _to_time_tup(global_max):
-                    global_max = ref_max
-                    bounds_widened = True
+                # Raised when cftime calendars clash, OR when comparing int/float with cftime.
+                try:
+                    # Fallback to tuple comparison for clashing calendars
+                    if _to_time_tup(ref_min) < _to_time_tup(global_min):
+                        global_min = ref_min
+                        bounds_widened = True
+                    if _to_time_tup(ref_max) > _to_time_tup(global_max):
+                        global_max = ref_max
+                        bounds_widened = True
+                except AttributeError:
+                    # Raised when trying to get .year from an int/float.
+                    # The datasets have fundamentally incompatible axis types (numeric vs date).
+                    # Skip expanding bounds for this reference dataset.
+                    pass
 
     return bounds_widened, global_min, global_max, dataset_min, dataset_max

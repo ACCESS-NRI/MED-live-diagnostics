@@ -14,6 +14,7 @@ class UserInterface:
     """
     Primary class for user interface (UI) components and deployment
     """
+
     # Set up styles used for text boxes and buttons
     STYLES = {
         "status_text": {
@@ -194,8 +195,8 @@ class UserInterface:
 
     def _plot_button_click(self, event):
         """Event wrapper for the plot data button click."""
-        plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, *_ = (
-            self._check_plot_validity_helper(section="user")
+        plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, *_ = self._check_plot_validity_helper(
+            section="user"
         )
         self._plot_button_click_display_choices(
             plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, section="user"
@@ -203,8 +204,8 @@ class UserInterface:
 
     def _ref_plot_button_click(self, event):
         """Event wrapper for the ref plot data button click."""
-        plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, *_ = (
-            self._check_plot_validity_helper(section="ref")
+        plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, *_ = self._check_plot_validity_helper(
+            section="ref"
         )
         self._plot_button_click_display_choices(
             plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, section="ref"
@@ -496,7 +497,7 @@ class UserInterface:
         if self.plot_type_dropdown.value == "Heatmap":
             x_axis = self.x_axis_dropdown.value
             y_axis = self.y_axis_dropdown.value
-            fig = self._plot_dataset_helper(is_ref=False, plot_type = "Heatmap")
+            fig = self._plot_dataset_helper(is_ref=False, plot_type="Heatmap")
         elif self.plot_type_dropdown.value == "Line":
             fig = self._plot_dataset_helper(is_ref=False)
         elif self.plot_type_dropdown.value == "Animation":
@@ -513,7 +514,9 @@ class UserInterface:
         self._safe_remove_widget_object(self.widget_container, "slice_ui_row")
         self._safe_remove_widget_object(self.widget_container, "slice_widgets")
 
-        appended = self._safe_add_to_widget(self.widget_container, ["ref_status_textbox"], plot_group, append=True, above=True)
+        appended = self._safe_add_to_widget(
+            self.widget_container, ["ref_status_textbox"], plot_group, append=True, above=True
+        )
         # Check if the reference UI already exists
         if appended:
             self._display_reference_model_selection_ui()
@@ -1109,7 +1112,7 @@ class UserInterface:
         # Clear the loaded data, as different datasets from the selected models will need to be loaded.
         self._clear_multiplot_data()
 
-    def _plot_dataset_helper(self, is_ref=False, plot_type = "Line"):
+    def _plot_dataset_helper(self, is_ref=False, plot_type="Line"):
         """
         Plot either the user or reference dataset based on the current UI state.
 
@@ -1134,17 +1137,28 @@ class UserInterface:
                 y_axis = self.ref_y_axis_dropdown.value
                 z_axis = self.ref_animation_axis_dropdown.value
                 figure = controller.plot_animation(
-                    self.ref_dataset, self.ref_keys_dropdown.value, variable, 
-                    self.ref_chosen_slices, self.ref_x_axis_dropdown.value, 
-                    y_axis, z_axis, is_ref=True
+                    self.ref_dataset,
+                    self.ref_keys_dropdown.value,
+                    variable,
+                    self.ref_chosen_slices,
+                    self.ref_x_axis_dropdown.value,
+                    y_axis,
+                    z_axis,
+                    is_ref=True,
                 )
             else:
                 # Handles both Line (y_axis=None) and Heatmap (y_axis=value)
                 y_axis = self.ref_y_axis_dropdown.value if plot_type == "Heatmap" else None
                 figure = controller.plot_dataset(
-                    self.ref_dataset, self.ref_data_keys_dropdown.value, variable,
-                    self.ref_x_axis_dropdown.value, self.ref_chosen_slices,
-                    is_ref, self.ref_keys_dropdown.value, plot_type=plot_type, y_axis=y_axis
+                    self.ref_dataset,
+                    self.ref_data_keys_dropdown.value,
+                    variable,
+                    self.ref_x_axis_dropdown.value,
+                    self.ref_chosen_slices,
+                    is_ref,
+                    self.ref_keys_dropdown.value,
+                    plot_type=plot_type,
+                    y_axis=y_axis,
                 )
 
             self.ref_figure_exists = True
@@ -1157,17 +1171,27 @@ class UserInterface:
                 y_axis = self.y_axis_dropdown.value
                 z_axis = self.animation_axis_dropdown.value
                 figure = controller.plot_animation(
-                    self.dataset, self.keys_dropdown.value, variable, 
-                    self.chosen_slices, self.x_axis_dropdown.value, 
-                    y_axis, z_axis, is_ref=False
+                    self.dataset,
+                    self.keys_dropdown.value,
+                    variable,
+                    self.chosen_slices,
+                    self.x_axis_dropdown.value,
+                    y_axis,
+                    z_axis,
+                    is_ref=False,
                 )
             else:
                 # Handles both Line and Heatmap
                 y_axis = self.y_axis_dropdown.value if plot_type == "Heatmap" else None
                 figure = controller.plot_dataset(
-                    self.dataset, self.keys_dropdown.value, variable,
-                    self.x_axis_dropdown.value, self.chosen_slices,
-                    is_ref, plot_type=plot_type, y_axis=y_axis
+                    self.dataset,
+                    self.keys_dropdown.value,
+                    variable,
+                    self.x_axis_dropdown.value,
+                    self.chosen_slices,
+                    is_ref,
+                    plot_type=plot_type,
+                    y_axis=y_axis,
                 )
 
             self.figure_exists = True
@@ -1353,14 +1377,14 @@ class UserInterface:
         """
         Gather section-specific widget configurations and delegate plot validation to the controller.
 
-        Inspects the dropdown values and active datasets for the specified UI section, 
-        evaluates slice widget states, and coordinates layout cleanups if dataset dimensions 
+        Inspects the dropdown values and active datasets for the specified UI section,
+        evaluates slice widget states, and coordinates layout cleanups if dataset dimensions
         or slice requirements have changed.
 
         Parameters
         ----------
         section : str, optional
-            The UI section being evaluated. Valid options are "user", "ref", or 
+            The UI section being evaluated. Valid options are "user", "ref", or
             "multiplot". Defaults to "user".
 
         Returns
@@ -1394,7 +1418,9 @@ class UserInterface:
             # ONLY check bounds if it's a Line plot!
             if plot_type == "Line":
                 prompt_bounds, self.global_min, self.global_max, self.dataset_min, self.dataset_max = (
-                    controller.check_bounds(self.dataset, self.multiplot_x_axis_dropdown.value, self.multiplot_ref_dataset_dict)
+                    controller.check_bounds(
+                        self.dataset, self.multiplot_x_axis_dropdown.value, self.multiplot_ref_dataset_dict
+                    )
                 )
             else:
                 prompt_bounds = False
@@ -1410,8 +1436,16 @@ class UserInterface:
         has_slice_widgets = hasattr(self, widget_attr)
         existing_keys = list(getattr(self, widget_attr).keys()) if has_slice_widgets else []
 
-        plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, remaining_dims = controller.check_plot_validity(
-            dataset=dataset, variable=variable, plot_type=plot_type, x=x, y=y, z=z, has_slice_widgets=has_slice_widgets
+        plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, remaining_dims = (
+            controller.check_plot_validity(
+                dataset=dataset,
+                variable=variable,
+                plot_type=plot_type,
+                x=x,
+                y=y,
+                z=z,
+                has_slice_widgets=has_slice_widgets,
+            )
         )
 
         # Handle UI cleanup if slice requirements changed
@@ -1419,8 +1453,10 @@ class UserInterface:
             self._safe_remove_widget_object(self.widget_container, row_attr)
             self._safe_remove_widget_object(self.widget_container, widget_attr)
             # Re-evaluate with no slice widgets now that they are cleared
-            plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, remaining_dims = controller.check_plot_validity(
-                dataset=dataset, variable=variable, plot_type=plot_type, x=x, y=y, z=z, has_slice_widgets=False
+            plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, remaining_dims = (
+                controller.check_plot_validity(
+                    dataset=dataset, variable=variable, plot_type=plot_type, x=x, y=y, z=z, has_slice_widgets=False
+                )
             )
 
         # Save remaining dims back to the correct attribute on self
@@ -1449,7 +1485,7 @@ class UserInterface:
             slice_row = "ref_slice_ui_row"
             slice_widgets_attr = "ref_slice_widgets"
             plot_action = self._ref_plot_data_button_click
-            display_choices = (self._ref_display_plot_choices_ui)  # or whatever your ref plot choices method is called
+            display_choices = self._ref_display_plot_choices_ui  # or whatever your ref plot choices method is called
             self.chosen_slices = {}  # or ref_chosen_slices if separated
         elif section == "multiplot":
             warning_box = self.multiplot_warning_textbox
@@ -1514,7 +1550,7 @@ class UserInterface:
 
         return plot_group
 
-    def _multiplot_plot_dataset_helper(self, plot_diff = False, plot_type = "Line"):
+    def _multiplot_plot_dataset_helper(self, plot_diff=False, plot_type="Line"):
         prompt_bounds, self.global_min, self.global_max, self.dataset_min, self.dataset_max = controller.check_bounds(
             self.dataset, self.multiplot_x_axis_dropdown.value, self.multiplot_ref_dataset_dict
         )
@@ -1523,13 +1559,13 @@ class UserInterface:
             x_max = self.dataset_max
         else:
             x_min = self.multiplot_min
-            x_max = self.multiplot_max 
+            x_max = self.multiplot_max
         if not plot_diff:
             if plot_type == "Line":
 
                 return controller.plot_multiplot_dataset(
                     self.dataset,
-                    self._get_variable_helper(section = "multiplot"),
+                    self._get_variable_helper(section="multiplot"),
                     self.multiplot_ref_dataset_dict,
                     self.multiplot_chosen_slices,
                     self.multiplot_x_axis_dropdown.value,
@@ -1538,29 +1574,31 @@ class UserInterface:
                 )
             else:
                 return controller.plot_multiplot_heatmap_dataset(
-                    self.dataset, self._get_variable_helper(section = "multiplot"),
+                    self.dataset,
+                    self._get_variable_helper(section="multiplot"),
                     self.multiplot_chosen_slices,
                     self.multiplot_x_axis_dropdown.value,
                     self.multiplot_y_axis_dropdown.value,
-                    plot_diff=False
+                    plot_diff=False,
                 )
         else:
             if plot_type == "Line":
                 return controller.plot_multiplot_dataset(
                     self.dataset,
-                    self._get_variable_helper(section = "multiplot"),
+                    self._get_variable_helper(section="multiplot"),
                     self.multiplot_ref_dataset_dict,
                     self.multiplot_chosen_slices,
                     self.multiplot_x_axis_dropdown.value,
                     x_min,
                     x_max,
-                    plot_diff=True
+                    plot_diff=True,
                 )
             else:
                 return controller.plot_multiplot_heatmap_dataset(
-                    self.dataset, self._get_variable_helper(section = "multiplot"),
+                    self.dataset,
+                    self._get_variable_helper(section="multiplot"),
                     self.multiplot_chosen_slices,
                     self.multiplot_x_axis_dropdown.value,
                     self.multiplot_y_axis_dropdown.value,
-                    plot_diff=True
+                    plot_diff=True,
                 )

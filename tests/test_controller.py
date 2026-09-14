@@ -268,3 +268,30 @@ def test_multiplot_check_bounds_calendar(ref_start, ref_end, expected_triggered)
     result, global_min, global_max, dataset_min, dataset_max = controller.check_bounds(ds_primary, "time", ref_dict)
 
     assert result == expected_triggered
+
+
+def test_multiplot_check_bounds_mismatched_types():
+    """Test that check_bounds safely ignores reference datasets with incompatible axis types."""
+    import cftime
+    import xarray as xr
+    from med_diagnostics import controller  # Update import if needed
+
+    # Primary dataset is numeric
+    ds_primary = xr.Dataset({"data": (["x"], [1, 2])}, coords={"x": [0, 10]})
+
+    # Reference dataset is calendar time (incompatible with numeric!)
+    ref_times = [
+        cftime.DatetimeGregorian(2000, 1, 1),
+        cftime.DatetimeGregorian(2000, 12, 31),
+    ]
+    ds_ref = xr.Dataset({"data": (["x"], [3, 4])}, coords={"x": ref_times})
+    ref_dict = {"ref1": ds_ref}
+
+    # Execute the bounds check
+    result, global_min, global_max, dataset_min, dataset_max = controller.check_bounds(ds_primary, "x", ref_dict)
+
+    # Because they are incompatible, bounds should NOT be widened,
+    # and the global bounds should remain equal to the primary numeric bounds.
+    assert result is False
+    assert global_min == 0
+    assert global_max == 10
