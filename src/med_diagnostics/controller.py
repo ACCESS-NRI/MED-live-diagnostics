@@ -394,7 +394,33 @@ def check_plot_validity(dataset, variable, plot_type, x, y=None, z=None, has_sli
     return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, remaining_dims
 
 def plot_animation(dataset, dataset_name, variable, chosen_slices, x_axis, y_axis, z_axis, is_ref = False):
-    
+    """
+    Generate an interactive animated 2D quadmesh plot with a scrubber widget.
+
+    Parameters
+    ----------
+    dataset : xarray.Dataset
+        The dataset containing the variable to plot.
+    dataset_name : str
+        The name of the dataset, used to populate the caption.
+    variable : str
+        The data variable to plot.
+    chosen_slices : dict
+        A dictionary of dimension-value pairs used to slice the dataset prior to plotting.
+    x_axis : str
+        The coordinate to use for the x-axis.
+    y_axis : str
+        The coordinate to use for the y-axis.
+    z_axis : str
+        The coordinate to animate over (used for the groupby scrubber widget).
+    is_ref : bool, optional
+        Flag indicating whether the dataset is a reference model. Defaults to False.
+
+    Returns
+    -------
+    panel.Column
+        A Panel column layout containing the interactive hvplot object and an HTML caption pane.
+    """
 
     data = dataset.sel(**chosen_slices, method="nearest")
     plot_dataset = data[variable].load()
@@ -435,3 +461,248 @@ def plot_animation(dataset, dataset_name, variable, chosen_slices, x_axis, y_axi
     )
     # Return a Column with the plot on top and the caption underneath
     return pn.Column(pn.panel(plot), caption_pane)
+
+
+def plot_multiplot_dataset(
+    dataset,
+    variable,
+    ref_dict,
+    chosen_slices,
+    x_axis,
+    x_min,
+    x_max,
+    plot_diff = False
+):
+    """
+    Plot 2D time-series overlaying the user model and selected reference models. Private.
+
+    Parameters
+    ----------
+    variable : str
+        Model data variable as selected from panel dropdown.
+    x_axis : str
+        X-axis as selected from the panel dropdown.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        The constructed figure containing the overlaid plots.
+    """
+
+    fig, ax = plt.subplots(figsize=[8, 4])
+
+    # Slice user data
+    sliced_user_data = dataset.sel(**chosen_slices, method="nearest")
+
+    # Only plot the baseline user data as a black line if we are NOT doing a difference plot
+    if not plot_diff:
+        sliced_user_data[variable].plot(label="User dataset", x=x_axis, ax=ax, linewidth=2, color="black")
+
+    # Loop through the dictionary adding each reference dataset
+    for model_key, ref_dataset in ref_dict.items():
+
+        # Apply slices if those dimensions exist in the reference dataset
+        valid_slices = {dim: val for dim, val in chosen_slices.items() if dim in ref_dataset.dims}
+        sliced_ref_data = ref_dataset.sel(**valid_slices, method="nearest")
+
+        # Determine the data to plot based on the diff flag
+        if plot_diff:
+            plot_data = sliced_ref_data - sliced_user_data
+        else:
+            plot_data = sliced_ref_data
+
+        # Plot all model variants if multiple exist
+        if "member" in plot_data.dims:
+            for mem in plot_data.member.values:
+                plot_data[variable].sel(member=mem, method="nearest").plot(
+                    label=f"{model_key} (mem: {mem})", x=x_axis, ax=ax
+                )
+        else:
+            # Plot directly if no member dimension exists
+            plot_data[variable].plot(label=model_key, x=x_axis, ax=ax)
+
+    # Set title and add horizontal zero-line for difference plots
+    base_title = sliced_user_data[variable].attrs.get("long_name", variable)
+    if plot_diff:
+        title_text = f"Δ {base_title} (Ref. - User data)"
+        ax.axhline(0, color="k")  # horizontal line at 0
+    else:
+        title_text = base_title
+
+    ax.set_xlim(x_min, x_max)
+
+    return apply_standard_plot_formatting(
+        fig=fig,
+        ax=ax,
+        title_text=title_text,
+        chosen_slices=chosen_slices,
+        caption_text="",
+    )
+
+def plot_multiplot_heatmap_dataset(dataset,
+    variable,
+    ref_dict,
+    chosen_slices,
+    x_axis,
+    y_axis,
+    plot_diff = False
+    ):
+    """
+    Plot 2D time-series overlaying the user model and selected reference models. Private.
+
+    Parameters
+    ----------
+    variable : str
+        Model data variable as selected from panel dropdown.
+    x_axis : str
+        X-axis as selected from the panel dropdown.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        The constructed figure of a number of heatmaps, laid out in a grid.
+    """
+    # get the number of reference variables, to calculate the grid size
+    num_refs = len(ref_dict)
+    total_plots = 1 + num_refs
+
+    # calculate grid dimensions
+    if total_plots > 1:
+        ncols = 2
+    else:
+        ncols = 1
+
+    nrows = (total_plots + 1) // 2
+
+    sliced_user_data = dataset.sel(**chosen_slices, method="nearest")
+    global_vmin = float(sliced_user_data[variable].min())
+    global_vmax = float(sliced_user_data[variable].max())
+
+    # Need to check min and max for given variable to keep colour consistent between different heatmaps
+    for dataset in ref_dict.values():
+        valid_slices = {dim: val for dim, val in chosen_slices.items() if dim in dataset.dims}
+        sliced_ref = dataset.sel(**valid_slices, method="nearest")
+
+        plot_data = (sliced_ref - sliced_user_data) if plot_diff else sliced_ref
+
+        global_vmin = min(global_vmin, float(sliced_ref[variable].min()))
+        global_vmax = max(global_vmax, float(sliced_ref[variable].max()))
+
+    # Create grid
+    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=[6 * ncols, 4 * nrows])
+
+    # Flatten axes array for easy iteration
+    axes_flat = axes.flatten() if hasattr(axes, "flatten") else [axes]
+
+    # Plot User Data
+    sliced_user_data[variable].plot(
+        x=x_axis,
+        y=y_axis,
+        ax=axes_flat[0],
+        vmin=global_vmin,
+        vmax=global_vmax,
+        cmap="viridis",
+        cbar_kwargs={"label": variable},
+    )
+    axes_flat[0].set_title("User Dataset")
+
+    ax = 1
+    for model_key, dataset in ref_dict.items():
+        valid_slices = {dim: val for dim, val in chosen_slices.items() if dim in dataset.dims}
+        sliced_ref = dataset.sel(**valid_slices, method="nearest")
+
+        plot_data = (sliced_ref - sliced_user_data) if plot_diff else sliced_ref
+        title_prefix = "Δ " if plot_diff else ""
+
+        # If the reference data has members, plot the first one to avoid issues
+        member_title = ""
+        if "member" in sliced_ref.dims:
+            sliced_ref = sliced_ref.isel(member=0)
+            member_title = f" (mem: {dataset.member.values[0]})"
+
+        sliced_ref[variable].plot(
+            x=x_axis,
+            y=y_axis,
+            ax=axes_flat[ax],
+            vmin=global_vmin,
+            vmax=global_vmax,
+            cmap="viridis",
+            cbar_kwargs={"label": variable},
+        )
+        axes_flat[ax].set_title(f"{model_key}{member_title}")
+        ax += 1
+
+    # delete empty subplots remaining
+    for i in range(total_plots, len(axes_flat)):
+        fig.delaxes(axes_flat[i])
+
+    # Add the slice information to the caption text, if it is sliced data
+    slice_str = ", ".join(
+        [f"{dim}: {round_slice_val(val)}" for dim, val in chosen_slices.items()]
+    )
+    if slice_str:
+        fig.text(
+            0.1,
+            0.01,
+            f"Sliced by: {slice_str}",
+            wrap=True,
+            horizontalalignment="left",
+            fontsize=10,
+        )
+        fig.subplots_adjust(bottom=0.15, hspace=0.3)
+    else:
+        fig.subplots_adjust(hspace=0.3)
+
+    plt.close(fig)
+
+    return fig
+
+
+def check_bounds(dataset, x_axis, ref_dict):
+    """
+    Calculate the absolute minimum and maximum x-axis bounds across all datasets.
+
+    Compares the user dataset bounds against all loaded reference datasets.
+
+    Returns
+    -------
+    tuple
+        (bounds_widened, global_min, global_max, dataset_min, dataset_max)
+    """
+    dataset_min = dataset[x_axis].min().values
+    dataset_max = dataset[x_axis].max().values
+
+    global_min = dataset_min
+    global_max = dataset_max
+    bounds_widened = False
+
+    # Helper to convert cftime objects into comparable chronological tuples
+    def _to_time_tup(time_obj):
+        obj = time_obj.item() if hasattr(time_obj, "item") else time_obj
+        return (obj.year, obj.month, obj.day, obj.hour, obj.minute, obj.second)
+
+    # Iterate through the reference datasets to find the absolute min and max
+    for ref_ds in ref_dict.values():
+        if x_axis in ref_ds:
+            ref_min = ref_ds[x_axis].min().values
+            ref_max = ref_ds[x_axis].max().values
+
+            try:
+                # Attempt standard numerical or exact-calendar comparison first
+                if ref_min < global_min:
+                    global_min = ref_min
+                    bounds_widened = True
+                if ref_max > global_max:
+                    global_max = ref_max
+                    bounds_widened = True
+
+            except TypeError:
+                # Raised when cftime calendars clash. Fallback to tuple comparison.
+                if _to_time_tup(ref_min) < _to_time_tup(global_min):
+                    global_min = ref_min
+                    bounds_widened = True
+                if _to_time_tup(ref_max) > _to_time_tup(global_max):
+                    global_max = ref_max
+                    bounds_widened = True
+
+    return bounds_widened, global_min, global_max, dataset_min, dataset_max

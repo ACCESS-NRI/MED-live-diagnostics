@@ -12,7 +12,7 @@ import numpy as np
 import panel as pn
 import matplotlib.pyplot as plt
 import cftime
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 
 
 def mock_dataset():
@@ -354,37 +354,6 @@ def test_ref_clear_data_click(ui, meta, cat, ds):
     assert hasattr(ui, "ref_dataset") == False
 
 
-def test_plot_multiplot_dataset(ui, monkeypatch):
-    """Test the generation of 1D line multiplots and 2D heatmaps across multiple datasets"""
-
-    ui.multiplot_chosen_slices = {}
-    ui.multiplot_min = 0
-    ui.multiplot_max = 100
-    ui.multiplot_ref_dataset_dict = {"key": ui.dataset, "key2": ui.dataset}
-    ui.multiplot_chosen_slices = {"z": 1}
-    mock_multiplot_check_bounds = MagicMock()
-    monkeypatch.setattr(ui, "_multiplot_check_bounds", mock_multiplot_check_bounds)
-
-    # Generate a 1D multiplot and verify a valid matplotlib Figure is returned with subplots and a legend
-    plot_result = ui._plot_multiplot_dataset("data", "x")
-    assert isinstance(plot_result, plt.Figure)
-    assert len(plot_result.axes) == 4  # axes for each subplot and 1 legend
-
-    # Apply user-defined bounds constraints and verify that the bounds checking method is triggered
-    ui.prompt_bounds_dropdown.value = "Constrain to user dataset bounds"
-    ui.dataset_min = 0
-    ui.dataset_max = 1000
-    plot_result = ui._plot_multiplot_dataset("data", "x")
-    assert isinstance(plot_result, plt.Figure)
-    assert len(plot_result.axes) == 4  # axes for each subplot and 1 legend
-    mock_multiplot_check_bounds.assert_any_call()
-
-    # Generate a 2D multiplot heatmap and verify a valid matplotlib Figure is returned with appropriate axes
-    plot_result = ui._plot_multiplot_heatmap_dataset("data", "x", "y")
-    assert isinstance(plot_result, plt.Figure)
-    assert len(plot_result.axes) == 6  # 2 axes for each subplot
-
-
 def test_clear_multiplot_data(ui):
     """Test clearing multiplot data and resetting UI state attributes"""
 
@@ -404,132 +373,6 @@ def test_clear_multiplot_data(ui):
 
     # Verify that metadata is cleared and catalog/dataset attributes are removed from the UI instance
     assert ui.multiplot_ref_dataset_dict == {}
-
-
-@pytest.mark.parametrize(
-    "ref_min_val, ref_max_val, expected_triggered",
-    [
-        (2, 8, False),
-        (0, 10, False),
-        (-5, 8, True),
-        (2, 15, True),
-        (-2, 12, True),
-    ],
-)
-def test_multiplot_check_bounds_numeric(
-    ui, ref_min_val, ref_max_val, expected_triggered
-):
-    """Test numeric coordinate bounds checking across primary and reference datasets in multiplots""" 
-
-    # Create a primary dataset with fixed coordinate bounds from 0 to 10
-    ds_primary = xr.Dataset({"data": (["x"], [1, 2])}, coords={"x": [0, 10]})
-
-    # Create a reference dataset with coordinate bounds based on parameters and assign both to the UI
-    ds_ref = xr.Dataset(
-        {"data": (["x"], [3, 4])}, coords={"x": [ref_min_val, ref_max_val]}
-    )
-    ui.multiplot_x_axis_dropdown.value = "x"
-    ui.dataset = ds_primary
-    ui.multiplot_ref_dataset_dict = {"ref1": ds_ref}
-
-    # Execute the bounds check and verify if a bounds mismatch is triggered
-    result = ui._multiplot_check_bounds()
-
-    assert result == expected_triggered
-
-    expected_global_min = min(0, ref_min_val)
-    expected_global_max = max(10, ref_max_val)
-
-    # Verify that the global minimum and maximum bounds are calculated correctly across datasets
-    assert ui.multiplot_min == expected_global_min
-    assert ui.multiplot_max == expected_global_max
-
-
-@pytest.mark.parametrize(
-    "ref_start, ref_end, expected_triggered",
-    [
-        ((2000, 2, 1), (2000, 11, 30), False),
-        ((1999, 12, 1), (2000, 11, 30), True),
-        ((2000, 2, 1), (2001, 1, 1), True),
-    ],
-)
-def test_multiplot_check_bounds_calendar(ui, ref_start, ref_end, expected_triggered):
-    """Test calendar coordinate bounds checking across primary and reference datasets in multiplots""" 
-
-    # Create a primary dataset using NoLeap calendar bounds from Jan 1 2000 to Dec 31 2000
-    primary_times = [
-        cftime.DatetimeNoLeap(2000, 1, 1),
-        cftime.DatetimeNoLeap(2000, 12, 31),
-    ]
-    ds_primary = xr.Dataset(
-        {"data": (["time"], [1, 2])}, coords={"time": primary_times}
-    )
-
-    # Create a reference dataset using Gregorian calendar bounds based on parameters
-    ref_times = [
-        cftime.DatetimeGregorian(*ref_start),
-        cftime.DatetimeGregorian(*ref_end),
-    ]
-    ds_ref = xr.Dataset({"data": (["time"], [3, 4])}, coords={"time": ref_times})
-
-    # Assign primary and reference datasets to the UI instance and set the x-axis to time
-    ui.multiplot_x_axis_dropdown.value = "time"
-    ui.dataset = ds_primary
-    ui.multiplot_ref_dataset_dict = {"ref1": ds_ref}
-
-    # Execute the bounds check and verify if a bounds mismatch is triggered
-    result = ui._multiplot_check_bounds()
-    assert result == expected_triggered
-
-@pytest.mark.parametrize(
-    "constrain_bounds",
-    [
-        True, 
-        False
-    ],
-)
-def test_plot_multiplot_difference_dataset(ui, constrain_bounds):
-    """Test the generation of 1D line and 2D heatmap difference plots across multiple datasets""" 
-
-    # Create a 2D xarray dataset
-    data = xr.DataArray(
-        np.random.rand(10, 10, 10),
-        dims=["x", "y", "z"],
-        coords={"x": np.arange(10), "y": np.arange(10), "z": np.arange(10)},
-    )
-    ds = xr.Dataset({"data": data})
-    ui.multiplot_chosen_slices = {"z": 1}
-    
-    # Assign datasets and multiplot state to the UI instance
-    ui.dataset = ds
-    ui.multiplot_ref_dataset_dict = {"key": ds, "key2": ds}
-    ui.multiplot_x_axis_dropdown.value = "x"
-    ui.multiplot_y_axis_dropdown.value = "y"
-    ui.dataset_min = 0
-    ui.dataset_max = 1000
-    ui.multiplot_min = -1
-    ui.multiplot_max = 1001
-
-    if constrain_bounds:
-        ui.prompt_bounds_dropdown.value = "Constrain to user dataset bounds"
-    else:
-        ui.prompt_bounds_dropdown.value = ""
-
-    # Generate a 2D multiplot difference heatmap and verify a valid matplotlib Figure is returned
-    plot_result = ui._plot_multiplot_difference_heatmap("data", "x", "y")
-    ax = plot_result.axes[0]
-    xmin, xmax = ax.get_xlim()
-    assert isinstance(plot_result, plt.Figure)
-    assert len(plot_result.axes) == 4  # axes for each difference plotted
-    assert any("Sliced by: " in t.get_text() for t in plot_result.texts)
-
-    # Generate a 1D multiplot difference plot and verify a valid matplotlib Figure is returned
-    plot_result = ui._plot_multiplot_difference_dataset("data", "x")
-    ax = plot_result.axes[0]
-    xmin, xmax = ax.get_xlim()
-    assert isinstance(plot_result, plt.Figure)
-    assert len(plot_result.axes) == 3  # axes for each difference plotted + legend
-    assert any("Sliced by: " in t.get_text() for t in plot_result.texts)
 
 
 def test_display_status_text(ui):
@@ -893,17 +736,11 @@ def test_plot_ref_data_button_click(
         ),
     ],
 )
-@patch("med_diagnostics.ui.UserInterface._plot_multiplot_heatmap_dataset")
-@patch("med_diagnostics.ui.UserInterface._plot_multiplot_difference_heatmap")
-@patch("med_diagnostics.ui.UserInterface._plot_multiplot_dataset")
-@patch("med_diagnostics.ui.UserInterface._plot_multiplot_difference_dataset")
+@patch("med_diagnostics.ui.UserInterface._multiplot_plot_dataset_helper")
 @patch("panel.pane.Matplotlib")
 def test_plot_multiplot_data_button_click(
     mock_matplotlib,
-    mock_plot_multiplot_difference_dataset,
-    mock_plot_multiplot_dataset,
-    mock_plot_multiplot_difference_heatmap,
-    mock_plot_multiplot_heatmap_dataset,
+    mock_multiplot_plot_dataset_helper,
     ui,
     plot_type,
     analysis_type,
@@ -950,24 +787,34 @@ def test_plot_multiplot_data_button_click(
 
     # Verify that the correct internal multiplot generation methods are called based on the selected plot and analysis type
     if plot_type == "Heatmap (grid)" and analysis_type == "None (plot all loaded data)":
-        mock_plot_multiplot_heatmap_dataset.assert_called_once_with("data", "x", "y")
+        mock_multiplot_plot_dataset_helper.assert_called_once_with(plot_type = "Heatmap")
     elif (
         plot_type == "Heatmap (grid)"
         and analysis_type == "Plot Difference (Ref. - User data)"
     ):
-        mock_plot_multiplot_difference_heatmap.assert_called_once_with("data", "x", "y")
+        mock_multiplot_plot_dataset_helper.assert_called_once_with(plot_diff = True, plot_type = "Heatmap")
     elif (
         plot_type == "Heatmap (grid)" and analysis_type == "Plot All Data & Difference"
     ):
-        mock_plot_multiplot_heatmap_dataset.assert_called_once_with("data", "x", "y")
-        mock_plot_multiplot_difference_heatmap.assert_called_once_with("data", "x", "y")
+        assert mock_multiplot_plot_dataset_helper.call_count == 2
+
+        mock_multiplot_plot_dataset_helper.assert_has_calls([
+            call(plot_type = "Heatmap"),                  # Expected first call (defaults)
+            call(plot_diff=True, plot_type = "Heatmap")     # Expected second call
+        ])
     elif plot_type == "Line" and analysis_type == "None (plot all loaded data)":
-        mock_plot_multiplot_dataset.assert_called_once_with("data", "x")
+        mock_multiplot_plot_dataset_helper.assert_called_once_with(plot_type="Line")
     elif plot_type == "Line" and analysis_type == "Plot Difference (Ref. - User data)":
-        mock_plot_multiplot_difference_dataset.assert_called_once_with("data", "x")
+        mock_multiplot_plot_dataset_helper.assert_called_once_with(plot_diff=True, plot_type="Line")
     elif plot_type == "Line" and analysis_type == "Plot All Data & Difference":
-        mock_plot_multiplot_dataset.assert_called_once_with("data", "x")
-        mock_plot_multiplot_difference_dataset.assert_called_once_with("data", "x")
+        assert mock_multiplot_plot_dataset_helper.call_count == 2
+
+        mock_multiplot_plot_dataset_helper.assert_has_calls(
+            [
+                call(plot_type="Line"),  # Expected first call (defaults)
+                call(plot_diff=True, plot_type="Line"),  # Expected second call
+            ]
+        )
 
     # Verify that multiplot choices and slice UI components are removed from the widget container
     assert ui.ref_plot_choices_row not in ui.widget_container
@@ -1251,111 +1098,71 @@ def test_ref_display_plot_choices_ui(
             assert ui.ref_animation_axis_dropdown.name == "Select Z-Axis dimension"
             assert len(ui.ref_plot_choices_row) == 4  # x, y, z, button
 
+@pytest.mark.parametrize("section, plot_type", [
+    ("user", "Line"),
+    ("ref", "Line"),
+    ("multiplot", "Line"),
+    ("user", "Heatmap"),
+    ("ref", "Heatmap"),
+    ("multiplot", "Heatmap (grid)"),
+    ("user", "Animation"),
+    ("ref", "Animation")
+])
+@pytest.mark.parametrize("bounds_return", [True, False])
+def test_check_plot_validity_routing(ui, monkeypatch, section, plot_type, bounds_return):
+    """Tests variable routing, controller calls, and multiplot bounds logic."""
+    
+    mock_get_variable_helper = MagicMock(return_value="data")
+    monkeypatch.setattr(ui, "_get_variable_helper", mock_get_variable_helper)
 
-@pytest.mark.parametrize(
-    "plot_type, dim_dict, has_selection_row, bounds, expected_outcome",
-    [
-        ("Heatmap (grid)", {"time": 10, "lat": 10}, False, False, "success_heatmap"),
-        (
-            "Heatmap (grid)",
-            {"time": 10, "nv": 5, "scalar": 1},
-            False,
-            False,
-            "fail_dim_check",
-        ),
-        ("Line", {"time": 10, "lat": 10}, True, False, "success_line"),
-        ("Line", {"time": 10}, False, False, "auto_plot_line"),
-        ("Line", {"time": 10}, False, True, "one_dim_bounds_line"),
-    ],
-)
-def test_display_multiplot_plot_choices_ui(
-    ui, monkeypatch, plot_type, dim_dict, has_selection_row, bounds, expected_outcome
-):
-    """Test the configuration and layout of multiplot choices UI across different plot types, dimensions, and bounds check states"""
+    # FIX: Mock the new controller call to return the 5-tuple your UI expects!
+    mock_check_bounds = MagicMock(return_value=(bounds_return, 0, 10, 0, 10))
+    monkeypatch.setattr(controller, "check_bounds", mock_check_bounds)
+    
+    # Base mock return: plot_valid is True
+    mock_return_value = (True, False, False, False, ["remaining_dims"])
+    mock_check_plot_validity = MagicMock(return_value=mock_return_value)
+    monkeypatch.setattr(controller, "check_plot_validity", mock_check_plot_validity)
 
-    # Create a dataset with specified dimensions, sizes, and coordinate values for multiplot evaluation
-    coords = {dim: np.arange(size) for dim, size in dim_dict.items()}
-    size = tuple(dim_dict.values())
-    data_array = xr.DataArray(
-        np.random.rand(*size), dims=list(dim_dict.keys()), coords=coords
-    )
-    ui.dataset = xr.Dataset({"data": data_array})
-    ui._multiplot_check_bounds = MagicMock(return_value=bounds)
-    ui.multiplot_variable_toggle.value = False
-
-    # Mock the bounds UI prompt handler to prevent interactive display during testing
-    mock_prompt_bounds_ui = MagicMock()
-    monkeypatch.setattr(ui, "_prompt_bounds_ui", mock_prompt_bounds_ui)
-
-    ui.multiplot_plot_variable_dropdown.value = "data"
-
-    ui.multiplot_plot_type_dropdown.value = plot_type
-    ui.widget_container.clear()
-
-    # Conditionally configure the type selection row in the widget container to verify relative layout placement
-    if has_selection_row:
-        ui.multiplot_type_selection_row = pn.Row(
-            pn.pane.Markdown("Dummy"), name="selection_row"
-        )
-        ui.widget_container.append(ui.multiplot_type_selection_row)
-    elif hasattr(ui, "multiplot_type_selection_row"):
-        del ui.multiplot_type_selection_row
-
-    # Trigger the multiplot plot choices UI display method
-    ui._display_multiplot_plot_choices_ui()
-
-    # Verify that multiplot X-axis, analysis dropdown, and plot button names and options are correctly set
-    assert ui.multiplot_x_axis_dropdown.name == "Select X-Axis dimension"
-    assert ui.multiplot_analysis_choice_dropdown.name == "Select analysis type"
-    assert ui.multiplot_analysis_choice_dropdown.options == [
-        "None (plot all loaded data)",
-        "Plot Difference (Ref. - User data)",
-        "Plot All Data & Difference",
-    ]
-    assert ui.multiplot_plot_button.name == "Plot data"
-
-    # Verify expected outcomes for dimension check failures, automatic line plotting, bounds prompts, or successful multiplot UI layouts
-    if expected_outcome == "fail_dim_check":
-        assert ui.multiplot_plot_type_dropdown.value == "Line"
-        assert (
-            ui.multiplot_warning_textbox.value
-            == "Warning >> Not enough dimensions available for this variable to plot a Heatmap."
-        )
-
-    elif expected_outcome == "auto_plot_line":
-        ui._multiplot_check_bounds.assert_called_once()
-
-    elif expected_outcome == "one_dim_bounds_line":
-        mock_prompt_bounds_ui.assert_called_once()
-
-    elif expected_outcome == "fail_dim_check_animation":
-        assert (
-            ui.multiplot_warning_textbox.value
-            == "Warning >> Not enough dimensions available for this variable to plot an animation."
-        )
-        assert ui.multiplot_plot_type_dropdown.value == "Line"
-        assert not hasattr(ui, "multiplot_plot_choices_row")
-
+    # Setup UI mocks based on section
+    ds = mock_dataset()
+    if section == "ref":
+        ui.ref_dataset = ds
+        ui.ref_plot_type_dropdown.value = plot_type
+        ui.ref_x_axis_dropdown.value = "x"
+        ui.ref_y_axis_dropdown.value = "y"
+        ui.ref_animation_axis_dropdown.value = "z"
+    elif section == "multiplot":
+        ui.dataset = ds
+        ui.multiplot_plot_type_dropdown.value = plot_type
+        ui.multiplot_x_axis_dropdown.value = "x"
+        ui.multiplot_y_axis_dropdown.value = "y"
+        ui.multiplot_ref_dataset_dict = {} # FIX: Add the missing attribute!
     else:
-        assert ui.multiplot_plot_choices_row in ui.widget_container
-        if has_selection_row:
-            assert (
-                ui.widget_container.index(ui.multiplot_plot_choices_row)
-                == ui.widget_container.index(ui.multiplot_type_selection_row) + 1
-            )
+        ui.dataset = ds
+        ui.plot_type_dropdown.value = plot_type
+        ui.x_axis_dropdown.value = "x"
+        ui.y_axis_dropdown.value = "y"
+        ui.animation_axis_dropdown.value = "z"
 
-        if expected_outcome == "success_heatmap":
-            assert ui.multiplot_y_axis_dropdown.name == "Select Y-Axis dimension"
-            assert len(ui.multiplot_plot_choices_row) == 4  # x, y, analysis, button
-        elif expected_outcome == "success_line":
-            ui._multiplot_check_bounds.assert_called_once()
-            assert len(ui.multiplot_plot_choices_row) == 3  # x, analysis, button
-        elif expected_outcome == "success_animation":
-            assert ui.multiplot_y_axis_dropdown.name == "Select Y-Axis dimension"
-            assert (
-                ui.multiplot_animation_axis_dropdown.name == "Select Z-Axis dimension"
-            )
-            assert len(ui.multiplot_plot_choices_row) == 5  # x, y, z, analysis, button
+    # Run the function
+    results = ui._check_plot_validity_helper(section=section)
+
+    mock_get_variable_helper.assert_called_once_with(section)
+    mock_check_plot_validity.assert_called_once()
+
+    # Determine expected outputs based on multiplot bounds logic
+    expected_plot_valid = True
+    expected_prompt_bounds = False
+
+    if section == "multiplot" and plot_type == "Line":
+        mock_check_bounds.assert_called_once()
+        expected_prompt_bounds = bounds_return
+        if bounds_return:
+            expected_plot_valid = False
+
+    # Verify the final returned tuple
+    assert results == (expected_plot_valid, False, False, False, expected_prompt_bounds)
 
 def test_update_dataset_plot_ui(ui):
     """Test updating the dataset plot UI variables and multiplot dropdown options when a new dataset is loaded""" 
@@ -2051,8 +1858,8 @@ def test_check_plot_validity_routing(ui, monkeypatch, section, plot_type, bounds
     mock_get_variable_helper = MagicMock(return_value="data")
     monkeypatch.setattr(ui, "_get_variable_helper", mock_get_variable_helper)
 
-    mock_multiplot_check_bounds = MagicMock(return_value=bounds_return)
-    monkeypatch.setattr(ui, "_multiplot_check_bounds", mock_multiplot_check_bounds)
+    mock_multiplot_check_bounds = MagicMock(return_value=(bounds_return, 0, 10, 0, 10))
+    monkeypatch.setattr(controller, "check_bounds", mock_multiplot_check_bounds)
     
     # Base mock return: plot_valid is True
     mock_return_value = (True, False, False, False, ["remaining_dims"])
@@ -2072,6 +1879,7 @@ def test_check_plot_validity_routing(ui, monkeypatch, section, plot_type, bounds
         ui.multiplot_plot_type_dropdown.value = plot_type
         ui.multiplot_x_axis_dropdown.value = "x"
         ui.multiplot_y_axis_dropdown.value = "y"
+        ui.multiplot_ref_dataset_dict = {}
     else:
         ui.dataset = ds
         ui.plot_type_dropdown.value = plot_type
@@ -2105,7 +1913,7 @@ def test_check_plot_validity_slice_cleanup(ui, monkeypatch, section, keys_match)
     """Tests the layout cleanup logic when slice dimensions change."""
     
     monkeypatch.setattr(ui, "_get_variable_helper", MagicMock(return_value="data"))
-    monkeypatch.setattr(ui, "_multiplot_check_bounds", MagicMock(return_value=False))
+    monkeypatch.setattr(controller, "check_bounds", MagicMock(return_value=(False, 0, 10, 0, 10)))
     mock_safe_remove = MagicMock()
     monkeypatch.setattr(ui, "_safe_remove_widget_object", mock_safe_remove)
 
@@ -2385,3 +2193,110 @@ def test_plot_dataset_helper(ui, monkeypatch, is_ref, expected_section, plot_typ
                 plot_type=plot_type,
                 y_axis = y
             )
+
+@pytest.mark.parametrize(
+    "plot_type, dim_sizes, needs_bounds_ui, expected_scenario",
+    [
+        ("Heatmap (grid)", {"time": 10, "nv": 2}, False, "heatmap_invalid"),
+        ("Heatmap (grid)", {"time": 10, "lat": 10}, False, "heatmap_valid"),
+        ("Line", {"time": 10, "nv": 2}, False, "line_1dim_nobounds"),
+        ("Line", {"time": 10, "nv": 2}, True, "line_1dim_bounds"),
+        ("Line", {"time": 10, "lat": 10}, False, "line_multidim"),
+    ]
+)
+def test_display_multiplot_plot_choices_ui(
+    ui, monkeypatch, plot_type, dim_sizes, needs_bounds_ui, expected_scenario
+):
+    """Test the dynamic generation of plot choices UI based on dataset dimensions and plot type."""
+
+    ui.multiplot_plot_type_dropdown = MagicMock(value=plot_type)
+    ui.multiplot_x_axis_dropdown = MagicMock()
+    ui.multiplot_y_axis_dropdown = MagicMock()
+    ui.multiplot_analysis_choice_dropdown = MagicMock()
+    ui.multiplot_plot_button = MagicMock()
+    ui.multiplot_warning_textbox = MagicMock()
+    ui.widget_container = []
+    ui.multiplot_ref_dataset_dict = {}
+
+    mock_variable = "test_var"
+    mock_get_variable = MagicMock(return_value=mock_variable)
+    monkeypatch.setattr(ui, "_get_variable_helper", mock_get_variable)
+    
+    mock_data_array = MagicMock()
+    mock_data_array.sizes = dim_sizes
+    ui.dataset = {mock_variable: mock_data_array}
+
+    mock_update_text = MagicMock()
+    monkeypatch.setattr(controller, "update_textbox_text", mock_update_text)
+
+    # Mock check_bounds to return the 5-tuple
+    mock_check_bounds = MagicMock(return_value=(needs_bounds_ui, 0, 10, 0, 10))
+    monkeypatch.setattr(controller, "check_bounds", mock_check_bounds)
+
+    mock_prompt_bounds = MagicMock()
+    monkeypatch.setattr(ui, "_prompt_bounds_ui", mock_prompt_bounds)
+
+    mock_safe_add = MagicMock()
+    monkeypatch.setattr(ui, "_safe_add_to_widget", mock_safe_add)
+
+    ui._display_multiplot_plot_choices_ui()
+
+    # Base Assertions
+    assert ui.multiplot_x_axis_dropdown.name == "Select X-Axis dimension"
+    assert ui.multiplot_analysis_choice_dropdown.name == "Select analysis type"
+    assert ui.multiplot_plot_button.name == "Plot data"
+    
+    assert ui.multiplot_analysis_choice_dropdown.options == [
+        "None (plot all loaded data)",
+        "Plot Difference (Ref. - User data)",
+        "Plot All Data & Difference",
+    ]
+    
+    viable_dims = sorted([dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"])
+    assert ui.multiplot_x_axis_dropdown.options == viable_dims
+
+    # Branch-Specific Assertions
+    if expected_scenario == "heatmap_invalid":
+        mock_update_text.assert_called_once_with(
+            ui.multiplot_warning_textbox,
+            "Warning >> Not enough dimensions available for this variable to plot a Heatmap.",
+        )
+        assert ui.multiplot_plot_type_dropdown.value == "Line"
+        mock_safe_add.assert_not_called()
+
+    elif expected_scenario == "heatmap_valid":
+        assert ui.multiplot_y_axis_dropdown.name == "Select Y-Axis dimension"
+        assert ui.multiplot_y_axis_dropdown.options == viable_dims
+        
+        # Verify Row was created with 4 elements (X, Y, Analysis, Button)
+        assert isinstance(ui.multiplot_plot_choices_row, pn.Row)
+        assert len(ui.multiplot_plot_choices_row) == 4
+        mock_safe_add.assert_called_once_with(
+            ui.widget_container, ["multiplot_type_selection_row"], ui.multiplot_plot_choices_row, append=True
+        )
+
+    elif expected_scenario == "line_1dim_nobounds":
+        mock_check_bounds.assert_called_once()
+        assert ui.multiplot_x_axis_dropdown.value == viable_dims[0]
+        
+        # Verify Row was created with 2 elements (Analysis, Button)
+        assert isinstance(ui.multiplot_plot_choices_row, pn.Row)
+        assert len(ui.multiplot_plot_choices_row) == 2
+        mock_safe_add.assert_called_once_with(
+            ui.widget_container, ["multiplot_type_selection_row"], ui.multiplot_plot_choices_row, append=True
+        )
+
+    elif expected_scenario == "line_1dim_bounds":
+        mock_check_bounds.assert_called_once()
+        mock_prompt_bounds.assert_called_once()
+        mock_safe_add.assert_not_called()
+
+    elif expected_scenario == "line_multidim":
+        mock_check_bounds.assert_called_once()
+        
+        # Verify Row was created with 3 elements (X, Analysis, Button)
+        assert isinstance(ui.multiplot_plot_choices_row, pn.Row)
+        assert len(ui.multiplot_plot_choices_row) == 3
+        mock_safe_add.assert_called_once_with(
+            ui.widget_container, ["multiplot_type_selection_row"], ui.multiplot_plot_choices_row, append=True
+        )

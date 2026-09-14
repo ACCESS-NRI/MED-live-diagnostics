@@ -193,7 +193,7 @@ def test_plot_animation(monkeypatch, is_ref):
             "time": np.arange(10),
         },
     )
-    
+
     ds = xr.Dataset({"data": data})
     chosen_slices = {"z": 1}
 
@@ -203,3 +203,68 @@ def test_plot_animation(monkeypatch, is_ref):
     # Verify that quadmesh is called on hvplot and a panel Column container is returned
     mock_hvplot.quadmesh.assert_called_once()
     assert isinstance(panel_returned, pn.Column)
+
+
+@pytest.mark.parametrize(
+    "ref_min_val, ref_max_val, expected_triggered",
+    [
+        (2, 8, False),
+        (0, 10, False),
+        (-5, 8, True),
+        (2, 15, True),
+        (-2, 12, True),
+    ],
+)
+def test_multiplot_check_bounds_numeric(ref_min_val, ref_max_val, expected_triggered):
+    """Test numeric coordinate bounds checking across primary and reference datasets in multiplots"""
+
+    # Create a primary dataset with fixed coordinate bounds from 0 to 10
+    ds_primary = xr.Dataset({"data": (["x"], [1, 2])}, coords={"x": [0, 10]})
+
+    # Create a reference dataset with coordinate bounds based on parameters
+    ds_ref = xr.Dataset({"data": (["x"], [3, 4])}, coords={"x": [ref_min_val, ref_max_val]})
+    ref_dict = {"ref1": ds_ref}
+
+    # Execute the bounds check and verify if a bounds mismatch is triggered
+    result, global_min, global_max, dataset_min, dataset_max = controller.check_bounds(ds_primary, "x", ref_dict)
+
+    assert result == expected_triggered
+
+    expected_global_min = min(0, ref_min_val)
+    expected_global_max = max(10, ref_max_val)
+
+    # Verify that the global minimum and maximum bounds are calculated correctly across datasets
+    assert global_min == expected_global_min
+    assert global_max == expected_global_max
+
+
+@pytest.mark.parametrize(
+    "ref_start, ref_end, expected_triggered",
+    [
+        ((2000, 2, 1), (2000, 11, 30), False),
+        ((1999, 12, 1), (2000, 11, 30), True),
+        ((2000, 2, 1), (2001, 1, 1), True),
+    ],
+)
+def test_multiplot_check_bounds_calendar(ref_start, ref_end, expected_triggered):
+    """Test calendar coordinate bounds checking across primary and reference datasets in multiplots"""
+
+    # Create a primary dataset using NoLeap calendar bounds from Jan 1 2000 to Dec 31 2000
+    primary_times = [
+        cftime.DatetimeNoLeap(2000, 1, 1),
+        cftime.DatetimeNoLeap(2000, 12, 31),
+    ]
+    ds_primary = xr.Dataset({"data": (["time"], [1, 2])}, coords={"time": primary_times})
+
+    # Create a reference dataset using Gregorian calendar bounds based on parameters
+    ref_times = [
+        cftime.DatetimeGregorian(*ref_start),
+        cftime.DatetimeGregorian(*ref_end),
+    ]
+    ds_ref = xr.Dataset({"data": (["time"], [3, 4])}, coords={"time": ref_times})
+    ref_dict = {"ref1": ds_ref}
+
+    # Execute the bounds check and verify if a bounds mismatch is triggered
+    result, global_min, global_max, dataset_min, dataset_max = controller.check_bounds(ds_primary, "time", ref_dict)
+
+    assert result == expected_triggered
