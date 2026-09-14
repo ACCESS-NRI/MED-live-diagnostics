@@ -51,7 +51,7 @@ def round_slice_val(val):
         return str(val)
 
 
-def plot_dataset(dataset, dataset_name, variable, x_axis, chosen_slices, is_ref, model_name="User"):
+def plot_dataset(dataset, dataset_name, variable, x_axis, chosen_slices, is_ref, model_name="User", plot_type = "Line", y_axis = None):
     """
     Plot 2D time-series from model data. Private.
 
@@ -69,15 +69,18 @@ def plot_dataset(dataset, dataset_name, variable, x_axis, chosen_slices, is_ref,
     # Slice the dataset if the user has selected any
     sliced_data = dataset.sel(**chosen_slices, method="nearest")
 
+
     # Plot all model variants if multiple exist
-    if "member" in sliced_data.dims:
+    if "member" in sliced_data.dims and not plot_type == "Heatmap":
 
         for mem in sliced_data.member.values:
 
             sliced_data[variable].sel(member=mem).plot(label=mem, x=x_axis, ax=ax)
     else:
-        # Plot directly if no member dimension exists
-        sliced_data[variable].plot(x=x_axis, ax=ax)
+        if plot_type == "Heatmap":
+            sliced_data[variable].plot(x=x_axis, y=y_axis, ax=ax)
+        else:
+            sliced_data[variable].plot(x=x_axis, ax=ax)
 
     # Add the slice information to the title, if it is sliced data
     slice_str = ", ".join([f"{dim}: {round_slice_val(val)}" for dim, val in chosen_slices.items()])

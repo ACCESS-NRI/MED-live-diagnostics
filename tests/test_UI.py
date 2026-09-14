@@ -729,7 +729,6 @@ def test_display_multiplot_user_data_selection_ui(ui):
         ("Animation", {}),
     ],
 )
-@patch("med_diagnostics.ui.UserInterface._plot_heatmap")
 @patch("med_diagnostics.ui.UserInterface._plot_dataset_helper")
 @patch("med_diagnostics.ui.UserInterface._plot_animation")
 @patch("panel.pane.Matplotlib")
@@ -737,7 +736,6 @@ def test_plot_data_button_click(
     mock_matplotlib,
     mock_plot_animation,
     mock_plot_dataset,
-    mock_plot_heatmap,
     ui,
     plot_type,
     slice_dict,
@@ -789,7 +787,7 @@ def test_plot_data_button_click(
 
     # Verify that the correct internal plot generation method is called based on the selected plot type
     if plot_type == "Heatmap":
-        mock_plot_heatmap.assert_called_once_with("data", "x", "y")
+        mock_plot_dataset.assert_called_once_with(is_ref=False, plot_type = "Heatmap")
     elif plot_type == "Line":
         mock_plot_dataset.assert_called_once_with(is_ref = False)
     elif plot_type == "Animation":
@@ -808,7 +806,6 @@ def test_plot_data_button_click(
         ("Animation", {}),
     ],
 )
-@patch("med_diagnostics.ui.UserInterface._plot_ref_heatmap")
 @patch("med_diagnostics.ui.UserInterface._plot_dataset_helper")
 @patch("med_diagnostics.ui.UserInterface._plot_ref_animation")
 @patch("panel.pane.Matplotlib")
@@ -816,7 +813,6 @@ def test_plot_ref_data_button_click(
     mock_matplotlib,
     mock_plot_ref_animation,
     mock_plot_ref_dataset,
-    mock_plot_ref_heatmap,
     ui,
     plot_type,
     slice_dict,
@@ -866,7 +862,7 @@ def test_plot_ref_data_button_click(
 
     # Verify that the correct internal reference plot generation method is called based on the selected plot type
     if plot_type == "Heatmap":
-        mock_plot_ref_heatmap.assert_called_once_with("data", "x", "y")
+        mock_plot_ref_dataset.assert_called_once_with(is_ref = True, plot_type = "Heatmap")
     elif plot_type == "Line":
         mock_plot_ref_dataset.assert_called_once_with(is_ref = True)
     elif plot_type == "Animation":
@@ -1389,21 +1385,6 @@ def test_update_dataset_plot_ui(ui):
         plt.close.assert_called_once()
 
     plt.close.reset_mock()
-
-
-def test_plot_dataset(ui):
-    """Test the generation of 1D line plots and 2D heatmaps from a provided dataset""" 
-
-    ui.chosen_slices = {"z": 1}
-    ui.plot_variable_dropdown.value = "data"
-    ui.keys_dropdown.value = "data"
-
-    # Generate a 2D heatmap and verify a valid matplotlib Figure is returned with content
-    plot_result = ui._plot_heatmap("data", "x", "y")
-    ax = plot_result.axes[0]
-    assert isinstance(plot_result, plt.Figure)
-    assert len(plot_result.axes) == 2
-    assert len(ax.lines) > 0 or len(ax.collections) > 0 or len(ax.images) > 0
 
 def test_update_ref_dataset_keys_plot_ui(ui, monkeypatch):
     """Test updating reference dataset key options and triggering reference dataset plot updates"""
@@ -2353,13 +2334,15 @@ def test_check_slice(
 
 
 @pytest.mark.parametrize(
-    "is_ref, expected_section",
+    "is_ref, expected_section, plot_type",
     [
-        (True, "ref"),
-        (False, "user"),
+        (True, "ref", "Line"),
+        (True, "ref", "Heatmap"),
+        (False, "user", "Line"),
+        (False, "user", "Heatmap"),
     ],
 )
-def test_plot_dataset_helper(ui, monkeypatch, is_ref, expected_section):
+def test_plot_dataset_helper(ui, monkeypatch, is_ref, expected_section, plot_type):
     """Test that the plot dataset helper routes to the correct controller function with the right attributes."""
 
     # Mock external dependencies
@@ -2375,6 +2358,11 @@ def test_plot_dataset_helper(ui, monkeypatch, is_ref, expected_section):
     ui.dataset = "mock_user_dataset"
     ui.keys_dropdown = MagicMock(value="user_model_key")
     ui.x_axis_dropdown = MagicMock(value="user_x_axis")
+    if plot_type == "Heatmap":
+        ui.y_axis_dropdown.value = "y"
+        y = "y"
+    else:
+        y = None
     ui.chosen_slices = {"user_dim": 0}
     ui.figure_exists = False
 
@@ -2383,10 +2371,11 @@ def test_plot_dataset_helper(ui, monkeypatch, is_ref, expected_section):
     ui.ref_keys_dropdown = MagicMock(value="ref_model_key")
     ui.ref_data_keys_dropdown = MagicMock(value="ref_dataset_key")
     ui.ref_x_axis_dropdown = MagicMock(value="ref_x_axis")
+    ui.ref_y_axis_dropdown.value = "y"
     ui.ref_chosen_slices = {"ref_dim": 1}
     ui.ref_figure_exists = False
 
-    result = ui._plot_dataset_helper(is_ref=is_ref)
+    result = ui._plot_dataset_helper(is_ref=is_ref, plot_type=plot_type)
 
     # Ensure the helper successfully pulled the variable string
     mock_get_variable_helper.assert_called_once_with(expected_section)
@@ -2407,6 +2396,8 @@ def test_plot_dataset_helper(ui, monkeypatch, is_ref, expected_section):
             {"ref_dim": 1},
             True,
             "ref_model_key",
+            plot_type=plot_type,
+            y_axis = y
         )
     else:
         # Verify state changes
@@ -2421,4 +2412,7 @@ def test_plot_dataset_helper(ui, monkeypatch, is_ref, expected_section):
             "user_x_axis",
             {"user_dim": 0},
             False,
+            plot_type=plot_type,
+            y_axis = y
         )
+        

@@ -485,7 +485,7 @@ class UserInterface:
         if self.plot_type_dropdown.value == "Heatmap":
             x_axis = self.x_axis_dropdown.value
             y_axis = self.y_axis_dropdown.value
-            fig = self._plot_heatmap(variable, x_axis, y_axis)
+            fig = self._plot_dataset_helper(is_ref=False, plot_type = "Heatmap")
         elif self.plot_type_dropdown.value == "Line":
             fig = self._plot_dataset_helper(is_ref=False)
         elif self.plot_type_dropdown.value == "Animation":
@@ -537,7 +537,7 @@ class UserInterface:
             x_axis = self.ref_x_axis_dropdown.value
             y_axis = self.ref_y_axis_dropdown.value
             variable = self._get_variable_helper("ref")
-            fig = self._plot_ref_heatmap(variable, x_axis, y_axis)
+            fig = self._plot_dataset_helper(is_ref=True, plot_type="Heatmap")
         elif self.ref_plot_type_dropdown.value == "Line":
             fig = self._plot_dataset_helper(is_ref=True)
         elif self.ref_plot_type_dropdown.value == "Animation":
@@ -1062,99 +1062,6 @@ class UserInterface:
         """
 
         self.ref_data_keys_dropdown.options = sorted(list(self.ref_dataset.keys()))
-
-    def _plot_heatmap(self, variable, x_axis, y_axis):
-        """
-        Plot 2D heatmap from model data. Private.
-
-        Parameters
-        ----------
-        variable : str
-            Model data variable as selected from panel dropdown.
-        x_axis : str
-            X-axis as selected from the panel dropdown.
-        y_axis : str
-            Y-axis as selected from the panel dropdown.
-        Returns
-        ----------
-        fig : matplotlib.pyplot.figure()
-        """
-
-        # Create figure and explicit axis
-        self.fig, ax = plt.subplots(figsize=[8, 4])
-
-        # Slice the dataset if the user has selected any
-        heatmap_data = self.dataset.sel(**self.chosen_slices, method="nearest")
-
-        # Plot the specific DataArray onto the explicit axis
-        heatmap_data[variable].plot(x=x_axis, y=y_axis, ax=ax)
-
-        # Add the slice information to the title, if it is sliced data
-        slice_str = ", ".join([f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.chosen_slices.items()])
-        title_text = heatmap_data[variable].attrs.get("long_name", variable)
-        caption_text = "User model \nDataset: " + self.keys_dropdown.value
-
-        # Add details of slice to caption, if the data is sliced
-        if slice_str:
-            caption_text += f"\nSliced by: {slice_str}"
-
-        self.fig.tight_layout()
-        ax.set_title(title_text, fontsize=14)
-        self.fig.text(0.1, 0.01, caption_text, wrap=True, horizontalalignment="left", fontsize=10)
-        self.fig.subplots_adjust(bottom=0.3)
-
-        ax.grid()
-        plt.close(self.fig)
-        return self.fig
-
-    def _plot_ref_heatmap(self, ref_variable, x_axis, y_axis):
-        """
-        Plot 2D heatmap from model data. Private.
-
-        Parameters
-        ----------
-        ref_variable : str
-            Model data variable as selected from panel dropdown.
-        x_axis : str
-            X-axis as selected from the panel dropdown.
-        y_axis : str
-            Y-axis as selected from the panel dropdown.
-        Returns
-        ----------
-        self.ref_fig : matplotlib.pyplot.figure()
-        """
-
-        # Create figure and explicit axis
-        self.ref_fig, ax = plt.subplots(figsize=[8, 4])
-
-        # Slice the dataset if the user has selected any
-        heatmap_data = self.ref_dataset.sel(**self.ref_chosen_slices, method="nearest")
-
-        # Plot the specific DataArray onto the explicit axis
-        heatmap_data[ref_variable].plot(x=x_axis, y=y_axis, ax=ax)
-
-        # Add the slice information to the title, if it is sliced data
-
-        slice_str = ", ".join(
-            [f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.ref_chosen_slices.items()]
-        )
-        title_text = heatmap_data[ref_variable].attrs.get("long_name", ref_variable)
-        caption_text = "Model: " + self.ref_keys_dropdown.value + "\nDataset: " + self.ref_data_keys_dropdown.value
-
-        # Add details of slice to caption, if the data is sliced
-        if slice_str:
-            caption_text += f"\nSliced by: {slice_str}"
-            # Add the slice information to the title, if it is sliced data
-
-        self.ref_fig.tight_layout()
-        ax.set_title(title_text, fontsize=14)
-        self.ref_fig.text(0.1, 0.01, caption_text, wrap=True, horizontalalignment="left", fontsize=10)
-        self.ref_fig.subplots_adjust(bottom=0.3)
-
-        ax.grid()
-
-        plt.close(self.ref_fig)
-        return self.ref_fig
 
     def _plot_multiplot_dataset(self, variable, x_axis):
         """
@@ -1795,7 +1702,7 @@ class UserInterface:
 
         return fig
 
-    def _plot_dataset_helper(self, is_ref=False):
+    def _plot_dataset_helper(self, is_ref=False, plot_type = "Line"):
         """
         Plot either the user or reference dataset based on the current UI state.
 
@@ -1815,6 +1722,10 @@ class UserInterface:
 
         if is_ref:
             variable = self._get_variable_helper("ref")
+            if plot_type == "Heatmap":
+                y_axis = self.ref_y_axis_dropdown.value
+            else:
+                y_axis = None
             self.ref_fig = controller.plot_dataset(
                 self.ref_dataset,
                 self.ref_data_keys_dropdown.value,
@@ -1823,14 +1734,27 @@ class UserInterface:
                 self.ref_chosen_slices,
                 is_ref,
                 self.ref_keys_dropdown.value,
+                plot_type=plot_type,
+                y_axis=y_axis
             )
             self.ref_figure_exists = True
 
             return self.ref_fig
         else:
             variable = self._get_variable_helper("user")
+            if plot_type == "Heatmap":
+                y_axis = self.y_axis_dropdown.value
+            else:
+                y_axis = None
             self.fig = controller.plot_dataset(
-                self.dataset, self.keys_dropdown.value, variable, self.x_axis_dropdown.value, self.chosen_slices, is_ref
+                self.dataset,
+                self.keys_dropdown.value,
+                variable,
+                self.x_axis_dropdown.value,
+                self.chosen_slices,
+                is_ref,
+                plot_type=plot_type, 
+                y_axis=y_axis
             )
             self.figure_exists = True
 
