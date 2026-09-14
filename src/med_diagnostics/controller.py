@@ -69,7 +69,6 @@ def plot_dataset(dataset, dataset_name, variable, x_axis, chosen_slices, is_ref,
     # Slice the dataset if the user has selected any
     sliced_data = dataset.sel(**chosen_slices, method="nearest")
 
-
     # Plot all model variants if multiple exist
     if "member" in sliced_data.dims and not plot_type == "Heatmap":
 
@@ -393,3 +392,46 @@ def check_plot_validity(dataset, variable, plot_type, x, y=None, z=None, has_sli
         same_axes_chosen = True
 
     return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, remaining_dims
+
+def plot_animation(dataset, dataset_name, variable, chosen_slices, x_axis, y_axis, z_axis, is_ref = False):
+    
+
+    data = dataset.sel(**chosen_slices, method="nearest")
+    plot_dataset = data[variable].load()
+
+    # get the min and max variable values so that the heatmap is consistent for the whole animation
+    vmin = float(plot_dataset.min())
+    vmax = float(plot_dataset.max())
+
+    # Assign coordinates if they are missing, necessary for SeaIce datasets
+    if x_axis not in plot_dataset.coords:
+        plot_dataset = plot_dataset.assign_coords({x_axis: range(plot_dataset.sizes[x_axis])})
+    if y_axis not in plot_dataset.coords:
+        plot_dataset = plot_dataset.assign_coords({y_axis: range(plot_dataset.sizes[y_axis])})
+
+    plot = plot_dataset.hvplot.quadmesh(
+        x=x_axis,
+        y=y_axis,
+        groupby=z_axis,
+        dynamic=True,
+        rasterize=True,
+        widget_type="scrubber",
+        widget_location="bottom",
+        clim=(vmin, vmax),
+        cmap="viridis",
+        width=1200,
+        height=600,
+    )
+
+    # Build caption string
+    variable_text = plot_dataset.attrs.get("long_name", variable)
+    slice_str = ", ".join([f"{dim}: {round_slice_val(val)}" for dim, val in chosen_slices.items()])
+    caption_text = "Variable: " + variable_text + "<br>User model<br>Dataset: " + dataset_name
+    if slice_str:
+        caption_text += f"<br>Sliced by: {slice_str}"
+
+    caption_pane = pn.pane.HTML(
+        f"<div style='font-size: 12px; margin-left: 10%; margin-top: 10px;'>{caption_text}</div>"
+    )
+    # Return a Column with the plot on top and the caption underneath
+    return pn.Column(pn.panel(plot), caption_pane)

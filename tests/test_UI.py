@@ -730,11 +730,9 @@ def test_display_multiplot_user_data_selection_ui(ui):
     ],
 )
 @patch("med_diagnostics.ui.UserInterface._plot_dataset_helper")
-@patch("med_diagnostics.ui.UserInterface._plot_animation")
 @patch("panel.pane.Matplotlib")
 def test_plot_data_button_click(
     mock_matplotlib,
-    mock_plot_animation,
     mock_plot_dataset,
     ui,
     plot_type,
@@ -791,7 +789,7 @@ def test_plot_data_button_click(
     elif plot_type == "Line":
         mock_plot_dataset.assert_called_once_with(is_ref = False)
     elif plot_type == "Animation":
-        mock_plot_animation.assert_called_once_with("data")
+        mock_plot_dataset.assert_called_once_with(is_ref=False, plot_type = "Animation")
 
     # Verify that plot choices and slice UI components are removed from the widget container
     assert not hasattr(ui, "plot_choices_row")
@@ -807,11 +805,9 @@ def test_plot_data_button_click(
     ],
 )
 @patch("med_diagnostics.ui.UserInterface._plot_dataset_helper")
-@patch("med_diagnostics.ui.UserInterface._plot_ref_animation")
 @patch("panel.pane.Matplotlib")
 def test_plot_ref_data_button_click(
     mock_matplotlib,
-    mock_plot_ref_animation,
     mock_plot_ref_dataset,
     ui,
     plot_type,
@@ -866,7 +862,7 @@ def test_plot_ref_data_button_click(
     elif plot_type == "Line":
         mock_plot_ref_dataset.assert_called_once_with(is_ref = True)
     elif plot_type == "Animation":
-        mock_plot_ref_animation.assert_called_once_with()
+        mock_plot_ref_dataset.assert_called_once_with(is_ref = True, plot_type = "Animation")
 
     # Verify that reference plot choices and slice UI components are removed from the widget container
     assert not hasattr(ui, "ref_plot_choices_row")
@@ -1444,82 +1440,6 @@ def test_prompt_bounds_ui(ui, ui_row):
         assert ui.widget_container.index(ui.prompt_bounds_row) == ui.widget_container.index(ui.multiplot_type_selection_row) + 1
     elif ui_row == "multiplot_ref_keys_selection_row":
         assert ui.widget_container.index(ui.prompt_bounds_row) == ui.widget_container.index(ui.multiplot_ref_keys_selection_row) + 1
-
-def test_plot_animation(ui, monkeypatch):
-    """Test generating an animated quadmesh plot using hvplot with sliced dimensions""" 
-
-    # Mock hvplot on the xarray DataArray to intercept plotting calls during testing
-    mock_hvplot = MagicMock()
-    monkeypatch.setattr(xr.DataArray, "hvplot", property(lambda self: mock_hvplot))
-    
-    # Create a 4D xarray DataArray with spatial, vertical, and temporal dimensions
-    data = xr.DataArray(
-        np.random.rand(10, 10, 10, 10),
-        dims=["x", "y", "z", "time"],
-        coords={
-            "x": np.arange(10),
-            "y": np.arange(10),
-            "z": np.arange(10),
-            "time": np.arange(10),
-        },
-    )
-
-    # Configure UI values for dataset selection, axes, and chosen slices
-    ui.keys_dropdown.value = "my_dataset"
-    ui.x_axis_dropdown.value = "x"
-    ui.y_axis_dropdown.value = "y"
-    ui.animation_axis_dropdown.value = "time"
-    ds = xr.Dataset({"data": data})
-    ui.dataset = ds
-    ui.chosen_slices = {"z" : 1}
-    
-    # Execute the animation plotting method
-    panel_returned = ui._plot_animation("data")
-
-    # Verify that quadmesh is called on hvplot and a panel Column container is returned
-    mock_hvplot.quadmesh.assert_called_once()
-    assert isinstance(panel_returned, pn.Column)
-
-def test_plot_ref_animation(ui, monkeypatch):
-    """Test generating an animated quadmesh plot for reference datasets using hvplot with sliced dimensions"""
-
-    # Mock hvplot on the xarray DataArray to intercept reference plotting calls during testing
-    mock_hvplot = MagicMock()
-    monkeypatch.setattr(xr.DataArray, "hvplot", property(lambda self: mock_hvplot))
-    ui.ref_data_keys_dropdown.value = "something"
-    ui.ref_keys_dropdown.value = "another thing"
-    ui.multiplot_variable_toggle.value = False
-
-    # Create a 4D xarray DataArray with spatial, vertical, and temporal dimensions
-    data = xr.DataArray(
-        np.random.rand(10, 10, 10, 10),
-        dims=["x", "y", "z", "time"],
-        coords={
-            "x": np.arange(10),
-            "y": np.arange(10),
-            "z": np.arange(10),
-            "time": np.arange(10),
-        },
-    )
-
-    # Configure reference UI values for dataset selection, axes, and chosen slices
-    ui.ref_keys_dropdown.value = "my_dataset"
-    ui.ref_x_axis_dropdown.value = "x"
-    ui.ref_y_axis_dropdown.value = "y"
-    ui.ref_animation_axis_dropdown.value = "time"
-    ds = xr.Dataset({"data": data})
-
-    ui.ref_dataset = ds
-    ui.ref_chosen_slices = {"z": 1}
-    ui.ref_plot_variable_dropdown.value = "data"
-
-    # Execute the reference animation plotting method
-    panel_returned = ui._plot_ref_animation()
-
-    # Verify that quadmesh is called on hvplot and a panel Column container is returned
-    mock_hvplot.quadmesh.assert_called_once()
-    assert isinstance(panel_returned, pn.Column)
-
 
 @pytest.mark.parametrize(
     "fig_exists",
@@ -2338,8 +2258,11 @@ def test_check_slice(
     [
         (True, "ref", "Line"),
         (True, "ref", "Heatmap"),
+        (True, "ref", "Animation"),
         (False, "user", "Line"),
         (False, "user", "Heatmap"),
+        (False, "user", "Animation"),
+        
     ],
 )
 def test_plot_dataset_helper(ui, monkeypatch, is_ref, expected_section, plot_type):
@@ -2349,6 +2272,10 @@ def test_plot_dataset_helper(ui, monkeypatch, is_ref, expected_section, plot_typ
     mock_fig = MagicMock(name="mock_matplotlib_figure")
     mock_plot_dataset = MagicMock(return_value=mock_fig)
     monkeypatch.setattr(controller, "plot_dataset", mock_plot_dataset)
+
+    mock_animation = MagicMock(name="mock_hvplot_animation")
+    mock_plot_animation = MagicMock(return_value=mock_animation)
+    monkeypatch.setattr(controller, "plot_animation", mock_plot_animation)
 
     mock_variable = "test_variable"
     mock_get_variable_helper = MagicMock(return_value=mock_variable)
@@ -2360,9 +2287,20 @@ def test_plot_dataset_helper(ui, monkeypatch, is_ref, expected_section, plot_typ
     ui.x_axis_dropdown = MagicMock(value="user_x_axis")
     if plot_type == "Heatmap":
         ui.y_axis_dropdown.value = "y"
+        ui.ref_y_axis_dropdown.value = "y"
+        
         y = "y"
+        z = None
+    elif plot_type == "Animation":
+        ui.y_axis_dropdown.value = "y"
+        ui.ref_y_axis_dropdown.value = "y"
+        ui.animation_axis_dropdown.value = "z"
+        ui.ref_animation_axis_dropdown.value = "z"
+        y = "y"
+        z = "z"
     else:
         y = None
+        z = None
     ui.chosen_slices = {"user_dim": 0}
     ui.figure_exists = False
 
@@ -2379,40 +2317,71 @@ def test_plot_dataset_helper(ui, monkeypatch, is_ref, expected_section, plot_typ
 
     # Ensure the helper successfully pulled the variable string
     mock_get_variable_helper.assert_called_once_with(expected_section)
-    # Ensure the function returns the figure generated by the controller
-    assert result == mock_fig
 
-    if is_ref:
-        # Verify state changes
-        assert ui.ref_figure_exists is True
-        assert ui.ref_fig == mock_fig
-        
-        # Verify the controller was called with the exact reference attributes
-        mock_plot_dataset.assert_called_once_with(
-            "mock_ref_dataset",
-            "ref_dataset_key",
-            mock_variable,
-            "ref_x_axis",
-            {"ref_dim": 1},
-            True,
-            "ref_model_key",
-            plot_type=plot_type,
-            y_axis = y
-        )
+    if plot_type == "Animation":
+        assert result == mock_animation
+        if is_ref:
+            # Verify state changes
+            assert ui.ref_figure_exists is True
+            assert ui.ref_fig == mock_animation
+
+            # Verify the controller was called with the exact reference attributes
+            mock_plot_animation.assert_called_once_with(
+                "mock_ref_dataset",
+                ui.ref_keys_dropdown.value,
+                mock_variable,
+                {"ref_dim": 1},
+                "ref_x_axis",
+                y,
+                z,
+                is_ref = True
+            )
+        else:
+            # Verify state changes
+            assert ui.figure_exists is True
+            assert ui.fig == mock_animation
+            mock_plot_animation.assert_called_once_with(
+                "mock_user_dataset",
+                ui.keys_dropdown.value,
+                mock_variable,
+                {"user_dim": 0},
+                "user_x_axis",
+                y,
+                z,
+                is_ref = False
+            )
     else:
-        # Verify state changes
-        assert ui.figure_exists is True
-        assert ui.fig == mock_fig
-        
-        # Verify the controller was called with the exact user attributes
-        mock_plot_dataset.assert_called_once_with(
-            "mock_user_dataset",
-            "user_model_key",
-            mock_variable,
-            "user_x_axis",
-            {"user_dim": 0},
-            False,
-            plot_type=plot_type,
-            y_axis = y
-        )
-        
+        assert result == mock_fig
+        if is_ref:
+            # Verify state changes
+            assert ui.ref_figure_exists is True
+            assert ui.ref_fig == mock_fig
+
+            # Verify the controller was called with the exact reference attributes
+            mock_plot_dataset.assert_called_once_with(
+                "mock_ref_dataset",
+                "ref_dataset_key",
+                mock_variable,
+                "ref_x_axis",
+                {"ref_dim": 1},
+                True,
+                "ref_model_key",
+                plot_type=plot_type,
+                y_axis = y
+            )
+        else:
+            # Verify state changes
+            assert ui.figure_exists is True
+            assert ui.fig == mock_fig
+
+            # Verify the controller was called with the exact user attributes
+            mock_plot_dataset.assert_called_once_with(
+                "mock_user_dataset",
+                "user_model_key",
+                mock_variable,
+                "user_x_axis",
+                {"user_dim": 0},
+                False,
+                plot_type=plot_type,
+                y_axis = y
+            )

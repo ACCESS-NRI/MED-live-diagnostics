@@ -489,7 +489,7 @@ class UserInterface:
         elif self.plot_type_dropdown.value == "Line":
             fig = self._plot_dataset_helper(is_ref=False)
         elif self.plot_type_dropdown.value == "Animation":
-            fig_animated = self._plot_animation(variable)
+            fig_animated = self._plot_dataset_helper(is_ref=False, plot_type="Animation")
         if fig_animated:
             new_plot_pane = fig_animated
         else:
@@ -541,7 +541,7 @@ class UserInterface:
         elif self.ref_plot_type_dropdown.value == "Line":
             fig = self._plot_dataset_helper(is_ref=True)
         elif self.ref_plot_type_dropdown.value == "Animation":
-            fig_animated = self._plot_ref_animation()
+            fig_animated = self._plot_dataset_helper(is_ref=True, plot_type="Animation")
 
         if fig_animated:
             new_plot_pane = fig_animated
@@ -1402,128 +1402,6 @@ class UserInterface:
         # Clear the loaded data, as different datasets from the selected models will need to be loaded.
         self._clear_multiplot_data()
 
-    def _plot_animation(self, variable):
-        """
-        Generates an animated plot for the user dataset.
-
-        Parameters
-        ----------
-        variable : str
-            The name of the data variable to plot.
-
-        Returns
-        -------
-        panel.Column
-            A Panel layout containing the interactive hvplot animation
-            and an HTML caption.
-        """
-
-        data = self.dataset.sel(**self.chosen_slices, method="nearest")
-        plot_dataset = data[variable].load()
-
-        # get the min and max variable values so that the heatmap is consistent for the whole animation
-        vmin = float(plot_dataset.min())
-        vmax = float(plot_dataset.max())
-
-        x_dim = self.x_axis_dropdown.value
-        y_dim = self.y_axis_dropdown.value
-
-        # Assign coordinates if they are missing, necessary for SeaIce datasets
-        if x_dim not in plot_dataset.coords:
-            plot_dataset = plot_dataset.assign_coords({x_dim: range(plot_dataset.sizes[x_dim])})
-        if y_dim not in plot_dataset.coords:
-            plot_dataset = plot_dataset.assign_coords({y_dim: range(plot_dataset.sizes[y_dim])})
-
-        plot = plot_dataset.hvplot.quadmesh(
-            x=x_dim,
-            y=y_dim,
-            groupby=self.animation_axis_dropdown.value,
-            dynamic=True,
-            rasterize=True,
-            widget_type="scrubber",
-            widget_location="bottom",
-            clim=(vmin, vmax),
-            cmap="viridis",
-            width=1200,
-            height=600,
-        )
-
-        # Build caption string
-        variable_text = plot_dataset.attrs.get("long_name", variable)
-        slice_str = ", ".join([f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.chosen_slices.items()])
-        caption_text = "Variable: " + variable_text + "<br>User model<br>Dataset: " + self.keys_dropdown.value
-        if slice_str:
-            caption_text += f"<br>Sliced by: {slice_str}"
-
-        caption_pane = pn.pane.HTML(
-            f"<div style='font-size: 12px; margin-left: 10%; margin-top: 10px;'>{caption_text}</div>"
-        )
-        # Return a Column with the plot on top and the caption underneath
-        return pn.Column(pn.panel(plot), caption_pane)
-
-    def _plot_ref_animation(self):
-        """
-        Generates an animated plot for the reference dataset.
-
-        Returns
-        -------
-        panel.Column
-            A Panel layout containing the interactive hvplot animation
-            and an HTML caption.
-        """
-
-        data = self.ref_dataset.sel(**self.ref_chosen_slices, method="nearest")
-        plot_dataset = data[self._get_variable_helper("ref")].load()
-
-        # get the min and max variable values so that the heatmap is consistent for the whole animation
-        vmin = float(plot_dataset.min())
-        vmax = float(plot_dataset.max())
-        x_dim = self.ref_x_axis_dropdown.value
-        y_dim = self.ref_y_axis_dropdown.value
-
-        # Assign coordinates if they are missing, necessary for SeaIce datasets
-        if x_dim not in plot_dataset.coords:
-            plot_dataset = plot_dataset.assign_coords({x_dim: range(plot_dataset.sizes[x_dim])})
-        if y_dim not in plot_dataset.coords:
-            plot_dataset = plot_dataset.assign_coords({y_dim: range(plot_dataset.sizes[y_dim])})
-
-        plot = plot_dataset.hvplot.quadmesh(
-            x=x_dim,
-            y=y_dim,
-            groupby=self.ref_animation_axis_dropdown.value,
-            dynamic=True,
-            rasterize=True,
-            widget_type="scrubber",
-            widget_location="bottom",
-            clim=(vmin, vmax),
-            cmap="viridis",
-            width=1200,
-            height=600,
-        )
-
-        # Build caption string
-        variable_text = plot_dataset.attrs.get("long_name", self._get_variable_helper("ref"))
-        slice_str = ", ".join(
-            [f"{dim}: {controller.round_slice_val(val)}" for dim, val in self.ref_chosen_slices.items()]
-        )
-        caption_text = (
-            "Variable: "
-            + variable_text
-            + "<br>Model: "
-            + self.ref_keys_dropdown.value
-            + "<br>Dataset: "
-            + self.ref_data_keys_dropdown.value
-        )
-        if slice_str:
-            caption_text += f"<br>Sliced by: {slice_str}"
-
-        caption_pane = pn.pane.HTML(
-            f"<div style='font-size: 12px; margin-left: 10%; margin-top: 10px;'>{caption_text}</div>"
-        )
-
-        # Return a Column with the plot on top and the caption underneath
-        return pn.Column(pn.panel(plot), caption_pane)
-
     def _plot_multiplot_difference_heatmap(self, variable, x_axis, y_axis):
         """
         Plots a grid of difference heatmaps between reference datasets and the user dataset.
@@ -1722,43 +1600,51 @@ class UserInterface:
 
         if is_ref:
             variable = self._get_variable_helper("ref")
-            if plot_type == "Heatmap":
+            
+            if plot_type == "Animation":
                 y_axis = self.ref_y_axis_dropdown.value
+                z_axis = self.ref_animation_axis_dropdown.value
+                figure = controller.plot_animation(
+                    self.ref_dataset, self.ref_keys_dropdown.value, variable, 
+                    self.ref_chosen_slices, self.ref_x_axis_dropdown.value, 
+                    y_axis, z_axis, is_ref=True
+                )
             else:
-                y_axis = None
-            self.ref_fig = controller.plot_dataset(
-                self.ref_dataset,
-                self.ref_data_keys_dropdown.value,
-                variable,
-                self.ref_x_axis_dropdown.value,
-                self.ref_chosen_slices,
-                is_ref,
-                self.ref_keys_dropdown.value,
-                plot_type=plot_type,
-                y_axis=y_axis
-            )
+                # Handles both Line (y_axis=None) and Heatmap (y_axis=value)
+                y_axis = self.ref_y_axis_dropdown.value if plot_type == "Heatmap" else None
+                figure = controller.plot_dataset(
+                    self.ref_dataset, self.ref_data_keys_dropdown.value, variable,
+                    self.ref_x_axis_dropdown.value, self.ref_chosen_slices,
+                    is_ref, self.ref_keys_dropdown.value, plot_type=plot_type, y_axis=y_axis
+                )
+                
             self.ref_figure_exists = True
-
-            return self.ref_fig
+            self.ref_fig = figure
+            
         else:
             variable = self._get_variable_helper("user")
-            if plot_type == "Heatmap":
+            
+            if plot_type == "Animation":
                 y_axis = self.y_axis_dropdown.value
+                z_axis = self.animation_axis_dropdown.value
+                figure = controller.plot_animation(
+                    self.dataset, self.keys_dropdown.value, variable, 
+                    self.chosen_slices, self.x_axis_dropdown.value, 
+                    y_axis, z_axis, is_ref=False
+                )
             else:
-                y_axis = None
-            self.fig = controller.plot_dataset(
-                self.dataset,
-                self.keys_dropdown.value,
-                variable,
-                self.x_axis_dropdown.value,
-                self.chosen_slices,
-                is_ref,
-                plot_type=plot_type, 
-                y_axis=y_axis
-            )
+                # Handles both Line and Heatmap
+                y_axis = self.y_axis_dropdown.value if plot_type == "Heatmap" else None
+                figure = controller.plot_dataset(
+                    self.dataset, self.keys_dropdown.value, variable,
+                    self.x_axis_dropdown.value, self.chosen_slices,
+                    is_ref, plot_type=plot_type, y_axis=y_axis
+                )
+                
             self.figure_exists = True
+            self.fig = figure
 
-            return self.fig
+        return figure
 
     def _get_variable_helper(self, section="user"):
         """

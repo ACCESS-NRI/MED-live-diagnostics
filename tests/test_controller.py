@@ -169,3 +169,37 @@ def test_get_selected_variable(toggle_value, long_names):
         assert result == long_names[variable_dropdown_widget.value]
     else:
         assert result == variable_dropdown_widget.value
+
+
+@pytest.mark.parametrize(
+    "is_ref",
+    [True, False],
+)
+def test_plot_animation(monkeypatch, is_ref):
+    """Test generating an animated quadmesh plot using hvplot with sliced dimensions"""
+
+    # Mock hvplot on the xarray DataArray to intercept plotting calls during testing
+    mock_hvplot = MagicMock()
+    monkeypatch.setattr(xr.DataArray, "hvplot", property(lambda self: mock_hvplot))
+
+    # Create a 4D xarray DataArray with spatial, vertical, and temporal dimensions
+    data = xr.DataArray(
+        np.random.rand(10, 10, 10, 10),
+        dims=["x", "y", "z", "time"],
+        coords={
+            "x": np.arange(10),
+            "y": np.arange(10),
+            "z": np.arange(10),
+            "time": np.arange(10),
+        },
+    )
+    
+    ds = xr.Dataset({"data": data})
+    chosen_slices = {"z": 1}
+
+    # Execute the animation plotting method
+    panel_returned = controller.plot_animation(ds, "dataset_name", "data", chosen_slices, "x", "y", "z", is_ref = is_ref)
+
+    # Verify that quadmesh is called on hvplot and a panel Column container is returned
+    mock_hvplot.quadmesh.assert_called_once()
+    assert isinstance(panel_returned, pn.Column)
