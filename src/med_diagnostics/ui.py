@@ -1550,55 +1550,39 @@ class UserInterface:
 
         return plot_group
 
-    def _multiplot_plot_dataset_helper(self, plot_diff=False, plot_type="Line"):
-        prompt_bounds, self.global_min, self.global_max, self.dataset_min, self.dataset_max = controller.check_bounds(
-            self.dataset, self.multiplot_x_axis_dropdown.value, self.multiplot_ref_dataset_dict
-        )
-        if self.prompt_bounds_dropdown.value == "Constrain to user dataset bounds":
-            x_min = self.dataset_min
-            x_max = self.dataset_max
-        else:
-            x_min = self.multiplot_min
-            x_max = self.multiplot_max
-        if not plot_diff:
-            if plot_type == "Line":
+    def _multiplot_plot_dataset_helper(self, plot_diff=False, plot_type="Line"):            
+        variable = self._get_variable_helper(section="multiplot")
+        x_axis = self.multiplot_x_axis_dropdown.value
 
-                return controller.plot_multiplot_dataset(
-                    self.dataset,
-                    self._get_variable_helper(section="multiplot"),
-                    self.multiplot_ref_dataset_dict,
-                    self.multiplot_chosen_slices,
-                    self.multiplot_x_axis_dropdown.value,
-                    x_min,
-                    x_max,
-                )
+        # Plot directly, passing plot_diff dynamically
+        if plot_type == "Line":
+            _, self.global_min, self.global_max, self.dataset_min, self.dataset_max = controller.check_bounds(
+                self.dataset, x_axis, self.multiplot_ref_dataset_dict
+            )
+
+            # Set x_min and x_max using the newly unpacked variables
+            if self.prompt_bounds_dropdown.value == "Constrain to user dataset bounds":
+                x_min = self.dataset_min
+                x_max = self.dataset_max
             else:
-                return controller.plot_multiplot_heatmap_dataset(
-                    self.dataset,
-                    self._get_variable_helper(section="multiplot"),
-                    self.multiplot_chosen_slices,
-                    self.multiplot_x_axis_dropdown.value,
-                    self.multiplot_y_axis_dropdown.value,
-                    plot_diff=False,
-                )
+                x_min = self.global_min  
+                x_max = self.global_max 
+            return controller.plot_multiplot_dataset(
+                self.dataset,
+                variable,
+                self.multiplot_ref_dataset_dict,
+                self.multiplot_chosen_slices,
+                x_axis,
+                x_min,
+                x_max,
+                plot_diff=plot_diff
+            )
         else:
-            if plot_type == "Line":
-                return controller.plot_multiplot_dataset(
-                    self.dataset,
-                    self._get_variable_helper(section="multiplot"),
-                    self.multiplot_ref_dataset_dict,
-                    self.multiplot_chosen_slices,
-                    self.multiplot_x_axis_dropdown.value,
-                    x_min,
-                    x_max,
-                    plot_diff=True,
-                )
-            else:
-                return controller.plot_multiplot_heatmap_dataset(
-                    self.dataset,
-                    self._get_variable_helper(section="multiplot"),
-                    self.multiplot_chosen_slices,
-                    self.multiplot_x_axis_dropdown.value,
-                    self.multiplot_y_axis_dropdown.value,
-                    plot_diff=True,
-                )
+            return controller.plot_multiplot_heatmap_dataset(
+                self.dataset,
+                variable,
+                self.multiplot_chosen_slices,
+                x_axis,
+                self.multiplot_y_axis_dropdown.value,
+                plot_diff=plot_diff
+            )
