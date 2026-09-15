@@ -541,32 +541,42 @@ def plot_multiplot_dataset(
 
 def plot_multiplot_heatmap_dataset(dataset, variable, ref_dict, chosen_slices, x_axis, y_axis, plot_diff=False):
     num_refs = len(ref_dict)
-    total_plots = num_refs  # Only reference plots
+    
+    # If not plotting the difference, add 1 to total_plots to accommodate the user dataset
+    total_plots = num_refs if plot_diff else num_refs + 1
 
     if total_plots == 0:
         fig, ax = plt.subplots(figsize=[6, 4])
-        ax.text(0.5, 0.5, "No reference models selected", ha="center", va="center")
+        ax.text(0.5, 0.5, "No models selected to plot", ha="center", va="center")
         return fig
 
     # Calculate grid dimensions
     ncols = 2 if total_plots > 1 else 1
     nrows = (total_plots + 1) // 2
 
-    # Slice user data (still needed as a baseline if calculating differences)
+    # Slice user data
     sliced_user_data = dataset.sel(**chosen_slices, method="nearest")
+    user_member_title = ""
     if "member" in sliced_user_data.dims:
+        user_member_title = f" (mem: {sliced_user_data.member.values[0]})"
         sliced_user_data = sliced_user_data.isel(member=0)
 
-    # Initialise colour bounds using the first reference dataset
-    first_key, first_ref_ds = next(iter(ref_dict.items()))
-    valid_slices = {dim: val for dim, val in chosen_slices.items() if dim in first_ref_ds.dims}
-    sliced_first_ref = first_ref_ds.sel(**valid_slices, method="nearest")
-    if "member" in sliced_first_ref.dims:
-        sliced_first_ref = sliced_first_ref.isel(member=0)
-
-    first_plot_data = (sliced_first_ref - sliced_user_data) if plot_diff else sliced_first_ref
-    global_vmin = float(first_plot_data[variable].min())
-    global_vmax = float(first_plot_data[variable].max())
+    # Initialise colour bounds
+    if not plot_diff:
+        # If plotting all data, baseline the min/max using the user dataset
+        global_vmin = float(sliced_user_data[variable].min())
+        global_vmax = float(sliced_user_data[variable].max())
+    else:
+        # If only plotting differences, baseline using the first reference difference
+        first_key, first_ref_ds = next(iter(ref_dict.items()))
+        valid_slices = {dim: val for dim, val in chosen_slices.items() if dim in first_ref_ds.dims}
+        sliced_first_ref = first_ref_ds.sel(**valid_slices, method="nearest")
+        if "member" in sliced_first_ref.dims:
+            sliced_first_ref = sliced_first_ref.isel(member=0)
+            
+        first_plot_data = sliced_first_ref - sliced_user_data
+        global_vmin = float(first_plot_data[variable].min())
+        global_vmax = float(first_plot_data[variable].max())
 
     # Calculate min and max across all reference datasets to keep colour scales consistent
     for model_key, ref_ds in ref_dict.items():
@@ -584,6 +594,22 @@ def plot_multiplot_heatmap_dataset(dataset, variable, ref_dict, chosen_slices, x
     axes_flat = axes.flatten() if hasattr(axes, "flatten") else [axes]
 
     ax_idx = 0
+    
+    # Plot User Data first (if not plotting differences)
+    if not plot_diff:
+        sliced_user_data[variable].plot(
+            x=x_axis,
+            y=y_axis,
+            ax=axes_flat[ax_idx],
+            vmin=global_vmin,
+            vmax=global_vmax,
+            cmap="viridis",
+            cbar_kwargs={"label": variable},
+        )
+        axes_flat[ax_idx].set_title(f"User Data{user_member_title}")
+        ax_idx += 1
+
+    # Plot Reference Data (or Difference Data)
     for model_key, ref_ds in ref_dict.items():
         valid_slices = {dim: val for dim, val in chosen_slices.items() if dim in ref_ds.dims}
         sliced_ref = ref_ds.sel(**valid_slices, method="nearest")
@@ -594,7 +620,7 @@ def plot_multiplot_heatmap_dataset(dataset, variable, ref_dict, chosen_slices, x
             sliced_ref = sliced_ref.isel(member=0)
 
         plot_data = (sliced_ref - sliced_user_data) if plot_diff else sliced_ref
-        title_prefix = "Δ " if plot_diff else ""
+        title_prefix = "Ref. - User data: " if plot_diff else ""
 
         plot_data[variable].plot(
             x=x_axis,
