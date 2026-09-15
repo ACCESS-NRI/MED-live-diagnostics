@@ -604,7 +604,7 @@ def _make_mock_da():
 
 def _no_refs_case():
     """total_plots == 0 -> returns fig with 'No reference models selected' text."""
-    return dict(dataset=MagicMock(), ref_dict={}, chosen_slices={})
+    return {"dataset": MagicMock(), "ref_dict": {}, "chosen_slices": {}}
 
 
 def _delaxes_and_slices_case():
@@ -621,11 +621,11 @@ def _delaxes_and_slices_case():
     user_ds.sel.return_value = user_ds
     user_ds.__getitem__.return_value = mock_da
 
-    return dict(
-        dataset=user_ds,
-        ref_dict={"model1": ref_ds, "model2": ref_ds, "model3": ref_ds},
-        chosen_slices={"lev": 5},  # non-empty to trigger slice_str and bottom=0.15
-    )
+    return {
+        "dataset": user_ds,
+        "ref_dict": {"model1": ref_ds, "model2": ref_ds, "model3": ref_ds},
+        "chosen_slices": {"lev": 5},  # non-empty to trigger slice_str and bottom=0.15
+    }
 
 
 def _member_dims_case():
@@ -636,7 +636,9 @@ def _member_dims_case():
     sliced_ref_mock = MagicMock()
     sliced_ref_mock.dims = {"lon": 10, "lat": 10}
     sliced_ref_mock.__getitem__.return_value = mock_da
-    sliced_ref_mock.__sub__.return_value = sliced_ref_mock  # subtraction for plot_diff=True
+    sliced_ref_mock.__sub__.return_value = (
+        sliced_ref_mock  # subtraction for plot_diff=True
+    )
 
     # Not spec'd, so dynamic attributes like .member are allowed
     ref_ds = MagicMock()
@@ -655,12 +657,12 @@ def _member_dims_case():
     user_ds.sel.return_value = user_ds
     user_ds.isel.return_value = sliced_user_mock
 
-    return dict(
-        dataset=user_ds,
-        ref_dict={"model1": ref_ds},
-        chosen_slices={},
-        plot_diff=True,
-    )
+    return {
+        "dataset": user_ds,
+        "ref_dict": {"model1": ref_ds},
+        "chosen_slices": {},
+        "plot_diff": True,
+    }
 
 
 @pytest.mark.parametrize(
