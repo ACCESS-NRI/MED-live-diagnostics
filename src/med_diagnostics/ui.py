@@ -72,6 +72,14 @@ class UserInterface:
             "value": False,
             "align": "end",
         },
+        "widget_container": {
+            "header_background": "#2f2f2f",
+            "header_color": "white",
+            "collapsible": True,
+            "sizing_mode": "stretch_width",
+            "collapsed": True,
+            "styles": {"background": "rgba(128, 128, 128, 0.1)"},
+        },
     }
 
     def __init__(self):
@@ -81,6 +89,18 @@ class UserInterface:
 
         # Import panel extensions
         pn.extension()
+
+        self.user_widget_container = pn.Card(
+            **self.STYLES.get("widget_container"), title="Load and plot user data"
+        )
+        self.ref_widget_container = pn.Card(
+            **self.STYLES.get("widget_container"),
+            title="Load and plot reference models",
+        )
+        self.multiplot_widget_container = pn.Card(
+            **self.STYLES.get("widget_container"),
+            title="Overlay user and reference models",
+        )
 
         # Build initial panel text widgets
         self.last_data_load_textbox = pn.widgets.StaticText(
@@ -371,7 +391,7 @@ class UserInterface:
         )
         self.div_2 = pn.layout.Divider(styles={"color": "white"}, visible=False)
 
-        self.widget_container = pn.Column(
+        widgets_to_add = pn.Column(
             self.last_data_load_textbox,
             self.status_textbox,
             self.warning_textbox,
@@ -380,12 +400,14 @@ class UserInterface:
             self.div_2,
         )
 
+        self.user_widget_container.append(widgets_to_add)
+
         controller.update_textbox_text(
             self.status_textbox,
             "User model status >> Waiting for initial model data catalog to be built. This can take a few minutes.",
         )
 
-        display(self.widget_container)
+        display(self.user_widget_container)
         print()  # spacer in notebook
 
     def _display_dataset_selection_ui(self, model_cat, access_nri_cat):
