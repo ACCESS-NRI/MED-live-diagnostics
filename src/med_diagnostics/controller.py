@@ -51,7 +51,9 @@ def round_slice_val(val):
         return str(val)
 
 
-def plot_dataset(dataset, dataset_name, variable, x_axis, chosen_slices, is_ref, model_name="User", plot_type = "Line", y_axis = None):
+def plot_dataset(
+    dataset, dataset_name, variable, x_axis, chosen_slices, is_ref, model_name="User", plot_type="Line", y_axis=None
+):
     """
     Plot 2D time-series from model data. Private.
 
@@ -392,7 +394,8 @@ def check_plot_validity(dataset, variable, plot_type, x, y=None, z=None, has_sli
 
     return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, remaining_dims
 
-def plot_animation(dataset, dataset_name, variable, chosen_slices, x_axis, y_axis, z_axis, is_ref = False):
+
+def plot_animation(dataset, dataset_name, variable, chosen_slices, x_axis, y_axis, z_axis, is_ref=False):
     """
     Generate an interactive animated 2D quadmesh plot with a scrubber widget.
 
@@ -462,16 +465,7 @@ def plot_animation(dataset, dataset_name, variable, chosen_slices, x_axis, y_axi
     return pn.Column(pn.panel(plot), caption_pane)
 
 
-def plot_multiplot_dataset(
-    dataset,
-    variable,
-    ref_dict,
-    chosen_slices,
-    x_axis,
-    x_min,
-    x_max,
-    plot_diff = False
-):
+def plot_multiplot_dataset(dataset, variable, ref_dict, chosen_slices, x_axis, x_min, x_max, plot_diff=False):
     """
     Plot 2D time-series overlaying the user model and selected reference models. Private.
 
@@ -541,7 +535,7 @@ def plot_multiplot_dataset(
 
 def plot_multiplot_heatmap_dataset(dataset, variable, ref_dict, chosen_slices, x_axis, y_axis, plot_diff=False):
     num_refs = len(ref_dict)
-    
+
     # If not plotting the difference, add 1 to total_plots to accommodate the user dataset
     total_plots = num_refs if plot_diff else num_refs + 1
 
@@ -573,7 +567,7 @@ def plot_multiplot_heatmap_dataset(dataset, variable, ref_dict, chosen_slices, x
         sliced_first_ref = first_ref_ds.sel(**valid_slices, method="nearest")
         if "member" in sliced_first_ref.dims:
             sliced_first_ref = sliced_first_ref.isel(member=0)
-            
+
         first_plot_data = sliced_first_ref - sliced_user_data
         global_vmin = float(first_plot_data[variable].min())
         global_vmax = float(first_plot_data[variable].max())
@@ -594,7 +588,7 @@ def plot_multiplot_heatmap_dataset(dataset, variable, ref_dict, chosen_slices, x
     axes_flat = axes.flatten() if hasattr(axes, "flatten") else [axes]
 
     ax_idx = 0
-    
+
     # Plot User Data first (if not plotting differences)
     if not plot_diff:
         sliced_user_data[variable].plot(

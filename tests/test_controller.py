@@ -13,6 +13,7 @@ import cftime
 from unittest.mock import MagicMock, patch, call
 import datetime
 
+
 @pytest.fixture(scope="function")
 def ui():
     """Return a session-scoped UserInterface instance for testing"""
@@ -25,8 +26,7 @@ def ui():
 
 @pytest.mark.parametrize(
     "input_text",
-    [ "A word", 1, 1.0, True
-    ],
+    ["A word", 1, 1.0, True],
 )
 def test_update_textbox_text(input_text):
     """Test updating any textbox with an entered value"""
@@ -36,6 +36,7 @@ def test_update_textbox_text(input_text):
 
     # Verify that the status textbox value matches the updated text
     assert widget.value == str(input_text)
+
 
 @pytest.mark.parametrize(
     "input_value, expected_output",
@@ -167,30 +168,25 @@ def test_variable_toggle_change(toggle_value):
         attrs={"long_name": "long name"},
     )
     ds = xr.Dataset({"data": data})
-    toggle_widget = pn.widgets.Toggle(value = toggle_value)
+    toggle_widget = pn.widgets.Toggle(value=toggle_value)
     variable_dropdown_widget = pn.widgets.Select()
     if toggle_value:
         variable_dropdown_widget.options = ["data"]
-    else:  
+    else:
         variable_dropdown_widget.options = ["long name"]
 
     controller.variable_toggle_change(toggle_widget, variable_dropdown_widget, ds)
     if toggle_value:
         assert variable_dropdown_widget.options == ["long name"]
         assert toggle_widget.label == "Display Variable Short Names"
-    else:  
+    else:
         assert variable_dropdown_widget.options == ["data"]
         assert toggle_widget.label == "Display Variable Long Names"
 
 
 @pytest.mark.parametrize(
     "toggle_value, long_names",
-    [
-        (True, {"long name": "data"}), 
-        (False, {"long name": "data"}), 
-        (True, {}), 
-        (False, {})
-     ],
+    [(True, {"long name": "data"}), (False, {"long name": "data"}), (True, {}), (False, {})],
 )
 def test_get_selected_variable(toggle_value, long_names):
 
@@ -214,10 +210,10 @@ def test_get_selected_variable(toggle_value, long_names):
 @pytest.mark.parametrize(
     "has_time, user_is_cftime, ref_is_cftime, user_cal, ref_cal, expect_convert",
     [
-        (False, False, False, None, None, False), 
+        (False, False, False, None, None, False),
         (True, True, True, "noleap", "noleap", False),
-        (True, True, True, "noleap", "standard", True), 
-        (True, False, True, "standard", "noleap", True),  
+        (True, True, True, "noleap", "standard", True),
+        (True, False, True, "standard", "noleap", True),
     ],
 )
 def test_add_to_dataset_dict(monkeypatch, has_time, user_is_cftime, ref_is_cftime, user_cal, ref_cal, expect_convert):
@@ -267,6 +263,7 @@ def test_add_to_dataset_dict(monkeypatch, has_time, user_is_cftime, ref_is_cftim
     else:
         mock_dataset.convert_calendar.assert_not_called()
 
+
 def test_get_metadata():
     dummy_meta = {
         "model": "ACCESS-CM2",
@@ -275,7 +272,7 @@ def test_get_metadata():
         "parent_experiment": "piControl",
         "long_description": "Long desc",
         "contact": "John Doe",
-        "email": "john@example.com"
+        "email": "john@example.com",
     }
 
     result = controller.get_metadata(dummy_meta)
@@ -290,7 +287,7 @@ def test_get_metadata():
     "plot_type, x, y, z, has_slice, dim_sizes, expected",
     [
         # (plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, remaining_dims)
-        ("Line", None, None, None, False, {"time": 10}, (False, False, False, False, [])), 
+        ("Line", None, None, None, False, {"time": 10}, (False, False, False, False, [])),
         ("Line", "time", None, None, False, {"time": 10}, (True, False, False, False, [])),
         (
             "Line",
@@ -337,7 +334,7 @@ def test_get_metadata():
             True,
             {"time": 10, "lat": 10, "lon": 10},
             (True, False, False, False, []),
-        ), 
+        ),
         (
             "Animation",
             "time",
@@ -655,7 +652,7 @@ def test_apply_standard_plot_formatting(
     "missing_x, missing_y, chosen_slices, expected_slice_text",
     [
         (True, True, {}, False),
-        (False, False, {"lat": -35.0}, True), 
+        (False, False, {"lat": -35.0}, True),
     ],
 )
 def test_plot_animation(monkeypatch, missing_x, missing_y, chosen_slices, expected_slice_text):
