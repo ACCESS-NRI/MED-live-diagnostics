@@ -13,7 +13,7 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
-dependencies = ["apscheduler", "access-nri-intake", "panel",  "matplotlib"]
+dependencies = ["apscheduler", "access-nri-intake", "panel",  "matplotlib", "nc-time-axis"]
 dynamic = ["version"]
 
 [build-system]
@@ -43,9 +43,26 @@ platforms = ["osx-arm64", "linux-64", "win-64"]
 med-diagnostics = { path = ".", editable = true }
 
 [tool.pixi.tasks]
+test-cov = "pytest --cov=med_diagnostics"
 
 [tool.pixi.dependencies]
 pytest = ">=9.1.1,<10"
 hvplot = ">=0.12.2,<0.13"
 access-nri-intake = ">=1.7.0,<2"
 pytest-cov = ">=7.1.0,<8"
+nc-time-axis = ">=1.4.1,<2"
+versioneer = ">=0.29,<0.30"
+pre-commit = ">=4.6.2,<5"
+ruff = ">=0.16.7,<0.17"
+
+[tool.mypy]
+exclude = [
+    "versioneer\\.py",
+    "_version\\.py"
+]
+
+[tool.ruff]
+exclude = [
+    "versioneer.py",
+    "_version.py"
+]

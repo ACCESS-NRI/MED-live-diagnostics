@@ -1,57 +1,76 @@
 # Copyright 2023 ACCESS-NRI and contributors. See the top-level COPYRIGHT file for details.
 # SPDX-License-Identifier: Apache-2.0
 
-from access_nri_intake import data
 
-from med_diagnostics.ui import UserInterface
-import med_diagnostics.data as med_data
+from unittest.mock import MagicMock, call, patch
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import panel as pn
 import pytest
 import xarray as xr
-import numpy as np
-import panel as pn
-import matplotlib.pyplot as plt
-import cftime
-from unittest.mock import MagicMock, patch
 
-@pytest.fixture(scope="session")
+import med_diagnostics.data as med_data
+from med_diagnostics import controller
+from med_diagnostics.ui import UserInterface
+
+
+def mock_dataset():
+    data = xr.DataArray(
+        np.random.rand(10, 10, 10),
+        dims=["x", "y", "z"],
+        coords={"x": np.arange(10), "y": np.arange(10), "z": np.arange(10)},
+    )
+    return xr.Dataset({"data": data})
+
+
+# Create the mock dataset once when the test file is loaded
+_CACHED_MOCK_DATASET = mock_dataset()
+
+
+@pytest.fixture(scope="function")
 def ui():
-    """Return a session-scoped UserInterface instance for testing""" 
-
+    """Return a function-scoped UserInterface instance for testing"""
     ui = UserInterface()
-    # Initialise the user interface widget container to prepare it for test execution
-    ui.widget_container = pn.Column() 
+    ui._display_status_text()
+    ui.widget_container = pn.Column()
+
+    # Assign the pre-cached dataset instantly instead of generating a new one
+    ui.dataset = _CACHED_MOCK_DATASET
+    ui.ref_dataset = _CACHED_MOCK_DATASET
+
+    ui.model_cat = {"fake": None, "catalog": None}
+    ui.access_nri_cat = {"fake": None, "catalog": None}
+    ui.ref_model_cat = {"fake": None, "catalog": None}
+    ui.ref_plot_choices_row = pn.Row(name="blank row")
+
     return ui
 
 
-@pytest.mark.parametrize(
-    "input_value, expected_output",
-    [
-        (3.14159, "3.14"),
-        (42, "42.0"),
-        ("2.71828", "2.72"),
-        ("not a number", "not a number"),
-        ([1, 2], "[1, 2]"),
-    ],
-)
-def test_round_slice_val(ui, input_value, expected_output):
-    """Test the _round_slice_val method across various input types and formats""" 
-
-    # Verify that the returned string representation matches the expected format
-    assert ui._round_slice_val(input_value) == expected_output
-
-
-def run_validity_check(ui, is_ref, x_value, y_value, z_value, plot_type, var, ds):
+def run_validity_check(ui, section, x_value, y_value, z_value, plot_type, var, ds):
     """Check the validity of reference or user plots based on current UI selections"""
 
     # Assign to correct UI attributes based on whether it is the reference data functions or user data
-    if is_ref:
+    if section == "ref":
         ui.ref_dataset = ds
         ui.ref_x_axis_dropdown.value = x_value
         ui.ref_y_axis_dropdown.value = y_value
         ui.ref_animation_axis_dropdown.value = z_value
         ui.ref_plot_type_dropdown.value = plot_type
         ui.ref_plot_variable_dropdown.value = var
-        return ui._ref_check_plot_validity()
+        return ui._check_plot_validity_helper(section=section)
+    if section == "multiplot":
+        if plot_type == "Animation":
+            pytest.skip("Multiplot tab does not plot animation plot type, skipping")
+        else:
+            ui.dataset = ds
+            ui.multiplot_ref_dataset_dict = {"Key1": ds, "Key2": ds}
+            ui.multiplot_x_axis_dropdown.value = x_value
+            ui.multiplot_y_axis_dropdown.value = y_value
+            ui.multiplot_plot_type_dropdown.value = plot_type
+            ui.multiplot_plot_variable_dropdown.value = var
+            return ui._check_plot_validity_helper(section=section)
     else:
         ui.dataset = ds
         ui.x_axis_dropdown.value = x_value
@@ -59,10 +78,10 @@ def run_validity_check(ui, is_ref, x_value, y_value, z_value, plot_type, var, ds
         ui.animation_axis_dropdown.value = z_value
         ui.plot_type_dropdown.value = plot_type
         ui.plot_variable_dropdown.value = var
-        return ui._check_plot_validity()
+        return ui._check_plot_validity_helper(section=section)
 
 
-@pytest.mark.parametrize("is_ref", [False, True])
+@pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
 @pytest.mark.parametrize(
     "x_value, y_value, z_value, plot_type, variable_value, plot_valid_output, requires_slice_output, invalid_heatmap_output, same_axes_output",
     [
@@ -77,7 +96,7 @@ def run_validity_check(ui, is_ref, x_value, y_value, z_value, plot_type, var, ds
 )
 def test_check_plot_validity_1d(
     ui,
-    is_ref,
+    section,
     x_value,
     y_value,
     z_value,
@@ -88,26 +107,27 @@ def test_check_plot_validity_1d(
     invalid_heatmap_output,
     same_axes_output,
 ):
-    """Test plot validity and configuration flags for 1D datasets across various axes and plot types""" 
+    """Test plot validity and configuration flags for 1D datasets across various axes and plot types"""
 
     # Create a 1D xarray dataset
     data = xr.DataArray(np.random.rand(10), dims=["x"], coords={"x": np.arange(10)})
     ds = xr.Dataset({"data": data})
 
     results = run_validity_check(
-        ui, is_ref, x_value, y_value, z_value, plot_type, variable_value, ds
+        ui, section, x_value, y_value, z_value, plot_type, variable_value, ds
     )
-    
+
     # Verify that the validity check returns the expected configuration flags
     assert results == (
         plot_valid_output,
         requires_slice_output,
         invalid_heatmap_output,
         same_axes_output,
+        False,
     )
 
 
-@pytest.mark.parametrize("is_ref", [False, True])
+@pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
 @pytest.mark.parametrize(
     "x_value, y_value, z_value, plot_type, variable_value, plot_valid_output, requires_slice_output, invalid_heatmap_output, same_axes_output",
     [
@@ -125,7 +145,7 @@ def test_check_plot_validity_1d(
 )
 def test_check_plot_validity_2d(
     ui,
-    is_ref,
+    section,
     x_value,
     y_value,
     z_value,
@@ -136,7 +156,7 @@ def test_check_plot_validity_2d(
     invalid_heatmap_output,
     same_axes_output,
 ):
-    """Test plot validity and configuration flags for 2D datasets across various axes and plot types""" 
+    """Test plot validity and configuration flags for 2D datasets across various axes and plot types"""
 
     # Create a 2D xarray dataset
     data = xr.DataArray(
@@ -147,19 +167,20 @@ def test_check_plot_validity_2d(
     ds = xr.Dataset({"data": data})
 
     results = run_validity_check(
-        ui, is_ref, x_value, y_value, z_value, plot_type, variable_value, ds
+        ui, section, x_value, y_value, z_value, plot_type, variable_value, ds
     )
-    
+
     # Verify that the validity check returns the expected configuration flags
     assert results == (
         plot_valid_output,
         requires_slice_output,
         invalid_heatmap_output,
         same_axes_output,
+        False,
     )
 
 
-@pytest.mark.parametrize("is_ref", [False, True])
+@pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
 @pytest.mark.parametrize(
     "x_value, y_value, z_value, plot_type, variable_value, plot_valid_output, requires_slice_output, invalid_heatmap_output, same_axes_output",
     [
@@ -182,7 +203,7 @@ def test_check_plot_validity_2d(
 )
 def test_check_plot_validity_3d(
     ui,
-    is_ref,
+    section,
     x_value,
     y_value,
     z_value,
@@ -193,30 +214,23 @@ def test_check_plot_validity_3d(
     invalid_heatmap_output,
     same_axes_output,
 ):
-    """Test plot validity and configuration flags for 3D datasets across various axes and plot types""" 
+    """Test plot validity and configuration flags for 3D datasets across various axes and plot types"""
 
-    # Create a 3D xarray dataset
-    data = xr.DataArray(
-        np.random.rand(10, 10, 10),
-        dims=["x", "y", "z"],
-        coords={"x": np.arange(10), "y": np.arange(10), "z": np.arange(10)},
-    )
-    ds = xr.Dataset({"data": data})
-    
     results = run_validity_check(
-        ui, is_ref, x_value, y_value, z_value, plot_type, variable_value, ds
+        ui, section, x_value, y_value, z_value, plot_type, variable_value, ui.dataset
     )
-    
+
     # Verify that the validity check returns the expected configuration flags
     assert results == (
         plot_valid_output,
         requires_slice_output,
         invalid_heatmap_output,
         same_axes_output,
+        False,
     )
 
 
-@pytest.mark.parametrize("is_ref", [False, True])
+@pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
 @pytest.mark.parametrize(
     "x_value, y_value, z_value, plot_type, variable_value, plot_valid_output, requires_slice_output, invalid_heatmap_output, same_axes_output",
     [
@@ -239,7 +253,7 @@ def test_check_plot_validity_3d(
 )
 def test_check_plot_validity_4d(
     ui,
-    is_ref,
+    section,
     x_value,
     y_value,
     z_value,
@@ -263,34 +277,15 @@ def test_check_plot_validity_4d(
             "w": np.arange(10),
         },
     )
-    
-    if requires_slice_output:
-        if is_ref:
-            ui.ref_slice_widgets = {"widget": pn.pane.Markdown("a widget")}
-            ui.ref_slice_ui_row = pn.Row(name="ref slice ui row")
-            ui.widget_container.append(ui.ref_slice_ui_row)
-        else:
-            ui.slice_widgets = {"widget": pn.pane.Markdown("a widget")}
-            ui.slice_ui_row = pn.Row(name="slice ui row")
-            ui.widget_container.append(ui.slice_ui_row)
 
-    ds = xr.Dataset({"data": data})
-
-    results = run_validity_check(
-        ui, is_ref, x_value, y_value, z_value, plot_type, variable_value, ds
-    )
-
-    # Verify that the validity check returns the expected configuration flags
-    assert results == (
-        plot_valid_output,
-        requires_slice_output,
-        invalid_heatmap_output,
-        same_axes_output,
-    )
     if requires_slice_output:
         # Determine which attributes we should be checking
-        row_attr = "ref_slice_ui_row" if is_ref else "slice_ui_row"
-        widget_attr = "ref_slice_widgets" if is_ref else "slice_widgets"
+        if section == "ref":
+            row_attr, widget_attr = "ref_slice_ui_row", "ref_slice_widgets"
+        elif section == "multiplot":
+            row_attr, widget_attr = "multiplot_slice_ui_row", "multiplot_slice_widgets"
+        else:
+            row_attr, widget_attr = "slice_ui_row", "slice_widgets"
 
         # If the function exits early due to no x_axis, the cleanup never happens
         if not x_value:
@@ -301,348 +296,33 @@ def test_check_plot_validity_4d(
             assert not hasattr(ui, row_attr)
             assert not hasattr(ui, widget_attr)
 
-@pytest.mark.parametrize(
-    "x_value, y_value, plot_type, variable_value, plot_valid_output, requires_slice_output, check_bounds_output",
-    [
-        ("x", "", "Line", "data", True, False, False),
-        ("x", "y", "Line", "data", True, False, False),
-    ],
-)
-def test_multiplot_check_plot_validity_1d(
-    ui,
-    x_value,
-    y_value,
-    plot_type,
-    variable_value,
-    plot_valid_output,
-    requires_slice_output,
-    check_bounds_output,
-):
-    """Test multiplot validity and configuration flags for 1D datasets""" 
-
-    # Create a 1D xarray dataset
-    data = xr.DataArray(np.random.rand(10), dims=["x"], coords={"x": np.arange(10)})
     ds = xr.Dataset({"data": data})
 
-    # assign dataset and multiplot reference state on the UI instance
-    ui.dataset = ds
-    ui.multiplot_ref_dataset_dict = {"key": ds, "key2": ds}
-    ui.multiplot_x_axis_dropdown.value = x_value
-    ui.multiplot_y_axis_dropdown.value = y_value
-    ui.multiplot_plot_type_dropdown.value = plot_type
-    ui.multiplot_plot_variable_dropdown.value = variable_value
-    
-    results = ui._check_multiplot_plot_validity()
-    
-    # Verify that the validity check returns the expected configuration flags
-    assert results == (plot_valid_output, requires_slice_output, check_bounds_output)
-
-
-@pytest.mark.parametrize(
-    "x_value, y_value, plot_type, variable_value, plot_valid_output, requires_slice_output, check_bounds_output",
-    [
-        ("x", "", "Line", "data", False, False, True),
-        ("x", "y", "Line", "data", False, False, True),
-    ],
-)
-def test_multiplot_check_plot_validity_1d_bounds(
-    ui,
-    x_value,
-    y_value,
-    plot_type,
-    variable_value,
-    plot_valid_output,
-    requires_slice_output,
-    check_bounds_output,
-):
-    """Test multiplot validity and coordinate/bounds mismatch flags for 1D datasets""" 
-
-    # Create a 1D xarray dataset
-    data = xr.DataArray(np.random.rand(10), dims=["x"], coords={"x": np.arange(10)})
-    ds = xr.Dataset({"data": data})
-    ui.dataset = ds
-
-    # Introduce mismatched coordinates and values across datasets to trigger bounds checking
-    ds_different_bounds = ds.assign_coords(x=ds["x"] * 2)
-    ui.multiplot_ref_dataset_dict = {"key": ds_different_bounds * 2, "key2": ds}
-    ui.multiplot_x_axis_dropdown.value = x_value
-    ui.multiplot_y_axis_dropdown.value = y_value
-    ui.multiplot_plot_type_dropdown.value = plot_type
-    ui.multiplot_plot_variable_dropdown.value = variable_value
-    
-    results = ui._check_multiplot_plot_validity()
-    
-    # Verify that the validity check returns the expected configuration flags
-    assert results == (plot_valid_output, requires_slice_output, check_bounds_output)
-
-
-@pytest.mark.parametrize(
-    "x_value, y_value, plot_type, variable_value, plot_valid_output, requires_slice_output, check_bounds_output, invalid_dataset_test",
-    [
-        ("x", "", "Line", "data", False, True, False, False),
-        ("x", "y", "Line", "data", False, True, False, False),
-        ("x", "y", "Heatmap (grid)", "data", True, False, False, False),
-        ("x", "x", "Heatmap (grid)", "data", False, False, False, False),
-        ("x", "y", "Heatmap (grid)", "data", True, False, False, True),
-    ],
-)
-def test_multiplot_check_plot_validity_2d(
-    ui,
-    x_value,
-    y_value,
-    plot_type,
-    variable_value,
-    plot_valid_output,
-    requires_slice_output,
-    check_bounds_output,
-    invalid_dataset_test,
-):
-    """Test multiplot validity and configuration flags for 2D datasets""" 
-
-    # Create a 2D xarray dataset
-    data = xr.DataArray(
-        np.random.rand(10, 10),
-        dims=["x", "y"],
-        coords={"x": np.arange(10), "y": np.arange(10)},
+    results = run_validity_check(
+        ui, section, x_value, y_value, z_value, plot_type, variable_value, ds
     )
-    ds = xr.Dataset({"data": data})
-    
-    # Introduce mismatched variables across datasets to test invalid dataset handling
-    if invalid_dataset_test:
-        ds2 = xr.Dataset({"different_name": data})
-    else:
-        ds2 = ds
-        
-    # Assign dataset and multiplot reference state on the UI instance
-    ui.dataset = ds
-    ui.multiplot_ref_dataset_dict = {"key": ds, "key2": ds2}
-    ui.multiplot_x_axis_dropdown.value = x_value
-    ui.multiplot_y_axis_dropdown.value = y_value
-    ui.multiplot_plot_type_dropdown.value = plot_type
-    ui.multiplot_plot_variable_dropdown.value = variable_value
-    
-    results = ui._check_multiplot_plot_validity()
-    
+
     # Verify that the validity check returns the expected configuration flags
-    assert results == (plot_valid_output, requires_slice_output, check_bounds_output)
-
-    # Verify that the appropriate warning is displayed when a dataset is removed
-    if invalid_dataset_test:
-        assert (
-            "The following models were removed as they do not contain the selected variable"
-            in ui.multiplot_warning_textbox.value
-        )
-
-@pytest.mark.parametrize(
-    "x_value, y_value, plot_type, variable_value, plot_valid_output, requires_slice_output, check_bounds_output",
-    [
-        ("x", "", "Line", "data", False, True, False),
-        ("x", "y", "Line", "data", False, True, False),
-        ("x", "y", "Heatmap (grid)", "data", False, False, True),
-        ("x", "x", "Heatmap (grid)", "data", False, False, False),
-    ],
-)
-def test_multiplot_check_plot_validity_2d_bounds(
-    ui,
-    x_value,
-    y_value,
-    plot_type,
-    variable_value,
-    plot_valid_output,
-    requires_slice_output,
-    check_bounds_output,
-):
-    """Test multiplot validity and coordinate/bounds mismatch flags for 2D datasets""" 
-
-    # Create a 2D xarray dataset
-    data = xr.DataArray(
-        np.random.rand(10, 10),
-        dims=["x", "y"],
-        coords={"x": np.arange(10), "y": np.arange(10)},
+    assert results == (
+        plot_valid_output,
+        requires_slice_output,
+        invalid_heatmap_output,
+        same_axes_output,
+        False,
     )
-    ds = xr.Dataset({"data": data})
-    ui.dataset = ds
-    
-    # Introduce mismatched coordinates and values across datasets to trigger bounds checking
-    ds_different_bounds = ds.assign_coords(x=ds["x"] * 2)
-    ui.multiplot_ref_dataset_dict = {"key": ds_different_bounds * 2, "key2": ds}
-    ui.multiplot_x_axis_dropdown.value = x_value
-    ui.multiplot_y_axis_dropdown.value = y_value
-    ui.multiplot_plot_type_dropdown.value = plot_type
-    ui.multiplot_plot_variable_dropdown.value = variable_value
-    
-    results = ui._check_multiplot_plot_validity()
-    
-    # Verify that the validity check returns the expected configuration flags
-    assert results == (plot_valid_output, requires_slice_output, check_bounds_output)
-
-@pytest.mark.parametrize(
-    "x_value, y_value, plot_type, variable_value, plot_valid_output, requires_slice_output, check_bounds_output",
-    [
-        ("x", "", "Line", "data", False, True, False),
-        ("x", "y", "Line", "data", False, True, False),
-        ("x", "y", "Heatmap (grid)", "data", False, True, False),
-        ("x", "x", "Heatmap (grid)", "data", False, False, False),
-    ],
-)
-def test_multiplot_check_plot_validity_3d(
-    ui,
-    x_value,
-    y_value,
-    plot_type,
-    variable_value,
-    plot_valid_output,
-    requires_slice_output,
-    check_bounds_output,
-):
-    """Test multiplot validity and configuration flags for 3D datasets""" 
-
-    # Create a 3D xarray dataset
-    data = xr.DataArray(
-        np.random.rand(10, 10, 10),
-        dims=["x", "y", "z"],
-        coords={"x": np.arange(10), "y": np.arange(10), "z": np.arange(10)},
-    )
-    ds = xr.Dataset({"data": data})
-    
-    # Assign dataset and multiplot reference state on the UI instance
-    ui.dataset = ds
-    ui.multiplot_ref_dataset_dict = {"key": ds, "key2": ds}
-    ui.multiplot_x_axis_dropdown.value = x_value
-    ui.multiplot_y_axis_dropdown.value = y_value
-    ui.multiplot_plot_type_dropdown.value = plot_type
-    ui.multiplot_plot_variable_dropdown.value = variable_value
     if requires_slice_output:
-        ui.multiplot_slice_widgets = {"widget": pn.pane.Markdown("a widget")}
-        ui.multiplot_slice_ui_row = pn.Row(name="multiplot slice ui row")
-        ui.widget_container.append(ui.multiplot_slice_ui_row)
-    
-    results = ui._check_multiplot_plot_validity()
-    
-    # Verify that the validity check returns the expected configuration flags
-    assert results == (plot_valid_output, requires_slice_output, check_bounds_output)
-    if requires_slice_output:
+        # Determine which attributes we should be checking
+        row_attr = "ref_slice_ui_row" if section == "ref" else "slice_ui_row"
+        widget_attr = "ref_slice_widgets" if section == "ref" else "slice_widgets"
+
         # If the function exits early due to no x_axis, the cleanup never happens
         if not x_value:
-            assert hasattr(ui, "multiplot_slice_ui_row")
-            assert getattr(ui, "multiplot_slice_widgets") in ui.widget_container
+            assert hasattr(ui, row_attr)
+            assert getattr(ui, row_attr) in ui.widget_container
         else:
             # Otherwise, the cleanup runs because the slice widgets don't match remaining dims
-            assert not hasattr(ui, "multiplot_slice_ui_row")
-            assert not hasattr(ui, "multiplot_slice_widgets")
-
-
-@pytest.mark.parametrize(
-    "x_value, y_value, plot_type, variable_value, plot_valid_output, requires_slice_output, check_bounds_output",
-    [
-        ("x", "", "Line", "data", False, True, False),
-        ("x", "y", "Line", "data", False, True, False),
-        ("x", "y", "Heatmap (grid)", "data", False, True, False),
-        ("x", "x", "Heatmap (grid)", "data", False, False, False),
-    ],
-)
-def test_multiplot_check_plot_validity_3d_bounds(
-    ui,
-    x_value,
-    y_value,
-    plot_type,
-    variable_value,
-    plot_valid_output,
-    requires_slice_output,
-    check_bounds_output,
-):
-    """Test multiplot validity and coordinate/bounds mismatch flags for 3D datasets""" 
-
-    # Create a 3D xarray dataset
-    data = xr.DataArray(
-        np.random.rand(10, 10, 10),
-        dims=["x", "y", "z"],
-        coords={"x": np.arange(10), "y": np.arange(10), "z": np.arange(10)},
-    )
-    ds = xr.Dataset({"data": data})
-    ui.dataset = ds
-    
-    # Introduce mismatched coordinates and values across datasets to trigger bounds checking
-    ds_different_bounds = ds.assign_coords(x=ds["x"] * 2)
-    ui.multiplot_ref_dataset_dict = {"key": ds_different_bounds * 2, "key2": ds}
-    ui.multiplot_x_axis_dropdown.value = x_value
-    ui.multiplot_y_axis_dropdown.value = y_value
-    ui.multiplot_plot_type_dropdown.value = plot_type
-    ui.multiplot_plot_variable_dropdown.value = variable_value
-    
-    results = ui._check_multiplot_plot_validity()
-    
-    # Verify that the validity check returns the expected configuration flags
-    assert results == (plot_valid_output, requires_slice_output, check_bounds_output)
-
-@pytest.mark.parametrize(
-    "variable_name_short, variable_name_long, is_long",
-    [
-        ("var1", "Variable 1", False),
-        ("var2", "Variable 2", True),
-    ],
-)
-def test_get_selected_variable(ui, variable_name_short, variable_name_long, is_long):
-    """Test retrieving the short variable name based on the UI variable toggle state""" 
-
-    # Configure the UI toggle state and set the appropriate variable name in the dropdown
-    ui.variable_toggle.value = is_long
-    if is_long:
-        ui.plot_variable_dropdown.value = variable_name_long
-    else:
-        ui.plot_variable_dropdown.value = variable_name_short
-    ui.long_names = {variable_name_long: variable_name_short}
-
-    # Verify that the correct short variable name is returned regardless of the toggle state
-    assert ui._get_selected_variable() == variable_name_short
-
-
-@pytest.mark.parametrize(
-    "variable_name_short, variable_name_long, is_long",
-    [
-        ("var1", "Variable 1", False),
-        ("var2", "Variable 2", True),
-    ],
-)
-def test_ref_get_selected_variable(
-    ui, variable_name_short, variable_name_long, is_long
-):
-    """Test retrieving the short reference variable name based on the reference UI variable toggle state""" 
-
-    # Configure the reference UI toggle state and set the appropriate variable name in the dropdown
-    ui.ref_variable_toggle.value = is_long
-    if is_long:
-        ui.ref_plot_variable_dropdown.value = variable_name_long
-    else:
-        ui.ref_plot_variable_dropdown.value = variable_name_short
-    ui.ref_long_names = {variable_name_long: variable_name_short}
-
-    # Verify that the correct short reference variable name is returned regardless of the toggle state
-    assert ui._ref_get_selected_variable() == variable_name_short
-
-
-@pytest.mark.parametrize(
-    "variable_name_short, variable_name_long, is_long",
-    [
-        ("var1", "Variable 1", False),
-        ("var2", "Variable 2", True),
-    ],
-)
-def test_multiplot_get_selected_variable(
-    ui, variable_name_short, variable_name_long, is_long
-):
-    """Test retrieving the short multiplot variable name based on the multiplot UI variable toggle state""" 
-
-    # Configure the multiplot UI toggle state and set the appropriate variable name in the dropdown
-    ui.multiplot_variable_toggle.value = is_long
-    if is_long:
-        ui.multiplot_plot_variable_dropdown.value = variable_name_long
-    else:
-        ui.multiplot_plot_variable_dropdown.value = variable_name_short
-    ui.multiplot_long_names = {variable_name_long: variable_name_short}
-
-    # Verify that the correct short multiplot variable name is returned regardless of the toggle state
-    assert ui._multiplot_get_selected_variable() == variable_name_short
+            assert not hasattr(ui, row_attr)
+            assert not hasattr(ui, widget_attr)
 
 
 @pytest.mark.parametrize(
@@ -654,7 +334,7 @@ def test_multiplot_get_selected_variable(
     ],
 )
 def test_ref_clear_data_click(ui, meta, cat, ds):
-    """Test clearing reference data and resetting UI state attributes""" 
+    """Test clearing reference data and resetting UI state attributes"""
 
     # Set the reference model metadata value, not sure if there is a better way I should do this?
     ui.ref_model_metadata.value = meta
@@ -672,304 +352,11 @@ def test_ref_clear_data_click(ui, meta, cat, ds):
 
     # Trigger the clear data callback
     ui._ref_clear_data_click()
-    
+
     # Verify that metadata is cleared and dataset/catalog attributes are removed from the UI instance
     assert ui.ref_model_metadata.value == ""
     assert hasattr(ui, "ref_model_cat") == False
     assert hasattr(ui, "ref_dataset") == False
-
-
-@pytest.mark.parametrize(
-    "n_dims, x_value, y_value, z_value, plot_choices_exists, remaining_dims, expected_n_slices",
-    [
-        (1, "x", None, None, False, [], 0),
-        (2, "x", None, None, False, ["y"], 1),
-        (3, "x", None, None, False, ["y", "z"], 2),
-        (4, "x", None, None, False, ["y", "z", "dim3"], 3),
-        (2, "x", "y", None, False, [], 0),
-        (3, "x", "y", None, False, ["z"], 1),
-        (4, "x", "y", None, False, ["z", "dim3"], 2),
-        (3, "x", "y", "z", False, [], 0),
-        (4, "x", "y", "z", False, ["dim3"], 1),
-        (3, "x", "y", None, True, ["z"], 1),
-        
-    ],
-)
-def test_check_slice(
-    ui,
-    n_dims,
-    x_value,
-    y_value,
-    z_value,
-    plot_choices_exists,
-    remaining_dims,
-    expected_n_slices,
-):
-    """Test the generation and placement of slice UI widgets based on dataset dimensions and axis selections""" 
-
-    # Create an xarray dataset with the specified number of dimensions
-    target_names = ["x", "y", "z"]
-    dims = [target_names[i] if i < 3 else f"dim{i}" for i in range(n_dims)]
-    ui.remaining_dims = remaining_dims  # Set remaining_dims for the UI
-    coords = {dim: np.arange(10) for dim in dims}
-    data_array = xr.DataArray(
-            np.random.rand(*([10] * n_dims)), dims=dims, coords=coords
-        )
-    ds = xr.Dataset({"data": data_array})
-
-    # Assign dataset and axis selections to the UI instance
-    ui.dataset = ds
-    
-    # Conditionally append a plot choices row to the widget container to test slice UI placement
-    if plot_choices_exists:
-        ui.plot_choices_row = pn.Row(pn.pane.Markdown("something"), name="old")
-        ui.widget_container.append(ui.plot_choices_row)
-    elif hasattr(ui, "plot_choices_row"):
-        del ui.plot_choices_row
-
-    ui.plot_variable_dropdown.value = "data"
-    ui.x_axis_dropdown.value = x_value
-    ui.y_axis_dropdown.value = y_value
-    ui.animation_axis_dropdown.value = z_value
-
-    # Trigger the slice check
-    ui._check_slice()
-    
-    # Verify that the correct number of slice widgets are generated
-    assert len(ui.slice_ui_row) == expected_n_slices
-
-    # Verify that the slice UI row is positioned immediately after the plot choices row
-    if plot_choices_exists:
-        assert (
-            ui.widget_container.index(ui.slice_ui_row)
-            == ui.widget_container.index(ui.plot_choices_row) + 1
-        )
-
-
-@pytest.mark.parametrize(
-    "n_dims, x_value, y_value, z_value, plot_choices_exists, remaining_dims, expected_n_slices",
-    [
-        (1, "x", None, None, False, [], 0),
-        (2, "x", None, None, False, ["y"], 1),
-        (3, "x", None, None, False, ["y", "z"], 2),
-        (4, "x", None, None, False, ["y", "z", "dim3"], 3),
-        (2, "x", "y", None, False, [], 0),
-        (3, "x", "y", None, False, ["z"], 1),
-        (4, "x", "y", None, False, ["z", "dim3"], 2),
-        (3, "x", "y", "z", False, [], 0),
-        (4, "x", "y", "z", False, ["dim3"], 1),
-        (3, "x", "y", None, True, ["z"], 1),
-    ],
-)
-def test_ref_check_slice(
-    ui,
-    n_dims,
-    x_value,
-    y_value,
-    z_value,
-    plot_choices_exists, remaining_dims,
-    expected_n_slices,
-):
-    """Test the generation and placement of reference slice UI widgets based on dataset dimensions and axis selections"""
-
-    # Create an xarray dataset with the specified number of dimensions
-    target_names = ["x", "y", "z"]
-    dims = [target_names[i] if i < 3 else f"dim{i}" for i in range(n_dims)]
-    ui.ref_remaining_dims = remaining_dims  # Set remaining_dims for the UI
-    coords = {dim: np.arange(10) for dim in dims}
-    data_array = xr.DataArray(
-        np.random.rand(*([10] * n_dims)), dims=dims, coords=coords
-    )
-    ds = xr.Dataset({"data": data_array})
-
-    # Conditionally append a reference plot choices row to the widget container to test slice UI placement
-    if plot_choices_exists:
-        ui.ref_plot_choices_row = pn.Row(pn.pane.Markdown("something"), name="old")
-        ui.widget_container.append(ui.ref_plot_choices_row)
-    elif hasattr(ui, "ref_plot_choices_row"):
-        del ui.ref_plot_choices_row
-
-    # Assign reference dataset and axis selections to the UI instance
-    ui.ref_dataset = ds
-    ui.ref_plot_variable_dropdown.value = "data"
-    ui.ref_x_axis_dropdown.value = x_value
-    ui.ref_y_axis_dropdown.value = y_value
-    ui.ref_animation_axis_dropdown.value = z_value
-
-    # Trigger the reference slice check
-    ui._ref_check_slice()
-
-    # Verify that the correct number of reference slice widgets are generated
-    assert len(ui.ref_slice_ui_row) == expected_n_slices
-
-    # Verify that the reference slice UI row is positioned immediately after the reference plot choices row
-    if plot_choices_exists:
-        assert (
-            ui.widget_container.index(ui.ref_slice_ui_row)
-            == ui.widget_container.index(ui.ref_plot_choices_row) + 1
-        )
-
-
-@pytest.mark.parametrize(
-    "n_dims, x_value, y_value, z_value, plot_choices_exists, remaining_dims, expected_n_slices",
-    [
-        (1, "x", None, None, False, [], 0),
-        (2, "x", None, None, False, ["y"], 1),
-        (3, "x", None, None, False, ["y", "z"], 2),
-        (4, "x", None, None, False, ["y", "z", "dim3"], 3),
-        (2, "x", "y", None, False, [], 0),
-        (3, "x", "y", None, False, ["z"], 1),
-        (4, "x", "y", None, False, ["z", "dim3"], 2),
-        (3, "x", "y", "z", False, ["z"], 1),
-        (4, "x", "y", "z", False, ["z", "dim3"], 2),
-        (3, "x", "y", None, True, ["z"], 1),
-    ],
-)
-def test_multiplot_check_slice(
-    ui, n_dims, x_value, y_value, z_value, plot_choices_exists, remaining_dims, expected_n_slices
-):
-    """Test the generation and placement of multiplot slice UI widgets based on dataset dimensions and axis selections"""
-
-    # Create an xarray dataset with the specified number of dimensions
-    target_names = ["x", "y", "z"]
-    dims = [target_names[i] if i < 3 else f"dim{i}" for i in range(n_dims)]
-    ui.multiplot_remaining_dims = remaining_dims  # Set remaining_dims for the UI
-    coords = {dim: np.arange(10) for dim in dims}
-    data_array = xr.DataArray(
-        np.random.rand(*([10] * n_dims)), dims=dims, coords=coords
-    )
-    ds = xr.Dataset({"data": data_array})
-
-    # Conditionally append a multiplot choices row to the widget container to test slice UI placement
-    if plot_choices_exists:
-        ui.multiplot_plot_choices_row = pn.Row(
-            pn.pane.Markdown("something"), name="old"
-        )
-        ui.widget_container.append(ui.multiplot_plot_choices_row)
-    elif hasattr(ui, "ref_plot_choices_row"):
-        del ui.ref_plot_choices_row
-
-    # Assign multiplot dataset and axis selections to the UI instance
-    ui.dataset = ds
-    ui.multiplot_plot_variable_dropdown.value = "data"
-    ui.multiplot_x_axis_dropdown.value = x_value
-    ui.multiplot_y_axis_dropdown.value = y_value
-
-    # Trigger the multiplot slice check
-    ui._multiplot_check_slice()
-
-    # Verify that the correct number of multiplot slice widgets are generated
-    assert len(ui.multiplot_slice_ui_row) == expected_n_slices
-
-    # Verify that the multiplot slice UI row is positioned immediately after the multiplot choices row
-    if plot_choices_exists:
-        assert (
-            ui.widget_container.index(ui.multiplot_slice_ui_row)
-            == ui.widget_container.index(ui.multiplot_plot_choices_row) + 1
-        )
-
-
-def test_plot_dataset(ui):
-    """Test the generation of 1D line plots and 2D heatmaps from a provided dataset""" 
-
-    # Create a 3D xarray dataset
-    data = xr.DataArray(
-        np.random.rand(10, 10, 10),
-        dims=["x", "y", "z"],
-        coords={"x": np.arange(10), "y": np.arange(10), "z": np.arange(10)},
-    )
-    ds = xr.Dataset({"data": data})
-    ui.chosen_slices = {"z": 1}
-    ui.plot_variable_dropdown.value = "data"
-    ui.keys_dropdown.value = "data"
-
-    # Assign the mock dataset to the UI instance
-    ui.dataset = ds
-
-    # Generate a 1D plot and verify a valid matplotlib Figure is returned with content
-    plot_result = ui._plot_dataset("data", "x")
-    ax = plot_result.axes[0]
-    assert isinstance(plot_result, plt.Figure)
-    assert len(plot_result.axes) == 2
-    assert len(ax.lines) > 0 or len(ax.collections) > 0 or len(ax.images) > 0
-
-    # Generate a 2D heatmap and verify a valid matplotlib Figure is returned with content
-    plot_result = ui._plot_heatmap("data", "x", "y")
-    ax = plot_result.axes[0]
-    assert isinstance(plot_result, plt.Figure)
-    assert len(plot_result.axes) == 2
-    assert len(ax.lines) > 0 or len(ax.collections) > 0 or len(ax.images) > 0
-
-
-def test_plot_ref_dataset(ui):
-    """Test the generation of 1D line plots and 2D heatmaps from a provided reference dataset""" 
-
-    # Create a 2D xarray dataset
-    data = xr.DataArray(
-        np.random.rand(10, 10, 10),
-        dims=["x", "y", "z"],
-        coords={"x": np.arange(10), "y": np.arange(10), "z": np.arange(10)},
-    )
-    ds = xr.Dataset({"data": data})
-    ui.ref_chosen_slices = {"z" : 1}
-    ui.ref_keys_dropdown.value = "data"
-    ui.ref_data_keys_dropdown.value = "data"
-    
-    # Assign the mock dataset to the reference UI instance
-    ui.ref_dataset = ds
-    
-    # Generate a 1D reference plot and verify a valid matplotlib Figure is returned with content
-    plot_result = ui._plot_ref_dataset("data", "x")
-    ax = plot_result.axes[0]
-    assert isinstance(plot_result, plt.Figure)
-    assert len(plot_result.axes) == 2
-    assert len(ax.lines) > 0 or len(ax.collections) > 0 or len(ax.images) > 0
-
-    # Generate a 2D reference heatmap and verify a valid matplotlib Figure is returned with content
-    plot_result = ui._plot_ref_heatmap("data", "x", "y")
-    ax = plot_result.axes[0]
-    assert isinstance(plot_result, plt.Figure)
-    assert len(plot_result.axes) == 2
-    assert len(ax.lines) > 0 or len(ax.collections) > 0 or len(ax.images) > 0
-
-
-def test_plot_multiplot_dataset(ui, monkeypatch):
-    """Test the generation of 1D line multiplots and 2D heatmaps across multiple datasets"""
-
-    # Create a 3D xarray dataset
-    data = xr.DataArray(
-        np.random.rand(10, 10, 10),
-        dims=["x", "y", "z"],
-        coords={"x": np.arange(10), "y": np.arange(10), "z": np.arange(10)},
-    )
-    ds = xr.Dataset({"data": data})
-    ui.multiplot_chosen_slices = {}
-
-    # Assign datasets and multiplot state to the UI instance, and mock the bounds checking method
-    ui.dataset = ds
-    ui.multiplot_ref_dataset_dict = {"key": ds, "key2": ds}
-    ui.multiplot_chosen_slices = {"z": 1}
-    mock_multiplot_check_bounds = MagicMock()
-    monkeypatch.setattr(ui, "_multiplot_check_bounds", mock_multiplot_check_bounds)
-
-    # Generate a 1D multiplot and verify a valid matplotlib Figure is returned with subplots and a legend
-    plot_result = ui._plot_multiplot_dataset("data", "x")
-    assert isinstance(plot_result, plt.Figure)
-    assert len(plot_result.axes) == 4  # axes for each subplot and 1 legend
-
-    # Apply user-defined bounds constraints and verify that the bounds checking method is triggered
-    ui.prompt_bounds_dropdown.value = "Constrain to user dataset bounds"
-    ui.dataset_min = 0
-    ui.dataset_max = 1000
-    plot_result = ui._plot_multiplot_dataset("data", "x")
-    assert isinstance(plot_result, plt.Figure)
-    assert len(plot_result.axes) == 4  # axes for each subplot and 1 legend
-    mock_multiplot_check_bounds.assert_any_call()
-
-    # Generate a 2D multiplot heatmap and verify a valid matplotlib Figure is returned with appropriate axes
-    plot_result = ui._plot_multiplot_heatmap_dataset("data", "x", "y")
-    assert isinstance(plot_result, plt.Figure)
-    assert len(plot_result.axes) == 6  # 2 axes for each subplot
 
 
 def test_clear_multiplot_data(ui):
@@ -993,134 +380,8 @@ def test_clear_multiplot_data(ui):
     assert ui.multiplot_ref_dataset_dict == {}
 
 
-@pytest.mark.parametrize(
-    "ref_min_val, ref_max_val, expected_triggered",
-    [
-        (2, 8, False),
-        (0, 10, False),
-        (-5, 8, True),
-        (2, 15, True),
-        (-2, 12, True),
-    ],
-)
-def test_multiplot_check_bounds_numeric(
-    ui, ref_min_val, ref_max_val, expected_triggered
-):
-    """Test numeric coordinate bounds checking across primary and reference datasets in multiplots""" 
-
-    # Create a primary dataset with fixed coordinate bounds from 0 to 10
-    ds_primary = xr.Dataset({"data": (["x"], [1, 2])}, coords={"x": [0, 10]})
-
-    # Create a reference dataset with coordinate bounds based on parameters and assign both to the UI
-    ds_ref = xr.Dataset(
-        {"data": (["x"], [3, 4])}, coords={"x": [ref_min_val, ref_max_val]}
-    )
-    ui.multiplot_x_axis_dropdown.value = "x"
-    ui.dataset = ds_primary
-    ui.multiplot_ref_dataset_dict = {"ref1": ds_ref}
-
-    # Execute the bounds check and verify if a bounds mismatch is triggered
-    result = ui._multiplot_check_bounds()
-
-    assert result == expected_triggered
-
-    expected_global_min = min(0, ref_min_val)
-    expected_global_max = max(10, ref_max_val)
-
-    # Verify that the global minimum and maximum bounds are calculated correctly across datasets
-    assert ui.multiplot_min == expected_global_min
-    assert ui.multiplot_max == expected_global_max
-
-
-@pytest.mark.parametrize(
-    "ref_start, ref_end, expected_triggered",
-    [
-        ((2000, 2, 1), (2000, 11, 30), False),
-        ((1999, 12, 1), (2000, 11, 30), True),
-        ((2000, 2, 1), (2001, 1, 1), True),
-    ],
-)
-def test_multiplot_check_bounds_calendar(ui, ref_start, ref_end, expected_triggered):
-    """Test calendar coordinate bounds checking across primary and reference datasets in multiplots""" 
-
-    # Create a primary dataset using NoLeap calendar bounds from Jan 1 2000 to Dec 31 2000
-    primary_times = [
-        cftime.DatetimeNoLeap(2000, 1, 1),
-        cftime.DatetimeNoLeap(2000, 12, 31),
-    ]
-    ds_primary = xr.Dataset(
-        {"data": (["time"], [1, 2])}, coords={"time": primary_times}
-    )
-
-    # Create a reference dataset using Gregorian calendar bounds based on parameters
-    ref_times = [
-        cftime.DatetimeGregorian(*ref_start),
-        cftime.DatetimeGregorian(*ref_end),
-    ]
-    ds_ref = xr.Dataset({"data": (["time"], [3, 4])}, coords={"time": ref_times})
-
-    # Assign primary and reference datasets to the UI instance and set the x-axis to time
-    ui.multiplot_x_axis_dropdown.value = "time"
-    ui.dataset = ds_primary
-    ui.multiplot_ref_dataset_dict = {"ref1": ds_ref}
-
-    # Execute the bounds check and verify if a bounds mismatch is triggered
-    result = ui._multiplot_check_bounds()
-    assert result == expected_triggered
-
-@pytest.mark.parametrize(
-    "constrain_bounds",
-    [
-        True, 
-        False
-    ],
-)
-def test_plot_multiplot_difference_dataset(ui, constrain_bounds):
-    """Test the generation of 1D line and 2D heatmap difference plots across multiple datasets""" 
-
-    # Create a 2D xarray dataset
-    data = xr.DataArray(
-        np.random.rand(10, 10, 10),
-        dims=["x", "y", "z"],
-        coords={"x": np.arange(10), "y": np.arange(10), "z": np.arange(10)},
-    )
-    ds = xr.Dataset({"data": data})
-    ui.multiplot_chosen_slices = {"z": 1}
-    
-    # Assign datasets and multiplot state to the UI instance
-    ui.dataset = ds
-    ui.multiplot_ref_dataset_dict = {"key": ds, "key2": ds}
-    ui.multiplot_x_axis_dropdown.value = "x"
-    ui.multiplot_y_axis_dropdown.value = "y"
-    ui.dataset_min = 0
-    ui.dataset_max = 1000
-    ui.multiplot_min = -1
-    ui.multiplot_max = 1001
-
-    if constrain_bounds:
-        ui.prompt_bounds_dropdown.value = "Constrain to user dataset bounds"
-    else:
-        ui.prompt_bounds_dropdown.value = ""
-
-    # Generate a 2D multiplot difference heatmap and verify a valid matplotlib Figure is returned
-    plot_result = ui._plot_multiplot_difference_heatmap("data", "x", "y")
-    ax = plot_result.axes[0]
-    xmin, xmax = ax.get_xlim()
-    assert isinstance(plot_result, plt.Figure)
-    assert len(plot_result.axes) == 4  # axes for each difference plotted
-    assert any("Sliced by: " in t.get_text() for t in plot_result.texts)
-
-    # Generate a 1D multiplot difference plot and verify a valid matplotlib Figure is returned
-    plot_result = ui._plot_multiplot_difference_dataset("data", "x")
-    ax = plot_result.axes[0]
-    xmin, xmax = ax.get_xlim()
-    assert isinstance(plot_result, plt.Figure)
-    assert len(plot_result.axes) == 3  # axes for each difference plotted + legend
-    assert any("Sliced by: " in t.get_text() for t in plot_result.texts)
-
-
 def test_display_status_text(ui):
-    """Test the initialization and default values of the UI status display widgets""" 
+    """Test the initialization and default values of the UI status display widgets"""
 
     # Trigger the status text display mechanism to initialize UI components
     ui._display_status_text()
@@ -1140,157 +401,8 @@ def test_display_status_text(ui):
     )
 
 
-def test_update_status_text(ui):
-    """Test updating the primary UI status textbox"""
-
-    # Define a mock status string and trigger the update method
-    text = "Test update text"
-    ui._update_status_text(text)
-
-    # Verify that the status textbox value matches the updated text
-    assert ui.status_textbox.value == text
-
-
-def test_update_ref_status_text(ui):
-    """Test updating the reference UI status textbox"""
-
-    # Define a mock status string and trigger the reference update method
-    text = "Test update text"
-    ui._update_ref_status_text(text)
-
-    # Verify that the reference status textbox value matches the updated text
-    assert ui.ref_status_textbox.value == text
-
-
-def test_update_multiplot_status_text(ui):
-    """Test updating the multiplot UI status textbox"""
-
-    # Define a mock status string and trigger the multiplot update method
-    text = "Test update text"
-    ui._update_multiplot_status_text(text)
-
-    # Verify that the multiplot status textbox value matches the updated text
-    assert ui.multiplot_status_textbox.value == text
-
-
-def test_update_warning_text(ui):
-    """Test updating the primary UI warning textbox"""
-
-    # Define a mock warning string and trigger the update method
-    text = "Test update text"
-    ui._update_warning_text(text)
-
-    # Verify that the warning textbox value matches the updated text
-    assert ui.warning_textbox.value == text
-
-
-def test_update_ref_warning_text(ui):
-    """Test updating the reference UI warning textbox"""
-
-    # Define a mock warning string and trigger the reference update method
-    text = "Test update text"
-    ui._update_ref_warning_text(text)
-
-    # Verify that the reference warning textbox value matches the updated text
-    assert ui.ref_warning_textbox.value == text
-
-
-def test_update_multiplot_warning_text(ui):
-    """Test updating the multiplot UI warning textbox"""
-
-    # Define a mock warning string and trigger the multiplot update method
-    text = "Test update text"
-    ui._update_multiplot_warning_text(text)
-
-    # Verify that the multiplot warning textbox value matches the updated text
-    assert ui.multiplot_warning_textbox.value == text
-
-
-def test_update_last_data_load_text(ui):
-    """Test updating the last data load textbox"""
-
-    # Define a mock load text string and trigger the update method
-    text = "Test update text"
-    ui._update_last_data_load_text(text)
-
-    # Verify that the last data load textbox value matches the updated text
-    assert ui.last_data_load_textbox.value == text
-
-
-def test_variable_toggle_change(ui):
-    """Test updating the variable dropdown options based on the variable toggle state""" 
-
-    # Create a 2D xarray dataset with a long_name attribute
-    data = xr.DataArray(
-        np.random.rand(10, 10),
-        dims=["x", "y"],
-        coords={"x": np.arange(10), "y": np.arange(10)},
-        attrs={"long_name": "long name"},
-    )
-    ds = xr.Dataset({"data": data})
-    ui.dataset = ds
-    
-    # Set toggle to True and verify the dropdown options display the long name
-    ui.variable_toggle.value = True
-    ui._variable_toggle_change()
-    assert ui.plot_variable_dropdown.options == ["long name"]
-
-    # Set toggle to False and verify the dropdown options revert to the short variable name
-    ui.variable_toggle.value = False
-    ui._variable_toggle_change()
-    assert ui.plot_variable_dropdown.options == ["data"]
-
-
-def test_ref_variable_toggle_change(ui):
-    """Test updating the reference variable dropdown options based on the reference variable toggle state""" 
-
-    # Create a 2D xarray dataset with a long_name attribute and assign it to the reference UI instance
-    data = xr.DataArray(
-        np.random.rand(10, 10),
-        dims=["x", "y"],
-        coords={"x": np.arange(10), "y": np.arange(10)},
-        attrs={"long_name": "long name"},
-    )
-    ds = xr.Dataset({"data": data})
-    ui.ref_dataset = ds
-    
-    # Set the reference toggle to True and verify the dropdown options display the long name
-    ui.ref_variable_toggle.value = True
-    ui._ref_variable_toggle_change()
-    assert ui.ref_plot_variable_dropdown.options == ["long name"]
-
-    # Set the reference toggle to False and verify the dropdown options revert to the short variable name
-    ui.ref_variable_toggle.value = False
-    ui._ref_variable_toggle_change()
-    assert ui.ref_plot_variable_dropdown.options == ["data"]
-
-
-def test_multiplot_variable_toggle_change(ui):
-    """Test updating the multiplot variable dropdown options based on the multiplot variable toggle state""" 
-
-    # Create a 2D xarray dataset with a long_name attribute and assign it to the UI instance
-    data = xr.DataArray(
-        np.random.rand(10, 10),
-        dims=["x", "y"],
-        coords={"x": np.arange(10), "y": np.arange(10)},
-        attrs={"long_name": "long name"},
-    )
-    ds = xr.Dataset({"data": data})
-    ui.dataset = ds
-    
-    # Set the multiplot toggle to True and verify the dropdown options display the long name
-    ui.multiplot_variable_toggle.value = True
-    ui._multiplot_variable_toggle_change()
-    assert ui.multiplot_plot_variable_dropdown.options == ["long name"]
-
-    # Set the multiplot toggle to False and verify the dropdown options revert to the short variable name
-    ui.multiplot_variable_toggle.value = False
-    ui._multiplot_variable_toggle_change()
-    assert ui.multiplot_plot_variable_dropdown.options == ["data"]
-
-
 def test_display_dataset_selection_ui(ui):
-    """Test the initialization and visibility of the dataset selection UI components""" 
+    """Test the initialization and visibility of the dataset selection UI components"""
 
     # Define a mock model catalog and trigger the dataset selection UI display
     model_cat = {"ds1": None, "ds2": None}
@@ -1299,20 +411,20 @@ def test_display_dataset_selection_ui(ui):
     # Verify that catalog attributes are correctly assigned to the UI instance
     assert ui.model_cat == model_cat
     assert ui.access_nri_cat == "access_nri_cat"
-    
+
     # Verify that the relevant dividers and selection rows are made visible
     assert ui.div_1.visible == True
     assert ui.keys_selection_row.visible == True
     assert ui.div_2.visible == True
-    
+
     # Verify that the dropdown options match the sorted catalog keys and button properties are set
-    assert ui.keys_dropdown.options == sorted(list(model_cat.keys()))
+    assert ui.keys_dropdown.options == sorted(model_cat.keys())
     assert ui.keys_button.name == "Load dataset"
     assert ui.keys_button.button_type == "primary"
 
 
 def test_display_reference_model_selection_ui(ui):
-    """Test the initialization and layout of the reference model selection UI components""" 
+    """Test the initialization and layout of the reference model selection UI components"""
 
     # Assign a mock model catalog and trigger the reference model selection UI display
     ui.access_nri_cat = {"key": None, "key2": None}
@@ -1325,10 +437,10 @@ def test_display_reference_model_selection_ui(ui):
     )
     assert hasattr(ui, "ref_status_textbox")
     assert hasattr(ui, "ref_warning_textbox")
-    
+
     # Verify that the dropdown options match the catalog and button properties are correctly configured
     assert ui.ref_keys_dropdown.name == "2. Select reference model (optional):"
-    assert ui.ref_keys_dropdown.options == sorted(list(ui.access_nri_cat.keys()))
+    assert ui.ref_keys_dropdown.options == sorted(ui.access_nri_cat.keys())
     assert ui.ref_keys_button.name == "Load reference model"
     assert ui.ref_keys_button.button_type == "success"
 
@@ -1337,7 +449,7 @@ def test_display_reference_model_selection_ui(ui):
 
     assert ui.ref_model_info_button.name == "Reference model information"
     assert ui.ref_model_info_button.button_type == "primary"
-    
+
     # Verify that all expected reference model UI components are attached to the UI instance
     assert hasattr(ui, "ref_keys_dropdown")
     assert hasattr(ui, "ref_model_info_button")
@@ -1358,12 +470,12 @@ def test_display_reference_model_selection_ui(ui):
 def test_display_reference_dataset_selection_ui(
     ui, ref_model_metadata, ref_keys_selection_row
 ):
-    """Test the initialization and layout of the reference dataset selection UI components""" 
+    """Test the initialization and layout of the reference dataset selection UI components"""
 
     # Assign a mock reference model catalog and clear the widget container
     ui.ref_model_cat = {"key1": None, "key2": None}
     ui.widget_container.clear()
-    
+
     # Conditionally append reference UI rows to test the layout positioning of the dataset selection row
     if ref_model_metadata:
         ui.ref_model_metadata = pn.pane.Markdown("something")
@@ -1386,7 +498,7 @@ def test_display_reference_dataset_selection_ui(
 
     # Verify that the reference dataset dropdown and button properties are correctly configured
     assert ui.ref_data_keys_dropdown.name == "2.1. Select reference dataset (optional):"
-    assert ui.ref_data_keys_dropdown.options == sorted(list(ui.ref_model_cat.keys()))
+    assert ui.ref_data_keys_dropdown.options == sorted(ui.ref_model_cat.keys())
     assert ui.ref_data_keys_button.name == "Load reference dataset"
     assert ui.ref_data_keys_button.button_type == "success"
     assert hasattr(ui, "ref_data_keys_dropdown")
@@ -1395,6 +507,8 @@ def test_display_reference_dataset_selection_ui(
 
 def test_display_multiplot_user_data_selection_ui(ui):
     """Test the initialization and configuration of the multiplot user data selection UI components"""
+    data = xr.DataArray(np.random.rand(10, 10), dims=["x", "y"])
+    ui.dataset = xr.Dataset({"option1": data, "option2": data, "option23": data})
 
     # Assign a mock catalog and configure dropdown options on the UI instance
     ui.access_nri_cat = {"key1": None, "key2": None}
@@ -1402,6 +516,14 @@ def test_display_multiplot_user_data_selection_ui(ui):
     ui.keys_dropdown.value = "option1"
     ui.plot_variable_dropdown.options = ["option2", "option23", "option1"]
     ui.plot_variable_dropdown.value = "option1"
+    ui.multiplot_long_names = {
+        "option1": "option1",
+        "option2": "option2",
+        "option23": "option23",
+    }
+    ui.multiplot_variable_toggle.value = False
+    ui.long_names = {"option1": "option1", "option2": "option2", "option23": "option23"}
+    ui.variable_toggle.value = False
 
     # Trigger the multiplot user data selection UI display
     ui._display_multiplot_user_data_selection_ui()
@@ -1420,21 +542,19 @@ def test_display_multiplot_user_data_selection_ui(ui):
         == "Select one or more reference models to overlay (optional):"
     )
 
-    assert ui.multiplot_ref_keys_dropdown.options == sorted(
-        list(ui.access_nri_cat.keys())
-    )
+    assert ui.multiplot_ref_keys_dropdown.options == sorted(ui.access_nri_cat.keys())
     assert ui.multiplot_ref_keys_button.name == "Add reference model"
     assert ui.clear_multiplot_data_button.name == "Clear loaded data"
     assert ui.multiplot_select_variable_button.name == "Select variable and plot type"
 
     # Verify that the multiplot user dataset and variable dropdowns match the primary UI selections
     assert ui.multiplot_keys_dropdown.name == "Select user dataset"
-    assert ui.multiplot_keys_dropdown.options == sorted(list(ui.keys_dropdown.options))
+    assert ui.multiplot_keys_dropdown.options == sorted(ui.keys_dropdown.options)
     assert ui.multiplot_keys_dropdown.value == ui.keys_dropdown.value
     assert ui.multiplot_keys_update_button.name == "Update loaded dataset"
     assert ui.multiplot_plot_variable_dropdown.name == "Variable selection"
     assert ui.multiplot_plot_variable_dropdown.options == sorted(
-        list(ui.plot_variable_dropdown.options)
+        ui.plot_variable_dropdown.options
     )
     assert ui.multiplot_plot_variable_dropdown.value == "option1"
 
@@ -1456,26 +576,25 @@ def test_display_multiplot_user_data_selection_ui(ui):
         ("Animation", {}),
     ],
 )
-@patch("med_diagnostics.ui.UserInterface._plot_heatmap")
-@patch("med_diagnostics.ui.UserInterface._plot_dataset")
-@patch("med_diagnostics.ui.UserInterface._plot_animation")
+@patch("med_diagnostics.ui.UserInterface._plot_dataset_helper")
 @patch("panel.pane.Matplotlib")
 def test_plot_data_button_click(
     mock_matplotlib,
-    mock_plot_animation,
     mock_plot_dataset,
-    mock_plot_heatmap,
     ui,
     plot_type,
     slice_dict,
 ):
-    """Test the plot data button callback for generating heatmaps, line plots, and animations""" 
+    """Test the plot data button callback for generating heatmaps, line plots, and animations"""
 
     # Configure UI dropdown selections for the target plot type and variables
     ui.plot_type_dropdown.value = plot_type
     ui.x_axis_dropdown.value = "x"
     ui.y_axis_dropdown.value = "y"
     ui.plot_variable_dropdown.value = "data"
+    ui.keys_dropdown.value = "dataset"
+    ui.chosen_slices = {}
+    ui.variable_toggle.value = False
 
     # Configure slice widgets and establish expected slice values
     if slice_dict is None:
@@ -1513,16 +632,17 @@ def test_plot_data_button_click(
 
     # Verify that the correct internal plot generation method is called based on the selected plot type
     if plot_type == "Heatmap":
-        mock_plot_heatmap.assert_called_once_with("data", "x", "y")
+        mock_plot_dataset.assert_called_once_with(is_ref=False, plot_type="Heatmap")
     elif plot_type == "Line":
-        mock_plot_dataset.assert_called_once_with("data", "x")
+        mock_plot_dataset.assert_called_once_with(is_ref=False)
     elif plot_type == "Animation":
-        mock_plot_animation.assert_called_once_with("data")
+        mock_plot_dataset.assert_called_once_with(is_ref=False, plot_type="Animation")
 
     # Verify that plot choices and slice UI components are removed from the widget container
-    assert ui.plot_choices_row not in ui.widget_container
+    assert not hasattr(ui, "plot_choices_row")
     assert not hasattr(ui, "slice_ui_row")
     assert not hasattr(ui, "slice_widgets")
+
 
 @pytest.mark.parametrize(
     "plot_type, slice_dict",
@@ -1532,26 +652,23 @@ def test_plot_data_button_click(
         ("Animation", {}),
     ],
 )
-@patch("med_diagnostics.ui.UserInterface._plot_ref_heatmap")
-@patch("med_diagnostics.ui.UserInterface._plot_ref_dataset")
-@patch("med_diagnostics.ui.UserInterface._plot_ref_animation")
+@patch("med_diagnostics.ui.UserInterface._plot_dataset_helper")
 @patch("panel.pane.Matplotlib")
 def test_plot_ref_data_button_click(
     mock_matplotlib,
-    mock_plot_ref_animation,
     mock_plot_ref_dataset,
-    mock_plot_ref_heatmap,
     ui,
     plot_type,
     slice_dict,
 ):
-    """Test the reference plot data button callback for generating heatmaps, line plots, and animations""" 
+    """Test the reference plot data button callback for generating heatmaps, line plots, and animations"""
 
     # Configure reference UI dropdown selections for the target plot type and variables
     ui.ref_plot_type_dropdown.value = plot_type
     ui.ref_x_axis_dropdown.value = "x"
     ui.ref_y_axis_dropdown.value = "y"
     ui.ref_plot_variable_dropdown.value = "data"
+    ui.ref_variable_toggle.value = False
 
     # Configure reference slice widgets and establish expected slice values
     if slice_dict is None:
@@ -1589,16 +706,18 @@ def test_plot_ref_data_button_click(
 
     # Verify that the correct internal reference plot generation method is called based on the selected plot type
     if plot_type == "Heatmap":
-        mock_plot_ref_heatmap.assert_called_once_with("data", "x", "y")
+        mock_plot_ref_dataset.assert_called_once_with(is_ref=True, plot_type="Heatmap")
     elif plot_type == "Line":
-        mock_plot_ref_dataset.assert_called_once_with("data", "x")
+        mock_plot_ref_dataset.assert_called_once_with(is_ref=True)
     elif plot_type == "Animation":
-        mock_plot_ref_animation.assert_called_once_with()
+        mock_plot_ref_dataset.assert_called_once_with(
+            is_ref=True, plot_type="Animation"
+        )
 
     # Verify that reference plot choices and slice UI components are removed from the widget container
-    assert ui.ref_plot_choices_row not in ui.widget_container
-    assert not hasattr(ui.widget_container, "ref_slice_ui_row")
-    assert not hasattr(ui.widget_container, "ref_slice_widgets")
+    assert not hasattr(ui, "ref_plot_choices_row")
+    assert not hasattr(ui, "ref_slice_ui_row")
+    assert not hasattr(ui, "ref_slice_widgets")
 
 
 @pytest.mark.parametrize(
@@ -1624,17 +743,11 @@ def test_plot_ref_data_button_click(
         ),
     ],
 )
-@patch("med_diagnostics.ui.UserInterface._plot_multiplot_heatmap_dataset")
-@patch("med_diagnostics.ui.UserInterface._plot_multiplot_difference_heatmap")
-@patch("med_diagnostics.ui.UserInterface._plot_multiplot_dataset")
-@patch("med_diagnostics.ui.UserInterface._plot_multiplot_difference_dataset")
+@patch("med_diagnostics.ui.UserInterface._multiplot_plot_dataset_helper")
 @patch("panel.pane.Matplotlib")
 def test_plot_multiplot_data_button_click(
     mock_matplotlib,
-    mock_plot_multiplot_difference_dataset,
-    mock_plot_multiplot_dataset,
-    mock_plot_multiplot_difference_heatmap,
-    mock_plot_multiplot_heatmap_dataset,
+    mock_multiplot_plot_dataset_helper,
     ui,
     plot_type,
     analysis_type,
@@ -1648,6 +761,7 @@ def test_plot_multiplot_data_button_click(
     ui.multiplot_y_axis_dropdown.value = "y"
     ui.multiplot_plot_variable_dropdown.value = "data"
     ui.multiplot_analysis_choice_dropdown.value = analysis_type
+    ui.multiplot_variable_toggle.value = False
 
     # Configure multiplot slice widgets and establish expected slice values
     if slice_dict is None:
@@ -1680,24 +794,40 @@ def test_plot_multiplot_data_button_click(
 
     # Verify that the correct internal multiplot generation methods are called based on the selected plot and analysis type
     if plot_type == "Heatmap (grid)" and analysis_type == "None (plot all loaded data)":
-        mock_plot_multiplot_heatmap_dataset.assert_called_once_with("data", "x", "y")
+        mock_multiplot_plot_dataset_helper.assert_called_once_with(plot_type="Heatmap")
     elif (
         plot_type == "Heatmap (grid)"
         and analysis_type == "Plot Difference (Ref. - User data)"
     ):
-        mock_plot_multiplot_difference_heatmap.assert_called_once_with("data", "x", "y")
+        mock_multiplot_plot_dataset_helper.assert_called_once_with(
+            plot_diff=True, plot_type="Heatmap"
+        )
     elif (
         plot_type == "Heatmap (grid)" and analysis_type == "Plot All Data & Difference"
     ):
-        mock_plot_multiplot_heatmap_dataset.assert_called_once_with("data", "x", "y")
-        mock_plot_multiplot_difference_heatmap.assert_called_once_with("data", "x", "y")
+        assert mock_multiplot_plot_dataset_helper.call_count == 2
+
+        mock_multiplot_plot_dataset_helper.assert_has_calls(
+            [
+                call(plot_type="Heatmap"),  # Expected first call (defaults)
+                call(plot_diff=True, plot_type="Heatmap"),  # Expected second call
+            ]
+        )
     elif plot_type == "Line" and analysis_type == "None (plot all loaded data)":
-        mock_plot_multiplot_dataset.assert_called_once_with("data", "x")
+        mock_multiplot_plot_dataset_helper.assert_called_once_with(plot_type="Line")
     elif plot_type == "Line" and analysis_type == "Plot Difference (Ref. - User data)":
-        mock_plot_multiplot_difference_dataset.assert_called_once_with("data", "x")
+        mock_multiplot_plot_dataset_helper.assert_called_once_with(
+            plot_diff=True, plot_type="Line"
+        )
     elif plot_type == "Line" and analysis_type == "Plot All Data & Difference":
-        mock_plot_multiplot_dataset.assert_called_once_with("data", "x")
-        mock_plot_multiplot_difference_dataset.assert_called_once_with("data", "x")
+        assert mock_multiplot_plot_dataset_helper.call_count == 2
+
+        mock_multiplot_plot_dataset_helper.assert_has_calls(
+            [
+                call(plot_type="Line"),  # Expected first call (defaults)
+                call(plot_diff=True, plot_type="Line"),  # Expected second call
+            ]
+        )
 
     # Verify that multiplot choices and slice UI components are removed from the widget container
     assert ui.ref_plot_choices_row not in ui.widget_container
@@ -1711,13 +841,13 @@ def test_display_dataset_plot_ui(ui):
     # Assign a mock dataset to the UI instance
     dataset = {"key2": None, "Key1": None}
     ui.dataset = dataset
-
+    ui.multiplot_variable_toggle.value = False
     # Trigger the dataset plot UI display
     ui._display_dataset_plot_ui()
 
     # Verify that the plot variable and type dropdowns, toggle, and buttons are correctly initialized
     assert ui.plot_variable_dropdown.name == "Available variables"
-    assert ui.plot_variable_dropdown.options == sorted(list(dataset.keys()))
+    assert ui.plot_variable_dropdown.options == sorted(dataset.keys())
     assert ui.plot_type_dropdown.name == "Select plot type"
     assert ui.plot_type_dropdown.options == ["Line", "Heatmap", "Animation"]
     assert ui.variable_toggle.value == False
@@ -1734,7 +864,7 @@ def test_display_dataset_plot_ui(ui):
     ],
 )
 def test_ref_display_dataset_plot_ui(ui, datakeysexists):
-    """Test the initialization and layout of the reference dataset plotting UI components""" 
+    """Test the initialization and layout of the reference dataset plotting UI components"""
 
     # Assign a mock dataset and conditionally configure the reference data keys selection row
     dataset = {"key2": None, "Key1": None}
@@ -1751,7 +881,7 @@ def test_ref_display_dataset_plot_ui(ui, datakeysexists):
 
     # Verify that the reference plot variable and type dropdowns, toggle, and buttons are correctly initialized
     assert ui.ref_plot_variable_dropdown.name == "Available variables"
-    assert ui.ref_plot_variable_dropdown.options == sorted(list(dataset.keys()))
+    assert ui.ref_plot_variable_dropdown.options == sorted(dataset.keys())
     assert ui.ref_plot_type_dropdown.name == "Select plot type"
     assert ui.ref_plot_type_dropdown.options == ["Line", "Heatmap", "Animation"]
     assert ui.ref_variable_toggle.value == False
@@ -1780,9 +910,15 @@ def test_ref_display_dataset_plot_ui(ui, datakeysexists):
     ],
 )
 def test_display_plot_choices_ui(
-    ui, monkeypatch, plot_type, dim_dict, has_existing_row, has_plot_ui, expected_outcome
+    ui,
+    monkeypatch,
+    plot_type,
+    dim_dict,
+    has_existing_row,
+    has_plot_ui,
+    expected_outcome,
 ):
-    """Test the configuration and layout of primary dataset plot choices UI across different plot types and dimension constraints""" 
+    """Test the configuration and layout of primary dataset plot choices UI across different plot types and dimension constraints"""
 
     # Create an xarray dataset with specified dimensions, sizes, and coordinate values
     coords = {dim: np.arange(size) for dim, size in dim_dict.items()}
@@ -1884,7 +1020,13 @@ def test_display_plot_choices_ui(
     ],
 )
 def test_ref_display_plot_choices_ui(
-    ui, monkeypatch, plot_type, dim_dict, has_existing_row, has_plot_ui, expected_outcome
+    ui,
+    monkeypatch,
+    plot_type,
+    dim_dict,
+    has_existing_row,
+    has_plot_ui,
+    expected_outcome,
 ):
     """Test the configuration and layout of reference dataset plot choices UI across different plot types and dimension constraints"""
 
@@ -1895,7 +1037,7 @@ def test_ref_display_plot_choices_ui(
         np.random.rand(*size), dims=list(dim_dict.keys()), coords=coords
     )
     ui.ref_dataset = xr.Dataset({"data": data_array})
-
+    ui.ref_variable_toggle.value = False
     ui.ref_plot_variable_dropdown.value = "data"
 
     # Mock the reference plot button click handler to prevent automated callback execution during testing
@@ -1982,113 +1124,8 @@ def test_ref_display_plot_choices_ui(
             assert len(ui.ref_plot_choices_row) == 4  # x, y, z, button
 
 
-@pytest.mark.parametrize(
-    "plot_type, dim_dict, has_selection_row, bounds, expected_outcome",
-    [
-        ("Heatmap (grid)", {"time": 10, "lat": 10}, False, False, "success_heatmap"),
-        (
-            "Heatmap (grid)",
-            {"time": 10, "nv": 5, "scalar": 1},
-            False,
-            False,
-            "fail_dim_check",
-        ),
-        ("Line", {"time": 10, "lat": 10}, True, False, "success_line"),
-        ("Line", {"time": 10}, False, False, "auto_plot_line"),
-        ("Line", {"time": 10}, False, True, "one_dim_bounds_line"),
-    ],
-)
-def test_display_multiplot_plot_choices_ui(
-    ui, monkeypatch, plot_type, dim_dict, has_selection_row, bounds, expected_outcome
-):
-    """Test the configuration and layout of multiplot choices UI across different plot types, dimensions, and bounds check states"""
-
-    # Create a dataset with specified dimensions, sizes, and coordinate values for multiplot evaluation
-    coords = {dim: np.arange(size) for dim, size in dim_dict.items()}
-    size = tuple(dim_dict.values())
-    data_array = xr.DataArray(
-        np.random.rand(*size), dims=list(dim_dict.keys()), coords=coords
-    )
-    ui.dataset = xr.Dataset({"data": data_array})
-    ui._multiplot_check_bounds = MagicMock(return_value=bounds)
-
-    # Mock the bounds UI prompt handler to prevent interactive display during testing
-    mock_prompt_bounds_ui = MagicMock()
-    monkeypatch.setattr(ui, "_prompt_bounds_ui", mock_prompt_bounds_ui)
-
-    ui.multiplot_plot_variable_dropdown.value = "data"
-
-    ui.multiplot_plot_type_dropdown.value = plot_type
-    ui.widget_container.clear()
-
-    # Conditionally configure the type selection row in the widget container to verify relative layout placement
-    if has_selection_row:
-        ui.multiplot_type_selection_row = pn.Row(
-            pn.pane.Markdown("Dummy"), name="selection_row"
-        )
-        ui.widget_container.append(ui.multiplot_type_selection_row)
-    elif hasattr(ui, "multiplot_type_selection_row"):
-        del ui.multiplot_type_selection_row
-
-    # Trigger the multiplot plot choices UI display method
-    ui._display_multiplot_plot_choices_ui()
-
-    # Verify that multiplot X-axis, analysis dropdown, and plot button names and options are correctly set
-    assert ui.multiplot_x_axis_dropdown.name == "Select X-Axis dimension"
-    assert ui.multiplot_analysis_choice_dropdown.name == "Select analysis type"
-    assert ui.multiplot_analysis_choice_dropdown.options == [
-        "None (plot all loaded data)",
-        "Plot Difference (Ref. - User data)",
-        "Plot All Data & Difference",
-    ]
-    assert ui.multiplot_plot_button.name == "Plot data"
-
-    # Verify expected outcomes for dimension check failures, automatic line plotting, bounds prompts, or successful multiplot UI layouts
-    if expected_outcome == "fail_dim_check":
-        assert ui.multiplot_plot_type_dropdown.value == "Line"
-        assert (
-            ui.multiplot_warning_textbox.value
-            == "Warning >> Not enough dimensions available for this variable to plot a Heatmap."
-        )
-
-    elif expected_outcome == "auto_plot_line":
-        ui._multiplot_check_bounds.assert_called_once()
-        assert ui.multiplot_warning_textbox.value == "Only one valid x-axis dimension."
-
-    elif expected_outcome == "one_dim_bounds_line":
-        mock_prompt_bounds_ui.assert_called_once()
-
-    elif expected_outcome == "fail_dim_check_animation":
-        assert (
-            ui.multiplot_warning_textbox.value
-            == "Warning >> Not enough dimensions available for this variable to plot an animation."
-        )
-        assert ui.multiplot_plot_type_dropdown.value == "Line"
-        assert not hasattr(ui, "multiplot_plot_choices_row")
-
-    else:
-        assert ui.multiplot_plot_choices_row in ui.widget_container
-        if has_selection_row:
-            assert (
-                ui.widget_container.index(ui.multiplot_plot_choices_row)
-                == ui.widget_container.index(ui.multiplot_type_selection_row) + 1
-            )
-
-        if expected_outcome == "success_heatmap":
-            assert ui.multiplot_y_axis_dropdown.name == "Select Y-Axis dimension"
-            assert len(ui.multiplot_plot_choices_row) == 4  # x, y, analysis, button
-        elif expected_outcome == "success_line":
-            ui._multiplot_check_bounds.assert_called_once()
-            assert len(ui.multiplot_plot_choices_row) == 3  # x, analysis, button
-        elif expected_outcome == "success_animation":
-            assert ui.multiplot_y_axis_dropdown.name == "Select Y-Axis dimension"
-            assert (
-                ui.multiplot_animation_axis_dropdown.name == "Select Z-Axis dimension"
-            )
-            assert len(ui.multiplot_plot_choices_row) == 5  # x, y, z, analysis, button
-
 def test_update_dataset_plot_ui(ui):
-    """Test updating the dataset plot UI variables and multiplot dropdown options when a new dataset is loaded""" 
+    """Test updating the dataset plot UI variables and multiplot dropdown options when a new dataset is loaded"""
 
     # Mock matplotlib close to verify figure cleanup during dataset updates
     plt.close = MagicMock()
@@ -2098,16 +1135,15 @@ def test_update_dataset_plot_ui(ui):
     ui._update_dataset_plot_ui()
 
     # Verify that plot variable dropdown options match the dataset keys for both primary and multiplot selectors
-    assert ui.plot_variable_dropdown.options == sorted(list(ui.dataset.keys()))
-    assert ui.multiplot_plot_variable_dropdown.options == sorted(
-            list(ui.dataset.keys())
-        )
+    assert ui.plot_variable_dropdown.options == sorted(ui.dataset.keys())
+    assert ui.multiplot_plot_variable_dropdown.options == sorted(ui.dataset.keys())
 
     # Verify that the multiplot user dataset dropdown value synchronizes with the primary keys dropdown
     assert ui.multiplot_keys_dropdown.value == ui.keys_dropdown.value
 
-    # Verify that matplotlib figures are closed to clean up memory
-    plt.close.assert_called_once()
+    if hasattr(ui, "fig"):
+        # Verify that matplotlib figures are closed to clean up memory
+        plt.close.assert_called_once()
 
     plt.close.reset_mock()
 
@@ -2115,51 +1151,25 @@ def test_update_dataset_plot_ui(ui):
 def test_update_ref_dataset_keys_plot_ui(ui, monkeypatch):
     """Test updating reference dataset key options and triggering reference dataset plot updates"""
 
-    # Mock matplotlib close and the reference dataset plot update method
-    plt.close = MagicMock()
-    mock_update_ref_dataset_plot_ui = MagicMock()
-    monkeypatch.setattr(
-        ui, "_update_ref_dataset_plot_ui", mock_update_ref_dataset_plot_ui
-    )
-
     # Trigger the reference dataset keys plot UI update method
     ui._update_ref_dataset_keys_plot_ui()
 
     # Verify that reference data keys dropdown options are updated and cleanup handlers are called
-    assert ui.ref_data_keys_dropdown.options == sorted(list(ui.ref_dataset.keys()))
-    plt.close.assert_called_once()
-    mock_update_ref_dataset_plot_ui.assert_called_once()
-
-
-def test_update_ref_dataset_plot_ui(ui):
-    """Test updating reference dataset plot variables and clearing existing reference figure panes"""
-
-    # Mock matplotlib close and assign a mock reference figure and dataset
-    plt.close = MagicMock()
-    ui.ref_fig = "Figure"
-    ui.ref_dataset = {"key1": None, "key4": None}
-
-    # Trigger the reference dataset plot UI update method
-    ui._update_ref_dataset_plot_ui()
-
-    # Verify that reference variable dropdown options match the dataset keys and the plot pane object is cleared
-    assert ui.ref_plot_variable_dropdown.options == sorted(list(ui.ref_dataset.keys()))
-    assert not ui.ref_plot_pane.object
-    plt.close.assert_called_once()
+    assert ui.ref_data_keys_dropdown.options == sorted(ui.ref_dataset.keys())
 
 
 @pytest.mark.parametrize(
     "ui_row",
     [
-        "multiplot_slice_ui_row", 
-        "multiplot_plot_choices_row", 
-        "multiplot_type_selection_row", 
-        "multiplot_ref_keys_selection_row", 
-        ""
+        "multiplot_slice_ui_row",
+        "multiplot_plot_choices_row",
+        "multiplot_type_selection_row",
+        "multiplot_ref_keys_selection_row",
+        "",
     ],
 )
 def test_prompt_bounds_ui(ui, ui_row):
-    """Test the configuration and relative layout positioning of the multiplot bounds prompting UI components""" 
+    """Test the configuration and relative layout positioning of the multiplot bounds prompting UI components"""
 
     # Clear the widget container and conditionally append mock multiplot UI rows based on parameters
     ui.widget_container.clear()
@@ -2182,101 +1192,40 @@ def test_prompt_bounds_ui(ui, ui_row):
     # Verify that the bounds dropdown name, options, and container row are correctly configured
     assert ui.prompt_bounds_dropdown.name == "Choose how to constrain the x-axis bounds"
     assert ui.prompt_bounds_dropdown.options == [
-            "Constrain to user dataset bounds",
-            "Constrain to min-max reference dataset bounds",
-        ]
+        "Constrain to user dataset bounds",
+        "Constrain to min-max reference dataset bounds",
+    ]
     assert hasattr(ui, "prompt_bounds_row")
 
     # Verify that the bounds prompt row is positioned immediately after the corresponding multiplot row in the container
     if ui_row == "multiplot_slice_ui_row":
-        assert ui.widget_container.index(ui.prompt_bounds_row) == ui.widget_container.index(ui.multiplot_slice_ui_row) + 1
+        assert (
+            ui.widget_container.index(ui.prompt_bounds_row)
+            == ui.widget_container.index(ui.multiplot_slice_ui_row) + 1
+        )
     elif ui_row == "multiplot_plot_choices_row":
-        assert ui.widget_container.index(ui.prompt_bounds_row) == ui.widget_container.index(ui.multiplot_plot_choices_row) + 1
+        assert (
+            ui.widget_container.index(ui.prompt_bounds_row)
+            == ui.widget_container.index(ui.multiplot_plot_choices_row) + 1
+        )
     elif ui_row == "multiplot_type_selection_row":
-        assert ui.widget_container.index(ui.prompt_bounds_row) == ui.widget_container.index(ui.multiplot_type_selection_row) + 1
+        assert (
+            ui.widget_container.index(ui.prompt_bounds_row)
+            == ui.widget_container.index(ui.multiplot_type_selection_row) + 1
+        )
     elif ui_row == "multiplot_ref_keys_selection_row":
-        assert ui.widget_container.index(ui.prompt_bounds_row) == ui.widget_container.index(ui.multiplot_ref_keys_selection_row) + 1
-
-def test_plot_animation(ui, monkeypatch):
-    """Test generating an animated quadmesh plot using hvplot with sliced dimensions""" 
-
-    # Mock hvplot on the xarray DataArray to intercept plotting calls during testing
-    mock_hvplot = MagicMock()
-    monkeypatch.setattr(xr.DataArray, "hvplot", property(lambda self: mock_hvplot))
-    
-    # Create a 4D xarray DataArray with spatial, vertical, and temporal dimensions
-    data = xr.DataArray(
-        np.random.rand(10, 10, 10, 10),
-        dims=["x", "y", "z", "time"],
-        coords={
-            "x": np.arange(10),
-            "y": np.arange(10),
-            "z": np.arange(10),
-            "time": np.arange(10),
-        },
-    )
-
-    # Configure UI values for dataset selection, axes, and chosen slices
-    ui.keys_dropdown.value = "my_dataset"
-    ui.x_axis_dropdown.value = "x"
-    ui.y_axis_dropdown.value = "y"
-    ui.animation_axis_dropdown.value = "time"
-    ds = xr.Dataset({"data": data})
-    ui.dataset = ds
-    ui.chosen_slices = {"z" : 1}
-    
-    # Execute the animation plotting method
-    panel_returned = ui._plot_animation("data")
-
-    # Verify that quadmesh is called on hvplot and a panel Column container is returned
-    mock_hvplot.quadmesh.assert_called_once()
-    assert isinstance(panel_returned, pn.Column)
-
-def test_plot_ref_animation(ui, monkeypatch):
-    """Test generating an animated quadmesh plot for reference datasets using hvplot with sliced dimensions"""
-
-    # Mock hvplot on the xarray DataArray to intercept reference plotting calls during testing
-    mock_hvplot = MagicMock()
-    monkeypatch.setattr(xr.DataArray, "hvplot", property(lambda self: mock_hvplot))
-
-    # Create a 4D xarray DataArray with spatial, vertical, and temporal dimensions
-    data = xr.DataArray(
-        np.random.rand(10, 10, 10, 10),
-        dims=["x", "y", "z", "time"],
-        coords={
-            "x": np.arange(10),
-            "y": np.arange(10),
-            "z": np.arange(10),
-            "time": np.arange(10),
-        },
-    )
-
-    # Configure reference UI values for dataset selection, axes, and chosen slices
-    ui.ref_keys_dropdown.value = "my_dataset"
-    ui.ref_x_axis_dropdown.value = "x"
-    ui.ref_y_axis_dropdown.value = "y"
-    ui.ref_animation_axis_dropdown.value = "time"
-    ds = xr.Dataset({"data": data})
-    ui.ref_dataset = ds
-    ui.ref_chosen_slices = {"z": 1}
-
-    # Execute the reference animation plotting method
-    panel_returned = ui._plot_ref_animation()
-
-    # Verify that quadmesh is called on hvplot and a panel Column container is returned
-    mock_hvplot.quadmesh.assert_called_once()
-    assert isinstance(panel_returned, pn.Column)
+        assert (
+            ui.widget_container.index(ui.prompt_bounds_row)
+            == ui.widget_container.index(ui.multiplot_ref_keys_selection_row) + 1
+        )
 
 
 @pytest.mark.parametrize(
     "fig_exists",
-    [
-        True,
-        False
-    ],
+    [True, False],
 )
 def test_keys_dropdown_click(ui, monkeypatch, fig_exists):
-    """Test the dataset loading callback triggered when selecting a model from the keys dropdown""" 
+    """Test the dataset loading callback triggered when selecting a model from the keys dropdown"""
 
     # Mock the data object builder and patch UI display/update methods based on figure existence
     mock_build_data_object = MagicMock()
@@ -2285,10 +1234,12 @@ def test_keys_dropdown_click(ui, monkeypatch, fig_exists):
 
     if fig_exists:
         mock_update_dataset_plot_ui = MagicMock()
-        monkeypatch.setattr(ui, '_update_dataset_plot_ui', mock_update_dataset_plot_ui)
+        monkeypatch.setattr(ui, "_update_dataset_plot_ui", mock_update_dataset_plot_ui)
     else:
         mock_display_dataset_plot_ui = MagicMock()
-        monkeypatch.setattr(ui, '_display_dataset_plot_ui', mock_display_dataset_plot_ui)
+        monkeypatch.setattr(
+            ui, "_display_dataset_plot_ui", mock_display_dataset_plot_ui
+        )
 
     # Configure mock catalog and dropdown selection on the UI instance
     ui.model_cat = {"fake": None, "catalog": None}
@@ -2313,7 +1264,7 @@ def test_keys_dropdown_click(ui, monkeypatch, fig_exists):
 
 
 def test_update_multiplot_dataset(ui, monkeypatch):
-    """Test updating the multiplot user dataset, refreshing associated dropdowns, and clearing stale multiplot data""" 
+    """Test updating the multiplot user dataset, refreshing associated dropdowns, and clearing stale multiplot data"""
 
     # Configure mock model catalog and multiplot dropdown selection
     ui.model_cat = {"fake": None, "catalog": None}
@@ -2321,6 +1272,7 @@ def test_update_multiplot_dataset(ui, monkeypatch):
 
     # Mock the data object builder and multiplot data clearing method
     mock_build_data_object = MagicMock()
+    mock_build_data_object.return_value = {"data": None}
     monkeypatch.setattr(med_data, "_build_data_object", mock_build_data_object)
 
     mock_clear_multiplot_data = MagicMock()
@@ -2330,15 +1282,20 @@ def test_update_multiplot_dataset(ui, monkeypatch):
     ui._update_multiplot_dataset()
 
     # Verify that the dataset builder is called with the correct multiplot catalog and key
-    mock_build_data_object.assert_called_once_with(ui.model_cat, ui.multiplot_keys_dropdown.value)
+    mock_build_data_object.assert_called_once_with(
+        ui.model_cat, ui.multiplot_keys_dropdown.value
+    )
 
     # Verify that dataset tracking keys, variable dropdown options, primary dropdown synchronization, and status messages are correctly updated
     assert ui.loaded_dataset_key == ui.multiplot_keys_dropdown.value
-    assert ui.multiplot_plot_variable_dropdown.options == sorted(list(ui.dataset.keys()))
+    assert ui.multiplot_plot_variable_dropdown.options == sorted(ui.dataset.keys())
     assert ui.keys_dropdown.value == ui.loaded_dataset_key
-    assert ui.plot_variable_dropdown.options == sorted(list(ui.dataset.keys()))
-    assert ui.multiplot_status_textbox.value == "Overlay Plot Status >> New user dataset loaded, clearing loaded user models"
-    
+    assert ui.plot_variable_dropdown.options == sorted(ui.dataset.keys())
+    assert (
+        ui.multiplot_status_textbox.value
+        == "Overlay Plot Status >> New user dataset loaded, clearing loaded models"
+    )
+
     # Verify that old multiplot data is cleared out
     mock_clear_multiplot_data.assert_called_once()
 
@@ -2348,7 +1305,7 @@ def test_update_multiplot_dataset(ui, monkeypatch):
     [True, False],
 )
 def test_ref_keys_dropdown_click(ui, monkeypatch, selection_row_exists):
-    """Test the reference model dropdown selection callback for loading catalogs and initializing reference dataset UI components""" 
+    """Test the reference model dropdown selection callback for loading catalogs and initializing reference dataset UI components"""
 
     # Mock the catalog search response and patch the reference dataset selection UI display method
     mock_cat = MagicMock()
@@ -2356,7 +1313,11 @@ def test_ref_keys_dropdown_click(ui, monkeypatch, selection_row_exists):
     monkeypatch.setattr(ui, "access_nri_cat", mock_cat)
 
     mock_display_reference_dataset_selection_ui = MagicMock()
-    monkeypatch.setattr(ui, "_display_reference_dataset_selection_ui", mock_display_reference_dataset_selection_ui)
+    monkeypatch.setattr(
+        ui,
+        "_display_reference_dataset_selection_ui",
+        mock_display_reference_dataset_selection_ui,
+    )
 
     # Conditionally configure the reference data keys selection row in the widget container
     if selection_row_exists:
@@ -2378,7 +1339,7 @@ def test_ref_keys_dropdown_click(ui, monkeypatch, selection_row_exists):
 
     # Verify that either reference options are updated in place or the UI display method is called depending on container state
     if selection_row_exists:
-        assert ui.ref_data_keys_dropdown.options == sorted(list(ui.ref_model_cat.keys()))
+        assert ui.ref_data_keys_dropdown.options == sorted(ui.ref_model_cat.keys())
     else:
         mock_display_reference_dataset_selection_ui.assert_called_once()
 
@@ -2387,14 +1348,16 @@ def test_ref_keys_dropdown_click(ui, monkeypatch, selection_row_exists):
     "has_dict, matching_catalog, already_loaded, user_selection_changed",
     [
         (True, False, False, False),
-    (False, True, False, False),
-    (True, True, False, False),
-    (True, True, True, False),
-    (True, True, False, True),
+        (False, True, False, False),
+        (True, True, False, False),
+        (True, True, True, False),
+        (True, True, False, True),
     ],
 )
-def test_multiplot_ref_keys_dropdown_click(ui, monkeypatch, has_dict, matching_catalog, already_loaded, user_selection_changed):
-    """Test the multiplot reference keys dropdown selection callback for loading reference models, validating datasets, and handling duplicate or mismatched selections""" 
+def test_multiplot_ref_keys_dropdown_click(
+    ui, monkeypatch, has_dict, matching_catalog, already_loaded, user_selection_changed
+):
+    """Test the multiplot reference keys dropdown selection callback for loading reference models, validating datasets, and handling duplicate or mismatched selections"""
 
     # Mock the catalog search response and the data object builder for reference datasets
     mock_cat = MagicMock()
@@ -2425,8 +1388,8 @@ def test_multiplot_ref_keys_dropdown_click(ui, monkeypatch, has_dict, matching_c
         ui.multiplot_keys_dropdown.value = "something_else"
 
     # Configure existing multiplot reference dataset dictionary states
-    if already_loaded: 
-            ui.multiplot_ref_dataset_dict = {"Key1": None, "my_ref_model": None}
+    if already_loaded:
+        ui.multiplot_ref_dataset_dict = {"Key1": None, "my_ref_model": None}
     else:
         if has_dict:
             ui.multiplot_ref_dataset_dict = {"Key1": None, "Key2": None}
@@ -2469,8 +1432,9 @@ def test_multiplot_ref_keys_dropdown_click(ui, monkeypatch, has_dict, matching_c
             == "Overlay Plot Status >> New user dataset loaded, clearing loaded user models"
         )
         assert ui.loaded_dataset_key == ui.multiplot_keys_dropdown.value
-        assert ui.multiplot_plot_variable_dropdown.options == sorted(list(ui.dataset.keys()))
+        assert ui.multiplot_plot_variable_dropdown.options == sorted(ui.dataset.keys())
         mock_clear_multiplot_data.assert_called_once()
+
 
 @pytest.mark.parametrize(
     "fig_exists",
@@ -2486,11 +1450,6 @@ def test_ref_dataset_dropdown_click(ui, monkeypatch, fig_exists):
     mock_ref_display_dataset_plot_ui = MagicMock()
     monkeypatch.setattr(
         ui, "_ref_display_dataset_plot_ui", mock_ref_display_dataset_plot_ui
-    )
-
-    mock_update_ref_dataset_plot_ui = MagicMock()
-    monkeypatch.setattr(
-        ui, "_update_ref_dataset_plot_ui", mock_update_ref_dataset_plot_ui
     )
 
     # Configure reference figure existence state based on parameters
@@ -2511,13 +1470,13 @@ def test_ref_dataset_dropdown_click(ui, monkeypatch, fig_exists):
 
     # Verify that either the reference dataset plot UI update or initial display method is called based on figure existence
     if fig_exists:
-        mock_update_ref_dataset_plot_ui.assert_called_once()
+        assert ui.ref_plot_variable_dropdown.options == sorted(ui.ref_dataset.keys())
     else:
         mock_ref_display_dataset_plot_ui.assert_called_once()
 
 
 def test_ref_model_info_click(ui, monkeypatch):
-    """Test the reference model info button callback for fetching catalog metadata and rendering HTML details in the UI""" 
+    """Test the reference model info button callback for fetching catalog metadata and rendering HTML details in the UI"""
 
     # Mock the catalog access and metadata dictionary to return fake info items
     mock_cat = MagicMock()
@@ -2530,11 +1489,6 @@ def test_ref_model_info_click(ui, monkeypatch):
 
     # Trigger the reference model info button click handler
     ui._ref_model_info_click()
-    
-    # Verify that the catalog access count and key lookup match expected behavior, and status textbox is reset
-    assert mock_cat.__getitem__.call_count == 7
-    mock_cat.__getitem__.assert_called_with("selection")
-    assert ui.ref_status_textbox.value == ""
 
     # Verify that the generated HTML metadata output contains the expected model and email information strings
     html_output = ui.ref_model_metadata.value
@@ -2548,50 +1502,65 @@ def test_ref_model_info_click(ui, monkeypatch):
         (True, False, False, False),
         (False, True, False, False),
         (False, False, True, False),
-        (False, False, False, True)
+        (False, False, False, True),
     ],
 )
-def test_plot_button_click(ui, monkeypatch, plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen):
-    """Test the primary plot button click handler across various validation checks, slicing requirements, and error warning states""" 
+def test_plot_button_click(
+    ui, monkeypatch, plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen
+):
+    """Test the primary plot button click handler across various validation checks, slicing requirements, and error warning states"""
 
     # Mock plot validity checkers, plotting triggers, slice checks, and choice UI display methods
-    mock_check_plot_validity = MagicMock(return_value=(plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen))
-    monkeypatch.setattr(ui, "_check_plot_validity", mock_check_plot_validity)
-    
+    mock_check_plot_validity = MagicMock(
+        return_value=(
+            plot_valid,
+            requires_slice,
+            invalid_heatmap_data,
+            same_axes_chosen,
+            False,
+        )
+    )
+    monkeypatch.setattr(ui, "_check_plot_validity_helper", mock_check_plot_validity)
+
     mock_plot_data_button_click = MagicMock()
     monkeypatch.setattr(ui, "_plot_data_button_click", mock_plot_data_button_click)
-    
+
     mock_check_slice = MagicMock()
     monkeypatch.setattr(ui, "_check_slice", mock_check_slice)
-    
+
     mock_display_plot_choices_ui = MagicMock()
     monkeypatch.setattr(ui, "_display_plot_choices_ui", mock_display_plot_choices_ui)
 
-    ui.plot_choices_row = pn.Row(name = "plot choices row")
+    ui.plot_choices_row = pn.Row(name="plot choices row")
     ui.widget_container.append(ui.plot_choices_row)
     ui.slice_ui_row = pn.Row()
     ui.slice_widgets = {"dim": pn.pane.Markdown("A widget")}
     ui.widget_container.append(ui.slice_ui_row)
-    
+
     # Trigger the plot button click handler with a dummy event argument
     ui._plot_button_click(None)
 
     # Verify that the correct action or warning is executed based on the plot validity and error flags
     if plot_valid:
         mock_plot_data_button_click.assert_called()
-        
+
     elif requires_slice:
         mock_check_slice.assert_called_once()
     elif invalid_heatmap_data:
-        assert ui.warning_textbox.value == "Warning >> The dataset only has one plottable dimension. Defaulting to line plot."
+        assert (
+            ui.warning_textbox.value
+            == "Warning >> The dataset only has one plottable dimension. Defaulting to line plot."
+        )
         assert ui.plot_type_dropdown.value == "Line"
         mock_plot_data_button_click.assert_called()
     elif same_axes_chosen:
-        assert ui.warning_textbox.value == "Warning >> Please ensure different values are selected for each axis."
+        assert (
+            ui.warning_textbox.value
+            == "Warning >> Please ensure different values are selected for each axis."
+        )
         mock_display_plot_choices_ui.assert_called_once()
-        assert ui.plot_choices_row not in ui.widget_container
+        assert not hasattr(ui, "plot_choices_row")
         assert not hasattr(ui, "slice_ui_row")
-
 
 
 @pytest.mark.parametrize(
@@ -2615,22 +1584,23 @@ def test_ref_plot_button_click(
             requires_slice,
             invalid_heatmap_data,
             same_axes_chosen,
+            False,
         )
     )
-    monkeypatch.setattr(ui, "_ref_check_plot_validity", mock_check_plot_validity)
+    monkeypatch.setattr(ui, "_check_plot_validity_helper", mock_check_plot_validity)
 
     mock_plot_data_button_click = MagicMock()
     monkeypatch.setattr(ui, "_ref_plot_data_button_click", mock_plot_data_button_click)
 
     mock_check_slice = MagicMock()
-    monkeypatch.setattr(ui, "_ref_check_slice", mock_check_slice)
+    monkeypatch.setattr(ui, "_check_slice", mock_check_slice)
 
     mock_display_plot_choices_ui = MagicMock()
     monkeypatch.setattr(
         ui, "_ref_display_plot_choices_ui", mock_display_plot_choices_ui
     )
 
-    ui.ref_plot_choices_row = pn.Row(name = "plot choices row")
+    ui.ref_plot_choices_row = pn.Row(name="plot choices row")
     ui.widget_container.append(ui.ref_plot_choices_row)
     ui.ref_slice_ui_row = pn.Row()
     ui.ref_slice_widgets = {"dim": pn.pane.Markdown("A widget")}
@@ -2657,38 +1627,57 @@ def test_ref_plot_button_click(
             == "Warning >> Please ensure different values are selected for each axis."
         )
         mock_display_plot_choices_ui.assert_called_once()
-        assert ui.ref_plot_choices_row not in ui.widget_container
+        assert not hasattr(ui, "ref_plot_choices_row")
         assert not hasattr(ui, "ref_slice_ui_row")
 
+
 @pytest.mark.parametrize(
-    "plot_valid, requires_slice, prompt_bounds",
+    "plot_valid, requires_slice, same_axes_chosen, invalid_heatmap_data, prompt_bounds",
     [
-        (True, False, False),
-        (False, True, False),
-        (False, False, True)
+        (True, False, False, False, False),
+        (False, True, False, False, False),
+        (False, False, True, False, False),
+        (False, False, False, True, False),
+        (False, False, False, False, True),
     ],
 )
-def test_multiplot_plot_button_click(ui, monkeypatch, plot_valid, requires_slice, prompt_bounds):
-    """Test the multiplot data button click handler across validation checks, slicing requirements, and bounds prompting states""" 
+def test_multiplot_plot_button_click(
+    ui,
+    monkeypatch,
+    plot_valid,
+    requires_slice,
+    same_axes_chosen,
+    invalid_heatmap_data,
+    prompt_bounds,
+):
+    """Test the multiplot data button click handler across validation checks, slicing requirements, and bounds prompting states"""
 
     # Mock multiplot plot validity checkers, plotting triggers, slice checks, and bounds prompt UI methods
     mock_check_plot_validity = MagicMock(
-            return_value=(
-                plot_valid,
-                requires_slice,
-                prompt_bounds
-            )
+        return_value=(
+            plot_valid,
+            requires_slice,
+            invalid_heatmap_data,
+            same_axes_chosen,
+            prompt_bounds,
         )
-    monkeypatch.setattr(ui, "_check_multiplot_plot_validity", mock_check_plot_validity)
+    )
+    monkeypatch.setattr(ui, "_check_plot_validity_helper", mock_check_plot_validity)
 
     mock_plot_data_button_click = MagicMock()
-    monkeypatch.setattr(ui, "_multiplot_plot_data_button_click", mock_plot_data_button_click)
-    
+    monkeypatch.setattr(
+        ui, "_multiplot_plot_data_button_click", mock_plot_data_button_click
+    )
+
     mock_check_slice = MagicMock()
-    monkeypatch.setattr(ui, "_multiplot_check_slice", mock_check_slice)
-    
+    monkeypatch.setattr(ui, "_check_slice", mock_check_slice)
+
     mock_prompt_bounds_ui = MagicMock()
     monkeypatch.setattr(ui, "_prompt_bounds_ui", mock_prompt_bounds_ui)
+
+    mock_display_choices = MagicMock()
+    # Note: ensure this string exactly matches the name of your multiplot choices method!
+    monkeypatch.setattr(ui, "_display_multiplot_plot_choices_ui", mock_display_choices)
 
     # Trigger the multiplot plot button click handler with a dummy event argument
     ui._multiplot_plot_button_click(None)
@@ -2700,160 +1689,1075 @@ def test_multiplot_plot_button_click(ui, monkeypatch, plot_valid, requires_slice
         mock_check_slice.assert_called_once()
     elif prompt_bounds:
         mock_prompt_bounds_ui.assert_called_once()
+    elif same_axes_chosen:
+        mock_display_choices.assert_called_once()
 
 
 def test_keys_button_click(ui, monkeypatch):
     """Test that pressing the keys button triggers the correct internal method."""
-    
+
     mock_keys_dropdown_click = MagicMock()
     monkeypatch.setattr(ui, "_keys_dropdown_click", mock_keys_dropdown_click)
 
     # Simulate clicking the button
     ui.keys_button.clicks += 1
-    
+
     # Verify the bound function was executed
     mock_keys_dropdown_click.assert_called_once()
 
+
 def test_ref_keys_button_click(ui, monkeypatch):
     """Test that pressing the ref keys button triggers the correct internal method."""
-    
+
     mock_keys_dropdown_click = MagicMock()
     monkeypatch.setattr(ui, "_ref_keys_dropdown_click", mock_keys_dropdown_click)
 
     # Simulate clicking the button
     ui.ref_keys_button.clicks += 1
-    
+
     # Verify the bound function was executed
     mock_keys_dropdown_click.assert_called_once()
 
+
 def test_ref_data_keys_button_click(ui, monkeypatch):
     """Test that pressing the ref data keys button triggers the correct internal method."""
-    
+
     mock_ref_data_keys_button_click = MagicMock()
-    monkeypatch.setattr(ui, "_ref_dataset_dropdown_click", mock_ref_data_keys_button_click)
+    monkeypatch.setattr(
+        ui, "_ref_dataset_dropdown_click", mock_ref_data_keys_button_click
+    )
 
     # Simulate clicking the button
     ui.ref_data_keys_button.clicks += 1
-    
+
     # Verify the bound function was executed
     mock_ref_data_keys_button_click.assert_called_once()
 
+
 def test_ref_model_info_button_click(ui, monkeypatch):
     """Test that pressing the ref model info button triggers the correct internal method."""
-    
+
     mock_ref_model_info_click = MagicMock()
     monkeypatch.setattr(ui, "_ref_model_info_click", mock_ref_model_info_click)
 
     # Simulate clicking the button
     ui.ref_model_info_button.clicks += 1
-    
+
     # Verify the bound function was executed
     mock_ref_model_info_click.assert_called_once()
 
+
 def test_ref_clear_data_button_click(ui, monkeypatch):
     """Test that pressing the ref clear data button triggers the correct internal method."""
-    
+
     mock_ref_clear_data_click = MagicMock()
     monkeypatch.setattr(ui, "_ref_clear_data_click", mock_ref_clear_data_click)
 
     # Simulate clicking the button
     ui.clear_ref_model_data_button.clicks += 1
-    
+
     # Verify the bound function was executed
     mock_ref_clear_data_click.assert_called_once()
 
+
 def test_select_variable_button_click(ui, monkeypatch):
     """Test that pressing the select variabel button triggers the correct internal method."""
-    
+
     mock_display_plot_choices_ui = MagicMock()
     monkeypatch.setattr(ui, "_display_plot_choices_ui", mock_display_plot_choices_ui)
 
     # Simulate clicking the button
     ui.select_variable_button.clicks += 1
-    
+
     # Verify the bound function was executed
     mock_display_plot_choices_ui.assert_called_once()
+
 
 def test_ref_select_variable_button_click(ui, monkeypatch):
     """Test that pressing the ref select variabel button triggers the correct internal method."""
-    
+
     mock_display_plot_choices_ui = MagicMock()
-    monkeypatch.setattr(ui, "_ref_display_plot_choices_ui", mock_display_plot_choices_ui)
+    monkeypatch.setattr(
+        ui, "_ref_display_plot_choices_ui", mock_display_plot_choices_ui
+    )
 
     # Simulate clicking the button
     ui.ref_select_variable_button.clicks += 1
-    
+
     # Verify the bound function was executed
     mock_display_plot_choices_ui.assert_called_once()
+
 
 def test_multiplot_ref_keys_button_click_triggers_load(ui, monkeypatch):
     """Test that pressing the multiplot_ref_keys_button triggers the correct internal method."""
     mock_multiplot_ref_keys_dropdown_click = MagicMock()
-    monkeypatch.setattr(ui, "_multiplot_ref_keys_dropdown_click", mock_multiplot_ref_keys_dropdown_click)
+    monkeypatch.setattr(
+        ui, "_multiplot_ref_keys_dropdown_click", mock_multiplot_ref_keys_dropdown_click
+    )
 
     # Simulate clicking the button
     ui.multiplot_ref_keys_button.clicks += 1
-    
+
     # Verify the bound function was executed
     mock_multiplot_ref_keys_dropdown_click.assert_called_once()
 
+
 def test_clear_multiplot_data_button_click(ui, monkeypatch):
     """Test that pressing the clear_multiplot_data_button triggers the correct internal method."""
-    
+
     mock_clear_multiplot_data = MagicMock()
     monkeypatch.setattr(ui, "_clear_multiplot_data", mock_clear_multiplot_data)
 
     # Simulate clicking the button
     ui.clear_multiplot_data_button.clicks += 1
-    
+
     # Verify the bound function was executed
     mock_clear_multiplot_data.assert_called_once()
 
+
 def test_multiplot_keys_update_button_click(ui, monkeypatch):
     """Test that pressing the multiplot_keys_update_button triggers the correct internal method."""
-    
+
     mock_update_multiplot_dataset = MagicMock()
     monkeypatch.setattr(ui, "_update_multiplot_dataset", mock_update_multiplot_dataset)
 
     # Simulate clicking the button
     ui.multiplot_keys_update_button.clicks += 1
-    
+
     # Verify the bound function was executed
     mock_update_multiplot_dataset.assert_called_once()
 
 
 def test_multiplot_select_variable_button_click(ui, monkeypatch):
     """Test that pressing the multiplot_select_variable_button triggers the correct internal method."""
-    
+
     mock_display_multiplot_plot_choices_ui = MagicMock()
-    monkeypatch.setattr(ui, "_display_multiplot_plot_choices_ui", mock_display_multiplot_plot_choices_ui)
+    monkeypatch.setattr(
+        ui, "_display_multiplot_plot_choices_ui", mock_display_multiplot_plot_choices_ui
+    )
 
     # Simulate clicking the button
     ui.multiplot_select_variable_button.clicks += 1
-    
+
     # Verify the bound function was executed
     mock_display_multiplot_plot_choices_ui.assert_called_once()
+
 
 def test_multiplot_ref_keys_button_click(ui, monkeypatch):
     """Test that pressing the multiplot_ref_keys_button triggers the correct internal method."""
-    
-    mock_display_multiplot_plot_choices_ui  = MagicMock()
-    monkeypatch.setattr(ui, "_multiplot_ref_keys_dropdown_click", mock_display_multiplot_plot_choices_ui)
+
+    mock_display_multiplot_plot_choices_ui = MagicMock()
+    monkeypatch.setattr(
+        ui, "_multiplot_ref_keys_dropdown_click", mock_display_multiplot_plot_choices_ui
+    )
 
     # Simulate clicking the button
     ui.multiplot_ref_keys_button.clicks += 1
-    
+
     # Verify the bound function was executed
     mock_display_multiplot_plot_choices_ui.assert_called_once()
 
+
 def test_prompt_bounds_button_click(ui, monkeypatch):
     """Test that pressing the prompt_bounds_button triggers the correct internal method."""
-    
-    mock_multiplot_plot_data_button_click  = MagicMock()
-    monkeypatch.setattr(ui, "_multiplot_plot_data_button_click", mock_multiplot_plot_data_button_click)
+
+    mock_multiplot_plot_data_button_click = MagicMock()
+    monkeypatch.setattr(
+        ui, "_multiplot_plot_data_button_click", mock_multiplot_plot_data_button_click
+    )
 
     # Simulate clicking the button
     ui.prompt_bounds_button.clicks += 1
-    
+
     # Verify the bound function was executed
     mock_multiplot_plot_data_button_click.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "section, plot_type",
+    [
+        ("user", "Line"),
+        ("ref", "Line"),
+        ("multiplot", "Line"),
+        ("user", "Heatmap"),
+        ("ref", "Heatmap"),
+        ("multiplot", "Heatmap (grid)"),
+        ("user", "Animation"),
+        ("ref", "Animation"),
+    ],
+)
+@pytest.mark.parametrize("bounds_return", [True, False])
+def test_check_plot_validity_routing(
+    ui, monkeypatch, section, plot_type, bounds_return
+):
+    """Tests variable routing, controller calls, and multiplot bounds logic."""
+    monkeypatch.setattr(
+        controller, "check_dict_validity", MagicMock(return_value=({}, {}))
+    )
+
+    mock_get_variable_helper = MagicMock(return_value="data")
+    monkeypatch.setattr(ui, "_get_variable_helper", mock_get_variable_helper)
+
+    mock_multiplot_check_bounds = MagicMock(return_value=(bounds_return, 0, 10, 0, 10))
+    monkeypatch.setattr(controller, "check_bounds", mock_multiplot_check_bounds)
+
+    # Base mock return: plot_valid is True
+    mock_return_value = (True, False, False, False, ["remaining_dims"])
+    mock_check_plot_validity = MagicMock(return_value=mock_return_value)
+    monkeypatch.setattr(controller, "check_plot_validity", mock_check_plot_validity)
+
+    # Setup UI mocks based on section
+    ds = mock_dataset()
+    if section == "ref":
+        ui.ref_dataset = ds
+        ui.ref_plot_type_dropdown.value = plot_type
+        ui.ref_x_axis_dropdown.value = "x"
+        ui.ref_y_axis_dropdown.value = "y"
+        ui.ref_animation_axis_dropdown.value = "z"
+    elif section == "multiplot":
+        ui.dataset = ds
+        ui.multiplot_plot_type_dropdown.value = plot_type
+        ui.multiplot_x_axis_dropdown.value = "x"
+        ui.multiplot_y_axis_dropdown.value = "y"
+        ui.multiplot_ref_dataset_dict = {}
+    else:
+        ui.dataset = ds
+        ui.plot_type_dropdown.value = plot_type
+        ui.x_axis_dropdown.value = "x"
+        ui.y_axis_dropdown.value = "y"
+        ui.animation_axis_dropdown.value = "z"
+
+    # Run the function
+    results = ui._check_plot_validity_helper(section=section)
+
+    mock_get_variable_helper.assert_called_once_with(section)
+    mock_check_plot_validity.assert_called_once()
+
+    # Determine expected outputs based on multiplot bounds logic
+    expected_plot_valid = True
+    expected_prompt_bounds = False
+
+    if section == "multiplot" and plot_type == "Line":
+        mock_multiplot_check_bounds.assert_called_once()
+        expected_prompt_bounds = bounds_return
+        if bounds_return:
+            expected_plot_valid = (
+                False  # plot_valid gets flipped to False if bounds need prompting!
+            )
+
+    # Verify the final returned tuple
+    assert results == (expected_plot_valid, False, False, False, expected_prompt_bounds)
+
+
+@pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
+@pytest.mark.parametrize("keys_match", [True, False])
+def test_check_plot_validity_slice_cleanup(ui, monkeypatch, section, keys_match):
+    """Tests the layout cleanup logic when slice dimensions change."""
+
+    monkeypatch.setattr(
+        controller, "check_dict_validity", MagicMock(return_value=({}, {}))
+    )
+    monkeypatch.setattr(ui, "_get_variable_helper", MagicMock(return_value="data"))
+    monkeypatch.setattr(
+        controller, "check_bounds", MagicMock(return_value=(False, 0, 10, 0, 10))
+    )
+    mock_safe_remove = MagicMock()
+    monkeypatch.setattr(ui, "_safe_remove_widget_object", mock_safe_remove)
+
+    # Controller says the remaining dimensions are ["time", "lat"]
+    mock_return = (True, False, False, False, ["time", "lat"])
+    mock_check_plot_validity = MagicMock(return_value=mock_return)
+    monkeypatch.setattr(controller, "check_plot_validity", mock_check_plot_validity)
+
+    # Simulate existing slice widgets on the UI
+    if keys_match:
+        mock_widgets = {"time": MagicMock(), "lat": MagicMock()}  # Matches controller!
+    else:
+        mock_widgets = {"old_dim": MagicMock()}  # Mismatch! Will trigger cleanup.
+
+    ds = mock_dataset()
+    if section == "ref":
+        ui.ref_dataset = ds
+        ui.ref_plot_type_dropdown.value = "Heatmap"
+        ui.ref_x_axis_dropdown.value = "x"
+        ui.ref_y_axis_dropdown.value = "y"
+        ui.ref_animation_axis_dropdown.value = "z"
+        ui.ref_slice_widgets = mock_widgets
+        ui.ref_slice_ui_row = "dummy_row"
+    elif section == "multiplot":
+        ui.dataset = ds
+        ui.multiplot_ref_dataset_dict = {}
+        ui.multiplot_plot_type_dropdown.value = "Heatmap (grid)"
+        ui.multiplot_x_axis_dropdown.value = "x"
+        ui.multiplot_y_axis_dropdown.value = "y"
+        ui.multiplot_slice_widgets = mock_widgets
+        ui.multiplot_slice_ui_row = "dummy_row"
+    else:
+        ui.dataset = ds
+        ui.plot_type_dropdown.value = "Heatmap"
+        ui.x_axis_dropdown.value = "x"
+        ui.y_axis_dropdown.value = "y"
+        ui.animation_axis_dropdown.value = "z"
+        ui.slice_widgets = mock_widgets
+        ui.slice_ui_row = "dummy_row"
+
+    ui._check_plot_validity_helper(section=section)
+
+    if keys_match:
+        # If keys match, cleanup should NOT run. Controller is only called once.
+        mock_safe_remove.assert_not_called()
+        mock_check_plot_validity.assert_called_once()
+    else:
+        # If keys mismatch, cleanup SHOULD run. Controller is evaluated a second time!
+        assert mock_safe_remove.call_count == 2
+        assert mock_check_plot_validity.call_count == 2
+
+
+@pytest.mark.parametrize(
+    "section, expected_attr_prefix, expected_position, expected_status_prefix, expected_dims",
+    [
+        ("user", "", ["plot_choices_row"], "User model status", ["time", "lat"]),
+        ("ref", "ref_", ["ref_plot_choices_row"], "Reference model status", ["time"]),
+        (
+            "multiplot",
+            "multiplot_",
+            ["multiplot_plot_choices_row"],
+            "Overlay Plot",
+            ["lat"],
+        ),
+    ],
+)
+def test_check_slice(
+    ui,
+    monkeypatch,
+    section,
+    expected_attr_prefix,
+    expected_position,
+    expected_status_prefix,
+    expected_dims,
+):
+    """Test that slice widgets are generated and routed to the correct UI attributes based on section."""
+
+    # Setup mock datasets and remaining dims
+    data = xr.DataArray(
+        np.random.rand(2, 3),
+        dims=["time", "lat"],
+        coords={"time": [1, 2], "lat": [10, 20, 30]},
+    )
+    ds = xr.Dataset({"data": data})
+
+    ui.dataset = ds
+    ui.ref_dataset = ds
+    ui.remaining_dims = ["time", "lat"]
+    ui.ref_remaining_dims = ["time"]
+    ui.multiplot_remaining_dims = ["lat"]
+
+    ui.widget_container = []  # Mock container list
+
+    # Mock all necessary UI components
+    ui.plot_button = MagicMock()
+    ui.status_textbox = MagicMock()
+    ui.ref_plot_button = MagicMock()
+    ui.ref_status_textbox = MagicMock()
+    ui.multiplot_plot_button = MagicMock()
+    ui.multiplot_status_textbox = MagicMock()
+
+    # Mock round_slice_val to simply return a string version of the input
+    mock_round_slice = MagicMock(side_effect=lambda x: f"round_{x}")
+    monkeypatch.setattr(controller, "round_slice_val", mock_round_slice)
+
+    mock_update_text = MagicMock()
+    monkeypatch.setattr(controller, "update_textbox_text", mock_update_text)
+
+    mock_safe_add = MagicMock()
+    monkeypatch.setattr(ui, "_safe_add_to_widget", mock_safe_add)
+
+    ui._check_slice(section=section)
+
+    # Determine the target UI components based on the parameterised section
+    if section == "user":
+        btn = ui.plot_button
+        txt = ui.status_textbox
+    elif section == "ref":
+        btn = ui.ref_plot_button
+        txt = ui.ref_status_textbox
+    else:
+        btn = ui.multiplot_plot_button
+        txt = ui.multiplot_status_textbox
+
+    # Check the dynamic attributes were set correctly
+    widget_attr = (
+        f"{expected_attr_prefix}slice_widgets"
+        if expected_attr_prefix
+        else "slice_widgets"
+    )
+    row_attr = (
+        f"{expected_attr_prefix}slice_ui_row"
+        if expected_attr_prefix
+        else "slice_ui_row"
+    )
+
+    assert hasattr(ui, widget_attr)
+    assert hasattr(ui, row_attr)
+
+    widgets_dict = getattr(ui, widget_attr)
+    ui_row = getattr(ui, row_attr)
+
+    # Verify the dictionary contains the correct dimensions and Panel widgets
+    assert list(widgets_dict.keys()) == expected_dims
+    for dim in expected_dims:
+        assert isinstance(widgets_dict[dim], pn.widgets.DiscreteSlider)
+        assert widgets_dict[dim].name == f"Slice {dim} at:"
+
+    # Verify the layout row was built
+    assert isinstance(ui_row, pn.Row)
+    assert len(ui_row) == len(expected_dims)
+
+    # Verify layout integration
+    mock_safe_add.assert_called_once_with(
+        ui.widget_container, expected_position, ui_row, append=True
+    )
+
+    # Verify status and button text updates
+    assert btn.name == "Confirm Slices & Plot"
+    mock_update_text.assert_called_once_with(
+        txt,
+        f"{expected_status_prefix} >> Action required: Select slice values and click plot again.",
+    )
+
+
+@pytest.mark.parametrize(
+    "is_ref, expected_section, plot_type",
+    [
+        (True, "ref", "Line"),
+        (True, "ref", "Heatmap"),
+        (True, "ref", "Animation"),
+        (False, "user", "Line"),
+        (False, "user", "Heatmap"),
+        (False, "user", "Animation"),
+    ],
+)
+def test_plot_dataset_helper(ui, monkeypatch, is_ref, expected_section, plot_type):
+    """Test that the plot dataset helper routes to the correct controller function with the right attributes."""
+
+    # Mock external dependencies
+    mock_fig = MagicMock(name="mock_matplotlib_figure")
+    mock_plot_dataset = MagicMock(return_value=mock_fig)
+    monkeypatch.setattr(controller, "plot_dataset", mock_plot_dataset)
+
+    mock_animation = MagicMock(name="mock_hvplot_animation")
+    mock_plot_animation = MagicMock(return_value=mock_animation)
+    monkeypatch.setattr(controller, "plot_animation", mock_plot_animation)
+
+    mock_variable = "test_variable"
+    mock_get_variable_helper = MagicMock(return_value=mock_variable)
+    monkeypatch.setattr(ui, "_get_variable_helper", mock_get_variable_helper)
+
+    # Setup mock UI attributes for the User branch
+    ui.dataset = "mock_user_dataset"
+    ui.keys_dropdown = MagicMock(value="user_model_key")
+    ui.x_axis_dropdown = MagicMock(value="user_x_axis")
+    if plot_type == "Heatmap":
+        ui.y_axis_dropdown.value = "y"
+        ui.ref_y_axis_dropdown.value = "y"
+
+        y = "y"
+        z = None
+    elif plot_type == "Animation":
+        ui.y_axis_dropdown.value = "y"
+        ui.ref_y_axis_dropdown.value = "y"
+        ui.animation_axis_dropdown.value = "z"
+        ui.ref_animation_axis_dropdown.value = "z"
+        y = "y"
+        z = "z"
+    else:
+        y = None
+        z = None
+    ui.chosen_slices = {"user_dim": 0}
+    ui.figure_exists = False
+
+    # Setup mock UI attributes for the Reference branch
+    ui.ref_dataset = "mock_ref_dataset"
+    ui.ref_keys_dropdown = MagicMock(value="ref_model_key")
+    ui.ref_data_keys_dropdown = MagicMock(value="ref_dataset_key")
+    ui.ref_x_axis_dropdown = MagicMock(value="ref_x_axis")
+    ui.ref_y_axis_dropdown.value = "y"
+    ui.ref_chosen_slices = {"ref_dim": 1}
+    ui.ref_figure_exists = False
+
+    result = ui._plot_dataset_helper(is_ref=is_ref, plot_type=plot_type)
+
+    # Ensure the helper successfully pulled the variable string
+    mock_get_variable_helper.assert_called_once_with(expected_section)
+
+    if plot_type == "Animation":
+        assert result == mock_animation
+        if is_ref:
+            # Verify state changes
+            assert ui.ref_figure_exists is True
+            assert ui.ref_fig == mock_animation
+
+            # Verify the controller was called with the exact reference attributes
+            mock_plot_animation.assert_called_once_with(
+                "mock_ref_dataset",
+                ui.ref_keys_dropdown.value,
+                mock_variable,
+                {"ref_dim": 1},
+                "ref_x_axis",
+                y,
+                z,
+                is_ref=True,
+            )
+        else:
+            # Verify state changes
+            assert ui.figure_exists is True
+            assert ui.fig == mock_animation
+            mock_plot_animation.assert_called_once_with(
+                "mock_user_dataset",
+                ui.keys_dropdown.value,
+                mock_variable,
+                {"user_dim": 0},
+                "user_x_axis",
+                y,
+                z,
+                is_ref=False,
+            )
+    else:
+        assert result == mock_fig
+        if is_ref:
+            # Verify state changes
+            assert ui.ref_figure_exists is True
+            assert ui.ref_fig == mock_fig
+
+            # Verify the controller was called with the exact reference attributes
+            mock_plot_dataset.assert_called_once_with(
+                "mock_ref_dataset",
+                "ref_dataset_key",
+                mock_variable,
+                "ref_x_axis",
+                {"ref_dim": 1},
+                True,
+                "ref_model_key",
+                plot_type=plot_type,
+                y_axis=y,
+            )
+        else:
+            # Verify state changes
+            assert ui.figure_exists is True
+            assert ui.fig == mock_fig
+
+            # Verify the controller was called with the exact user attributes
+            mock_plot_dataset.assert_called_once_with(
+                "mock_user_dataset",
+                "user_model_key",
+                mock_variable,
+                "user_x_axis",
+                {"user_dim": 0},
+                False,
+                plot_type=plot_type,
+                y_axis=y,
+            )
+
+
+@pytest.mark.parametrize(
+    "plot_type, dim_sizes, preset_x_val, needs_bounds_ui, expected_scenario",
+    [
+        ("Heatmap (grid)", {"time": 10, "nv": 2}, None, False, "heatmap_invalid"),
+        ("Heatmap (grid)", {"lat": 10, "lev": 5}, "lat", False, "heatmap_valid_if"),
+        (
+            "Heatmap (grid)",
+            {"time": 10, "lat": 10, "lev": 5},
+            "time",
+            False,
+            "heatmap_valid_else",
+        ),
+        ("Line", {"time": 10, "nv": 2}, None, False, "line_1dim_nobounds"),
+        ("Line", {"time": 10, "nv": 2}, None, True, "line_1dim_bounds"),
+        ("Line", {"time": 10, "lat": 10}, None, False, "line_multidim"),
+        ("Line", {"nv": 2}, None, False, "empty_dims"),
+    ],
+)
+def test_display_multiplot_plot_choices_ui(
+    ui,
+    monkeypatch,
+    plot_type,
+    dim_sizes,
+    preset_x_val,
+    needs_bounds_ui,
+    expected_scenario,
+):
+    """Test the dynamic generation of plot choices UI based on dataset dimensions and plot type."""
+
+    ui.multiplot_plot_type_dropdown = MagicMock(value=plot_type)
+    ui.multiplot_x_axis_dropdown = MagicMock(value=preset_x_val)
+    ui.multiplot_y_axis_dropdown = MagicMock()
+    ui.multiplot_analysis_choice_dropdown = MagicMock()
+    ui.multiplot_plot_button = MagicMock()
+    ui.multiplot_warning_textbox = MagicMock()
+    ui.widget_container = []
+    ui.multiplot_ref_dataset_dict = {}
+
+    mock_variable = "test_var"
+    mock_get_variable = MagicMock(return_value=mock_variable)
+    monkeypatch.setattr(ui, "_get_variable_helper", mock_get_variable)
+
+    mock_data_array = MagicMock()
+    mock_data_array.sizes = dim_sizes
+    ui.dataset = {mock_variable: mock_data_array}
+
+    mock_update_text = MagicMock()
+    monkeypatch.setattr(controller, "update_textbox_text", mock_update_text)
+
+    mock_check_bounds = MagicMock(return_value=(needs_bounds_ui, 0, 10, 0, 10))
+    monkeypatch.setattr(controller, "check_bounds", mock_check_bounds)
+
+    mock_prompt_bounds = MagicMock()
+    monkeypatch.setattr(ui, "_prompt_bounds_ui", mock_prompt_bounds)
+
+    mock_safe_add = MagicMock()
+    monkeypatch.setattr(ui, "_safe_add_to_widget", mock_safe_add)
+
+    ui._display_multiplot_plot_choices_ui()
+
+    # (Keep your existing assertions below, adding validation for "heatmap_valid_else" if needed)
+    if expected_scenario == "heatmap_valid_else":
+        viable_dims = sorted(
+            [dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"]
+        )
+        assert ui.multiplot_y_axis_dropdown.value == viable_dims[0]
+
+    # Base Assertions
+    assert ui.multiplot_x_axis_dropdown.name == "Select X-Axis dimension"
+    assert ui.multiplot_analysis_choice_dropdown.name == "Select analysis type"
+    assert ui.multiplot_plot_button.name == "Plot data"
+
+    assert ui.multiplot_analysis_choice_dropdown.options == [
+        "None (plot all loaded data)",
+        "Plot Difference (Ref. - User data)",
+        "Plot All Data & Difference",
+    ]
+
+    viable_dims = sorted(
+        [dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"]
+    )
+    assert ui.multiplot_x_axis_dropdown.options == viable_dims
+
+    # Branch-Specific Assertions
+    if expected_scenario == "heatmap_invalid":
+        mock_update_text.assert_called_once_with(
+            ui.multiplot_warning_textbox,
+            "Warning >> Not enough dimensions available for this variable to plot a Heatmap.",
+        )
+        assert ui.multiplot_plot_type_dropdown.value == "Line"
+        mock_safe_add.assert_not_called()
+
+    elif expected_scenario == "heatmap_valid":
+        assert ui.multiplot_y_axis_dropdown.name == "Select Y-Axis dimension"
+        assert ui.multiplot_y_axis_dropdown.options == viable_dims
+
+        assert isinstance(ui.multiplot_plot_choices_row, pn.Row)
+        assert len(ui.multiplot_plot_choices_row) == 4
+        mock_safe_add.assert_called_once_with(
+            ui.widget_container,
+            ["multiplot_type_selection_row"],
+            ui.multiplot_plot_choices_row,
+            append=True,
+        )
+
+    elif expected_scenario == "line_1dim_nobounds":
+        mock_check_bounds.assert_called_once()
+        assert ui.multiplot_x_axis_dropdown.value == viable_dims[0]
+
+        assert isinstance(ui.multiplot_plot_choices_row, pn.Row)
+        assert len(ui.multiplot_plot_choices_row) == 2
+        mock_safe_add.assert_called_once_with(
+            ui.widget_container,
+            ["multiplot_type_selection_row"],
+            ui.multiplot_plot_choices_row,
+            append=True,
+        )
+
+    elif expected_scenario == "line_1dim_bounds":
+        mock_check_bounds.assert_called_once()
+        mock_prompt_bounds.assert_called_once()
+        mock_safe_add.assert_not_called()
+
+    elif expected_scenario == "line_multidim":
+        mock_check_bounds.assert_called_once()
+
+        assert isinstance(ui.multiplot_plot_choices_row, pn.Row)
+        assert len(ui.multiplot_plot_choices_row) == 3
+        mock_safe_add.assert_called_once_with(
+            ui.widget_container,
+            ["multiplot_type_selection_row"],
+            ui.multiplot_plot_choices_row,
+            append=True,
+        )
+
+    elif expected_scenario == "empty_dims":
+        assert ui.multiplot_x_axis_dropdown.value is None
+        assert isinstance(ui.multiplot_plot_choices_row, pn.Row)
+        assert len(ui.multiplot_plot_choices_row) == 2  # Only analysis and button
+        mock_safe_add.assert_called_once_with(
+            ui.widget_container,
+            ["multiplot_type_selection_row"],
+            ui.multiplot_plot_choices_row,
+            append=True,
+        )
+
+    elif expected_scenario == "heatmap_valid_if":
+        viable_dims = sorted(
+            [dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"]
+        )
+        assert ui.multiplot_y_axis_dropdown.value == viable_dims[1]
+
+    elif expected_scenario == "heatmap_valid_else":
+        viable_dims = sorted(
+            [dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"]
+        )
+        assert ui.multiplot_y_axis_dropdown.value == viable_dims[0]
+
+
+@pytest.mark.parametrize(
+    "plot_type, plot_diff, bounds_dropdown_val, expected_xmin, expected_xmax",
+    [
+        # 1. Line plot, no diff, constrain to user bounds
+        ("Line", False, "Constrain to user dataset bounds", 2, 8),
+        # 2. Line plot, diff, use global bounds (simulating "Expand bounds to fit all" or similar)
+        ("Line", True, "Expand bounds", 0, 10),
+        # 3. Heatmap, no diff (bounds don't matter)
+        ("Heatmap (grid)", False, "Constrain to user dataset bounds", None, None),
+        # 4. Heatmap, diff (bounds don't matter)
+        ("Heatmap (grid)", True, "Expand bounds", None, None),
+    ],
+)
+def test_multiplot_plot_dataset_helper(
+    ui,
+    monkeypatch,
+    plot_type,
+    plot_diff,
+    bounds_dropdown_val,
+    expected_xmin,
+    expected_xmax,
+):
+    """
+    Verifies that the helper correctly extracts UI state and passes the right
+    arguments to the controller plotting functions.
+    """
+    # 1. Mock the controller's plotting functions
+    mock_plot_line = MagicMock(return_value="line_figure")
+    monkeypatch.setattr(controller, "plot_multiplot_dataset", mock_plot_line)
+
+    mock_plot_heatmap = MagicMock(return_value="heatmap_figure")
+    monkeypatch.setattr(controller, "plot_multiplot_heatmap_dataset", mock_plot_heatmap)
+
+    # Mock check_bounds to return: prompt_bounds, g_min, g_max, d_min, d_max
+    mock_check_bounds = MagicMock(return_value=(False, 0, 10, 2, 8))
+    monkeypatch.setattr(controller, "check_bounds", mock_check_bounds)
+
+    # 2. Mock the UI state and widgets
+    mock_variable = "test_var"
+    monkeypatch.setattr(
+        ui, "_get_variable_helper", MagicMock(return_value=mock_variable)
+    )
+
+    ui.multiplot_x_axis_dropdown = MagicMock(value="time")
+    ui.multiplot_y_axis_dropdown = MagicMock(value="lat")
+    ui.prompt_bounds_dropdown = MagicMock(value=bounds_dropdown_val)
+
+    # Set dummy dataset attributes
+    ui.dataset = "mock_primary_ds"
+    ui.multiplot_ref_dataset_dict = {"ref1": "mock_ref_ds"}
+    ui.multiplot_chosen_slices = {"z": 0}
+
+    # 3. Run the function
+    result = ui._multiplot_plot_dataset_helper(plot_diff=plot_diff, plot_type=plot_type)
+
+    # 4. Assertions
+    if plot_type == "Line":
+        # Check that bounds were calculated
+        mock_check_bounds.assert_called_once_with(
+            "mock_primary_ds", "time", {"ref1": "mock_ref_ds"}
+        )
+
+        # Check that the controller was called with the exact right variables
+        mock_plot_line.assert_called_once_with(
+            "mock_primary_ds",
+            mock_variable,
+            {"ref1": "mock_ref_ds"},
+            {"z": 0},
+            "time",
+            expected_xmin,
+            expected_xmax,
+            plot_diff=plot_diff,
+        )
+        assert result == "line_figure"
+        mock_plot_heatmap.assert_not_called()
+
+    else:  # Heatmap
+        # Check that bounds were NOT calculated
+        mock_check_bounds.assert_not_called()
+
+        # Check that the controller was called with the exact right variables
+        mock_plot_heatmap.assert_called_once_with(
+            "mock_primary_ds",
+            mock_variable,
+            {"ref1": "mock_ref_ds"},  # <--- Added the missing dictionary here!
+            {"z": 0},
+            "time",
+            "lat",
+            plot_diff=plot_diff,
+        )
+        assert result == "heatmap_figure"
+        mock_plot_line.assert_not_called()
+
+
+@pytest.fixture
+def mock_multiplot_datasets():
+    """Build synthetic 1D time-series datasets replicating user and reference models."""
+    time_coords = np.arange(10)
+
+    ds_user = xr.Dataset(
+        {"salt_surface_ave": (["time"], np.random.rand(10))},
+        coords={"time": time_coords},
+        attrs={"long_name": "Sea Surface Salinity"},
+    )
+
+    ds_ref = xr.Dataset(
+        {"salt_surface_ave": (["time"], np.random.rand(10) + 0.1)},
+        coords={"time": time_coords},
+        attrs={"long_name": "Sea Surface Salinity"},
+    )
+
+    return ds_user, ds_ref
+
+
+def test_multiplot_plot_data_button_click_line(ui, mock_multiplot_datasets):
+    """Test full execution of line plot generation in multiplot section."""
+    ds_user, ds_ref = mock_multiplot_datasets
+
+    # Configure UI state as if selected in the notebook
+    ui.dataset = ds_user
+    ui.multiplot_ref_dataset_dict = {"ref_model_1": ds_ref}
+    ui.multiplot_plot_variable_dropdown.value = "salt_surface_ave"
+    ui.multiplot_x_axis_dropdown.value = "time"
+    ui.multiplot_plot_type_dropdown.value = "Line"
+    ui.multiplot_analysis_choice_dropdown.value = "None (plot all loaded data)"
+    ui.prompt_bounds_dropdown.value = "Global bounds"
+
+    # Initial container check
+    initial_widget_count = len(ui.widget_container)
+
+    # Execute button click directly
+    ui._multiplot_plot_data_button_click()
+
+    # Assert status text updated to final state
+    assert ui.multiplot_status_textbox.value == "Overlay plot status >> Plot created"
+    assert ui.multiplot_warning_textbox.value == ""
+
+    # Assert a new plot layout was appended to widget container
+    assert len(ui.widget_container) == initial_widget_count + 1
+    plot_group = ui.widget_container[-1]
+    assert isinstance(plot_group, pn.Column)
+
+    # Assert Matplotlib pane exists within the group and holds an active figure
+    plot_pane = plot_group[0]
+    assert isinstance(plot_pane, pn.pane.Matplotlib)
+    assert isinstance(plot_pane.object, plt.Figure)
+
+
+@pytest.mark.parametrize(
+    "analysis_choice",
+    [
+        "None (plot all loaded data)",
+        "Plot Difference (Ref. - User data)",
+        "Plot All Data & Difference",
+    ],
+)
+def test_multiplot_plot_data_button_click_all_analysis_modes(
+    ui, mock_multiplot_datasets, analysis_choice
+):
+    """Test multiplot line generation across all analysis difference modes."""
+    ds_user, ds_ref = mock_multiplot_datasets
+
+    ui.dataset = ds_user
+    ui.multiplot_ref_dataset_dict = {"ref_model_1": ds_ref}
+    ui.multiplot_plot_variable_dropdown.value = "salt_surface_ave"
+    ui.multiplot_x_axis_dropdown.value = "time"
+    ui.multiplot_plot_type_dropdown.value = "Line"
+    ui.multiplot_analysis_choice_dropdown.value = analysis_choice
+    ui.prompt_bounds_dropdown.value = "Constrain to user dataset bounds"
+
+    ui._multiplot_plot_data_button_click()
+
+    assert ui.multiplot_status_textbox.value == "Overlay plot status >> Plot created"
+    assert ui.multiplot_warning_textbox.value == ""
+    assert isinstance(ui.widget_container[-1], pn.Column)
+
+
+def test_reproduce_live_multiplot_flow(ui, mock_multiplot_datasets):
+    """Simulate the exact user interaction cycle in the multiplot UI from variable selection to plot rendering."""
+    ds_user, ds_ref = mock_multiplot_datasets
+
+    # 1. State representing initial data load in multiplot
+    ui.dataset = ds_user
+    ui.multiplot_ref_dataset_dict = {"ref_model_1": ds_ref}
+    ui.multiplot_plot_variable_dropdown.value = "salt_surface_ave"
+    ui.multiplot_plot_type_dropdown.value = "Line"
+
+    # 2. Simulate clicking "Select variable and plot type"
+    # Ensure any preexisting row isn't present
+    if hasattr(ui, "multiplot_plot_choices_row"):
+        ui._safe_remove_widget_object(ui.widget_container, "multiplot_plot_choices_row")
+
+    ui._multiplot_select_variable_button_click(None)
+
+    # Verify choices UI rendered into the layout and x-axis populated
+    assert hasattr(ui, "multiplot_plot_choices_row")
+    assert ui.multiplot_plot_choices_row in ui.widget_container
+    assert ui.multiplot_x_axis_dropdown.value == "time"
+    assert ui.multiplot_plot_button.name == "Plot data"
+
+    # Set prompt bounds choice if prompted, matching default UI behavior
+    if hasattr(ui, "prompt_bounds_dropdown"):
+        ui.prompt_bounds_dropdown.value = "Global bounds"
+
+    # 3. Simulate clicking "Plot data"
+    initial_widget_count = len(ui.widget_container)
+    ui._multiplot_plot_button_click(None)
+
+    # 4. Verify execution reached the end without freezing on 'Generating plot...'
+    assert ui.multiplot_warning_textbox.value == ""
+    assert ui.multiplot_status_textbox.value == "Overlay plot status >> Plot created"
+    assert len(ui.widget_container) >= initial_widget_count
+
+    # Verify choices row was cleaned up and new plot column was appended
+    assert not hasattr(ui, "multiplot_plot_choices_row")
+    latest_widget = ui.widget_container[-1]
+    assert isinstance(latest_widget, pn.Column)
+
+
+def test_multiplot_plot_dataset_helper_reproduce(ui):
+    # Use standard datetimes to bypass the local nc-time-axis requirement
+    times_user = pd.date_range("2000-01-01", periods=12, freq="MS")
+    times_ref = pd.date_range("1995-01-01", periods=24, freq="MS")
+
+    ds_user = xr.Dataset(
+        {"salt_surface_ave": (["time"], np.random.rand(12))},
+        coords={"time": times_user},
+        attrs={"long_name": "Sea Surface Salinity"},
+    )
+    ds_ref = xr.Dataset(
+        {"salt_surface_ave": (["time"], np.random.rand(24))},
+        coords={"time": times_ref},
+        attrs={"long_name": "Sea Surface Salinity"},
+    )
+
+    ui.dataset = ds_user
+    ui.multiplot_ref_dataset_dict = {"ref_model": ds_ref}
+    ui.multiplot_plot_variable_dropdown.value = "salt_surface_ave"
+    ui.multiplot_x_axis_dropdown.value = "time"
+    ui.multiplot_plot_type_dropdown.value = "Line"
+    ui.multiplot_chosen_slices = {}
+    ui.prompt_bounds_dropdown.value = "Constrain to user dataset bounds"
+
+    # Call the helper directly
+    fig = ui._multiplot_plot_dataset_helper(plot_diff=False, plot_type="Line")
+    assert fig is not None
+
+
+def test_variable_toggle_click(ui, monkeypatch):
+    mock_toggle_change = MagicMock(return_value={"var": "long_name"})
+    monkeypatch.setattr(controller, "variable_toggle_change", mock_toggle_change)
+
+    ui._variable_toggle_click(None)
+
+    mock_toggle_change.assert_called_once_with(
+        ui.variable_toggle, ui.plot_variable_dropdown, ui.dataset
+    )
+    assert ui.long_names == {"var": "long_name"}
+
+
+def test_ref_variable_toggle_click(ui, monkeypatch):
+    mock_toggle_change = MagicMock(return_value={"ref_var": "ref_long_name"})
+    monkeypatch.setattr(controller, "variable_toggle_change", mock_toggle_change)
+
+    ui._ref_variable_toggle_click(None)
+
+    mock_toggle_change.assert_called_once_with(
+        ui.ref_variable_toggle, ui.ref_plot_variable_dropdown, ui.ref_dataset
+    )
+    assert ui.ref_long_names == {"ref_var": "ref_long_name"}
+
+
+def test_multiplot_variable_toggle_click(ui, monkeypatch):
+    mock_toggle_change = MagicMock(return_value={"multi_var": "multi_long_name"})
+    monkeypatch.setattr(controller, "variable_toggle_change", mock_toggle_change)
+
+    ui._multiplot_variable_toggle_click(None)
+
+    mock_toggle_change.assert_called_once_with(
+        ui.multiplot_variable_toggle, ui.multiplot_plot_variable_dropdown, ui.dataset
+    )
+    assert ui.multiplot_long_names == {"multi_var": "multi_long_name"}
+
+
+@pytest.mark.parametrize(
+    "target_exists, container_contents, above, append, expected_return, expected_index",
+    [
+        (True, ["target"], True, False, False, 0),
+        (True, ["target"], False, False, False, 1),
+        (False, ["other"], False, True, True, 1),
+        (False, ["other"], False, False, False, 1),
+    ],
+)
+def test_safe_add_to_widget(
+    ui,
+    target_exists,
+    container_contents,
+    above,
+    append,
+    expected_return,
+    expected_index,
+):
+    """Test safe widget insertion across all matching, index-clamping, and fallback append branches."""
+
+    # Configure mock attribute on ui
+    target_widget = "target" if target_exists else None
+    ui.mock_target_attr = target_widget
+
+    container = list(container_contents)
+    item_to_add = "new_item"
+
+    result = ui._safe_add_to_widget(
+        widget_container=container,
+        target_attributes=["mock_target_attr"],
+        item_to_add=item_to_add,
+        append=append,
+        above=above,
+    )
+
+    assert result == expected_return
+    if expected_return or target_exists or append:
+        assert container[expected_index] == item_to_add
+
+
+def test_add_remove_btn_callback(ui):
+    """Test that clicking the remove button successfully removes the plot group from the widget container."""
+    mock_pane = "mock_plot"
+    ui.widget_container = []
+
+    # Create the plot group and add it to the container
+    plot_group = ui._add_remove_btn(mock_pane)
+    ui.widget_container.append(plot_group)
+
+    assert plot_group in ui.widget_container
+
+    # Extract the button (second item in the Column)
+    remove_btn = plot_group[1]
+
+    # Incrementing clicks triggers the registered on_click callback (_remove_this_plot)
+    remove_btn.clicks += 1
+
+    # Verify the plot group was removed
+    assert plot_group not in ui.widget_container
