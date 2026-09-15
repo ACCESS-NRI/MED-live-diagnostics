@@ -50,3 +50,15 @@ hvplot = ">=0.12.2,<0.13"
 access-nri-intake = ">=1.7.0,<2"
 pytest-cov = ">=7.1.0,<8"
 nc-time-axis = ">=1.4.1,<2"
+versioneer = ">=0.29,<0.30"
+pre-commit = ">=4.6.2,<5"
+ruff = ">=0.16.7,<0.17"
+
+[tool.mypy]
+exclude = [
+    "versioneer\\.py",
+    "_version\\.py"
+]
+
+[tool.ruff]
+exclude = ["versioneer.py"]
