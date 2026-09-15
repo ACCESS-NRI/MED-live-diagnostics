@@ -11301,6 +11301,7 @@ packages:
   - access-nri-intake
   - panel
   - matplotlib
+  - nc-time-axis
   requires_python: '>=3.10'
 - pypi: https://files.pythonhosted.org/packages/42/c9/8638db32514dbb9157b3d82680c6faea89283523edf9ed2415ea3884f2ae/apscheduler-3.11.3-py3-none-any.whl
   name: apscheduler

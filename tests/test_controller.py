@@ -595,73 +595,55 @@ def test_plot_multiplot_dataset(multiplot_datasets, monkeypatch, plot_diff):
     assert len(ax.lines) == 4
 
 
-def test_plot_multiplot_heatmap_no_refs():
-    """Hits: total_plots == 0 -> returns fig with 'No reference models selected' text."""
-    dataset = MagicMock()
-    fig = controller.plot_multiplot_heatmap_dataset(
-        dataset=dataset,
-        variable="temp",
-        ref_dict={},
-        chosen_slices={},
-        x_axis="lon",
-        y_axis="lat",
-    )
-    assert fig is not None
-
-
-def test_plot_multiplot_heatmap_delaxes_and_slices():
-    """Hits: odd total_plots (triggers fig.delaxes) and non-empty chosen_slices (triggers bottom=0.15 adjust)."""
-    # Create mock dataset with 3 reference models (forces 2x2 grid, leaving 1 empty subplot)
-    ref_ds = MagicMock(spec=xr.Dataset)
-    ref_ds.dims = {"lon": 10, "lat": 10}
-    ref_ds.sel.return_value = ref_ds
-
-    # Mock plotting variable behavior
+def _make_mock_da():
     mock_da = MagicMock()
     mock_da.min.return_value = 0.0
     mock_da.max.return_value = 10.0
-    ref_ds.__getitem__.return_value = mock_da
+    return mock_da
 
-    ref_dict = {"model1": ref_ds, "model2": ref_ds, "model3": ref_ds}
+
+def _no_refs_case():
+    """total_plots == 0 -> returns fig with 'No reference models selected' text."""
+    return dict(dataset=MagicMock(), ref_dict={}, chosen_slices={})
+
+
+def _delaxes_and_slices_case():
+    """Odd total_plots (triggers fig.delaxes) and non-empty chosen_slices (triggers bottom=0.15 adjust)."""
+    # 3 reference models forces a 2x2 grid, leaving 1 empty subplot
+    mock_da = _make_mock_da()
+
+    ref_ds = MagicMock(spec=xr.Dataset)
+    ref_ds.dims = {"lon": 10, "lat": 10}
+    ref_ds.sel.return_value = ref_ds
+    ref_ds.__getitem__.return_value = mock_da
 
     user_ds = MagicMock()
     user_ds.sel.return_value = user_ds
     user_ds.__getitem__.return_value = mock_da
 
-    chosen_slices = {"lev": 5}  # Non-empty to trigger slice_str and bottom=0.15
-
-    fig = controller.plot_multiplot_heatmap_dataset(
+    return dict(
         dataset=user_ds,
-        variable="temp",
-        ref_dict=ref_dict,
-        chosen_slices=chosen_slices,
-        x_axis="lon",
-        y_axis="lat",
+        ref_dict={"model1": ref_ds, "model2": ref_ds, "model3": ref_ds},
+        chosen_slices={"lev": 5},  # non-empty to trigger slice_str and bottom=0.15
     )
-    assert fig is not None
 
 
-def test_plot_multiplot_heatmap_member_dims():
-    """Hits: 'member' in sliced_user_data.dims and 'member' in sliced_first_ref.dims."""
-    # Removed spec=xr.Dataset so dynamic attributes like .member are allowed
-    ref_ds = MagicMock()
-    ref_ds.dims = {"lon": 10, "lat": 10, "member": 3}
-    ref_ds.member.values = [1]
-    ref_ds.sel.return_value = ref_ds
+def _member_dims_case():
+    """'member' in sliced_user_data.dims and 'member' in sliced_first_ref.dims."""
+    mock_da = _make_mock_da()
 
     # Configure mock for sliced reference dataset after isel
     sliced_ref_mock = MagicMock()
     sliced_ref_mock.dims = {"lon": 10, "lat": 10}
-    mock_da = MagicMock()
-    mock_da.min.return_value = 0.0
-    mock_da.max.return_value = 10.0
     sliced_ref_mock.__getitem__.return_value = mock_da
+    sliced_ref_mock.__sub__.return_value = sliced_ref_mock  # subtraction for plot_diff=True
 
-    # Ensure subtraction (plot_diff=True) returns this configured mock
-    sliced_ref_mock.__sub__.return_value = sliced_ref_mock
-
+    # Not spec'd, so dynamic attributes like .member are allowed
+    ref_ds = MagicMock()
+    ref_ds.dims = {"lon": 10, "lat": 10, "member": 3}
+    ref_ds.member.values = [1]
+    ref_ds.sel.return_value = ref_ds
     ref_ds.isel.return_value = sliced_ref_mock
-    ref_dict = {"model1": ref_ds}
 
     # Configure mock for sliced user dataset after isel
     sliced_user_mock = MagicMock()
@@ -673,14 +655,22 @@ def test_plot_multiplot_heatmap_member_dims():
     user_ds.sel.return_value = user_ds
     user_ds.isel.return_value = sliced_user_mock
 
-    fig = controller.plot_multiplot_heatmap_dataset(
+    return dict(
         dataset=user_ds,
-        variable="temp",
-        ref_dict=ref_dict,
+        ref_dict={"model1": ref_ds},
         chosen_slices={},
-        x_axis="lon",
-        y_axis="lat",
         plot_diff=True,
+    )
+
+
+@pytest.mark.parametrize(
+    "build_kwargs",
+    [_no_refs_case, _delaxes_and_slices_case, _member_dims_case],
+    ids=["no_refs", "delaxes_and_slices", "member_dims"],
+)
+def test_plot_multiplot_heatmap_dataset(build_kwargs):
+    fig = controller.plot_multiplot_heatmap_dataset(
+        variable="temp", x_axis="lon", y_axis="lat", **build_kwargs()
     )
     assert fig is not None
 
