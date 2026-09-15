@@ -538,38 +538,44 @@ def plot_multiplot_dataset(
         caption_text="",
     )
 
-def plot_multiplot_heatmap_dataset(dataset, variable, ref_dict, chosen_slices, x_axis, y_axis, plot_diff=False):
-    # get the number of reference variables, to calculate the grid size
-    num_refs = len(ref_dict)
-    total_plots = 1 + num_refs
 
-    # calculate grid dimensions
+def plot_multiplot_heatmap_dataset(dataset, variable, ref_dict, chosen_slices, x_axis, y_axis, plot_diff=False):
+    num_refs = len(ref_dict)
+    total_plots = num_refs  # Only reference plots
+
+    if total_plots == 0:
+        fig, ax = plt.subplots(figsize=[6, 4])
+        ax.text(0.5, 0.5, "No reference models selected", ha="center", va="center")
+        return fig
+
+    # Calculate grid dimensions
     ncols = 2 if total_plots > 1 else 1
     nrows = (total_plots + 1) // 2
 
-    # Slice user data
+    # Slice user data (still needed as a baseline if calculating differences)
     sliced_user_data = dataset.sel(**chosen_slices, method="nearest")
-
-    # FIX: Ensure user data is 2D for heatmap plotting!
     if "member" in sliced_user_data.dims:
         sliced_user_data = sliced_user_data.isel(member=0)
 
-    global_vmin = float(sliced_user_data[variable].min())
-    global_vmax = float(sliced_user_data[variable].max())
+    # Initialise colour bounds using the first reference dataset
+    first_key, first_ref_ds = next(iter(ref_dict.items()))
+    valid_slices = {dim: val for dim, val in chosen_slices.items() if dim in first_ref_ds.dims}
+    sliced_first_ref = first_ref_ds.sel(**valid_slices, method="nearest")
+    if "member" in sliced_first_ref.dims:
+        sliced_first_ref = sliced_first_ref.isel(member=0)
 
-    # Need to check min and max for given variable to keep colour consistent
-    for ref_ds in ref_dict.values():
+    first_plot_data = (sliced_first_ref - sliced_user_data) if plot_diff else sliced_first_ref
+    global_vmin = float(first_plot_data[variable].min())
+    global_vmax = float(first_plot_data[variable].max())
+
+    # Calculate min and max across all reference datasets to keep colour scales consistent
+    for model_key, ref_ds in ref_dict.items():
         valid_slices = {dim: val for dim, val in chosen_slices.items() if dim in ref_ds.dims}
         sliced_ref = ref_ds.sel(**valid_slices, method="nearest")
-
-        # Ensure ref data is also 2D for the min/max calculation!
         if "member" in sliced_ref.dims:
             sliced_ref = sliced_ref.isel(member=0)
 
-        # Calculate diff if needed
         plot_data = (sliced_ref - sliced_user_data) if plot_diff else sliced_ref
-
-        # Calculate bounds using plot_data
         global_vmin = min(global_vmin, float(plot_data[variable].min()))
         global_vmax = max(global_vmax, float(plot_data[variable].max()))
 
@@ -577,55 +583,37 @@ def plot_multiplot_heatmap_dataset(dataset, variable, ref_dict, chosen_slices, x
     fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=[6 * ncols, 4 * nrows])
     axes_flat = axes.flatten() if hasattr(axes, "flatten") else [axes]
 
-    # Plot User Data
-    sliced_user_data[variable].plot(
-        x=x_axis,
-        y=y_axis,
-        ax=axes_flat[0],
-        vmin=global_vmin,
-        vmax=global_vmax,
-        cmap="viridis",
-        cbar_kwargs={"label": variable},
-    )
-
-    # If the user data had members, note that we are only showing the first one
-    user_member_title = f" (mem: {dataset.member.values[0]})" if "member" in dataset.dims else ""
-    axes_flat[0].set_title(f"User Dataset{user_member_title}")
-
-    ax = 1
-    for model_key, dataset in ref_dict.items():
-        valid_slices = {dim: val for dim, val in chosen_slices.items() if dim in dataset.dims}
-        sliced_ref = dataset.sel(**valid_slices, method="nearest")
+    ax_idx = 0
+    for model_key, ref_ds in ref_dict.items():
+        valid_slices = {dim: val for dim, val in chosen_slices.items() if dim in ref_ds.dims}
+        sliced_ref = ref_ds.sel(**valid_slices, method="nearest")
 
         plot_data = (sliced_ref - sliced_user_data) if plot_diff else sliced_ref
         title_prefix = "Δ " if plot_diff else ""
 
-        # If the reference data has members, plot the first one to avoid issues
         member_title = ""
         if "member" in sliced_ref.dims:
             sliced_ref = sliced_ref.isel(member=0)
-            member_title = f" (mem: {dataset.member.values[0]})"
+            member_title = f" (mem: {ref_ds.member.values[0]})"
 
-        sliced_ref[variable].plot(
+        plot_data[variable].plot(
             x=x_axis,
             y=y_axis,
-            ax=axes_flat[ax],
+            ax=axes_flat[ax_idx],
             vmin=global_vmin,
             vmax=global_vmax,
             cmap="viridis",
             cbar_kwargs={"label": variable},
         )
-        axes_flat[ax].set_title(f"{title_prefix}{model_key}{member_title}")
-        ax += 1
+        axes_flat[ax_idx].set_title(f"{title_prefix}{model_key}{member_title}")
+        ax_idx += 1
 
-    # delete empty subplots remaining
+    # Delete empty subplots remaining
     for i in range(total_plots, len(axes_flat)):
         fig.delaxes(axes_flat[i])
 
-    # Add the slice information to the caption text, if it is sliced data
-    slice_str = ", ".join(
-        [f"{dim}: {round_slice_val(val)}" for dim, val in chosen_slices.items()]
-    )
+    # Add slice information to the caption text if sliced
+    slice_str = ", ".join([f"{dim}: {round_slice_val(val)}" for dim, val in chosen_slices.items()])
     if slice_str:
         fig.text(
             0.1,
