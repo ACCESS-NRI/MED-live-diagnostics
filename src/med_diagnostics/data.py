@@ -157,4 +157,4 @@ def _load_access_nri_catalog(model_type, filter=True):
     else:
 
         # Filter catalog by model type
-        return catalog.search(model=".*" + model_type.upper() + ".*")
+        return catalog.search(f"{.*}model_type.upper(){.*}")

@@ -425,7 +425,7 @@ def plot_animation(dataset, dataset_name, variable, chosen_slices, x_axis, y_axi
     """
 
     data = dataset.sel(**chosen_slices, method="nearest")
-    plot_dataset = data[variable].load()
+    plot_dataset = data[variable]
 
     # get the min and max variable values so that the heatmap is consistent for the whole animation
     vmin = float(plot_dataset.min())
@@ -530,6 +530,7 @@ def plot_multiplot_dataset(dataset, variable, ref_dict, chosen_slices, x_axis, x
         title_text=title_text,
         chosen_slices=chosen_slices,
         caption_text="",
+        multiplot_legend=True,
     )
 
 
@@ -676,8 +677,8 @@ def check_bounds(dataset, x_axis, ref_dict):
     for ref_ds in ref_dict.values():
         if x_axis in ref_ds:
             # Crucial: Apply .item() to reference bounds as well!
-            ref_min = ref_ds[x_axis].min().item()
-            ref_max = ref_ds[x_axis].max().item()
+            ref_min = ref_ds[x_axis].min().values[()]
+            ref_max = ref_ds[x_axis].max().values[()]
 
             try:
                 # Attempt standard numerical or exact-calendar comparison first

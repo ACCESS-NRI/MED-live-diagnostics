@@ -39,7 +39,7 @@ class CreateModelDiagnosticsSession():
         self.model_path = str(model_path)
         self.model_data = []
 
-        self.timezone = str(timezone) if timezone != None else "Australia/Canberra"
+        self.timezone = str(timezone) if timezone is not None else "Australia/Canberra"
 
         self.data_update = False
 

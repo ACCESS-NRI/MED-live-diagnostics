@@ -904,7 +904,7 @@ class UserInterface:
 
     def _prompt_bounds_ui(self):
         """
-        Generate and insert the UI row for selecting x-axis bounds constraints. Private.
+        Generate and insert the UI row for selecting x-axis bounds constraints.
 
         Configures the bounds dropdown options and determines the correct
         insertion point within the widget container based on the presence of
@@ -1425,7 +1425,7 @@ class UserInterface:
 
     def _add_remove_btn(self, plot_pane):
         """
-        Wrap a plot pane in a Column alongside a functional 'Remove Plot' button. Private.
+        Wrap a plot pane in a Column alongside a functional 'Remove Plot' button. 
         """
         # Create a remove button for each plot that is added
         remove_btn = pn.widgets.Button(**self.STYLES.get("remove_button"))
