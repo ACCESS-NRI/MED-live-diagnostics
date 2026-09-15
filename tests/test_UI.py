@@ -1302,6 +1302,7 @@ def test_update_multiplot_dataset(ui, monkeypatch):
 
     # Mock the data object builder and multiplot data clearing method
     mock_build_data_object = MagicMock()
+    mock_build_data_object.return_value = {"data": None}
     monkeypatch.setattr(med_data, "_build_data_object", mock_build_data_object)
 
     mock_clear_multiplot_data = MagicMock()
@@ -1318,7 +1319,7 @@ def test_update_multiplot_dataset(ui, monkeypatch):
     assert ui.multiplot_plot_variable_dropdown.options == sorted(list(ui.dataset.keys()))
     assert ui.keys_dropdown.value == ui.loaded_dataset_key
     assert ui.plot_variable_dropdown.options == sorted(list(ui.dataset.keys()))
-    assert ui.multiplot_status_textbox.value == "Overlay Plot Status >> New user dataset loaded, clearing loaded user models"
+    assert ui.multiplot_status_textbox.value == "Overlay Plot Status >> New user dataset loaded, clearing loaded models"
     
     # Verify that old multiplot data is cleared out
     mock_clear_multiplot_data.assert_called_once()

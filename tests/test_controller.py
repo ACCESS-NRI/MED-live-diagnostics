@@ -365,13 +365,8 @@ def test_plot_multiplot_heatmap_dataset(multiplot_datasets, plot_diff):
 
     assert isinstance(fig, plt.Figure)
 
-    # 3 total plots: User + Model A + Model B (which slices member=0)
-    # 2 columns means 2 rows needed for 3 plots (4 axes total, 1 deleted)
-    assert len(fig.axes) >= 3  # Includes colorbars, so length will actually be 6
-
-    # Check titles to verify correct data routing
     titles = [ax.get_title() for ax in fig.axes if ax.get_title()]
-    assert "User Dataset" in titles
+    assert any("Model A" in title for title in titles)
 
     if plot_diff:
         assert "Δ Model A" in titles

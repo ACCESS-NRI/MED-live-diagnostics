@@ -588,13 +588,13 @@ def plot_multiplot_heatmap_dataset(dataset, variable, ref_dict, chosen_slices, x
         valid_slices = {dim: val for dim, val in chosen_slices.items() if dim in ref_ds.dims}
         sliced_ref = ref_ds.sel(**valid_slices, method="nearest")
 
-        plot_data = (sliced_ref - sliced_user_data) if plot_diff else sliced_ref
-        title_prefix = "Δ " if plot_diff else ""
-
         member_title = ""
         if "member" in sliced_ref.dims:
+            member_title = f" (mem: {sliced_ref.member.values[0]})"
             sliced_ref = sliced_ref.isel(member=0)
-            member_title = f" (mem: {ref_ds.member.values[0]})"
+
+        plot_data = (sliced_ref - sliced_user_data) if plot_diff else sliced_ref
+        title_prefix = "Δ " if plot_diff else ""
 
         plot_data[variable].plot(
             x=x_axis,
