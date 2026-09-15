@@ -616,13 +616,17 @@ def plot_multiplot_heatmap_dataset(dataset, variable, ref_dict, chosen_slices, x
         plot_data = (sliced_ref - sliced_user_data) if plot_diff else sliced_ref
         title_prefix = "Ref. - User data: " if plot_diff else ""
 
+        if plot_diff:
+            chosen_heatmap = "RdBu_r"
+        else:
+            chosen_heatmap = "viridis"
         plot_data[variable].plot(
             x=x_axis,
             y=y_axis,
             ax=axes_flat[ax_idx],
             vmin=global_vmin,
             vmax=global_vmax,
-            cmap="viridis",
+            cmap=chosen_heatmap,
             cbar_kwargs={"label": variable},
         )
         axes_flat[ax_idx].set_title(f"{title_prefix}{model_key}{member_title}")
