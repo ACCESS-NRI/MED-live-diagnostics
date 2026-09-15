@@ -3,22 +3,17 @@
 
 """Session class functions for med-diagnostics live diagnostics"""
 
-import os
-import intake
-import panel as pn
-
-from med_diagnostics import data, ui, controller
 from distributed import Client
 
+from med_diagnostics import controller, data, ui
 
-class CreateModelDiagnosticsSession():
 
+class CreateModelDiagnosticsSession:
     """
     Primary class for starting a model diagnostics session
     """
 
     def __init__(self, model_type, model_path, timezone=None):
-
         """
         Initialise a CreateLiveSession instance to start a model diagnostics session.
 
@@ -47,14 +42,18 @@ class CreateModelDiagnosticsSession():
         self.client = Client(threads_per_worker=1)
 
         print()
-        print("----------------------- Live diagnostics session started (version 15-9-26 9am) -----------------------")
+        print(
+            "----------------------- Live diagnostics session started -----------------------"
+        )
         print()
         print("Model type:", str(model_type))
         print("Model data path:", self.model_path)
         print()
         print("Started dask client:", self.client.dashboard_link)
         print()
-        print("--------------------------------------------------------------------------------")
+        print(
+            "--------------------------------------------------------------------------------"
+        )
         print()
 
         # Start UserUI instance and display initial status text
@@ -73,7 +72,9 @@ class CreateModelDiagnosticsSession():
 
         self.ui.widget_container.clear()
 
-        print("------------------------ Live diagnostics session ended ------------------------")
+        print(
+            "------------------------ Live diagnostics session ended ------------------------"
+        )
 
     def _get_data(self):
         """
@@ -82,9 +83,12 @@ class CreateModelDiagnosticsSession():
         data._build_new_catalog(self.model_path, self.model_type)
 
         # Update status text
-        controller.update_textbox_text(self.ui.status_textbox, "User model status >> Model data catalog built.")
         controller.update_textbox_text(
-            self.ui.last_data_load_textbox, "Last model data catalog build >> " + controller.get_current_time()
+            self.ui.status_textbox, "User model status >> Model data catalog built."
+        )
+        controller.update_textbox_text(
+            self.ui.last_data_load_textbox,
+            "Last model data catalog build >> " + controller.get_current_time(),
         )
 
         # Load new catalog

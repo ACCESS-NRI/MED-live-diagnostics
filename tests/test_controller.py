@@ -1,17 +1,16 @@
-from access_nri_intake import data
+import datetime
+from unittest.mock import MagicMock, call, patch
 
-
-from med_diagnostics.ui import UserInterface
-import med_diagnostics.controller as controller
-import med_diagnostics.data as med_data
-import pytest
-import xarray as xr
+import cftime
+import matplotlib.pyplot as plt
 import numpy as np
 import panel as pn
-import matplotlib.pyplot as plt
-import cftime
-from unittest.mock import MagicMock, patch, call
-import datetime
+import pytest
+import xarray as xr
+
+import med_diagnostics.data as med_data
+from med_diagnostics import controller
+from med_diagnostics.ui import UserInterface
 
 
 @pytest.fixture(scope="function")
@@ -58,7 +57,9 @@ def test_round_slice_val(input_value, expected_output):
 @patch("med_diagnostics.controller.datetime")
 def test_get_current_time(mock_datetime):
     # Create a static datetime object
-    frozen_time = datetime.datetime(2026, 9, 9, 14, 47, 14)
+    frozen_time = datetime.datetime(
+        2026, 9, 9, 14, 47, 14, tzinfo=datetime.timezone.utc
+    )
 
     # tell the mock to return our frozen time whenever .now() is called
     mock_datetime.datetime.now.return_value = frozen_time
@@ -67,21 +68,29 @@ def test_get_current_time(mock_datetime):
     result = controller.get_current_time()
 
     # Assert against the exact string we expect
-    assert result == "2026-09-09 14:47:14"
+    assert result == "2026-09-10 00:47:14 AEST"
 
 
 @pytest.mark.parametrize(
     "has_member, plot_type, is_ref, attrs, expected_caption",
     [
         # Case 1: Member dims exist, Line plot, Is Reference
-        (True, "Line", True, {"long_name": "Test Var"}, "Model: TestModel\nDataset: TestData"),
+        (
+            True,
+            "Line",
+            True,
+            {"long_name": "Test Var"},
+            "Model: TestModel\nDataset: TestData",
+        ),
         # Case 2: Heatmap plot (bypasses member loop), Not Reference
         (True, "Heatmap", False, {}, "User model \nDataset: TestData"),
         # Case 3: No member dims, Line plot, Not Reference
         (False, "Line", False, {}, "User model \nDataset: TestData"),
     ],
 )
-def test_plot_dataset(monkeypatch, has_member, plot_type, is_ref, attrs, expected_caption):
+def test_plot_dataset(
+    monkeypatch, has_member, plot_type, is_ref, attrs, expected_caption
+):
     """Test plotting dataset routing across member loops, heatmaps, lines, and reference captions."""
 
     # Mock plt.subplots
@@ -92,7 +101,9 @@ def test_plot_dataset(monkeypatch, has_member, plot_type, is_ref, attrs, expecte
 
     # Mock formatting and slice rounding dependencies
     mock_apply_formatting = MagicMock(return_value=mock_fig)
-    monkeypatch.setattr(controller, "apply_standard_plot_formatting", mock_apply_formatting)
+    monkeypatch.setattr(
+        controller, "apply_standard_plot_formatting", mock_apply_formatting
+    )
     monkeypatch.setattr(controller, "round_slice_val", lambda x: str(x), raising=False)
 
     # Configure dataset and sliced_data
@@ -137,7 +148,10 @@ def test_plot_dataset(monkeypatch, has_member, plot_type, is_ref, attrs, expecte
     if has_member and plot_type != "Heatmap":
         assert mock_da.sel.call_count == 2
         mock_mem_da.plot.assert_has_calls(
-            [call(label="mem1", x=x_axis, ax=mock_ax), call(label="mem2", x=x_axis, ax=mock_ax)]
+            [
+                call(label="mem1", x=x_axis, ax=mock_ax),
+                call(label="mem2", x=x_axis, ax=mock_ax),
+            ]
         )
     elif plot_type == "Heatmap":
         mock_da.plot.assert_called_once_with(x=x_axis, y=y_axis, ax=mock_ax)
@@ -147,7 +161,11 @@ def test_plot_dataset(monkeypatch, has_member, plot_type, is_ref, attrs, expecte
     # Verify formatting application
     expected_title = attrs.get("long_name", variable)
     mock_apply_formatting.assert_called_once_with(
-        fig=mock_fig, ax=mock_ax, title_text=expected_title, chosen_slices=chosen_slices, caption_text=expected_caption
+        fig=mock_fig,
+        ax=mock_ax,
+        title_text=expected_title,
+        chosen_slices=chosen_slices,
+        caption_text=expected_caption,
     )
 
     assert result == mock_fig
@@ -186,7 +204,12 @@ def test_variable_toggle_change(toggle_value):
 
 @pytest.mark.parametrize(
     "toggle_value, long_names",
-    [(True, {"long name": "data"}), (False, {"long name": "data"}), (True, {}), (False, {})],
+    [
+        (True, {"long name": "data"}),
+        (False, {"long name": "data"}),
+        (True, {}),
+        (False, {}),
+    ],
 )
 def test_get_selected_variable(toggle_value, long_names):
 
@@ -199,7 +222,9 @@ def test_get_selected_variable(toggle_value, long_names):
         variable_dropdown_widget.options = ["data"]
         variable_dropdown_widget.value = "data"
 
-    result = controller.get_selected_variable(toggle_widget, variable_dropdown_widget, long_names)
+    result = controller.get_selected_variable(
+        toggle_widget, variable_dropdown_widget, long_names
+    )
 
     if toggle_value and long_names:
         assert result == long_names[variable_dropdown_widget.value]
@@ -216,10 +241,20 @@ def test_get_selected_variable(toggle_value, long_names):
         (True, False, True, "standard", "noleap", True),
     ],
 )
-def test_add_to_dataset_dict(monkeypatch, has_time, user_is_cftime, ref_is_cftime, user_cal, ref_cal, expect_convert):
+def test_add_to_dataset_dict(
+    monkeypatch,
+    has_time,
+    user_is_cftime,
+    ref_is_cftime,
+    user_cal,
+    ref_cal,
+    expect_convert,
+):
     # Mock data._build_data_object
     mock_dataset = MagicMock()
-    monkeypatch.setattr(med_data, "_build_data_object", MagicMock(return_value=mock_dataset))
+    monkeypatch.setattr(
+        med_data, "_build_data_object", MagicMock(return_value=mock_dataset)
+    )
 
     # Configure coords
     mock_dataset.coords = ["time"] if has_time else []
@@ -253,13 +288,19 @@ def test_add_to_dataset_dict(monkeypatch, has_time, user_is_cftime, ref_is_cftim
 
     dataset_dict = {}
     result = controller.add_to_dataset_dict(
-        dataset_dict=dataset_dict, model="TestModel", catalog=MagicMock(), data_to_load={}, user_data=mock_user_data
+        dataset_dict=dataset_dict,
+        model="TestModel",
+        catalog=MagicMock(),
+        data_to_load={},
+        user_data=mock_user_data,
     )
 
     # Assertions
     assert "TestModel" in result
     if expect_convert:
-        mock_dataset.convert_calendar.assert_called_once_with(user_cal if user_is_cftime else "standard")
+        mock_dataset.convert_calendar.assert_called_once_with(
+            user_cal if user_is_cftime else "standard"
+        )
     else:
         mock_dataset.convert_calendar.assert_not_called()
 
@@ -287,8 +328,24 @@ def test_get_metadata():
     "plot_type, x, y, z, has_slice, dim_sizes, expected",
     [
         # (plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, remaining_dims)
-        ("Line", None, None, None, False, {"time": 10}, (False, False, False, False, [])),
-        ("Line", "time", None, None, False, {"time": 10}, (True, False, False, False, [])),
+        (
+            "Line",
+            None,
+            None,
+            None,
+            False,
+            {"time": 10},
+            (False, False, False, False, []),
+        ),
+        (
+            "Line",
+            "time",
+            None,
+            None,
+            False,
+            {"time": 10},
+            (True, False, False, False, []),
+        ),
         (
             "Line",
             "time",
@@ -307,7 +364,15 @@ def test_get_metadata():
             {"time": 10, "lat": 10},
             (True, False, False, False, []),
         ),
-        ("Heatmap", "time", "lat", None, True, {"time": 10}, (False, False, True, False, [])),
+        (
+            "Heatmap",
+            "time",
+            "lat",
+            None,
+            True,
+            {"time": 10},
+            (False, False, True, False, []),
+        ),
         (
             "Heatmap",
             "time",
@@ -360,7 +425,13 @@ def test_check_plot_validity(plot_type, x, y, z, has_slice, dim_sizes, expected)
     mock_dataset.__getitem__.return_value.sizes = dim_sizes
 
     result = controller.check_plot_validity(
-        dataset=mock_dataset, variable="temp", plot_type=plot_type, x=x, y=y, z=z, has_slice_widgets=has_slice
+        dataset=mock_dataset,
+        variable="temp",
+        plot_type=plot_type,
+        x=x,
+        y=y,
+        z=z,
+        has_slice_widgets=has_slice,
     )
 
     assert result == expected
@@ -383,11 +454,15 @@ def test_multiplot_check_bounds_numeric(ref_min_val, ref_max_val, expected_trigg
     ds_primary = xr.Dataset({"data": (["x"], [1, 2])}, coords={"x": [0, 10]})
 
     # Create a reference dataset with coordinate bounds based on parameters
-    ds_ref = xr.Dataset({"data": (["x"], [3, 4])}, coords={"x": [ref_min_val, ref_max_val]})
+    ds_ref = xr.Dataset(
+        {"data": (["x"], [3, 4])}, coords={"x": [ref_min_val, ref_max_val]}
+    )
     ref_dict = {"ref1": ds_ref}
 
     # Execute the bounds check and verify if a bounds mismatch is triggered
-    result, global_min, global_max, dataset_min, dataset_max = controller.check_bounds(ds_primary, "x", ref_dict)
+    result, global_min, global_max, _dataset_min, _dataset_max = (
+        controller.check_bounds(ds_primary, "x", ref_dict)
+    )
 
     assert result == expected_triggered
 
@@ -415,7 +490,9 @@ def test_multiplot_check_bounds_calendar(ref_start, ref_end, expected_triggered)
         cftime.DatetimeNoLeap(2000, 1, 1),
         cftime.DatetimeNoLeap(2000, 12, 31),
     ]
-    ds_primary = xr.Dataset({"data": (["time"], [1, 2])}, coords={"time": primary_times})
+    ds_primary = xr.Dataset(
+        {"data": (["time"], [1, 2])}, coords={"time": primary_times}
+    )
 
     # Create a reference dataset using Gregorian calendar bounds based on parameters
     ref_times = [
@@ -426,7 +503,9 @@ def test_multiplot_check_bounds_calendar(ref_start, ref_end, expected_triggered)
     ref_dict = {"ref1": ds_ref}
 
     # Execute the bounds check and verify if a bounds mismatch is triggered
-    result, global_min, global_max, dataset_min, dataset_max = controller.check_bounds(ds_primary, "time", ref_dict)
+    result, _global_min, _global_max, _dataset_min, _dataset_max = (
+        controller.check_bounds(ds_primary, "time", ref_dict)
+    )
 
     assert result == expected_triggered
 
@@ -435,6 +514,7 @@ def test_multiplot_check_bounds_mismatched_types():
     """Test that check_bounds safely ignores reference datasets with incompatible axis types."""
     import cftime
     import xarray as xr
+
     from med_diagnostics import controller  # Update import if needed
 
     # Primary dataset is numeric
@@ -449,7 +529,9 @@ def test_multiplot_check_bounds_mismatched_types():
     ref_dict = {"ref1": ds_ref}
 
     # Execute the bounds check
-    result, global_min, global_max, dataset_min, dataset_max = controller.check_bounds(ds_primary, "x", ref_dict)
+    result, global_min, global_max, _dataset_min, _dataset_max = (
+        controller.check_bounds(ds_primary, "x", ref_dict)
+    )
 
     # Because they are incompatible, bounds should NOT be widened,
     # and the global bounds should remain equal to the primary numeric bounds.
@@ -462,7 +544,8 @@ def test_multiplot_check_bounds_mismatched_types():
 def multiplot_datasets():
     """Create a primary dataset and a reference dictionary for plotting tests."""
     ds_user = xr.Dataset(
-        {"data": (["time", "lat"], np.random.rand(5, 5))}, coords={"time": [1, 2, 3, 4, 5], "lat": [10, 20, 30, 40, 50]}
+        {"data": (["time", "lat"], np.random.rand(5, 5))},
+        coords={"time": [1, 2, 3, 4, 5], "lat": [10, 20, 30, 40, 50]},
     )
     ds_user.data.attrs["long_name"] = "Temperature"
 
@@ -484,7 +567,9 @@ def test_plot_multiplot_dataset(multiplot_datasets, monkeypatch, plot_diff):
     ds_user, ref_dict = multiplot_datasets
 
     # Mock standard formatter to just return the figure so we can verify the ax
-    monkeypatch.setattr(controller, "apply_standard_plot_formatting", lambda fig, **kwargs: fig)
+    monkeypatch.setattr(
+        controller, "apply_standard_plot_formatting", lambda fig, **kwargs: fig
+    )
 
     fig = controller.plot_multiplot_dataset(
         dataset=ds_user,
@@ -513,7 +598,12 @@ def test_plot_multiplot_heatmap_no_refs():
     """Hits: total_plots == 0 -> returns fig with 'No reference models selected' text."""
     dataset = MagicMock()
     fig = controller.plot_multiplot_heatmap_dataset(
-        dataset=dataset, variable="temp", ref_dict={}, chosen_slices={}, x_axis="lon", y_axis="lat"
+        dataset=dataset,
+        variable="temp",
+        ref_dict={},
+        chosen_slices={},
+        x_axis="lon",
+        y_axis="lat",
     )
     assert fig is not None
 
@@ -540,7 +630,12 @@ def test_plot_multiplot_heatmap_delaxes_and_slices():
     chosen_slices = {"lev": 5}  # Non-empty to trigger slice_str and bottom=0.15
 
     fig = controller.plot_multiplot_heatmap_dataset(
-        dataset=user_ds, variable="temp", ref_dict=ref_dict, chosen_slices=chosen_slices, x_axis="lon", y_axis="lat"
+        dataset=user_ds,
+        variable="temp",
+        ref_dict=ref_dict,
+        chosen_slices=chosen_slices,
+        x_axis="lon",
+        y_axis="lat",
     )
     assert fig is not None
 
@@ -599,7 +694,13 @@ def test_plot_multiplot_heatmap_member_dims():
     ],
 )
 def test_apply_standard_plot_formatting(
-    monkeypatch, chosen_slices, x_min, x_max, multiplot_legend, expected_caption, expected_xlim_called
+    monkeypatch,
+    chosen_slices,
+    x_min,
+    x_max,
+    multiplot_legend,
+    expected_caption,
+    expected_xlim_called,
 ):
     """Test standard plot formatting applied correctly across all layout and legend combinations."""
 
@@ -631,7 +732,9 @@ def test_apply_standard_plot_formatting(
     ax.grid.assert_called_once()
 
     # Caption Assertion
-    fig.text.assert_called_once_with(0.1, 0.01, expected_caption, wrap=True, horizontalalignment="left", fontsize=10)
+    fig.text.assert_called_once_with(
+        0.1, 0.01, expected_caption, wrap=True, horizontalalignment="left", fontsize=10
+    )
 
     # X-Limits Assertion
     if expected_xlim_called:
@@ -655,16 +758,20 @@ def test_apply_standard_plot_formatting(
         (False, False, {"lat": -35.0}, True),
     ],
 )
-def test_plot_animation(monkeypatch, missing_x, missing_y, chosen_slices, expected_slice_text):
+def test_plot_animation(
+    monkeypatch, missing_x, missing_y, chosen_slices, expected_slice_text
+):
     # Mock dependencies
-    monkeypatch.setattr(controller, "round_slice_val", lambda val: str(val), raising=False)
+    monkeypatch.setattr(
+        controller, "round_slice_val", lambda val: str(val), raising=False
+    )
 
     mock_dataset = MagicMock()
     mock_sliced_data = MagicMock()
     mock_plot_dataset = MagicMock()
 
     mock_dataset.sel.return_value = mock_sliced_data
-    mock_sliced_data.__getitem__.return_value.load.return_value = mock_plot_dataset
+    mock_sliced_data.__getitem__.return_value = mock_plot_dataset
 
     # Configure min/max
     mock_plot_dataset.min.return_value = 0.0
@@ -715,3 +822,40 @@ def test_plot_animation(monkeypatch, missing_x, missing_y, chosen_slices, expect
     assert "Variable: Temperature" in caption_pane.object
     if expected_slice_text:
         assert "Sliced by: lat: -35.0" in caption_pane.object
+
+
+@pytest.mark.parametrize(
+    "variable, ref_dict, expected_invalid, expected_valid",
+    [
+        ("temp", None, {}, {}),
+        ("temp", {}, {}, {}),
+        (
+            "temp",
+            {"model_A": {"temp": [1, 2], "salt": [3, 4]}, "model_B": {"temp": [5, 6]}},
+            {},
+            {"model_A": {"temp": [1, 2], "salt": [3, 4]}, "model_B": {"temp": [5, 6]}},
+        ),
+        (
+            "temp",
+            {
+                "model_A": {"temp": [1, 2]},
+                "model_B": {"salt": [3, 4]},
+                "model_C": {"temp": [5, 6]},
+            },
+            {"model_B": {"salt": [3, 4]}},
+            {"model_A": {"temp": [1, 2]}, "model_C": {"temp": [5, 6]}},
+        ),
+        (
+            "temp",
+            {"model_A": {"salt": [1, 2]}, "model_B": {"salt": [3, 4]}},
+            {"model_A": {"salt": [1, 2]}, "model_B": {"salt": [3, 4]}},
+            {},
+        ),
+    ],
+)
+def test_check_dict_validity(variable, ref_dict, expected_invalid, expected_valid):
+    """Test the filtering of reference datasets missing the target variable."""
+    invalid, valid = controller.check_dict_validity(variable, ref_dict)
+
+    assert invalid == expected_invalid
+    assert valid == expected_valid

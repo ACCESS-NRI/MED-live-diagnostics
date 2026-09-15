@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 # Adjust this import path if your file is named something else (e.g., main.py)
 from med_diagnostics.session import CreateModelDiagnosticsSession
@@ -50,10 +51,12 @@ def mock_session_deps(monkeypatch):
 )
 def test_init_and_get_data(mock_session_deps, timezone, expected_tz):
     """Tests session initialisation and the automatic _get_data execution."""
-    mock_client, mock_ui, mock_data, mock_controller = mock_session_deps
+    _mock_client, mock_ui, mock_data, mock_controller = mock_session_deps
 
     # Initialise the session
-    session = CreateModelDiagnosticsSession(model_type="CM2", model_path="/mock/path", timezone=timezone)
+    session = CreateModelDiagnosticsSession(
+        model_type="CM2", model_path="/mock/path", timezone=timezone
+    )
 
     # Verify __init__ assignments
     assert session.model_type == "cm2"
@@ -70,7 +73,9 @@ def test_init_and_get_data(mock_session_deps, timezone, expected_tz):
     mock_data._load_access_nri_catalog.assert_called_once_with("cm2")
 
     assert mock_controller.update_textbox_text.call_count == 2
-    mock_ui._display_dataset_selection_ui.assert_called_once_with("mock_model_cat", "mock_access_cat")
+    mock_ui._display_dataset_selection_ui.assert_called_once_with(
+        "mock_model_cat", "mock_access_cat"
+    )
 
 
 def test_end_session(mock_session_deps):

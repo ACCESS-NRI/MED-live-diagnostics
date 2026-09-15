@@ -4,21 +4,19 @@
 """Data IO functions"""
 
 import os
-import time
-import access_nri_intake
-import intake
 
+import intake
+from access_nri_intake.aliases import AliasedESMCatalog
+from access_nri_intake.experiment import use_datastore
 from access_nri_intake.source.builders import (
     AccessCm2Builder,
-    AccessOm2Builder,
     AccessCm3Builder,
-    AccessOm3Builder,
     AccessEsm15Builder,
     AccessEsm16Builder,
+    AccessOm2Builder,
+    AccessOm3Builder,
     Mom6Builder,
 )
-from access_nri_intake.experiment import use_datastore
-from access_nri_intake.aliases import AliasedESMCatalog
 
 
 def _build_new_catalog(model_path, model_type):
@@ -54,7 +52,12 @@ def _build_new_catalog(model_path, model_type):
         case _:
             raise ValueError(f"Unsupported model_type: {model_type!r}")
     # Set builder kwargs based on model type, if model_type is one of the builders that requires the ensemble argument, set it to False, otherwise set it to an empty dictionary.
-    if model_type_builder in [AccessEsm15Builder, AccessEsm16Builder, AccessCm2Builder, AccessCm3Builder]:
+    if model_type_builder in [
+        AccessEsm15Builder,
+        AccessEsm16Builder,
+        AccessCm2Builder,
+        AccessCm3Builder,
+    ]:
         builder_kwargs_set = {"ensemble": False}
     else:
         builder_kwargs_set = {}
@@ -83,7 +86,8 @@ def _load_new_catalog():
     """
 
     model_cat = intake.open_esm_datastore(
-        os.path.join(os.getcwd(), "live_diagnostics_tmp_catalog.json"), columns_with_iterables=["variable"]
+        os.path.join(os.getcwd(), "live_diagnostics_tmp_catalog.json"),
+        columns_with_iterables=["variable"],
     )
 
     return model_cat
@@ -130,7 +134,9 @@ def _build_data_object(model_cat, key):
     open_kwargs = {"use_cftime": True, "chunks": {}}
     combine_kwargs = {"compat": "override", "data_vars": "minimal", "coords": "minimal"}
     # Standard Intake catalog approach for getting dataset
-    dataset = model_cat[key](xarray_open_kwargs=open_kwargs, xarray_combine_by_coords_kwargs=combine_kwargs).to_dask()
+    dataset = model_cat[key](
+        xarray_open_kwargs=open_kwargs, xarray_combine_by_coords_kwargs=combine_kwargs
+    ).to_dask()
     return dataset
 
 
@@ -151,10 +157,8 @@ def _load_access_nri_catalog(model_type, filter=True):
     catalog = intake.cat.access_nri
 
     if filter == False:
-
         return catalog
 
     else:
-
         # Filter catalog by model type
-        return catalog.search(f"{.*}model_type.upper(){.*}")
+        return catalog.search(model=f".*{model_type.upper()}.*")

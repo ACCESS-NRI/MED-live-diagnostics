@@ -1,11 +1,10 @@
-import panel as pn
-import matplotlib.pyplot as plt
 import datetime
 
-from med_diagnostics import data
-from IPython.display import display
-import hvplot.xarray  # type: ignore #For creating interactive plots
+import matplotlib.pyplot as plt
+import panel as pn
 import xarray as xr
+
+from med_diagnostics import data
 
 
 def update_textbox_text(textbox_obj, text):
@@ -26,7 +25,11 @@ def get_current_time():
         Current time in "%Y-%m-%d %H:%M:%S" format.
     """
 
-    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return (
+        datetime.datetime.now(datetime.timezone.utc)
+        .astimezone()
+        .strftime("%Y-%m-%d %H:%M:%S %Z")
+    )
 
 
 def round_slice_val(val):
@@ -52,7 +55,15 @@ def round_slice_val(val):
 
 
 def plot_dataset(
-    dataset, dataset_name, variable, x_axis, chosen_slices, is_ref, model_name="User", plot_type="Line", y_axis=None
+    dataset,
+    dataset_name,
+    variable,
+    x_axis,
+    chosen_slices,
+    is_ref,
+    model_name="User",
+    plot_type="Line",
+    y_axis=None,
 ):
     """
     Plot 2D time-series from model data. Private.
@@ -72,10 +83,8 @@ def plot_dataset(
     sliced_data = dataset.sel(**chosen_slices, method="nearest")
 
     # Plot all model variants if multiple exist
-    if "member" in sliced_data.dims and not plot_type == "Heatmap":
-
+    if "member" in sliced_data.dims and plot_type != "Heatmap":
         for mem in sliced_data.member.values:
-
             sliced_data[variable].sel(member=mem).plot(label=mem, x=x_axis, ax=ax)
     else:
         if plot_type == "Heatmap":
@@ -84,7 +93,7 @@ def plot_dataset(
             sliced_data[variable].plot(x=x_axis, ax=ax)
 
     # Add the slice information to the title, if it is sliced data
-    slice_str = ", ".join([f"{dim}: {round_slice_val(val)}" for dim, val in chosen_slices.items()])
+    ", ".join([f"{dim}: {round_slice_val(val)}" for dim, val in chosen_slices.items()])
     title_text = sliced_data[variable].attrs.get("long_name", variable)
 
     if is_ref:
@@ -140,7 +149,9 @@ def apply_standard_plot_formatting(
         The formatted Matplotlib figure object.
     """
 
-    slice_str = ", ".join([f"{dim}: {round_slice_val(val)}" for dim, val in chosen_slices.items()])
+    slice_str = ", ".join(
+        [f"{dim}: {round_slice_val(val)}" for dim, val in chosen_slices.items()]
+    )
     if slice_str:
         caption_text += f"\nSliced by: {slice_str}"
 
@@ -149,7 +160,9 @@ def apply_standard_plot_formatting(
 
     fig.tight_layout()
     ax.set_title(title_text, fontsize=14)
-    fig.text(0.1, 0.01, caption_text, wrap=True, horizontalalignment="left", fontsize=10)
+    fig.text(
+        0.1, 0.01, caption_text, wrap=True, horizontalalignment="left", fontsize=10
+    )
 
     if multiplot_legend:
         fig.subplots_adjust(bottom=0.15, right=0.7)
@@ -186,7 +199,7 @@ def variable_toggle_change(variable_toggle, variable_dropdown, dataset):
     """
 
     long_names = {}
-    for var in dataset.keys():
+    for var in dataset:
         long_names[(dataset[var].attrs.get("long_name", var))] = var
 
     if variable_toggle.value:
@@ -199,7 +212,7 @@ def variable_toggle_change(variable_toggle, variable_dropdown, dataset):
     return long_names
 
 
-def get_selected_variable(variable_toggle, variable_dropdown, long_names={}):
+def get_selected_variable(variable_toggle, variable_dropdown, long_names=None):
     """
     Resolve the internal dataset variable key regardless of the display toggle state.
 
@@ -218,6 +231,8 @@ def get_selected_variable(variable_toggle, variable_dropdown, long_names={}):
         The resolved internal dataset variable key.
     """
 
+    if long_names is None:
+        long_names = {}
     if variable_toggle.value and long_names:
         return long_names[variable_dropdown.value]
     return variable_dropdown.value
@@ -252,15 +267,25 @@ def add_to_dataset_dict(dataset_dict, model, catalog, data_to_load, user_data):
     if "time" in user_data.coords and "time" in dataset.coords:
         # Extract the target calendar from the user dataset
         user_index = user_data.indexes.get("time")
-        target_cal = user_index.calendar if isinstance(user_index, xr.CFTimeIndex) else "standard"
+        target_cal = (
+            user_index.calendar
+            if isinstance(user_index, xr.CFTimeIndex)
+            else "standard"
+        )
 
         # Extract the calendar from the newly loaded reference dataset
         ref_index = dataset.indexes.get("time")
-        ref_cal = ref_index.calendar if isinstance(ref_index, xr.CFTimeIndex) else "standard"
+        ref_cal = (
+            ref_index.calendar if isinstance(ref_index, xr.CFTimeIndex) else "standard"
+        )
 
         # Convert the reference dataset calendar if there is a mismatch
         if target_cal != ref_cal:
-            dataset = dataset.convert_calendar(target_cal)
+            # Handle case where one of the calendars are a 360-day model
+            if "360_day" in [target_cal, ref_cal]:
+                dataset = dataset.convert_calendar(target_cal, align_on="date")
+            else:
+                dataset = dataset.convert_calendar(target_cal)
 
     dataset_dict.update({model: dataset})
     return dataset_dict
@@ -309,7 +334,16 @@ def get_metadata(catalog_metadata):
     )
 
 
-def check_plot_validity(dataset, variable, plot_type, x, y=None, z=None, has_slice_widgets=False):
+def check_plot_validity(
+    dataset,
+    variable,
+    plot_type,
+    x,
+    y=None,
+    z=None,
+    has_slice_widgets=False,
+    ref_dict=None,
+):
     """
     Check if the plot configuration is valid and determine required slicing.
 
@@ -351,6 +385,8 @@ def check_plot_validity(dataset, variable, plot_type, x, y=None, z=None, has_sli
           List of unplotted dimensions remaining in the dataset.
     """
 
+    if ref_dict is None:
+        ref_dict = {}
     plot_valid = True
     requires_slice = False
     invalid_heatmap_data = False
@@ -365,9 +401,7 @@ def check_plot_validity(dataset, variable, plot_type, x, y=None, z=None, has_sli
     # 1. Build chosen_axes first so we can filter dimensions
     if plot_type == "Animation":
         chosen_axes = (x, y, z)
-    elif plot_type in heatmaps:
-        chosen_axes = (x, y)
-    elif plot_type == "Heatmap (grid)":
+    elif plot_type in heatmaps or plot_type == "Heatmap (grid)":
         chosen_axes = (x, y)
     else:
         chosen_axes = (x,)
@@ -382,20 +416,45 @@ def check_plot_validity(dataset, variable, plot_type, x, y=None, z=None, has_sli
         requires_slice = True
 
     # If the dataset lacks enough dimensions for the chosen plot type
-    if (len(viable_dims) == 1 and plot_type in heatmaps) or (len(viable_dims) in (1, 2) and plot_type == "Animation"):
-        plot_valid = False
-        invalid_heatmap_data = True
-    elif (plot_type in heatmaps and not y) or (plot_type == "Animation" and not (y and z)):
+    if (
+        (len(viable_dims) == 1 and plot_type in heatmaps)
+        or (len(viable_dims) in (1, 2) and plot_type == "Animation")
+        or (plot_type in heatmaps and not y)
+        or (plot_type == "Animation" and not (y and z))
+    ):
         plot_valid = False
         invalid_heatmap_data = True
     elif len(set(chosen_axes)) != len(chosen_axes):
         plot_valid = False
         same_axes_chosen = True
 
-    return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, remaining_dims
+    return (
+        plot_valid,
+        requires_slice,
+        invalid_heatmap_data,
+        same_axes_chosen,
+        remaining_dims,
+    )
 
 
-def plot_animation(dataset, dataset_name, variable, chosen_slices, x_axis, y_axis, z_axis, is_ref=False):
+def check_dict_validity(variable, ref_dict=None):
+    if ref_dict is None:
+        ref_dict = {}
+    if ref_dict is None:
+        return {}, {}
+
+    # Check if the variable is contained within each of the datasets. If it is not, remove them and inform the user
+    invalid_datasets = {}
+    for dataset in list(ref_dict.keys()):
+        if variable not in ref_dict[dataset]:
+            invalid_datasets[dataset] = ref_dict[dataset]
+            del ref_dict[dataset]
+    return invalid_datasets, ref_dict
+
+
+def plot_animation(
+    dataset, dataset_name, variable, chosen_slices, x_axis, y_axis, z_axis, is_ref=False
+):
     """
     Generate an interactive animated 2D quadmesh plot with a scrubber widget.
 
@@ -433,9 +492,13 @@ def plot_animation(dataset, dataset_name, variable, chosen_slices, x_axis, y_axi
 
     # Assign coordinates if they are missing, necessary for SeaIce datasets
     if x_axis not in plot_dataset.coords:
-        plot_dataset = plot_dataset.assign_coords({x_axis: range(plot_dataset.sizes[x_axis])})
+        plot_dataset = plot_dataset.assign_coords(
+            {x_axis: range(plot_dataset.sizes[x_axis])}
+        )
     if y_axis not in plot_dataset.coords:
-        plot_dataset = plot_dataset.assign_coords({y_axis: range(plot_dataset.sizes[y_axis])})
+        plot_dataset = plot_dataset.assign_coords(
+            {y_axis: range(plot_dataset.sizes[y_axis])}
+        )
 
     plot = plot_dataset.hvplot.quadmesh(
         x=x_axis,
@@ -453,8 +516,12 @@ def plot_animation(dataset, dataset_name, variable, chosen_slices, x_axis, y_axi
 
     # Build caption string
     variable_text = plot_dataset.attrs.get("long_name", variable)
-    slice_str = ", ".join([f"{dim}: {round_slice_val(val)}" for dim, val in chosen_slices.items()])
-    caption_text = "Variable: " + variable_text + "<br>User model<br>Dataset: " + dataset_name
+    slice_str = ", ".join(
+        [f"{dim}: {round_slice_val(val)}" for dim, val in chosen_slices.items()]
+    )
+    caption_text = (
+        "Variable: " + variable_text + "<br>User model<br>Dataset: " + dataset_name
+    )
     if slice_str:
         caption_text += f"<br>Sliced by: {slice_str}"
 
@@ -465,7 +532,9 @@ def plot_animation(dataset, dataset_name, variable, chosen_slices, x_axis, y_axi
     return pn.Column(pn.panel(plot), caption_pane)
 
 
-def plot_multiplot_dataset(dataset, variable, ref_dict, chosen_slices, x_axis, x_min, x_max, plot_diff=False):
+def plot_multiplot_dataset(
+    dataset, variable, ref_dict, chosen_slices, x_axis, x_min, x_max, plot_diff=False
+):
     """
     Plot 2D time-series overlaying the user model and selected reference models. Private.
 
@@ -489,13 +558,16 @@ def plot_multiplot_dataset(dataset, variable, ref_dict, chosen_slices, x_axis, x
 
     # Only plot the baseline user data as a black line if we are NOT doing a difference plot
     if not plot_diff:
-        sliced_user_data[variable].plot(label="User dataset", x=x_axis, ax=ax, linewidth=2, color="black")
+        sliced_user_data[variable].plot(
+            label="User dataset", x=x_axis, ax=ax, linewidth=2, color="black"
+        )
 
     # Loop through the dictionary adding each reference dataset
     for model_key, ref_dataset in ref_dict.items():
-
         # Apply slices if those dimensions exist in the reference dataset
-        valid_slices = {dim: val for dim, val in chosen_slices.items() if dim in ref_dataset.dims}
+        valid_slices = {
+            dim: val for dim, val in chosen_slices.items() if dim in ref_dataset.dims
+        }
         sliced_ref_data = ref_dataset.sel(**valid_slices, method="nearest")
 
         # Determine the data to plot based on the diff flag
@@ -534,7 +606,9 @@ def plot_multiplot_dataset(dataset, variable, ref_dict, chosen_slices, x_axis, x
     )
 
 
-def plot_multiplot_heatmap_dataset(dataset, variable, ref_dict, chosen_slices, x_axis, y_axis, plot_diff=False):
+def plot_multiplot_heatmap_dataset(
+    dataset, variable, ref_dict, chosen_slices, x_axis, y_axis, plot_diff=False
+):
     num_refs = len(ref_dict)
 
     # If not plotting the difference, add 1 to total_plots to accommodate the user dataset
@@ -563,8 +637,10 @@ def plot_multiplot_heatmap_dataset(dataset, variable, ref_dict, chosen_slices, x
         global_vmax = float(sliced_user_data[variable].max())
     else:
         # If only plotting differences, baseline using the first reference difference
-        first_key, first_ref_ds = next(iter(ref_dict.items()))
-        valid_slices = {dim: val for dim, val in chosen_slices.items() if dim in first_ref_ds.dims}
+        _first_key, first_ref_ds = next(iter(ref_dict.items()))
+        valid_slices = {
+            dim: val for dim, val in chosen_slices.items() if dim in first_ref_ds.dims
+        }
         sliced_first_ref = first_ref_ds.sel(**valid_slices, method="nearest")
         if "member" in sliced_first_ref.dims:
             sliced_first_ref = sliced_first_ref.isel(member=0)
@@ -575,7 +651,9 @@ def plot_multiplot_heatmap_dataset(dataset, variable, ref_dict, chosen_slices, x
 
     # Calculate min and max across all reference datasets to keep colour scales consistent
     for model_key, ref_ds in ref_dict.items():
-        valid_slices = {dim: val for dim, val in chosen_slices.items() if dim in ref_ds.dims}
+        valid_slices = {
+            dim: val for dim, val in chosen_slices.items() if dim in ref_ds.dims
+        }
         sliced_ref = ref_ds.sel(**valid_slices, method="nearest")
         if "member" in sliced_ref.dims:
             sliced_ref = sliced_ref.isel(member=0)
@@ -606,7 +684,9 @@ def plot_multiplot_heatmap_dataset(dataset, variable, ref_dict, chosen_slices, x
 
     # Plot Reference Data (or Difference Data)
     for model_key, ref_ds in ref_dict.items():
-        valid_slices = {dim: val for dim, val in chosen_slices.items() if dim in ref_ds.dims}
+        valid_slices = {
+            dim: val for dim, val in chosen_slices.items() if dim in ref_ds.dims
+        }
         sliced_ref = ref_ds.sel(**valid_slices, method="nearest")
 
         member_title = ""
@@ -638,7 +718,9 @@ def plot_multiplot_heatmap_dataset(dataset, variable, ref_dict, chosen_slices, x
         fig.delaxes(axes_flat[i])
 
     # Add slice information to the caption text if sliced
-    slice_str = ", ".join([f"{dim}: {round_slice_val(val)}" for dim, val in chosen_slices.items()])
+    slice_str = ", ".join(
+        [f"{dim}: {round_slice_val(val)}" for dim, val in chosen_slices.items()]
+    )
     if slice_str:
         fig.text(
             0.1,

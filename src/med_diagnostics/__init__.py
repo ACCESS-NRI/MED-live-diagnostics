@@ -1,3 +1,7 @@
-from . import data, diagnostics, ui, session
 from . import _version
-__version__ = _version.get_versions()['version']
+from . import data as data
+from . import diagnostics as diagnostics
+from . import session as session
+from . import ui as ui
+
+__version__ = _version.get_versions()["version"]

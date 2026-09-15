@@ -1,19 +1,20 @@
 import os
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
+from access_nri_intake.aliases import AliasedESMCatalog
+from access_nri_intake.source.builders import (
+    AccessCm2Builder,
+    AccessCm3Builder,
+    AccessEsm15Builder,
+    AccessEsm16Builder,
+    AccessOm2Builder,
+    AccessOm3Builder,
+    Mom6Builder,
+)
 
 # Import the module and the specific builder classes to test matching logic
 from med_diagnostics import data
-from access_nri_intake.source.builders import (
-    AccessCm2Builder,
-    AccessOm2Builder,
-    AccessCm3Builder,
-    AccessOm3Builder,
-    AccessEsm15Builder,
-    AccessEsm16Builder,
-    Mom6Builder,
-)
-from access_nri_intake.aliases import AliasedESMCatalog
 
 
 @pytest.mark.parametrize(
@@ -28,7 +29,9 @@ from access_nri_intake.aliases import AliasedESMCatalog
         ("mom6", Mom6Builder, {}),
     ],
 )
-def test_build_new_catalog_valid_models(monkeypatch, model_type, expected_builder, expected_kwargs):
+def test_build_new_catalog_valid_models(
+    monkeypatch, model_type, expected_builder, expected_kwargs
+):
     """Test that all valid model types map to the correct builders and kwargs."""
     mock_use_datastore = MagicMock(return_value="mock_datastore")
     monkeypatch.setattr(data, "use_datastore", mock_use_datastore)
@@ -131,7 +134,11 @@ def test_build_data_object(monkeypatch, is_aliased):
 
     mock_model_cat_dict.assert_called_once_with(
         xarray_open_kwargs={"use_cftime": True, "chunks": {}},
-        xarray_combine_by_coords_kwargs={"compat": "override", "data_vars": "minimal", "coords": "minimal"},
+        xarray_combine_by_coords_kwargs={
+            "compat": "override",
+            "data_vars": "minimal",
+            "coords": "minimal",
+        },
     )
     mock_callable.to_dask.assert_called_once()
     assert result == mock_dataset
