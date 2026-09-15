@@ -11,12 +11,14 @@ from med_diagnostics import data, ui, controller
 from distributed import Client
 
 
-class CreateModelDiagnosticsSession:
+class CreateModelDiagnosticsSession():
+
     """
     Primary class for starting a model diagnostics session
     """
 
     def __init__(self, model_type, model_path, timezone=None):
+
         """
         Initialise a CreateLiveSession instance to start a model diagnostics session.
 
