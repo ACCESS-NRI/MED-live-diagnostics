@@ -606,7 +606,7 @@ class UserInterface:
         # Update text box
         controller.update_textbox_text(self.ref_status_textbox, "")
 
-        def _update_dataset_plot_ui(self):
+    def _update_dataset_plot_ui(self):
         """
         Update existing user model dataset plot if new data are selected. Private.
         """
