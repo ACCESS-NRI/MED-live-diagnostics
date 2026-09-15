@@ -2197,22 +2197,24 @@ def test_plot_dataset_helper(ui, monkeypatch, is_ref, expected_section, plot_typ
             )
 
 @pytest.mark.parametrize(
-    "plot_type, dim_sizes, needs_bounds_ui, expected_scenario",
+    "plot_type, dim_sizes, preset_x_val, needs_bounds_ui, expected_scenario",
     [
-        ("Heatmap (grid)", {"time": 10, "nv": 2}, False, "heatmap_invalid"),
-        ("Heatmap (grid)", {"time": 10, "lat": 10}, False, "heatmap_valid"),
-        ("Line", {"time": 10, "nv": 2}, False, "line_1dim_nobounds"),
-        ("Line", {"time": 10, "nv": 2}, True, "line_1dim_bounds"),
-        ("Line", {"time": 10, "lat": 10}, False, "line_multidim"),
+        ("Heatmap (grid)", {"time": 10, "nv": 2}, None, False, "heatmap_invalid"),
+        ("Heatmap (grid)", {"lat": 10, "lev": 5}, "lat", False, "heatmap_valid_if"),     
+        ("Heatmap (grid)", {"time": 10, "lat": 10, "lev": 5}, "time", False, "heatmap_valid_else"),   
+        ("Line", {"time": 10, "nv": 2}, None, False, "line_1dim_nobounds"),
+        ("Line", {"time": 10, "nv": 2}, None, True, "line_1dim_bounds"),
+        ("Line", {"time": 10, "lat": 10}, None, False, "line_multidim"),
+        ("Line", {"nv": 2}, None, False, "empty_dims"),
     ]
 )
 def test_display_multiplot_plot_choices_ui(
-    ui, monkeypatch, plot_type, dim_sizes, needs_bounds_ui, expected_scenario
+    ui, monkeypatch, plot_type, dim_sizes, preset_x_val, needs_bounds_ui, expected_scenario
 ):
     """Test the dynamic generation of plot choices UI based on dataset dimensions and plot type."""
 
     ui.multiplot_plot_type_dropdown = MagicMock(value=plot_type)
-    ui.multiplot_x_axis_dropdown = MagicMock()
+    ui.multiplot_x_axis_dropdown = MagicMock(value=preset_x_val)
     ui.multiplot_y_axis_dropdown = MagicMock()
     ui.multiplot_analysis_choice_dropdown = MagicMock()
     ui.multiplot_plot_button = MagicMock()
@@ -2231,7 +2233,6 @@ def test_display_multiplot_plot_choices_ui(
     mock_update_text = MagicMock()
     monkeypatch.setattr(controller, "update_textbox_text", mock_update_text)
 
-    # Mock check_bounds to return the 5-tuple
     mock_check_bounds = MagicMock(return_value=(needs_bounds_ui, 0, 10, 0, 10))
     monkeypatch.setattr(controller, "check_bounds", mock_check_bounds)
 
@@ -2242,6 +2243,11 @@ def test_display_multiplot_plot_choices_ui(
     monkeypatch.setattr(ui, "_safe_add_to_widget", mock_safe_add)
 
     ui._display_multiplot_plot_choices_ui()
+
+    # (Keep your existing assertions below, adding validation for "heatmap_valid_else" if needed)
+    if expected_scenario == "heatmap_valid_else":
+        viable_dims = sorted([dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"])
+        assert ui.multiplot_y_axis_dropdown.value == viable_dims[0]
 
     # Base Assertions
     assert ui.multiplot_x_axis_dropdown.name == "Select X-Axis dimension"
@@ -2270,7 +2276,6 @@ def test_display_multiplot_plot_choices_ui(
         assert ui.multiplot_y_axis_dropdown.name == "Select Y-Axis dimension"
         assert ui.multiplot_y_axis_dropdown.options == viable_dims
 
-        # Verify Row was created with 4 elements (X, Y, Analysis, Button)
         assert isinstance(ui.multiplot_plot_choices_row, pn.Row)
         assert len(ui.multiplot_plot_choices_row) == 4
         mock_safe_add.assert_called_once_with(
@@ -2281,7 +2286,6 @@ def test_display_multiplot_plot_choices_ui(
         mock_check_bounds.assert_called_once()
         assert ui.multiplot_x_axis_dropdown.value == viable_dims[0]
 
-        # Verify Row was created with 2 elements (Analysis, Button)
         assert isinstance(ui.multiplot_plot_choices_row, pn.Row)
         assert len(ui.multiplot_plot_choices_row) == 2
         mock_safe_add.assert_called_once_with(
@@ -2296,12 +2300,27 @@ def test_display_multiplot_plot_choices_ui(
     elif expected_scenario == "line_multidim":
         mock_check_bounds.assert_called_once()
 
-        # Verify Row was created with 3 elements (X, Analysis, Button)
         assert isinstance(ui.multiplot_plot_choices_row, pn.Row)
         assert len(ui.multiplot_plot_choices_row) == 3
         mock_safe_add.assert_called_once_with(
             ui.widget_container, ["multiplot_type_selection_row"], ui.multiplot_plot_choices_row, append=True
         )
+
+    elif expected_scenario == "empty_dims":
+        assert ui.multiplot_x_axis_dropdown.value is None
+        assert isinstance(ui.multiplot_plot_choices_row, pn.Row)
+        assert len(ui.multiplot_plot_choices_row) == 2  # Only analysis and button
+        mock_safe_add.assert_called_once_with(
+            ui.widget_container, ["multiplot_type_selection_row"], ui.multiplot_plot_choices_row, append=True
+        )
+
+    elif expected_scenario == "heatmap_valid_if":
+        viable_dims = sorted([dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"])
+        assert ui.multiplot_y_axis_dropdown.value == viable_dims[1]
+
+    elif expected_scenario == "heatmap_valid_else":
+        viable_dims = sorted([dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"])
+        assert ui.multiplot_y_axis_dropdown.value == viable_dims[0]
 
 
 @pytest.mark.parametrize(
@@ -2537,3 +2556,92 @@ def test_multiplot_plot_dataset_helper_reproduce(ui):
     # Call the helper directly
     fig = ui._multiplot_plot_dataset_helper(plot_diff=False, plot_type="Line")
     assert fig is not None
+
+def test_variable_toggle_click(ui, monkeypatch):
+    mock_toggle_change = MagicMock(return_value={"var": "long_name"})
+    monkeypatch.setattr(controller, "variable_toggle_change", mock_toggle_change)
+
+    ui._variable_toggle_click(None)
+
+    mock_toggle_change.assert_called_once_with(
+        ui.variable_toggle, ui.plot_variable_dropdown, ui.dataset
+    )
+    assert ui.long_names == {"var": "long_name"}
+
+
+def test_ref_variable_toggle_click(ui, monkeypatch):
+    mock_toggle_change = MagicMock(return_value={"ref_var": "ref_long_name"})
+    monkeypatch.setattr(controller, "variable_toggle_change", mock_toggle_change)
+
+    ui._ref_variable_toggle_click(None)
+
+    mock_toggle_change.assert_called_once_with(
+        ui.ref_variable_toggle, ui.ref_plot_variable_dropdown, ui.ref_dataset
+    )
+    assert ui.ref_long_names == {"ref_var": "ref_long_name"}
+
+
+def test_multiplot_variable_toggle_click(ui, monkeypatch):
+    mock_toggle_change = MagicMock(return_value={"multi_var": "multi_long_name"})
+    monkeypatch.setattr(controller, "variable_toggle_change", mock_toggle_change)
+
+    ui._multiplot_variable_toggle_click(None)
+
+    mock_toggle_change.assert_called_once_with(
+        ui.multiplot_variable_toggle, ui.multiplot_plot_variable_dropdown, ui.dataset
+    )
+    assert ui.multiplot_long_names == {"multi_var": "multi_long_name"}
+
+
+
+@pytest.mark.parametrize(
+    "target_exists, container_contents, above, append, expected_return, expected_index",
+    [
+        (True, ["target"], True, False, False, 0), 
+        (True, ["target"], False, False, False, 1),
+        (False, ["other"], False, True, True, 1),
+        (False, ["other"], False, False, False, 1),
+    ]
+)
+def test_safe_add_to_widget(ui, target_exists, container_contents, above, append, expected_return, expected_index):
+    """Test safe widget insertion across all matching, index-clamping, and fallback append branches."""
+    
+    # Configure mock attribute on ui
+    target_widget = "target" if target_exists else None
+    ui.mock_target_attr = target_widget
+    
+    container = list(container_contents)
+    item_to_add = "new_item"
+
+    result = ui._safe_add_to_widget(
+        widget_container=container,
+        target_attributes=["mock_target_attr"],
+        item_to_add=item_to_add,
+        append=append,
+        above=above
+    )
+
+    assert result == expected_return
+    if expected_return or target_exists or append:
+        assert container[expected_index] == item_to_add
+
+
+def test_add_remove_btn_callback(ui):
+    """Test that clicking the remove button successfully removes the plot group from the widget container."""
+    mock_pane = "mock_plot"
+    ui.widget_container = []
+
+    # Create the plot group and add it to the container
+    plot_group = ui._add_remove_btn(mock_pane)
+    ui.widget_container.append(plot_group)
+
+    assert plot_group in ui.widget_container
+
+    # Extract the button (second item in the Column)
+    remove_btn = plot_group[1]
+
+    # Incrementing clicks triggers the registered on_click callback (_remove_this_plot)
+    remove_btn.clicks += 1
+
+    # Verify the plot group was removed
+    assert plot_group not in ui.widget_container

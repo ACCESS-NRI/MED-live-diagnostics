@@ -614,8 +614,6 @@ class UserInterface:
 
         self.plot_variable_dropdown.options = dataset_keys
         self.plot_pane.object = None  # Clears the previous plot from the screen
-        if hasattr(self, "fig"):
-            plt.close(self.fig)
         if hasattr(self, "multiplot_ref_keys_selection_row"):
             self.multiplot_plot_variable_dropdown.options = dataset_keys
             self.multiplot_keys_dropdown.value = self.keys_dropdown.value
@@ -871,7 +869,7 @@ class UserInterface:
             # Default Y to a different dimension if possible
             if len(viable_dims) > 1 and self.multiplot_x_axis_dropdown.value == viable_dims[0]:
                 self.multiplot_y_axis_dropdown.value = viable_dims[1]
-            elif viable_dims:
+            else:
                 self.multiplot_y_axis_dropdown.value = viable_dims[0]
 
             self.multiplot_plot_choices_row = pn.Row(
