@@ -607,6 +607,16 @@ def _no_refs_case():
     return {"dataset": MagicMock(), "ref_dict": {}, "chosen_slices": {}}
 
 
+def _no_refs_diff_case():
+    """total_plots == 0 -> returns fig with 'No reference models selected' text."""
+    return {
+        "dataset": MagicMock(),
+        "ref_dict": {},
+        "chosen_slices": {},
+        "plot_diff": True,
+    }
+
+
 def _delaxes_and_slices_case():
     """Odd total_plots (triggers fig.delaxes) and non-empty chosen_slices (triggers bottom=0.15 adjust)."""
     # 3 reference models forces a 2x2 grid, leaving 1 empty subplot
@@ -667,8 +677,8 @@ def _member_dims_case():
 
 @pytest.mark.parametrize(
     "build_kwargs",
-    [_no_refs_case, _delaxes_and_slices_case, _member_dims_case],
-    ids=["no_refs", "delaxes_and_slices", "member_dims"],
+    [_no_refs_case, _delaxes_and_slices_case, _member_dims_case, _no_refs_diff_case],
+    ids=["no_refs", "delaxes_and_slices", "member_dims", "no_ref_diff"],
 )
 def test_plot_multiplot_heatmap_dataset(build_kwargs):
     fig = controller.plot_multiplot_heatmap_dataset(
