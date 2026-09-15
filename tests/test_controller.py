@@ -68,7 +68,8 @@ def test_get_current_time(mock_datetime):
     result = controller.get_current_time()
 
     # Assert against the exact string we expect
-    assert result == "2026-09-10 00:47:14 AEST"
+    expected_str = frozen_time.astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
+    assert result == expected_str
 
 
 @pytest.mark.parametrize(
