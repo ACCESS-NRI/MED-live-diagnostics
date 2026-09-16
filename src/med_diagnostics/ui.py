@@ -7,6 +7,7 @@ from typing import ClassVar
 
 import panel as pn
 from IPython.display import display
+from panel.io.state import set_curdoc
 
 from med_diagnostics import controller, data
 
@@ -622,26 +623,55 @@ class UserInterface:
         """
         Loads selected model dataset from keys_dropdown and creates new interactive plot.
         """
+        # Update text box
         controller.update_textbox_text(
             self.status_textbox, "User model status >> Loading data."
         )
+        if key:
+            selected_key = key
+            self.keys_dropdown.value = key
+        else:
+            selected_key = self.keys_dropdown.value
+        # Load selected dataset
+        self.dataset = data._build_data_object(self.model_cat, selected_key)
+        self.loaded_dataset_key = self.keys_dropdown.value
 
-        selected_key = key if key else self.keys_dropdown.value
-        self._load_core_dataset(selected_key)
-
+        # Update text box
         controller.update_textbox_text(
             self.status_textbox, "User model status >> Data successfully loaded."
         )
         self.keys_button.name = "Load different dataset"
 
-        self._enable_multiplot_ui()
+        # enable multiplot plot UI
+        if self.multiplot_ref_keys_button.disabled:
+            self.multiplot_keys_dropdown.value = self.keys_dropdown.value
+            self.multiplot_ref_keys_button.disabled = False
+            self.clear_multiplot_data_button.disabled = False
+            self.multiplot_variable_toggle.disabled = False
+            self.multiplot_plot_variable_dropdown.options = sorted(self.dataset.keys())
+            self.multiplot_select_variable_button.disabled = False
 
-        # Update the User UI Plot area
+            self.multiplot_plot_variable_dropdown.disabled = False
+            self.multiplot_ref_keys_dropdown.disabled = False
+            self.multiplot_plot_type_dropdown.disabled = False
+            controller.update_textbox_text(
+                self.multiplot_status_textbox,
+                "Overlay Plot >> User data loaded. Load one or more reference datasets to compare.",
+            )
+
+        # Check if plot already exists
         if not self.figure_exists:
             self.figure_exists = True
-            self._display_dataset_plot_ui()
-        else:
-            self._update_dataset_plot_ui()
+            # Create new plot
+            self._run_with_container_doc(
+                self.user_widget_container, self._display_dataset_plot_ui
+            )
+
+        elif self.figure_exists:
+            # Update existing plot
+            self._run_with_container_doc(
+                self.user_widget_container, self._update_dataset_plot_ui
+            )
 
     def _ref_keys_dropdown_click(self):
         """
@@ -831,41 +861,37 @@ class UserInterface:
         """
         Load a new user dataset based on the current dropdown selection and update UI components.
         """
-        target_key = self.multiplot_keys_dropdown.value
 
         if not hasattr(self, "dataset"):
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
                 "Overlay Plot Status >> Loading user dataset...",
             )
-            self._load_core_dataset(target_key)
+            self._keys_dropdown_click(key=self.multiplot_keys_dropdown.value)
             self.multiplot_keys_update_button.name = "Load different dataset"
-
-            self._enable_multiplot_ui()
-
-            # Update the User UI Plot area so the containers stay synced
-            if not self.figure_exists:
-                self.figure_exists = True
-                self._display_dataset_plot_ui()
-            else:
-                self._update_dataset_plot_ui()
+            self.loaded_dataset_key = self.multiplot_keys_dropdown.value
+            self.keys_dropdown.value = self.loaded_dataset_key
 
         else:
+            sorted_keys = sorted(self.dataset.keys())
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
                 "Overlay Plot Status >> Loading new user dataset...",
             )
-            self._load_core_dataset(target_key)
-
+            # Load selected dataset
+            self.dataset = data._build_data_object(
+                self.model_cat, self.multiplot_keys_dropdown.value
+            )
+            self.loaded_dataset_key = self.multiplot_keys_dropdown.value
+            self.multiplot_plot_variable_dropdown.options = sorted_keys
+            self.keys_dropdown.value = self.loaded_dataset_key
+            self.plot_variable_dropdown.options = sorted_keys
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
                 "Overlay Plot Status >> New user dataset loaded, clearing loaded models",
             )
+            # Clear the loaded data, as different datasets from the selected models will need to be loaded.
             self._clear_multiplot_data()
-
-            # Sync the existing User UI plot to the newly loaded dataset
-            if self.figure_exists:
-                self._update_dataset_plot_ui()
 
     def _clear_multiplot_data(self):
         """
@@ -894,20 +920,13 @@ class UserInterface:
         """
         Generate and display the base dataset plot UI components for the specified section.
         """
+
         if section == "user":
             plot_variable_dropdown = self.plot_variable_dropdown
             plot_type_dropdown = self.plot_type_dropdown
             variable_toggle = self.variable_toggle
             select_variable_button = self.select_variable_button
             dataset = self.dataset
-
-            # 1. Initialise the row and attach it to the container EXACTLY ONCE
-            if not hasattr(self, "plot_ui_row"):
-                self.plot_ui_row = pn.Row()
-                self.user_widget_container.append(self.plot_ui_row)
-
-            target_row = self.plot_ui_row
-
         elif section == "ref":
             plot_variable_dropdown = self.ref_plot_variable_dropdown
             plot_type_dropdown = self.ref_plot_type_dropdown
@@ -915,19 +934,6 @@ class UserInterface:
             select_variable_button = self.ref_select_variable_button
             dataset = self.ref_dataset
 
-            # 1. Initialise the row and attach it to the container EXACTLY ONCE
-            if not hasattr(self, "ref_plot_ui_row"):
-                self.ref_plot_ui_row = pn.Row()
-                self._safe_add_to_widget(
-                    self.ref_widget_container,
-                    ["ref_data_keys_selection_row"],
-                    self.ref_plot_ui_row,
-                    append=True,
-                )
-
-            target_row = self.ref_plot_ui_row
-
-        # Configure the widgets
         plot_variable_dropdown.name = "Available variables"
         plot_variable_dropdown.options = sorted(dataset.keys())
 
@@ -937,13 +943,24 @@ class UserInterface:
 
         select_variable_button.name = "Select variable and plot type"
 
-        # 2. Update the row's contents in-place instead of creating a brand new pn.Row
-        target_row.objects = [
+        plot_ui_row = pn.Row(
             plot_variable_dropdown,
             plot_type_dropdown,
             select_variable_button,
             variable_toggle,
-        ]
+        )
+
+        if section == "user":
+            self.plot_ui_row = plot_ui_row
+            self.user_widget_container.append(plot_ui_row)
+        else:
+            self.ref_plot_ui_row = plot_ui_row
+            self._safe_add_to_widget(
+                self.ref_widget_container,
+                ["ref_data_keys_selection_row"],
+                self.ref_plot_ui_row,
+                append=True,
+            )
 
     def _display_plot_choices_ui_helper(self, section="user"):
         """
@@ -1869,6 +1886,41 @@ class UserInterface:
                 self.variable_toggle, self.plot_variable_dropdown, self.long_names
             )
 
+    def _run_with_container_doc(self, widget_container, fn):
+        """
+        Call `fn` with Panel's ambient current document set to whichever
+        document `widget_container` is actually rendered in.
+
+        Panel resolves a new widget's default stylesheets through a
+        per-document cache keyed by the *ambient* current document
+        (`panel.io.state.curdoc`) at construction time, not by the document
+        the widget is actually being attached to. If `fn` builds brand-new
+        widgets for `widget_container` from inside a callback whose
+        triggering widget lives in a *different* document (e.g. building the
+        user-section plot UI as a side effect of a multiplot button click),
+        those widgets' stylesheets get cached under the wrong document. That
+        cross-registered cache entry can then be reused when a later, correctly
+        -scoped widget build needs the same stylesheet, handing it an
+        `ImportedStyleSheet` model that is already attached to the other
+        document and raising "Models must be owned by only a single document".
+
+        Note: `widget_container._documents` is only populated by Panel's
+        `server_doc` path (used by `pn.serve`); components rendered via
+        Jupyter's comm-based `display()` never populate it. `_models` is kept
+        up to date for both, so it's used here instead to find the document
+        the container is actually rendered in.
+        """
+        docs = [
+            model.document
+            for model, _ in widget_container._models.values()
+            if model.document is not None
+        ]
+        if docs:
+            with set_curdoc(docs[0]):
+                fn()
+        else:
+            fn()
+
     def _safe_remove_widget_object(self, widget_container, item_to_remove):
         """
         Safely remove a widget from a container and delete its corresponding attribute.
@@ -1950,32 +2002,3 @@ class UserInterface:
             return True
 
         return False
-
-    def _load_core_dataset(self, key):
-        """Headless method to fetch data and update shared UI state."""
-        self.dataset = data._build_data_object(self.model_cat, key)
-        self.loaded_dataset_key = key
-
-        # Sync dropdown values across both containers
-        self.keys_dropdown.value = key
-        self.multiplot_keys_dropdown.value = key
-
-        # Sync available variables
-        sorted_keys = sorted(self.dataset.keys())
-        self.plot_variable_dropdown.options = sorted_keys
-        self.multiplot_plot_variable_dropdown.options = sorted_keys
-
-    def _enable_multiplot_ui(self):
-        """Enables the multiplot UI components if they are currently disabled."""
-        if self.multiplot_ref_keys_button.disabled:
-            self.multiplot_ref_keys_button.disabled = False
-            self.clear_multiplot_data_button.disabled = False
-            self.multiplot_variable_toggle.disabled = False
-            self.multiplot_select_variable_button.disabled = False
-            self.multiplot_plot_variable_dropdown.disabled = False
-            self.multiplot_ref_keys_dropdown.disabled = False
-            self.multiplot_plot_type_dropdown.disabled = False
-            controller.update_textbox_text(
-                self.multiplot_status_textbox,
-                "Overlay Plot >> User data loaded. Load one or more reference datasets to compare.",
-            )
