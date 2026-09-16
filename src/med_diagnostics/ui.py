@@ -1080,6 +1080,11 @@ class UserInterface:
         than a plottable axis.
         """
 
+        # Remove preexisting plot choices UI
+        self._safe_remove_widget_object(
+            self.multiplot_widget_container, "multiplot_plot_choices_row"
+        )
+
         # Find viable dimensions for axis selection
         dim_sizes = self.dataset[self._get_variable_helper("multiplot")].sizes
         viable_dims = sorted(
