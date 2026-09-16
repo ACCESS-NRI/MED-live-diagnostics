@@ -610,7 +610,7 @@ class UserInterface:
             append=True,
         )
 
-    def _keys_dropdown_click(self):
+    def _keys_dropdown_click(self, key=None):
         """
         Loads selected model dataset from keys_dropdown and creates new interactive plot.
         """
@@ -618,9 +618,13 @@ class UserInterface:
         controller.update_textbox_text(
             self.status_textbox, "User model status >> Loading data."
         )
-
+        if key:
+            selected_key = key
+            self.keys_dropdown.value = key
+        else:
+            selected_key = self.keys_dropdown.value
         # Load selected dataset
-        self.dataset = data._build_data_object(self.model_cat, self.keys_dropdown.value)
+        self.dataset = data._build_data_object(self.model_cat, selected_key)
         self.loaded_dataset_key = self.keys_dropdown.value
 
         # Update text box
@@ -643,7 +647,7 @@ class UserInterface:
             self.multiplot_plot_type_dropdown.disabled = False
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
-                "Overlay Plot >> Load one or more reference datasets to compare.",
+                "Overlay Plot >> User data loaded. Load one or more reference datasets to compare.",
             )
 
         # Check if plot already exists
@@ -843,36 +847,35 @@ class UserInterface:
         """
         Load a new user dataset based on the current dropdown selection and update UI components.
         """
-        sorted_keys = sorted(self.dataset.keys())
-        controller.update_textbox_text(
-            self.multiplot_status_textbox,
-            "Overlay Plot Status >> Loading new user dataset...",
-        )
-        # Load selected dataset
-        self.dataset = data._build_data_object(
-            self.model_cat, self.multiplot_keys_dropdown.value
-        )
-        self.loaded_dataset_key = self.multiplot_keys_dropdown.value
-        self.multiplot_plot_variable_dropdown.options = sorted_keys
-        self.keys_dropdown.value = self.loaded_dataset_key
-        self.plot_variable_dropdown.options = sorted_keys
-        controller.update_textbox_text(
-            self.multiplot_status_textbox,
-            "Overlay Plot Status >> New user dataset loaded, clearing loaded models",
-        )
 
-        if self.multiplot_ref_keys_button.disabled:
-            self.multiplot_ref_keys_button.disabled = False
-            self.clear_multiplot_data_button.disabled = False
-            self.multiplot_variable_toggle.disabled = False
-            self.multiplot_plot_variable_dropdown.options = sorted(self.dataset.keys())
-            self.multiplot_select_variable_button.disabled = False
+        if not hasattr(self, "dataset"):
+            controller.update_textbox_text(
+                self.multiplot_status_textbox,
+                "Overlay Plot Status >> Loading user dataset...",
+            )
+            self._keys_dropdown_click(key=self.multiplot_keys_dropdown.value)
+            self.multiplot_keys_update_button.name = "Load different dataset"
 
-            self.multiplot_plot_variable_dropdown.disabled = False
-            self.multiplot_ref_keys_dropdown.disabled = False
-            self.multiplot_plot_type_dropdown.disabled = False
-        # Clear the loaded data, as different datasets from the selected models will need to be loaded.
-        self._clear_multiplot_data()
+        else:
+            sorted_keys = sorted(self.dataset.keys())
+            controller.update_textbox_text(
+                self.multiplot_status_textbox,
+                "Overlay Plot Status >> Loading new user dataset...",
+            )
+            # Load selected dataset
+            self.dataset = data._build_data_object(
+                self.model_cat, self.multiplot_keys_dropdown.value
+            )
+            self.loaded_dataset_key = self.multiplot_keys_dropdown.value
+            self.multiplot_plot_variable_dropdown.options = sorted_keys
+            self.keys_dropdown.value = self.loaded_dataset_key
+            self.plot_variable_dropdown.options = sorted_keys
+            controller.update_textbox_text(
+                self.multiplot_status_textbox,
+                "Overlay Plot Status >> New user dataset loaded, clearing loaded models",
+            )
+            # Clear the loaded data, as different datasets from the selected models will need to be loaded.
+            self._clear_multiplot_data()
 
     def _clear_multiplot_data(self):
         """

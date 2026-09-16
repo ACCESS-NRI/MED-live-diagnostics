@@ -1209,21 +1209,60 @@ def test_update_multiplot_dataset(ui, monkeypatch, button_disabled):
         ui.multiplot_status_textbox.value
         == "Overlay Plot Status >> New user dataset loaded, clearing loaded models"
     )
-    # enable multiplot plot UI
-    if ui.multiplot_ref_keys_button.disabled:
-        assert ui.multiplot_keys_dropdown.value == ui.keys_dropdown.value
-        assert ui.multiplot_ref_keys_button.disabled is False
-        assert ui.clear_multiplot_data_button.disabled is False
-        assert ui.multiplot_variable_toggle.disabled is False
-        assert ui.multiplot_plot_variable_dropdown.options == sorted(ui.dataset.keys())
-        assert ui.multiplot_select_variable_button.disabled is False
-
-        assert ui.multiplot_plot_variable_dropdown.disabled is False
-        assert ui.multiplot_ref_keys_dropdown.disabled is False
-        assert ui.multiplot_plot_type_dropdown.disabled is False
 
     # Verify that old multiplot data is cleared out
     mock_clear_multiplot_data.assert_called_once()
+
+
+def test_update_multiplot_dataset_no_dataset_loaded(ui, monkeypatch):
+    """Test loading a dataset via the multiplot UI before any dataset has been loaded through
+    the "Load and plot user data" section. The dataset built should reflect the multiplot
+    dropdown's selection, not whatever the main section's dropdown happens to default to.
+    """
+
+    # Simulate a fresh session: nothing has been loaded via the main section yet
+    del ui.dataset
+
+    # Configure mock model catalog. The main and multiplot dropdowns intentionally differ,
+    # to catch the main dropdown's (wrong) value being used instead of the multiplot dropdown's.
+    ui.model_cat = {"fake": None, "catalog": None}
+    ui.keys_dropdown.value = "main section option"
+    ui.multiplot_keys_dropdown.value = "multiplot option"
+
+    mock_build_data_object = MagicMock()
+    mock_build_data_object.return_value = {"data": None}
+    monkeypatch.setattr(med_data, "_build_data_object", mock_build_data_object)
+
+    mock_display_dataset_plot_ui = MagicMock()
+    monkeypatch.setattr(ui, "_display_dataset_plot_ui", mock_display_dataset_plot_ui)
+
+    # Trigger the multiplot dataset update method
+    ui._update_multiplot_dataset()
+
+    # Verify that the dataset builder is called with the multiplot dropdown's selection
+    mock_build_data_object.assert_called_once_with(ui.model_cat, "multiplot option")
+
+    # Verify the main dropdown and loaded dataset key are synchronised to the multiplot selection
+    assert ui.loaded_dataset_key == "multiplot option"
+    assert ui.keys_dropdown.value == "multiplot option"
+    assert ui.multiplot_keys_dropdown.value == "multiplot option"
+
+    # Verify the main section's plot UI is displayed for the newly loaded dataset
+    mock_display_dataset_plot_ui.assert_called_once_with()
+
+    # enable multiplot plot UI
+    assert ui.multiplot_ref_keys_button.disabled is False
+    assert ui.clear_multiplot_data_button.disabled is False
+    assert ui.multiplot_variable_toggle.disabled is False
+    assert ui.multiplot_plot_variable_dropdown.options == sorted(ui.dataset.keys())
+    assert ui.multiplot_select_variable_button.disabled is False
+    assert ui.multiplot_plot_variable_dropdown.disabled is False
+    assert ui.multiplot_ref_keys_dropdown.disabled is False
+    assert ui.multiplot_plot_type_dropdown.disabled is False
+    assert (
+        ui.multiplot_status_textbox.value
+        == "Overlay Plot >> User data loaded. Load one or more reference datasets to compare."
+    )
 
 
 @pytest.mark.parametrize(
