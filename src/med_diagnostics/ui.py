@@ -426,7 +426,7 @@ class UserInterface:
 
         # Populate reference/comparison model widgets
         self.ref_keys_dropdown.name = "2. Select reference model (optional):"
-        self.ref_keys_dropdown.options = sorted(self.access_nri_cat.keys())
+        self.ref_keys_dropdown.options = ["Waiting for model to load"]
         self.ref_keys_button.name = "Load reference model"
         self.ref_keys_button.button_type = "success"
         self.ref_keys_button.disabled = True
@@ -473,7 +473,7 @@ class UserInterface:
         self.multiplot_ref_keys_dropdown.name = (
             "Select one or more reference models to overlay (optional):"
         )
-        self.multiplot_ref_keys_dropdown.options = sorted(self.access_nri_cat.keys())
+        self.multiplot_ref_keys_dropdown.options = ["Waiting for model to load"]
         self.multiplot_ref_keys_button.name = "Add reference model"
         self.multiplot_ref_keys_button.disabled = True
 
@@ -484,7 +484,7 @@ class UserInterface:
         self.multiplot_select_variable_button.disabled = True
 
         self.multiplot_keys_dropdown.name = "Select user dataset"
-        self.multiplot_keys_dropdown.options = sorted(self.keys_dropdown.options)
+        self.multiplot_keys_dropdown.options = ["Waiting for model to load"]
         self.multiplot_keys_dropdown.value = self.keys_dropdown.value
 
         self.multiplot_keys_update_button.name = "Update loaded dataset"
@@ -538,11 +538,14 @@ class UserInterface:
         self.ref_keys_button.disabled = False
         self.clear_ref_model_data_button.disabled = False
         self.ref_model_info_button.disabled = False
+        self.ref_keys_dropdown.options = sorted(self.access_nri_cat.keys())
 
         controller.update_textbox_text(
             self.multiplot_status_textbox,
             "Overlay Plot >> Choose reference variables to compare with the current plot.",
         )
+        self.multiplot_ref_keys_dropdown.options = sorted(self.access_nri_cat.keys())
+        self.multiplot_keys_dropdown.options = sorted(self.keys_dropdown.options)
         self.multiplot_ref_keys_button.disabled = False
         self.clear_multiplot_data_button.disabled = False
         self.multiplot_select_variable_button.disabled = False
