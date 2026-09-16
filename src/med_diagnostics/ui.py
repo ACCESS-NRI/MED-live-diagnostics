@@ -1087,6 +1087,11 @@ class UserInterface:
         available axis options, as it is a structural dimension in netCDF files rather
         than a plottable axis.
         """
+        # Remove preexisting plot choices UI
+        self._safe_remove_widget_object(
+            self.multiplot_widget_container, "multiplot_plot_choices_row"
+        )
+
         # Find viable dimensions for axis selection
         dim_sizes = self.dataset[self._get_variable_helper("multiplot")].sizes
         viable_dims = sorted(
@@ -1184,6 +1189,11 @@ class UserInterface:
         insertion point within the widget container based on the presence of
         other active UI components.
         """
+
+        # Remove preexisting bounds prompt UI
+        self._safe_remove_widget_object(
+            self.multiplot_widget_container, "prompt_bounds_row"
+        )
 
         self.prompt_bounds_dropdown.name = "Choose how to constrain the x-axis bounds"
         self.prompt_bounds_dropdown.options = [
@@ -1930,16 +1940,6 @@ class UserInterface:
             True if the item was appended to the bottom (meaning no targets were found
             but append was True), False otherwise.
         """
-
-        # If item_to_add is already present (e.g. a persistent row whose
-        # `.objects` are updated in place rather than being rebuilt), inserting
-        # it again would attach the same Bokeh model at a second position in
-        # the container, which raises "Models must be owned by only a single
-        # document" once the document recomputes. Identity check (rather than
-        # `in`) avoids ambiguous truth-value errors for array-like objects.
-        if any(item_to_add is obj for obj in widget_container):
-            self._safe_remove_widget_object(widget_container, item_to_add)
-
         for attr_name in target_attributes:
             target = getattr(self, attr_name, None)
 
