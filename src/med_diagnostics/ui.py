@@ -79,6 +79,14 @@ class UserInterface:
             "sizing_mode": "stretch_width",
             "collapsed": True,
             "styles": {"background": "rgba(128, 128, 128, 0.1)"},
+            "stylesheets": [
+                """
+                /* Targets the default chevron icon and turns it white */
+                .card-button::after, .accordion-button::after, .bk-caret {
+                    filter: brightness(0) invert(1) !important;
+                }
+                """
+            ],
         },
     }
 
@@ -530,7 +538,10 @@ class UserInterface:
 
         display(self.multiplot_widget_container)
 
-    def _enable_widgets_after_catalog_load(self):
+    def _enable_widgets_after_catalog_load(self, model_cat, access_nri_cat):
+        # Assign argument to class-accessible variables
+        self.model_cat = model_cat
+        self.access_nri_cat = access_nri_cat
         controller.update_textbox_text(
             self.ref_status_textbox,
             "Reference Model Status >> Select a model to load and plot data",
@@ -551,7 +562,7 @@ class UserInterface:
         self.multiplot_select_variable_button.disabled = False
         self.multiplot_keys_update_button.disabled = False
 
-    def _display_dataset_selection_ui(self, model_cat, access_nri_cat):
+    def _display_dataset_selection_ui(self):
         """
         Label, populate and append dataset selection-related widgets to widget_container.
 
@@ -562,10 +573,6 @@ class UserInterface:
         access_nri_cat : Intake-ESM datastore object
             Intake catalog of ACCESS model data.
         """
-
-        # Assign argument to class-accessible variables
-        self.model_cat = model_cat
-        self.access_nri_cat = access_nri_cat
 
         # Populate user model widgets
         self.keys_dropdown.name = "1. Please select a dataset to monitor:"

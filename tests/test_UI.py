@@ -398,12 +398,8 @@ def test_display_dataset_selection_ui(ui):
     """Test the initialization and visibility of the dataset selection UI components"""
 
     # Define a mock model catalog and trigger the dataset selection UI display
-    model_cat = {"ds1": None, "ds2": None}
-    ui._display_dataset_selection_ui(model_cat, "access_nri_cat")
 
-    # Verify that catalog attributes are correctly assigned to the UI instance
-    assert ui.model_cat == model_cat
-    assert ui.access_nri_cat == "access_nri_cat"
+    ui._display_dataset_selection_ui()
 
     # Verify that the relevant dividers and selection rows are made visible
     assert ui.div_1.visible == True
@@ -411,7 +407,7 @@ def test_display_dataset_selection_ui(ui):
     assert ui.div_2.visible == True
 
     # Verify that the dropdown options match the sorted catalog keys and button properties are set
-    assert ui.keys_dropdown.options == sorted(model_cat.keys())
+    assert ui.keys_dropdown.options == sorted(ui.model_cat.keys())
     assert ui.keys_button.name == "Load dataset"
     assert ui.keys_button.button_type == "primary"
 
@@ -2834,8 +2830,12 @@ def test_initialise_multiplot_widgets(uninitialised_ui):
 
 def test_enable_widgets_after_catalog_load(ui):
     """Test that reference and multiplot widgets are re-enabled with updated status text once the catalog has loaded"""
+    cat = {"Key": None, "Key2": None}
+    ui._enable_widgets_after_catalog_load(cat, cat)
 
-    ui._enable_widgets_after_catalog_load()
+    # Verify that catalog attributes are correctly assigned to the UI instance
+    assert ui.model_cat == cat
+    assert ui.access_nri_cat == cat
 
     assert (
         ui.ref_status_textbox.value

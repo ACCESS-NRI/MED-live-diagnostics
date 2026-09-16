@@ -99,9 +99,9 @@ class CreateModelDiagnosticsSession:
         # Load access_nri catalog for model comparison filtered by model type
         self.access_nri_cat = data._load_access_nri_catalog(self.model_type)
 
-        self.ui._enable_widgets_after_catalog_load()
+        self.ui._enable_widgets_after_catalog_load(self.model_cat, self.access_nri_cat)
         # Generate UI
-        self.ui._display_dataset_selection_ui(self.model_cat, self.access_nri_cat)
+        self.ui._display_dataset_selection_ui()
 
     def return_model_data_catalog(self):
         """

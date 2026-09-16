@@ -73,10 +73,10 @@ def test_init_and_get_data(mock_session_deps, timezone, expected_tz):
     mock_data._load_access_nri_catalog.assert_called_once_with("cm2")
 
     assert mock_controller.update_textbox_text.call_count == 2
-    mock_ui._enable_widgets_after_catalog_load.assert_called_once()
-    mock_ui._display_dataset_selection_ui.assert_called_once_with(
+    mock_ui._enable_widgets_after_catalog_load.assert_called_once_with(
         "mock_model_cat", "mock_access_cat"
     )
+    mock_ui._display_dataset_selection_ui.assert_called_once_with()
 
 
 def test_end_session(mock_session_deps):
