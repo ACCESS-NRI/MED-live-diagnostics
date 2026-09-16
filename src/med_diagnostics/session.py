@@ -58,7 +58,7 @@ class CreateModelDiagnosticsSession:
 
         # Start UserUI instance and display initial status text
         self.ui = ui.UserInterface()
-        self.ui._display_status_text()
+        self.ui._initialise_widgets()
 
         # Get initial model data
         self._get_data()
@@ -70,7 +70,9 @@ class CreateModelDiagnosticsSession:
 
         self.client.close()
 
-        self.ui.widget_container.clear()
+        self.ui.user_widget_container.clear()
+        self.ui.ref_widget_container.clear()
+        self.ui.multiplot_widget_container.clear()
 
         print(
             "------------------------ Live diagnostics session ended ------------------------"
@@ -97,8 +99,9 @@ class CreateModelDiagnosticsSession:
         # Load access_nri catalog for model comparison filtered by model type
         self.access_nri_cat = data._load_access_nri_catalog(self.model_type)
 
+        self.ui._enable_widgets_after_catalog_load(self.model_cat, self.access_nri_cat)
         # Generate UI
-        self.ui._display_dataset_selection_ui(self.model_cat, self.access_nri_cat)
+        self.ui._display_dataset_selection_ui()
 
     def return_model_data_catalog(self):
         """

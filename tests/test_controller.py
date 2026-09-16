@@ -18,8 +18,6 @@ def ui():
     """Return a session-scoped UserInterface instance for testing"""
 
     ui = UserInterface()
-    # Initialise the user interface widget container to prepare it for test execution
-    ui.widget_container = pn.Column()
     return ui
 
 
@@ -775,6 +773,7 @@ def test_plot_animation(
 
     mock_dataset.sel.return_value = mock_sliced_data
     mock_sliced_data.__getitem__.return_value = mock_plot_dataset
+    mock_plot_dataset.load.return_value = mock_plot_dataset
 
     # Configure min/max
     mock_plot_dataset.min.return_value = 0.0

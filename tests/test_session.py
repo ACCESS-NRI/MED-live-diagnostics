@@ -65,7 +65,7 @@ def test_init_and_get_data(mock_session_deps, timezone, expected_tz):
     assert session.data_update is False
 
     # Verify UI was initialised and status text was displayed
-    mock_ui._display_status_text.assert_called_once()
+    mock_ui._initialise_widgets.assert_called_once()
 
     # Verify _get_data ran correctly
     mock_data._build_new_catalog.assert_called_once_with("/mock/path", "cm2")
@@ -73,9 +73,10 @@ def test_init_and_get_data(mock_session_deps, timezone, expected_tz):
     mock_data._load_access_nri_catalog.assert_called_once_with("cm2")
 
     assert mock_controller.update_textbox_text.call_count == 2
-    mock_ui._display_dataset_selection_ui.assert_called_once_with(
+    mock_ui._enable_widgets_after_catalog_load.assert_called_once_with(
         "mock_model_cat", "mock_access_cat"
     )
+    mock_ui._display_dataset_selection_ui.assert_called_once_with()
 
 
 def test_end_session(mock_session_deps):
@@ -86,7 +87,9 @@ def test_end_session(mock_session_deps):
     session.end_session()
 
     mock_client.close.assert_called_once()
-    mock_ui.widget_container.clear.assert_called_once()
+    mock_ui.user_widget_container.clear.assert_called_once()
+    mock_ui.ref_widget_container.clear.assert_called_once()
+    mock_ui.multiplot_widget_container.clear.assert_called_once()
 
 
 def test_return_model_data_catalog(mock_session_deps):

@@ -33,8 +33,8 @@ _CACHED_MOCK_DATASET = mock_dataset()
 def ui():
     """Return a function-scoped UserInterface instance for testing"""
     ui = UserInterface()
-    ui._display_status_text()
-    ui.widget_container = pn.Column()
+    ui.access_nri_cat = {"fake": None, "catalog": None}
+    ui._initialise_widgets()
 
     # Assign the pre-cached dataset instantly instead of generating a new one
     ui.dataset = _CACHED_MOCK_DATASET
@@ -45,6 +45,13 @@ def ui():
     ui.ref_model_cat = {"fake": None, "catalog": None}
     ui.ref_plot_choices_row = pn.Row(name="blank row")
 
+    return ui
+
+
+@pytest.fixture(scope="function")
+def uninitialised_ui():
+    """Return a UserInterface instance before `_initialise_widgets` has been called"""
+    ui = UserInterface()
     return ui
 
 
@@ -278,6 +285,13 @@ def test_check_plot_validity_4d(
         },
     )
 
+    if section == "ref":
+        section_container = ui.ref_widget_container
+    elif section == "multiplot":
+        section_container = ui.multiplot_widget_container
+    else:
+        section_container = ui.user_widget_container
+
     if requires_slice_output:
         # Determine which attributes we should be checking
         if section == "ref":
@@ -290,7 +304,7 @@ def test_check_plot_validity_4d(
         # If the function exits early due to no x_axis, the cleanup never happens
         if not x_value:
             assert hasattr(ui, row_attr)
-            assert getattr(ui, row_attr) in ui.widget_container
+            assert getattr(ui, row_attr) in section_container
         else:
             # Otherwise, the cleanup runs because the slice widgets don't match remaining dims
             assert not hasattr(ui, row_attr)
@@ -318,7 +332,7 @@ def test_check_plot_validity_4d(
         # If the function exits early due to no x_axis, the cleanup never happens
         if not x_value:
             assert hasattr(ui, row_attr)
-            assert getattr(ui, row_attr) in ui.widget_container
+            assert getattr(ui, row_attr) in section_container
         else:
             # Otherwise, the cleanup runs because the slice widgets don't match remaining dims
             assert not hasattr(ui, row_attr)
@@ -380,37 +394,12 @@ def test_clear_multiplot_data(ui):
     assert ui.multiplot_ref_dataset_dict == {}
 
 
-def test_display_status_text(ui):
-    """Test the initialization and default values of the UI status display widgets"""
-
-    # Trigger the status text display mechanism to initialize UI components
-    ui._display_status_text()
-
-    # Verify that all expected status components and dividers are successfully attached to the UI instance
-    assert hasattr(ui, "last_data_load_textbox")
-    assert hasattr(ui, "status_textbox")
-    assert hasattr(ui, "warning_textbox")
-    assert hasattr(ui, "div_1")
-    assert hasattr(ui, "keys_selection_row")
-    assert hasattr(ui, "div_2")
-
-    # Verify that the status textbox displays the expected initial loading message
-    assert (
-        ui.status_textbox.value
-        == "User model status >> Waiting for initial model data catalog to be built. This can take a few minutes."
-    )
-
-
 def test_display_dataset_selection_ui(ui):
     """Test the initialization and visibility of the dataset selection UI components"""
 
     # Define a mock model catalog and trigger the dataset selection UI display
-    model_cat = {"ds1": None, "ds2": None}
-    ui._display_dataset_selection_ui(model_cat, "access_nri_cat")
 
-    # Verify that catalog attributes are correctly assigned to the UI instance
-    assert ui.model_cat == model_cat
-    assert ui.access_nri_cat == "access_nri_cat"
+    ui._display_dataset_selection_ui()
 
     # Verify that the relevant dividers and selection rows are made visible
     assert ui.div_1.visible == True
@@ -418,45 +407,9 @@ def test_display_dataset_selection_ui(ui):
     assert ui.div_2.visible == True
 
     # Verify that the dropdown options match the sorted catalog keys and button properties are set
-    assert ui.keys_dropdown.options == sorted(model_cat.keys())
+    assert ui.keys_dropdown.options == sorted(ui.model_cat.keys())
     assert ui.keys_button.name == "Load dataset"
     assert ui.keys_button.button_type == "primary"
-
-
-def test_display_reference_model_selection_ui(ui):
-    """Test the initialization and layout of the reference model selection UI components"""
-
-    # Assign a mock model catalog and trigger the reference model selection UI display
-    ui.access_nri_cat = {"key": None, "key2": None}
-    ui._display_reference_model_selection_ui()
-
-    # Verify that the reference status and warning textboxes are correctly initialized
-    assert (
-        ui.ref_status_textbox.value
-        == "Reference Model Status >> Select a model to load and plot data"
-    )
-    assert hasattr(ui, "ref_status_textbox")
-    assert hasattr(ui, "ref_warning_textbox")
-
-    # Verify that the dropdown options match the catalog and button properties are correctly configured
-    assert ui.ref_keys_dropdown.name == "2. Select reference model (optional):"
-    assert ui.ref_keys_dropdown.options == sorted(ui.access_nri_cat.keys())
-    assert ui.ref_keys_button.name == "Load reference model"
-    assert ui.ref_keys_button.button_type == "success"
-
-    assert ui.clear_ref_model_data_button.name == "Clear reference model"
-    assert ui.clear_ref_model_data_button.button_type == "danger"
-
-    assert ui.ref_model_info_button.name == "Reference model information"
-    assert ui.ref_model_info_button.button_type == "primary"
-
-    # Verify that all expected reference model UI components are attached to the UI instance
-    assert hasattr(ui, "ref_keys_dropdown")
-    assert hasattr(ui, "ref_model_info_button")
-    assert hasattr(ui, "ref_keys_button")
-    assert hasattr(ui, "clear_ref_model_data_button")
-    assert hasattr(ui, "ref_keys_selection_row")
-    assert hasattr(ui, "ref_model_metadata")
 
 
 @pytest.mark.parametrize(
@@ -472,26 +425,26 @@ def test_display_reference_dataset_selection_ui(
 ):
     """Test the initialization and layout of the reference dataset selection UI components"""
 
-    # Assign a mock reference model catalog and clear the widget container
+    # Assign a mock reference model catalog and clear the reference widget container
     ui.ref_model_cat = {"key1": None, "key2": None}
-    ui.widget_container.clear()
+    ui.ref_widget_container.clear()
 
     # Conditionally append reference UI rows to test the layout positioning of the dataset selection row
     if ref_model_metadata:
         ui.ref_model_metadata = pn.pane.Markdown("something")
-        ui.widget_container.append(ui.ref_model_metadata)
+        ui.ref_widget_container.append(ui.ref_model_metadata)
         ui._display_reference_dataset_selection_ui()
         assert (
-            ui.widget_container.index(ui.ref_data_keys_selection_row)
-            == ui.widget_container.index(ui.ref_model_metadata) + 1
+            ui.ref_widget_container.index(ui.ref_data_keys_selection_row)
+            == ui.ref_widget_container.index(ui.ref_model_metadata) + 1
         )
     elif ref_keys_selection_row:
         ui.ref_keys_selection_row = pn.pane.Markdown("something")
-        ui.widget_container.append(ui.ref_keys_selection_row)
+        ui.ref_widget_container.append(ui.ref_keys_selection_row)
         ui._display_reference_dataset_selection_ui()
         assert (
-            ui.widget_container.index(ui.ref_data_keys_selection_row)
-            == ui.widget_container.index(ui.ref_keys_selection_row) + 1
+            ui.ref_widget_container.index(ui.ref_data_keys_selection_row)
+            == ui.ref_widget_container.index(ui.ref_keys_selection_row) + 1
         )
     else:
         ui._display_reference_dataset_selection_ui()
@@ -503,69 +456,6 @@ def test_display_reference_dataset_selection_ui(
     assert ui.ref_data_keys_button.button_type == "success"
     assert hasattr(ui, "ref_data_keys_dropdown")
     assert hasattr(ui, "ref_data_keys_button")
-
-
-def test_display_multiplot_user_data_selection_ui(ui):
-    """Test the initialization and configuration of the multiplot user data selection UI components"""
-    data = xr.DataArray(np.random.rand(10, 10), dims=["x", "y"])
-    ui.dataset = xr.Dataset({"option1": data, "option2": data, "option23": data})
-
-    # Assign a mock catalog and configure dropdown options on the UI instance
-    ui.access_nri_cat = {"key1": None, "key2": None}
-    ui.keys_dropdown.options = ["option2", "option23", "option1"]
-    ui.keys_dropdown.value = "option1"
-    ui.plot_variable_dropdown.options = ["option2", "option23", "option1"]
-    ui.plot_variable_dropdown.value = "option1"
-    ui.multiplot_long_names = {
-        "option1": "option1",
-        "option2": "option2",
-        "option23": "option23",
-    }
-    ui.multiplot_variable_toggle.value = False
-    ui.long_names = {"option1": "option1", "option2": "option2", "option23": "option23"}
-    ui.variable_toggle.value = False
-
-    # Trigger the multiplot user data selection UI display
-    ui._display_multiplot_user_data_selection_ui()
-
-    # Verify that the multiplot status and warning textboxes are correctly initialized
-    assert hasattr(ui, "multiplot_status_textbox")
-    assert hasattr(ui, "multiplot_warning_textbox")
-    assert (
-        ui.multiplot_status_textbox.value
-        == "Overlay Plot >> Choose reference variables to compare with the current plot."
-    )
-
-    # Verify that the reference keys dropdown and buttons are correctly configured
-    assert (
-        ui.multiplot_ref_keys_dropdown.name
-        == "Select one or more reference models to overlay (optional):"
-    )
-
-    assert ui.multiplot_ref_keys_dropdown.options == sorted(ui.access_nri_cat.keys())
-    assert ui.multiplot_ref_keys_button.name == "Add reference model"
-    assert ui.clear_multiplot_data_button.name == "Clear loaded data"
-    assert ui.multiplot_select_variable_button.name == "Select variable and plot type"
-
-    # Verify that the multiplot user dataset and variable dropdowns match the primary UI selections
-    assert ui.multiplot_keys_dropdown.name == "Select user dataset"
-    assert ui.multiplot_keys_dropdown.options == sorted(ui.keys_dropdown.options)
-    assert ui.multiplot_keys_dropdown.value == ui.keys_dropdown.value
-    assert ui.multiplot_keys_update_button.name == "Update loaded dataset"
-    assert ui.multiplot_plot_variable_dropdown.name == "Variable selection"
-    assert ui.multiplot_plot_variable_dropdown.options == sorted(
-        ui.plot_variable_dropdown.options
-    )
-    assert ui.multiplot_plot_variable_dropdown.value == "option1"
-
-    # Verify the plot type dropdown options
-    assert ui.multiplot_plot_type_dropdown.name == "Select plot type"
-    assert ui.multiplot_plot_type_dropdown.options == ["Line", "Heatmap (grid)"]
-
-    # Verify that all expected multiplot UI selection rows are attached to the UI instance
-    assert hasattr(ui, "multiplot_user_dataset_keys_selection_row")
-    assert hasattr(ui, "multiplot_ref_keys_selection_row")
-    assert hasattr(ui, "multiplot_type_selection_row")
 
 
 @pytest.mark.parametrize(
@@ -607,13 +497,13 @@ def test_plot_data_button_click(
         ui.slice_widgets = slice_dict
         expected_slices = {dim: widget.value for dim, widget in slice_dict.items()}
         ui.slice_ui_row = pn.Row(name="slices")
-        ui.widget_container.append(ui.slice_ui_row)
+        ui.user_widget_container.append(ui.slice_ui_row)
 
     # Append UI rows to the widget container to verify cleanup during plot generation
     ui.plot_choices_row = pn.Row(name="choices")
     ui.slice_ui_row = pn.Row(name="slices")
-    ui.widget_container.append(ui.plot_choices_row)
-    ui.widget_container.append(ui.slice_ui_row)
+    ui.user_widget_container.append(ui.plot_choices_row)
+    ui.user_widget_container.append(ui.slice_ui_row)
 
     # Trigger the plot generation callback
     ui._plot_data_button_click()
@@ -681,13 +571,13 @@ def test_plot_ref_data_button_click(
         ui.ref_slice_widgets = slice_dict
         expected_slices = {dim: widget.value for dim, widget in slice_dict.items()}
         ui.ref_slice_ui_row = pn.Row(name="slices")
-        ui.widget_container.append(ui.ref_slice_ui_row)
+        ui.ref_widget_container.append(ui.ref_slice_ui_row)
 
     # Append reference UI rows to the widget container to verify cleanup during plot generation
     ui.ref_plot_choices_row = pn.Row(name="choices")
     ui.ref_slice_ui_row = pn.Row(name="slices")
-    ui.widget_container.append(ui.ref_plot_choices_row)
-    ui.widget_container.append(ui.ref_slice_ui_row)
+    ui.ref_widget_container.append(ui.ref_plot_choices_row)
+    ui.ref_widget_container.append(ui.ref_slice_ui_row)
 
     # Trigger the reference plot generation callback
     ui._ref_plot_data_button_click()
@@ -774,13 +664,13 @@ def test_plot_multiplot_data_button_click(
         ui.multiplot_slice_widgets = slice_dict
         expected_slices = {dim: widget.value for dim, widget in slice_dict.items()}
         ui.multiplot_slice_ui_row = pn.Row(name="slices")
-        ui.widget_container.append(ui.multiplot_slice_ui_row)
+        ui.multiplot_widget_container.append(ui.multiplot_slice_ui_row)
 
     # Append multiplot UI rows to the widget container to verify cleanup during plot generation
     ui.multiplot_plot_choices_row = pn.Row(name="choices")
     ui.multiplot_slice_ui_row = pn.Row(name="slices")
-    ui.widget_container.append(ui.multiplot_plot_choices_row)
-    ui.widget_container.append(ui.multiplot_slice_ui_row)
+    ui.multiplot_widget_container.append(ui.multiplot_plot_choices_row)
+    ui.multiplot_widget_container.append(ui.multiplot_slice_ui_row)
 
     # Trigger the multiplot plot generation callback
     ui._multiplot_plot_data_button_click()
@@ -830,9 +720,9 @@ def test_plot_multiplot_data_button_click(
         )
 
     # Verify that multiplot choices and slice UI components are removed from the widget container
-    assert ui.ref_plot_choices_row not in ui.widget_container
-    assert not hasattr(ui.widget_container, "multiplot_slice_ui_row")
-    assert not hasattr(ui.widget_container, "multiplot_slice_widgets")
+    assert not hasattr(ui, "multiplot_plot_choices_row")
+    assert not hasattr(ui, "multiplot_slice_ui_row")
+    assert not hasattr(ui, "multiplot_slice_widgets")
 
 
 def test_display_dataset_plot_ui(ui):
@@ -871,7 +761,7 @@ def test_ref_display_dataset_plot_ui(ui, datakeysexists):
 
     if datakeysexists:
         ui.ref_data_keys_selection_row = pn.Row()
-        ui.widget_container.append(ui.ref_data_keys_selection_row)
+        ui.ref_widget_container.append(ui.ref_data_keys_selection_row)
     else:
         del ui.ref_data_keys_selection_row
 
@@ -891,11 +781,13 @@ def test_ref_display_dataset_plot_ui(ui, datakeysexists):
     # Verify that the reference plot UI row is positioned correctly within the widget container based on prior UI state
     if datakeysexists:
         assert (
-            ui.widget_container.index(ui.ref_plot_ui_row)
-            == ui.widget_container.index(ui.ref_data_keys_selection_row) + 1
+            ui.ref_widget_container.index(ui.ref_plot_ui_row)
+            == ui.ref_widget_container.index(ui.ref_data_keys_selection_row) + 1
         )
     else:
-        assert ui.widget_container.index(ui.ref_plot_ui_row) == len(ui.widget_container)
+        assert ui.ref_widget_container.index(ui.ref_plot_ui_row) == len(
+            ui.ref_widget_container
+        )
 
 
 @pytest.mark.parametrize(
@@ -935,18 +827,18 @@ def test_display_plot_choices_ui(
     monkeypatch.setattr(ui, "_plot_data_button_click", mock_plot_data_button_click)
 
     ui.plot_type_dropdown.value = plot_type
-    ui.widget_container.clear()
+    ui.user_widget_container.clear()
 
     # Conditionally configure existing rows and plot UI elements in the widget container
     if has_existing_row:
         ui.plot_choices_row = pn.Row(name="old_row")
-        ui.widget_container.append(ui.plot_choices_row)
+        ui.user_widget_container.append(ui.plot_choices_row)
     elif hasattr(ui, "plot_choices_row"):
         del ui.plot_choices_row
 
     if has_plot_ui:
         ui.plot_ui_row = pn.Row()
-        ui.widget_container.append(ui.plot_ui_row)
+        ui.user_widget_container.append(ui.plot_ui_row)
     elif hasattr(ui, "plot_ui_row"):
         del ui.plot_ui_row
 
@@ -959,7 +851,7 @@ def test_display_plot_choices_ui(
 
     # Verify that previous plot choice rows are successfully cleaned up from the container
     if has_existing_row:
-        for item in ui.widget_container:
+        for item in ui.user_widget_container:
             if hasattr(item, "name"):
                 assert item.name != "old_row"
 
@@ -989,12 +881,12 @@ def test_display_plot_choices_ui(
         assert not hasattr(ui, "plot_choices_row")
 
     else:
-        assert ui.plot_choices_row in ui.widget_container
+        assert ui.plot_choices_row in ui.user_widget_container
 
         if has_plot_ui:
             assert (
-                ui.widget_container.index(ui.plot_choices_row)
-                == ui.widget_container.index(ui.plot_ui_row) + 1
+                ui.user_widget_container.index(ui.plot_choices_row)
+                == ui.user_widget_container.index(ui.plot_ui_row) + 1
             )
 
         if expected_outcome == "success_heatmap":
@@ -1047,18 +939,18 @@ def test_ref_display_plot_choices_ui(
     )
 
     ui.ref_plot_type_dropdown.value = plot_type
-    ui.widget_container.clear()
+    ui.ref_widget_container.clear()
 
     # Conditionally configure existing rows and reference plot UI elements in the widget container
     if has_existing_row:
         ui.ref_plot_choices_row = pn.Row(name="old_row")
-        ui.widget_container.append(ui.ref_plot_choices_row)
+        ui.ref_widget_container.append(ui.ref_plot_choices_row)
     elif hasattr(ui, "ref_plot_choices_row"):
         del ui.ref_plot_choices_row
 
     if has_plot_ui:
         ui.ref_plot_ui_row = pn.Row()
-        ui.widget_container.append(ui.ref_plot_ui_row)
+        ui.ref_widget_container.append(ui.ref_plot_ui_row)
     elif hasattr(ui, "ref_plot_ui_row"):
         del ui.ref_plot_ui_row
 
@@ -1071,7 +963,7 @@ def test_ref_display_plot_choices_ui(
 
     # Verify that previous reference plot choice rows are successfully cleaned up from the container
     if has_existing_row:
-        for item in ui.widget_container:
+        for item in ui.ref_widget_container:
             if hasattr(item, "name"):
                 assert item.name != "old_row"
 
@@ -1084,7 +976,7 @@ def test_ref_display_plot_choices_ui(
         )
         assert (
             not hasattr(ui, "ref_plot_choices_row")
-            or ui.ref_plot_choices_row not in ui.widget_container
+            or ui.ref_plot_choices_row not in ui.ref_widget_container
         )
 
     elif expected_outcome == "auto_plot_line":
@@ -1105,12 +997,12 @@ def test_ref_display_plot_choices_ui(
         assert not hasattr(ui, "ref_plot_choices_row")
 
     else:
-        assert ui.ref_plot_choices_row in ui.widget_container
+        assert ui.ref_plot_choices_row in ui.ref_widget_container
 
         if has_plot_ui:
             assert (
-                ui.widget_container.index(ui.ref_plot_choices_row)
-                == ui.widget_container.index(ui.ref_plot_ui_row) + 1
+                ui.ref_widget_container.index(ui.ref_plot_choices_row)
+                == ui.ref_widget_container.index(ui.ref_plot_ui_row) + 1
             )
 
         if expected_outcome == "success_heatmap":
@@ -1172,19 +1064,19 @@ def test_prompt_bounds_ui(ui, ui_row):
     """Test the configuration and relative layout positioning of the multiplot bounds prompting UI components"""
 
     # Clear the widget container and conditionally append mock multiplot UI rows based on parameters
-    ui.widget_container.clear()
+    ui.multiplot_widget_container.clear()
     if ui_row == "multiplot_slice_ui_row":
         ui.multiplot_slice_ui_row = pn.Row(pn.pane.Markdown("something"))
-        ui.widget_container.append(ui.multiplot_slice_ui_row)
+        ui.multiplot_widget_container.append(ui.multiplot_slice_ui_row)
     elif ui_row == "multiplot_plot_choices_row":
         ui.multiplot_plot_choices_row = pn.Row(pn.pane.Markdown("something"))
-        ui.widget_container.append(ui.multiplot_plot_choices_row)
+        ui.multiplot_widget_container.append(ui.multiplot_plot_choices_row)
     elif ui_row == "multiplot_type_selection_row":
         ui.multiplot_type_selection_row = pn.Row(pn.pane.Markdown("something"))
-        ui.widget_container.append(ui.multiplot_type_selection_row)
+        ui.multiplot_widget_container.append(ui.multiplot_type_selection_row)
     elif ui_row == "multiplot_ref_keys_selection_row":
         ui.multiplot_ref_keys_selection_row = pn.Row(pn.pane.Markdown("something"))
-        ui.widget_container.append(ui.multiplot_ref_keys_selection_row)
+        ui.multiplot_widget_container.append(ui.multiplot_ref_keys_selection_row)
 
     # Trigger the prompt bounds UI generation method
     ui._prompt_bounds_ui()
@@ -1200,23 +1092,24 @@ def test_prompt_bounds_ui(ui, ui_row):
     # Verify that the bounds prompt row is positioned immediately after the corresponding multiplot row in the container
     if ui_row == "multiplot_slice_ui_row":
         assert (
-            ui.widget_container.index(ui.prompt_bounds_row)
-            == ui.widget_container.index(ui.multiplot_slice_ui_row) + 1
+            ui.multiplot_widget_container.index(ui.prompt_bounds_row)
+            == ui.multiplot_widget_container.index(ui.multiplot_slice_ui_row) + 1
         )
     elif ui_row == "multiplot_plot_choices_row":
         assert (
-            ui.widget_container.index(ui.prompt_bounds_row)
-            == ui.widget_container.index(ui.multiplot_plot_choices_row) + 1
+            ui.multiplot_widget_container.index(ui.prompt_bounds_row)
+            == ui.multiplot_widget_container.index(ui.multiplot_plot_choices_row) + 1
         )
     elif ui_row == "multiplot_type_selection_row":
         assert (
-            ui.widget_container.index(ui.prompt_bounds_row)
-            == ui.widget_container.index(ui.multiplot_type_selection_row) + 1
+            ui.multiplot_widget_container.index(ui.prompt_bounds_row)
+            == ui.multiplot_widget_container.index(ui.multiplot_type_selection_row) + 1
         )
     elif ui_row == "multiplot_ref_keys_selection_row":
         assert (
-            ui.widget_container.index(ui.prompt_bounds_row)
-            == ui.widget_container.index(ui.multiplot_ref_keys_selection_row) + 1
+            ui.multiplot_widget_container.index(ui.prompt_bounds_row)
+            == ui.multiplot_widget_container.index(ui.multiplot_ref_keys_selection_row)
+            + 1
         )
 
 
@@ -1240,7 +1133,7 @@ def test_keys_dropdown_click(ui, monkeypatch, fig_exists):
         monkeypatch.setattr(
             ui, "_display_dataset_plot_ui", mock_display_dataset_plot_ui
         )
-
+    ui.multiplot_ref_keys_button.disabled = fig_exists
     # Configure mock catalog and dropdown selection on the UI instance
     ui.model_cat = {"fake": None, "catalog": None}
     ui.keys_dropdown.value = "an option"
@@ -1262,8 +1155,29 @@ def test_keys_dropdown_click(ui, monkeypatch, fig_exists):
     else:
         mock_display_dataset_plot_ui.assert_called_once_with()
 
+    # enable multiplot plot UI
+    if ui.multiplot_ref_keys_button.disabled:
+        assert ui.multiplot_keys_dropdown.value == ui.keys_dropdown.value
+        assert ui.multiplot_ref_keys_button.disabled is False
+        assert ui.clear_multiplot_data_button.disabled is False
+        assert ui.multiplot_variable_toggle.disabled is False
+        assert ui.multiplot_plot_variable_dropdown.options == sorted(ui.dataset.keys())
+        assert ui.multiplot_select_variable_button.disabled is False
 
-def test_update_multiplot_dataset(ui, monkeypatch):
+        assert ui.multiplot_plot_variable_dropdown.disabled is False
+        assert ui.multiplot_ref_keys_dropdown.disabled is False
+        assert ui.multiplot_plot_type_dropdown.disabled is False
+        assert (
+            ui.multiplot_status_textbox.value
+            == "Overlay Plot >> Load one or more reference datasets to compare."
+        )
+
+
+@pytest.mark.parametrize(
+    "button_disabled",
+    [True, False],
+)
+def test_update_multiplot_dataset(ui, monkeypatch, button_disabled):
     """Test updating the multiplot user dataset, refreshing associated dropdowns, and clearing stale multiplot data"""
 
     # Configure mock model catalog and multiplot dropdown selection
@@ -1277,7 +1191,7 @@ def test_update_multiplot_dataset(ui, monkeypatch):
 
     mock_clear_multiplot_data = MagicMock()
     monkeypatch.setattr(ui, "_clear_multiplot_data", mock_clear_multiplot_data)
-
+    ui.multiplot_ref_keys_button.disabled = button_disabled
     # Trigger the multiplot dataset update method
     ui._update_multiplot_dataset()
 
@@ -1298,6 +1212,57 @@ def test_update_multiplot_dataset(ui, monkeypatch):
 
     # Verify that old multiplot data is cleared out
     mock_clear_multiplot_data.assert_called_once()
+
+
+def test_update_multiplot_dataset_no_dataset_loaded(ui, monkeypatch):
+    """Test loading a dataset via the multiplot UI before any dataset has been loaded through
+    the "Load and plot user data" section. The dataset built should reflect the multiplot
+    dropdown's selection, not whatever the main section's dropdown happens to default to.
+    """
+
+    # Simulate a fresh session: nothing has been loaded via the main section yet
+    del ui.dataset
+
+    # Configure mock model catalog. The main and multiplot dropdowns intentionally differ,
+    # to catch the main dropdown's (wrong) value being used instead of the multiplot dropdown's.
+    ui.model_cat = {"fake": None, "catalog": None}
+    ui.keys_dropdown.value = "main section option"
+    ui.multiplot_keys_dropdown.value = "multiplot option"
+
+    mock_build_data_object = MagicMock()
+    mock_build_data_object.return_value = {"data": None}
+    monkeypatch.setattr(med_data, "_build_data_object", mock_build_data_object)
+
+    mock_display_dataset_plot_ui = MagicMock()
+    monkeypatch.setattr(ui, "_display_dataset_plot_ui", mock_display_dataset_plot_ui)
+
+    # Trigger the multiplot dataset update method
+    ui._update_multiplot_dataset()
+
+    # Verify that the dataset builder is called with the multiplot dropdown's selection
+    mock_build_data_object.assert_called_once_with(ui.model_cat, "multiplot option")
+
+    # Verify the main dropdown and loaded dataset key are synchronised to the multiplot selection
+    assert ui.loaded_dataset_key == "multiplot option"
+    assert ui.keys_dropdown.value == "multiplot option"
+    assert ui.multiplot_keys_dropdown.value == "multiplot option"
+
+    # Verify the main section's plot UI is displayed for the newly loaded dataset
+    mock_display_dataset_plot_ui.assert_called_once_with()
+
+    # enable multiplot plot UI
+    assert ui.multiplot_ref_keys_button.disabled is False
+    assert ui.clear_multiplot_data_button.disabled is False
+    assert ui.multiplot_variable_toggle.disabled is False
+    assert ui.multiplot_plot_variable_dropdown.options == sorted(ui.dataset.keys())
+    assert ui.multiplot_select_variable_button.disabled is False
+    assert ui.multiplot_plot_variable_dropdown.disabled is False
+    assert ui.multiplot_ref_keys_dropdown.disabled is False
+    assert ui.multiplot_plot_type_dropdown.disabled is False
+    assert (
+        ui.multiplot_status_textbox.value
+        == "Overlay Plot >> User data loaded. Load one or more reference datasets to compare."
+    )
 
 
 @pytest.mark.parametrize(
@@ -1322,9 +1287,9 @@ def test_ref_keys_dropdown_click(ui, monkeypatch, selection_row_exists):
     # Conditionally configure the reference data keys selection row in the widget container
     if selection_row_exists:
         ui.ref_data_keys_selection_row = pn.Row()
-        ui.widget_container.append(ui.ref_data_keys_selection_row)
+        ui.ref_widget_container.append(ui.ref_data_keys_selection_row)
     else:
-        ui.widget_container.clear()
+        ui.ref_widget_container.clear()
 
     # Trigger the reference keys dropdown click handler
     ui._ref_keys_dropdown_click()
@@ -1532,10 +1497,10 @@ def test_plot_button_click(
     monkeypatch.setattr(ui, "_display_plot_choices_ui", mock_display_plot_choices_ui)
 
     ui.plot_choices_row = pn.Row(name="plot choices row")
-    ui.widget_container.append(ui.plot_choices_row)
+    ui.user_widget_container.append(ui.plot_choices_row)
     ui.slice_ui_row = pn.Row()
     ui.slice_widgets = {"dim": pn.pane.Markdown("A widget")}
-    ui.widget_container.append(ui.slice_ui_row)
+    ui.user_widget_container.append(ui.slice_ui_row)
 
     # Trigger the plot button click handler with a dummy event argument
     ui._plot_button_click(None)
@@ -1601,10 +1566,10 @@ def test_ref_plot_button_click(
     )
 
     ui.ref_plot_choices_row = pn.Row(name="plot choices row")
-    ui.widget_container.append(ui.ref_plot_choices_row)
+    ui.ref_widget_container.append(ui.ref_plot_choices_row)
     ui.ref_slice_ui_row = pn.Row()
     ui.ref_slice_widgets = {"dim": pn.pane.Markdown("A widget")}
-    ui.widget_container.append(ui.ref_slice_ui_row)
+    ui.ref_widget_container.append(ui.ref_slice_ui_row)
 
     # Trigger the reference plot button click handler with a dummy event argument
     ui._ref_plot_button_click(None)
@@ -2052,8 +2017,6 @@ def test_check_slice(
     ui.ref_remaining_dims = ["time"]
     ui.multiplot_remaining_dims = ["lat"]
 
-    ui.widget_container = []  # Mock container list
-
     # Mock all necessary UI components
     ui.plot_button = MagicMock()
     ui.status_textbox = MagicMock()
@@ -2078,12 +2041,15 @@ def test_check_slice(
     if section == "user":
         btn = ui.plot_button
         txt = ui.status_textbox
+        expected_container = ui.user_widget_container
     elif section == "ref":
         btn = ui.ref_plot_button
         txt = ui.ref_status_textbox
+        expected_container = ui.ref_widget_container
     else:
         btn = ui.multiplot_plot_button
         txt = ui.multiplot_status_textbox
+        expected_container = ui.multiplot_widget_container
 
     # Check the dynamic attributes were set correctly
     widget_attr = (
@@ -2115,7 +2081,7 @@ def test_check_slice(
 
     # Verify layout integration
     mock_safe_add.assert_called_once_with(
-        ui.widget_container, expected_position, ui_row, append=True
+        expected_container, expected_position, ui_row, append=True
     )
 
     # Verify status and button text updates
@@ -2294,7 +2260,6 @@ def test_display_multiplot_plot_choices_ui(
     ui.multiplot_analysis_choice_dropdown = MagicMock()
     ui.multiplot_plot_button = MagicMock()
     ui.multiplot_warning_textbox = MagicMock()
-    ui.widget_container = []
     ui.multiplot_ref_dataset_dict = {}
 
     mock_variable = "test_var"
@@ -2358,7 +2323,7 @@ def test_display_multiplot_plot_choices_ui(
         assert isinstance(ui.multiplot_plot_choices_row, pn.Row)
         assert len(ui.multiplot_plot_choices_row) == 4
         mock_safe_add.assert_called_once_with(
-            ui.widget_container,
+            ui.multiplot_widget_container,
             ["multiplot_type_selection_row"],
             ui.multiplot_plot_choices_row,
             append=True,
@@ -2371,7 +2336,7 @@ def test_display_multiplot_plot_choices_ui(
         assert isinstance(ui.multiplot_plot_choices_row, pn.Row)
         assert len(ui.multiplot_plot_choices_row) == 2
         mock_safe_add.assert_called_once_with(
-            ui.widget_container,
+            ui.multiplot_widget_container,
             ["multiplot_type_selection_row"],
             ui.multiplot_plot_choices_row,
             append=True,
@@ -2388,7 +2353,7 @@ def test_display_multiplot_plot_choices_ui(
         assert isinstance(ui.multiplot_plot_choices_row, pn.Row)
         assert len(ui.multiplot_plot_choices_row) == 3
         mock_safe_add.assert_called_once_with(
-            ui.widget_container,
+            ui.multiplot_widget_container,
             ["multiplot_type_selection_row"],
             ui.multiplot_plot_choices_row,
             append=True,
@@ -2399,7 +2364,7 @@ def test_display_multiplot_plot_choices_ui(
         assert isinstance(ui.multiplot_plot_choices_row, pn.Row)
         assert len(ui.multiplot_plot_choices_row) == 2  # Only analysis and button
         mock_safe_add.assert_called_once_with(
-            ui.widget_container,
+            ui.multiplot_widget_container,
             ["multiplot_type_selection_row"],
             ui.multiplot_plot_choices_row,
             append=True,
@@ -2546,7 +2511,7 @@ def test_multiplot_plot_data_button_click_line(ui, mock_multiplot_datasets):
     ui.prompt_bounds_dropdown.value = "Global bounds"
 
     # Initial container check
-    initial_widget_count = len(ui.widget_container)
+    initial_widget_count = len(ui.multiplot_widget_container)
 
     # Execute button click directly
     ui._multiplot_plot_data_button_click()
@@ -2556,8 +2521,8 @@ def test_multiplot_plot_data_button_click_line(ui, mock_multiplot_datasets):
     assert ui.multiplot_warning_textbox.value == ""
 
     # Assert a new plot layout was appended to widget container
-    assert len(ui.widget_container) == initial_widget_count + 1
-    plot_group = ui.widget_container[-1]
+    assert len(ui.multiplot_widget_container) == initial_widget_count + 1
+    plot_group = ui.multiplot_widget_container[-1]
     assert isinstance(plot_group, pn.Column)
 
     # Assert Matplotlib pane exists within the group and holds an active figure
@@ -2592,7 +2557,7 @@ def test_multiplot_plot_data_button_click_all_analysis_modes(
 
     assert ui.multiplot_status_textbox.value == "Overlay plot status >> Plot created"
     assert ui.multiplot_warning_textbox.value == ""
-    assert isinstance(ui.widget_container[-1], pn.Column)
+    assert isinstance(ui.multiplot_widget_container[-1], pn.Column)
 
 
 def test_reproduce_live_multiplot_flow(ui, mock_multiplot_datasets):
@@ -2608,13 +2573,15 @@ def test_reproduce_live_multiplot_flow(ui, mock_multiplot_datasets):
     # 2. Simulate clicking "Select variable and plot type"
     # Ensure any preexisting row isn't present
     if hasattr(ui, "multiplot_plot_choices_row"):
-        ui._safe_remove_widget_object(ui.widget_container, "multiplot_plot_choices_row")
+        ui._safe_remove_widget_object(
+            ui.multiplot_widget_container, "multiplot_plot_choices_row"
+        )
 
     ui._multiplot_select_variable_button_click(None)
 
     # Verify choices UI rendered into the layout and x-axis populated
     assert hasattr(ui, "multiplot_plot_choices_row")
-    assert ui.multiplot_plot_choices_row in ui.widget_container
+    assert ui.multiplot_plot_choices_row in ui.multiplot_widget_container
     assert ui.multiplot_x_axis_dropdown.value == "time"
     assert ui.multiplot_plot_button.name == "Plot data"
 
@@ -2623,17 +2590,17 @@ def test_reproduce_live_multiplot_flow(ui, mock_multiplot_datasets):
         ui.prompt_bounds_dropdown.value = "Global bounds"
 
     # 3. Simulate clicking "Plot data"
-    initial_widget_count = len(ui.widget_container)
+    initial_widget_count = len(ui.multiplot_widget_container)
     ui._multiplot_plot_button_click(None)
 
     # 4. Verify execution reached the end without freezing on 'Generating plot...'
     assert ui.multiplot_warning_textbox.value == ""
     assert ui.multiplot_status_textbox.value == "Overlay plot status >> Plot created"
-    assert len(ui.widget_container) >= initial_widget_count
+    assert len(ui.multiplot_widget_container) >= initial_widget_count
 
     # Verify choices row was cleaned up and new plot column was appended
     assert not hasattr(ui, "multiplot_plot_choices_row")
-    latest_widget = ui.widget_container[-1]
+    latest_widget = ui.multiplot_widget_container[-1]
     assert isinstance(latest_widget, pn.Column)
 
 
@@ -2745,13 +2712,13 @@ def test_safe_add_to_widget(
 def test_add_remove_btn_callback(ui):
     """Test that clicking the remove button successfully removes the plot group from the widget container."""
     mock_pane = "mock_plot"
-    ui.widget_container = []
+    container = []
 
     # Create the plot group and add it to the container
-    plot_group = ui._add_remove_btn(mock_pane)
-    ui.widget_container.append(plot_group)
+    plot_group = ui._add_remove_btn(mock_pane, container)
+    container.append(plot_group)
 
-    assert plot_group in ui.widget_container
+    assert plot_group in container
 
     # Extract the button (second item in the Column)
     remove_btn = plot_group[1]
@@ -2760,4 +2727,206 @@ def test_add_remove_btn_callback(ui):
     remove_btn.clicks += 1
 
     # Verify the plot group was removed
-    assert plot_group not in ui.widget_container
+    assert plot_group not in container
+
+
+def test_initialise_widgets_calls_all_sub_initialisers(uninitialised_ui, monkeypatch):
+    """Test that _initialise_widgets delegates to each section-specific initialiser exactly once"""
+
+    mock_user = MagicMock()
+    mock_ref = MagicMock()
+    mock_multiplot = MagicMock()
+    monkeypatch.setattr(uninitialised_ui, "_initialise_user_widgets", mock_user)
+    monkeypatch.setattr(uninitialised_ui, "_initialise_ref_widgets", mock_ref)
+    monkeypatch.setattr(
+        uninitialised_ui, "_initialise_multiplot_widgets", mock_multiplot
+    )
+
+    uninitialised_ui._initialise_widgets()
+
+    mock_user.assert_called_once_with()
+    mock_ref.assert_called_once_with()
+    mock_multiplot.assert_called_once_with()
+
+
+def test_initialise_user_widgets(uninitialised_ui):
+    """Test that the user widget container is populated with the expected status and dataset selection widgets"""
+
+    ui = uninitialised_ui
+    ui._initialise_user_widgets()
+
+    # Verify the dividers and keys selection row are created hidden by default
+    assert ui.div_1.visible is False
+    assert ui.div_2.visible is False
+    assert ui.keys_selection_row.visible is False
+    assert list(ui.keys_selection_row) == [ui.keys_dropdown, ui.keys_button]
+
+    # Verify the status text is set and the container is expanded
+    assert (
+        ui.status_textbox.value
+        == "User model status >> Waiting for initial model data catalog to be built. This can take a few minutes."
+    )
+    assert ui.user_widget_container.collapsed is False
+
+    # The widgets are nested inside a single Column appended to the container
+    widgets_column = next(iter(ui.user_widget_container))
+    assert list(widgets_column) == [
+        ui.last_data_load_textbox,
+        ui.status_textbox,
+        ui.warning_textbox,
+        ui.div_1,
+        ui.keys_selection_row,
+        ui.div_2,
+    ]
+
+
+def test_initialise_ref_widgets(uninitialised_ui):
+    """Test that the reference widget container and its selection widgets are correctly configured"""
+
+    ui = uninitialised_ui
+    ui._initialise_ref_widgets()
+
+    assert (
+        ui.ref_status_textbox.value == "Waiting for user model catalog to be built..."
+    )
+
+    assert ui.ref_keys_dropdown.name == "2. Select reference model (optional):"
+
+    # Verify the reference model widgets are correctly labelled, styled and disabled by default
+    assert ui.ref_keys_button.name == "Load reference model"
+    assert ui.ref_keys_button.button_type == "success"
+    assert ui.ref_keys_button.disabled is True
+
+    assert ui.clear_ref_model_data_button.name == "Clear reference model"
+    assert ui.clear_ref_model_data_button.button_type == "danger"
+    assert ui.clear_ref_model_data_button.disabled is True
+    assert ui.ref_keys_dropdown.disabled is True
+
+    assert ui.ref_model_info_button.name == "Reference model information"
+    assert ui.ref_model_info_button.button_type == "primary"
+    assert ui.ref_model_info_button.disabled is True
+
+    assert list(ui.ref_keys_selection_row) == [
+        ui.ref_keys_dropdown,
+        ui.ref_model_info_button,
+        ui.ref_keys_button,
+        ui.clear_ref_model_data_button,
+    ]
+
+    # Verify all reference widgets were added to the container in the expected order
+    container_items = list(ui.ref_widget_container)
+    assert container_items[:4] == [
+        ui.ref_status_textbox,
+        ui.ref_warning_textbox,
+        ui.ref_keys_selection_row,
+        ui.ref_model_metadata,
+    ]
+    assert isinstance(container_items[4], pn.layout.Divider)
+
+
+def test_initialise_multiplot_widgets(uninitialised_ui):
+    """Test that the multiplot widget container and its selection widgets are correctly configured"""
+
+    ui = uninitialised_ui
+    ui.keys_dropdown.options = ["b_dataset", "a_dataset"]
+    ui.keys_dropdown.value = "a_dataset"
+    ui.plot_variable_dropdown.options = ["var_b", "var_a"]
+
+    ui._initialise_multiplot_widgets()
+
+    assert (
+        ui.multiplot_status_textbox.value
+        == "Waiting for user model catalog to be built..."
+    )
+
+    assert (
+        ui.multiplot_ref_keys_dropdown.name
+        == "Select one or more reference models to overlay (optional):"
+    )
+
+    # Verify the multiplot widgets are correctly labelled and disabled by default
+    assert ui.multiplot_ref_keys_button.name == "Add reference model"
+    assert ui.multiplot_ref_keys_button.disabled is True
+
+    assert ui.clear_multiplot_data_button.name == "Clear loaded data"
+    assert ui.clear_multiplot_data_button.disabled is True
+
+    assert ui.multiplot_select_variable_button.name == "Select variable and plot type"
+    assert ui.multiplot_select_variable_button.disabled is True
+
+    # Verify the user dataset/variable dropdowns mirror the primary tab's selections
+    assert ui.multiplot_keys_dropdown.name == "Select user dataset"
+    assert ui.multiplot_keys_dropdown.value == ui.keys_dropdown.value
+
+    assert ui.multiplot_keys_update_button.name == "Load User Dataset"
+    assert ui.multiplot_keys_update_button.disabled is True
+    assert ui.multiplot_variable_toggle.disabled is True
+
+    assert ui.multiplot_plot_variable_dropdown.disabled is True
+    assert ui.multiplot_ref_keys_dropdown.disabled is True
+    assert ui.multiplot_plot_type_dropdown.disabled is True
+
+    assert ui.multiplot_plot_variable_dropdown.name == "Variable selection"
+    assert ui.multiplot_plot_variable_dropdown.options == sorted(
+        ui.plot_variable_dropdown.options
+    )
+
+    assert ui.multiplot_plot_type_dropdown.name == "Select plot type"
+    assert ui.multiplot_plot_type_dropdown.options == ["Line", "Heatmap (grid)"]
+
+    # Verify the selection rows group the correct widgets together
+    assert list(ui.multiplot_user_dataset_keys_selection_row) == [
+        ui.multiplot_keys_dropdown,
+        ui.multiplot_keys_update_button,
+    ]
+    assert list(ui.multiplot_ref_keys_selection_row) == [
+        ui.multiplot_plot_variable_dropdown,
+        ui.multiplot_ref_keys_dropdown,
+        ui.multiplot_ref_keys_button,
+        ui.clear_multiplot_data_button,
+        ui.multiplot_variable_toggle,
+    ]
+    assert list(ui.multiplot_type_selection_row) == [
+        ui.multiplot_plot_type_dropdown,
+        ui.multiplot_select_variable_button,
+    ]
+
+    # Verify all multiplot widgets were added to the container in the expected order
+    container_items = list(ui.multiplot_widget_container)
+    assert container_items[:5] == [
+        ui.multiplot_status_textbox,
+        ui.multiplot_warning_textbox,
+        ui.multiplot_user_dataset_keys_selection_row,
+        ui.multiplot_ref_keys_selection_row,
+        ui.multiplot_type_selection_row,
+    ]
+    assert isinstance(container_items[5], pn.layout.Divider)
+
+
+def test_enable_widgets_after_catalog_load(ui):
+    """Test that reference and multiplot widgets are re-enabled with updated status text once the catalog has loaded"""
+    cat = {"Key": None, "Key2": None}
+    ui._enable_widgets_after_catalog_load(cat, cat)
+
+    # Verify that catalog attributes are correctly assigned to the UI instance
+    assert ui.model_cat == cat
+    assert ui.access_nri_cat == cat
+
+    assert (
+        ui.ref_status_textbox.value
+        == "Reference Model Status >> Select a model to load and plot data"
+    )
+    assert ui.ref_keys_button.disabled is False
+    assert ui.clear_ref_model_data_button.disabled is False
+    assert ui.ref_model_info_button.disabled is False
+    assert ui.ref_keys_dropdown.options == sorted(ui.access_nri_cat.keys())
+    assert ui.ref_keys_dropdown.disabled is False
+
+    assert (
+        ui.multiplot_status_textbox.value
+        == "Overlay Plot >> Load user dataset to continue."
+    )
+
+    assert ui.multiplot_ref_keys_dropdown.options == sorted(ui.access_nri_cat.keys())
+    assert ui.multiplot_keys_dropdown.options == sorted(ui.model_cat.keys())
+    assert ui.multiplot_keys_update_button.disabled is False
