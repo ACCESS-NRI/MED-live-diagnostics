@@ -394,6 +394,7 @@ class UserInterface:
             self.user_widget_container,
             self.ref_widget_container,
             self.multiplot_widget_container,
+            spacing=15,
         )
         display(main_ui)
 

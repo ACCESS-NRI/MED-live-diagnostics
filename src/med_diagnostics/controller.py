@@ -485,7 +485,9 @@ def plot_animation(
     """
 
     data = dataset.sel(**chosen_slices, method="nearest")
-    plot_dataset = data[variable]
+    plot_dataset = data[
+        variable
+    ].load()  # removing .load() from this causes the animations to be unusably slow in the notebook.
 
     # get the min and max variable values so that the heatmap is consistent for the whole animation
     vmin = float(plot_dataset.min())
