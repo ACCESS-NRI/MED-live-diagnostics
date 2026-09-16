@@ -1,5 +1,6 @@
 import datetime
 
+import hvplot.xarray  # noqa: F401 Ruff keeps removing this even though it is required for animations
 import matplotlib.pyplot as plt
 import panel as pn
 import xarray as xr
