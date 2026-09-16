@@ -226,7 +226,9 @@ class UserInterface:
 
         # Select variable buttons
         self.select_variable_button.on_click(self._select_variable_button_click)
+
         self.ref_select_variable_button.on_click(self._ref_select_variable_button_click)
+
         self.multiplot_select_variable_button.on_click(
             self._multiplot_select_variable_button_click
         )
@@ -237,19 +239,23 @@ class UserInterface:
 
         # Ref model selection buttons
         self.multiplot_ref_keys_button.on_click(self._multiplot_ref_keys_button_click)
+
         self.ref_keys_button.on_click(self._ref_keys_button_click)
 
         # Other ref model buttons
         self.clear_ref_model_data_button.on_click(self._ref_clear_data_button_click)
+
         self.ref_model_info_button.on_click(self._ref_model_info_button_click)
 
         # Other multiplot buttons
         self.clear_multiplot_data_button.on_click(
             self._clear_multiplot_data_button_click
         )
+
         self.multiplot_keys_update_button.on_click(
             self._multiplot_keys_update_button_click
         )
+
         self.prompt_bounds_button.on_click(self._prompt_bounds_button_click)
 
         # Variable button toggles
@@ -461,6 +467,8 @@ class UserInterface:
         print()
 
     def _initialise_multiplot_widgets(self):
+
+        self.multiplot_ref_dataset_dict = {}
 
         # Add overlay data status text box
         self.multiplot_widget_container.append(self.multiplot_status_textbox)
@@ -1079,12 +1087,8 @@ class UserInterface:
         available axis options, as it is a structural dimension in netCDF files rather
         than a plottable axis.
         """
-
-        # Remove preexisting plot choices UI
-        self._safe_remove_widget_object(
-            self.multiplot_widget_container, "multiplot_plot_choices_row"
-        )
-
+        if not hasattr(self, "multiplot_plot_choices_row"):
+            self.multiplot_plot_choices_row = pn.Row()
         # Find viable dimensions for axis selection
         dim_sizes = self.dataset[self._get_variable_helper("multiplot")].sizes
         viable_dims = sorted(
@@ -1132,12 +1136,12 @@ class UserInterface:
             else:
                 self.multiplot_y_axis_dropdown.value = viable_dims[0]
 
-            self.multiplot_plot_choices_row = pn.Row(
+            self.multiplot_plot_choices_row.objects = [
                 self.multiplot_x_axis_dropdown,
                 self.multiplot_y_axis_dropdown,
                 self.multiplot_analysis_choice_dropdown,
                 self.multiplot_plot_button,
-            )
+            ]
         elif plot_type == "Line":
             x_axis = self.multiplot_x_axis_dropdown.value
 
@@ -1165,7 +1169,7 @@ class UserInterface:
             if len(viable_dims) > 1:
                 row_widgets.insert(0, self.multiplot_x_axis_dropdown)
 
-            self.multiplot_plot_choices_row = pn.Row(*row_widgets)
+            self.multiplot_plot_choices_row.objects = row_widgets
 
         self._safe_add_to_widget(
             self.multiplot_widget_container,
