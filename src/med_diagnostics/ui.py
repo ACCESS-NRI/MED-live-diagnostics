@@ -843,6 +843,7 @@ class UserInterface:
         if hasattr(self, "multiplot_ref_keys_selection_row"):
             self.multiplot_plot_variable_dropdown.options = dataset_keys
             self.multiplot_keys_dropdown.value = self.keys_dropdown.value
+            self._clear_multiplot_data()
 
     def _update_ref_dataset_keys_plot_ui(self):
         """
@@ -863,6 +864,8 @@ class UserInterface:
             )
             self._keys_dropdown_click(key=self.multiplot_keys_dropdown.value)
             self.multiplot_keys_update_button.name = "Load different dataset"
+            self.loaded_dataset_key = self.multiplot_keys_dropdown.value
+            self.keys_dropdown.value = self.loaded_dataset_key
 
         else:
             sorted_keys = sorted(self.dataset.keys())
