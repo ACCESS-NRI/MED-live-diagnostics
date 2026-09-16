@@ -1087,8 +1087,6 @@ class UserInterface:
         available axis options, as it is a structural dimension in netCDF files rather
         than a plottable axis.
         """
-        if not hasattr(self, "multiplot_plot_choices_row"):
-            self.multiplot_plot_choices_row = pn.Row()
         # Find viable dimensions for axis selection
         dim_sizes = self.dataset[self._get_variable_helper("multiplot")].sizes
         viable_dims = sorted(
@@ -1136,12 +1134,12 @@ class UserInterface:
             else:
                 self.multiplot_y_axis_dropdown.value = viable_dims[0]
 
-            self.multiplot_plot_choices_row.objects = [
+            self.multiplot_plot_choices_row = pn.Row(
                 self.multiplot_x_axis_dropdown,
                 self.multiplot_y_axis_dropdown,
                 self.multiplot_analysis_choice_dropdown,
                 self.multiplot_plot_button,
-            ]
+            )
         elif plot_type == "Line":
             x_axis = self.multiplot_x_axis_dropdown.value
 
@@ -1169,7 +1167,7 @@ class UserInterface:
             if len(viable_dims) > 1:
                 row_widgets.insert(0, self.multiplot_x_axis_dropdown)
 
-            self.multiplot_plot_choices_row.objects = row_widgets
+            self.multiplot_plot_choices_row = pn.Row(*row_widgets)
 
         self._safe_add_to_widget(
             self.multiplot_widget_container,
@@ -1932,6 +1930,15 @@ class UserInterface:
             True if the item was appended to the bottom (meaning no targets were found
             but append was True), False otherwise.
         """
+
+        # If item_to_add is already present (e.g. a persistent row whose
+        # `.objects` are updated in place rather than being rebuilt), inserting
+        # it again would attach the same Bokeh model at a second position in
+        # the container, which raises "Models must be owned by only a single
+        # document" once the document recomputes. Identity check (rather than
+        # `in`) avoids ambiguous truth-value errors for array-like objects.
+        if any(item_to_add is obj for obj in widget_container):
+            self._safe_remove_widget_object(widget_container, item_to_add)
 
         for attr_name in target_attributes:
             target = getattr(self, attr_name, None)
