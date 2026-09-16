@@ -7,6 +7,7 @@ from typing import ClassVar
 
 import panel as pn
 from IPython.display import display
+from panel.io.state import set_curdoc
 
 from med_diagnostics import controller, data
 
@@ -662,11 +663,15 @@ class UserInterface:
         if not self.figure_exists:
             self.figure_exists = True
             # Create new plot
-            self._display_dataset_plot_ui()
+            self._run_with_container_doc(
+                self.user_widget_container, self._display_dataset_plot_ui
+            )
 
         elif self.figure_exists:
             # Update existing plot
-            self._update_dataset_plot_ui()
+            self._run_with_container_doc(
+                self.user_widget_container, self._update_dataset_plot_ui
+            )
 
     def _ref_keys_dropdown_click(self):
         """
@@ -1880,6 +1885,41 @@ class UserInterface:
             return controller.get_selected_variable(
                 self.variable_toggle, self.plot_variable_dropdown, self.long_names
             )
+
+    def _run_with_container_doc(self, widget_container, fn):
+        """
+        Call `fn` with Panel's ambient current document set to whichever
+        document `widget_container` is actually rendered in.
+
+        Panel resolves a new widget's default stylesheets through a
+        per-document cache keyed by the *ambient* current document
+        (`panel.io.state.curdoc`) at construction time, not by the document
+        the widget is actually being attached to. If `fn` builds brand-new
+        widgets for `widget_container` from inside a callback whose
+        triggering widget lives in a *different* document (e.g. building the
+        user-section plot UI as a side effect of a multiplot button click),
+        those widgets' stylesheets get cached under the wrong document. That
+        cross-registered cache entry can then be reused when a later, correctly
+        -scoped widget build needs the same stylesheet, handing it an
+        `ImportedStyleSheet` model that is already attached to the other
+        document and raising "Models must be owned by only a single document".
+
+        Note: `widget_container._documents` is only populated by Panel's
+        `server_doc` path (used by `pn.serve`); components rendered via
+        Jupyter's comm-based `display()` never populate it. `_models` is kept
+        up to date for both, so it's used here instead to find the document
+        the container is actually rendered in.
+        """
+        docs = [
+            model.document
+            for model, _ in widget_container._models.values()
+            if model.document is not None
+        ]
+        if docs:
+            with set_curdoc(docs[0]):
+                fn()
+        else:
+            fn()
 
     def _safe_remove_widget_object(self, widget_container, item_to_remove):
         """
