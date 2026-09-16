@@ -501,6 +501,7 @@ class UserInterface:
 
         self.multiplot_keys_update_button.name = "Load User Dataset"
         self.multiplot_keys_update_button.disabled = True
+        self.multiplot_keys_dropdown.disabled = True
 
         self.multiplot_variable_toggle.disabled = True
 
@@ -567,6 +568,7 @@ class UserInterface:
         self.multiplot_ref_keys_dropdown.options = sorted(self.access_nri_cat.keys())
         self.multiplot_keys_dropdown.options = sorted(self.model_cat.keys())
         self.multiplot_keys_update_button.disabled = False
+        self.multiplot_keys_dropdown.disabled = False
 
     def _display_dataset_selection_ui(self):
         """
