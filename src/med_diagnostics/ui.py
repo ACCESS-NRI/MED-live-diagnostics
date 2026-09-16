@@ -380,7 +380,12 @@ class UserInterface:
             self.dataset,
         )
 
-    def _display_status_text(self):
+    def _initialise_widgets(self):
+        self._initialise_user_widgets()
+        self._initialise_ref_widgets()
+        self._initialise_multiplot_widgets()
+
+    def _initialise_user_widgets(self):
         """
         Create widget_container then add status_textbox and last_data_load_textbox widgets.
         """
@@ -399,16 +404,149 @@ class UserInterface:
             self.keys_selection_row,
             self.div_2,
         )
-
         self.user_widget_container.append(widgets_to_add)
 
         controller.update_textbox_text(
             self.status_textbox,
             "User model status >> Waiting for initial model data catalog to be built. This can take a few minutes.",
         )
-
+        self.user_widget_container.collapsed = False
         display(self.user_widget_container)
         print()  # spacer in notebook
+
+    def _initialise_ref_widgets(self):
+        """
+        Create widget_container then add status_textbox and last_data_load_textbox widgets.
+        """
+
+        controller.update_textbox_text(
+            self.ref_status_textbox,
+            "Waiting for user model catalog to be built...",
+        )
+
+        # Populate reference/comparison model widgets
+        self.ref_keys_dropdown.name = "2. Select reference model (optional):"
+        self.ref_keys_dropdown.options = sorted(self.access_nri_cat.keys())
+        self.ref_keys_button.name = "Load reference model"
+        self.ref_keys_button.button_type = "success"
+        self.ref_keys_button.disabled = True
+
+        self.clear_ref_model_data_button.name = "Clear reference model"
+        self.clear_ref_model_data_button.button_type = "danger"
+        self.clear_ref_model_data_button.disabled = True
+
+        self.ref_model_info_button.name = "Reference model information"
+        self.ref_model_info_button.button_type = "primary"
+        self.ref_model_info_button.disabled = True
+
+        # Build reference selection row cleanly
+        self.ref_keys_selection_row = pn.Row(
+            self.ref_keys_dropdown,
+            self.ref_model_info_button,
+            self.ref_keys_button,
+            self.clear_ref_model_data_button,
+        )
+
+        # Append all reference elements to the main widget container simultaneously
+        self.ref_widget_container.extend(
+            [
+                self.ref_status_textbox,
+                self.ref_warning_textbox,
+                self.ref_keys_selection_row,
+                self.ref_model_metadata,
+                pn.layout.Divider(styles={"color": "white"}),
+            ]
+        )
+        display(self.ref_widget_container)
+
+    def _initialise_multiplot_widgets(self):
+
+        # Add overlay data status text box
+        self.multiplot_widget_container.append(self.multiplot_status_textbox)
+        self.multiplot_widget_container.append(self.multiplot_warning_textbox)
+        controller.update_textbox_text(
+            self.multiplot_status_textbox,
+            "Waiting for user model catalog to be built...",
+        )
+
+        # Populate reference/comparison model widgets
+        self.multiplot_ref_keys_dropdown.name = (
+            "Select one or more reference models to overlay (optional):"
+        )
+        self.multiplot_ref_keys_dropdown.options = sorted(self.access_nri_cat.keys())
+        self.multiplot_ref_keys_button.name = "Add reference model"
+        self.multiplot_ref_keys_button.disabled = True
+
+        self.clear_multiplot_data_button.name = "Clear loaded data"
+        self.clear_multiplot_data_button.disabled = True
+
+        self.multiplot_select_variable_button.name = "Select variable and plot type"
+        self.multiplot_select_variable_button.disabled = True
+
+        self.multiplot_keys_dropdown.name = "Select user dataset"
+        self.multiplot_keys_dropdown.options = sorted(self.keys_dropdown.options)
+        self.multiplot_keys_dropdown.value = self.keys_dropdown.value
+
+        self.multiplot_keys_update_button.name = "Update loaded dataset"
+        self.multiplot_keys_update_button.disabled = True
+
+        self.multiplot_plot_variable_dropdown.name = "Variable selection"
+        self.multiplot_plot_variable_dropdown.options = sorted(
+            self.plot_variable_dropdown.options
+        )
+        self.multiplot_plot_variable_dropdown.value = self._get_variable_helper(
+            section="user"
+        )
+        self.multiplot_plot_type_dropdown.name = "Select plot type"
+        self.multiplot_plot_type_dropdown.options = ["Line", "Heatmap (grid)"]
+
+        self.multiplot_user_dataset_keys_selection_row = pn.Row(
+            self.multiplot_keys_dropdown, self.multiplot_keys_update_button
+        )
+
+        self.multiplot_ref_keys_selection_row = pn.Row(
+            self.multiplot_plot_variable_dropdown,
+            self.multiplot_ref_keys_dropdown,
+            self.multiplot_ref_keys_button,
+            self.clear_multiplot_data_button,
+            self.multiplot_variable_toggle,
+        )
+
+        self.multiplot_type_selection_row = pn.Row(
+            self.multiplot_plot_type_dropdown, self.multiplot_select_variable_button
+        )
+
+        # Add ref_keys_selection_row to widget_container
+        self.multiplot_widget_container.append(
+            self.multiplot_user_dataset_keys_selection_row
+        )
+        self.multiplot_widget_container.append(self.multiplot_ref_keys_selection_row)
+        self.multiplot_widget_container.append(self.multiplot_type_selection_row)
+
+        # Add horizontal line divider to widget_container
+        self.multiplot_widget_container.append(
+            pn.layout.Divider(styles={"color": "white"})
+        )
+
+        display(self.multiplot_widget_container)
+
+    def _enable_widgets_after_catalog_load(self):
+        controller.update_textbox_text(
+            self.ref_status_textbox,
+            "Reference Model Status >> Select a model to load and plot data",
+        )
+        self.ref_keys_button.disabled = False
+        self.clear_ref_model_data_button.disabled = False
+        self.ref_model_info_button.disabled = False
+
+        controller.update_textbox_text(
+            self.multiplot_status_textbox,
+            "Overlay Plot >> Choose reference variables to compare with the current plot.",
+        )
+        self.multiplot_ref_keys_button.disabled = False
+        self.clear_multiplot_data_button.disabled = False
+        self.multiplot_select_variable_button.disabled = False
+        self.multiplot_keys_update_button.disabled = False
 
     def _display_dataset_selection_ui(self, model_cat, access_nri_cat):
         """
@@ -437,47 +575,6 @@ class UserInterface:
         self.keys_selection_row.visible = True
         self.div_2.visible = True
 
-    def _display_reference_model_selection_ui(self):
-        """
-        Label, populate and append ACCESS reference model selection-related widgets to widget_container.
-        """
-
-        controller.update_textbox_text(
-            self.ref_status_textbox,
-            "Reference Model Status >> Select a model to load and plot data",
-        )
-
-        # Populate reference/comparison model widgets
-        self.ref_keys_dropdown.name = "2. Select reference model (optional):"
-        self.ref_keys_dropdown.options = sorted(self.access_nri_cat.keys())
-        self.ref_keys_button.name = "Load reference model"
-        self.ref_keys_button.button_type = "success"
-
-        self.clear_ref_model_data_button.name = "Clear reference model"
-        self.clear_ref_model_data_button.button_type = "danger"
-
-        self.ref_model_info_button.name = "Reference model information"
-        self.ref_model_info_button.button_type = "primary"
-
-        # Build reference selection row cleanly
-        self.ref_keys_selection_row = pn.Row(
-            self.ref_keys_dropdown,
-            self.ref_model_info_button,
-            self.ref_keys_button,
-            self.clear_ref_model_data_button,
-        )
-
-        # Append all reference elements to the main widget container simultaneously
-        self.widget_container.extend(
-            [
-                self.ref_status_textbox,
-                self.ref_warning_textbox,
-                self.ref_keys_selection_row,
-                self.ref_model_metadata,
-                pn.layout.Divider(styles={"color": "white"}),
-            ]
-        )
-
     def _display_reference_dataset_selection_ui(self):
         """
         Label, populate and append ACCESS reference dataset selection-related widgets to widget_container.
@@ -499,70 +596,11 @@ class UserInterface:
 
         # Insert the UI under the first item of this list that exists. If none exist, then append.
         self._safe_add_to_widget(
-            self.widget_container,
+            self.ref_widget_container,
             priority_insert_list,
             self.ref_data_keys_selection_row,
             append=True,
         )
-
-    def _display_multiplot_user_data_selection_ui(self):
-        """
-        Displays the selection user interface for producing plots that overlay user and reference models. Private
-        """
-
-        # Add overlay data status text box
-        self.widget_container.append(self.multiplot_status_textbox)
-        self.widget_container.append(self.multiplot_warning_textbox)
-        controller.update_textbox_text(
-            self.multiplot_status_textbox,
-            "Overlay Plot >> Choose reference variables to compare with the current plot.",
-        )
-
-        # Populate reference/comparison model widgets
-        self.multiplot_ref_keys_dropdown.name = (
-            "Select one or more reference models to overlay (optional):"
-        )
-        self.multiplot_ref_keys_dropdown.options = sorted(self.access_nri_cat.keys())
-        self.multiplot_ref_keys_button.name = "Add reference model"
-        self.clear_multiplot_data_button.name = "Clear loaded data"
-        self.multiplot_select_variable_button.name = "Select variable and plot type"
-        self.multiplot_keys_dropdown.name = "Select user dataset"
-        self.multiplot_keys_dropdown.options = sorted(self.keys_dropdown.options)
-        self.multiplot_keys_dropdown.value = self.keys_dropdown.value
-        self.multiplot_keys_update_button.name = "Update loaded dataset"
-        self.multiplot_plot_variable_dropdown.name = "Variable selection"
-        self.multiplot_plot_variable_dropdown.options = sorted(
-            self.plot_variable_dropdown.options
-        )
-        self.multiplot_plot_variable_dropdown.value = self._get_variable_helper(
-            section="user"
-        )
-        self.multiplot_plot_type_dropdown.name = "Select plot type"
-        self.multiplot_plot_type_dropdown.options = ["Line", "Heatmap (grid)"]
-
-        self.multiplot_user_dataset_keys_selection_row = pn.Row(
-            self.multiplot_keys_dropdown, self.multiplot_keys_update_button
-        )
-
-        self.multiplot_ref_keys_selection_row = pn.Row(
-            self.multiplot_plot_variable_dropdown,
-            self.multiplot_ref_keys_dropdown,
-            self.multiplot_ref_keys_button,
-            self.clear_multiplot_data_button,
-            self.multiplot_variable_toggle,
-        )
-
-        self.multiplot_type_selection_row = pn.Row(
-            self.multiplot_plot_type_dropdown, self.multiplot_select_variable_button
-        )
-
-        # Add ref_keys_selection_row to widget_container
-        self.widget_container.append(self.multiplot_user_dataset_keys_selection_row)
-        self.widget_container.append(self.multiplot_ref_keys_selection_row)
-        self.widget_container.append(self.multiplot_type_selection_row)
-
-        # Add horizontal line divider to widget_container
-        self.widget_container.append(pn.layout.Divider(styles={"color": "white"}))
 
     def _keys_dropdown_click(self):
         """
@@ -582,7 +620,6 @@ class UserInterface:
             self.status_textbox, "User model status >> Data successfully loaded."
         )
         self.keys_button.name = "Load different dataset"
-
         # Check if plot already exists
         if not self.figure_exists:
             self.figure_exists = True
@@ -616,7 +653,7 @@ class UserInterface:
 
         if (
             hasattr(self, "ref_data_keys_selection_row")
-            and self.ref_data_keys_selection_row in self.widget_container
+            and self.ref_data_keys_selection_row in self.ref_widget_container
         ):
             # Just update the options in the existing dropdown to match the new model
             self.ref_data_keys_dropdown.options = sorted(self.ref_model_cat.keys())
@@ -731,14 +768,14 @@ class UserInterface:
 
         # Remove all generated reference UI rows from the layout
         for attr in ui_components_to_remove:
-            self._safe_remove_widget_object(self.widget_container, attr)
+            self._safe_remove_widget_object(self.ref_widget_container, attr)
 
         # Clear the metadata text
         self.ref_model_metadata.value = ""
 
         # Remove reference data attributes
-        self._safe_remove_widget_object(self.widget_container, "ref_model_cat")
-        self._safe_remove_widget_object(self.widget_container, "ref_dataset")
+        self._safe_remove_widget_object(self.ref_widget_container, "ref_model_cat")
+        self._safe_remove_widget_object(self.ref_widget_container, "ref_dataset")
 
         self.ref_figure_exists = False
 
@@ -860,11 +897,11 @@ class UserInterface:
 
         if section == "user":
             self.plot_ui_row = plot_ui_row
-            self.widget_container.append(plot_ui_row)
+            self.user_widget_container.append(plot_ui_row)
         else:
             self.ref_plot_ui_row = plot_ui_row
             self._safe_add_to_widget(
-                self.widget_container,
+                self.ref_widget_container,
                 ["ref_data_keys_selection_row"],
                 self.ref_plot_ui_row,
                 append=True,
@@ -881,6 +918,7 @@ class UserInterface:
         plot_choices_row = None
 
         if section == "user":
+            widget_container = self.user_widget_container
             row_to_remove = "plot_choices_row"
             dataset = self.dataset
             x_dropdown = self.x_axis_dropdown
@@ -892,6 +930,7 @@ class UserInterface:
             plot_action = self._plot_data_button_click
             plot_ui_row = "plot_ui_row"
         elif section == "ref":
+            widget_container = self.ref_widget_container
             row_to_remove = "ref_plot_choices_row"
             dataset = self.ref_dataset
             x_dropdown = self.ref_x_axis_dropdown
@@ -904,7 +943,7 @@ class UserInterface:
             plot_ui_row = "ref_plot_ui_row"
 
         # Remove preexisting plot choices UI
-        self._safe_remove_widget_object(self.widget_container, row_to_remove)
+        self._safe_remove_widget_object(widget_container, row_to_remove)
 
         variable = self._get_variable_helper(section=section)
 
@@ -969,7 +1008,7 @@ class UserInterface:
         # If plotting hasn't automatically occurred (in the case of the line graph with only 1 plottable dimension)
         if show_plot_choices and plot_choices_row is not None:
             self._safe_add_to_widget(
-                self.widget_container,
+                widget_container,
                 [plot_ui_row],
                 plot_choices_row,
                 append=True,
@@ -1085,7 +1124,7 @@ class UserInterface:
             self.multiplot_plot_choices_row = pn.Row(*row_widgets)
 
         self._safe_add_to_widget(
-            self.widget_container,
+            self.multiplot_widget_container,
             ["multiplot_type_selection_row"],
             self.multiplot_plot_choices_row,
             append=True,
@@ -1120,7 +1159,10 @@ class UserInterface:
 
         # Insert the slice UI below the plot choices row
         self._safe_add_to_widget(
-            self.widget_container, priority_list, self.prompt_bounds_row, append=True
+            self.multiplot_widget_container,
+            priority_list,
+            self.prompt_bounds_row,
+            append=True,
         )
 
     def _plot_data_button_click(self):
@@ -1151,9 +1193,11 @@ class UserInterface:
 
         # remove the plot choices row since the plot has been created
         self._safe_remove_widget_object(
-            self.widget_container, "multiplot_plot_choices_row"
+            self.multiplot_widget_container, "multiplot_plot_choices_row"
         )
-        self._safe_remove_widget_object(self.widget_container, "prompt_bounds_row")
+        self._safe_remove_widget_object(
+            self.multiplot_widget_container, "prompt_bounds_row"
+        )
 
         # For each of the slices, build a dictionary so that the slices can be accessed in the plot
         self.multiplot_chosen_slices = {}
@@ -1188,14 +1232,18 @@ class UserInterface:
             # Create a new pane for the figure
             new_plot_pane = pn.pane.Matplotlib(fig, tight=True)
 
-        plot_group = self._add_remove_btn(new_plot_pane)
-
-        self._safe_remove_widget_object(self.widget_container, "multiplot_slice_ui_row")
-        self._safe_remove_widget_object(
-            self.widget_container, "multiplot_slice_widgets"
+        plot_group = self._add_remove_btn(
+            new_plot_pane, self.multiplot_widget_container
         )
 
-        self.widget_container.append(plot_group)
+        self._safe_remove_widget_object(
+            self.multiplot_widget_container, "multiplot_slice_ui_row"
+        )
+        self._safe_remove_widget_object(
+            self.multiplot_widget_container, "multiplot_slice_widgets"
+        )
+
+        self.multiplot_widget_container.append(plot_group)
 
         controller.update_textbox_text(
             self.multiplot_status_textbox, "Overlay plot status >> Plot created"
@@ -1244,8 +1292,10 @@ class UserInterface:
 
         if section == "ref":
             self.ref_chosen_slices = chosen_slices
+            widget_container = self.ref_widget_container
         else:
             self.chosen_slices = chosen_slices
+            widget_container = self.user_widget_container
 
         fig = None
         fig_animated = None
@@ -1264,39 +1314,41 @@ class UserInterface:
             # Create a new pane for the figure
             new_plot_pane = pn.pane.Matplotlib(fig, tight=True)
 
-        plot_group = self._add_remove_btn(new_plot_pane)
+        plot_group = self._add_remove_btn(new_plot_pane, widget_container)
 
         if section == "ref":
             # remove the plot choices row since the plot has been created
             self._safe_remove_widget_object(
-                self.widget_container, "ref_plot_choices_row"
+                self.ref_widget_container, "ref_plot_choices_row"
             )
-            self._safe_remove_widget_object(self.widget_container, "ref_slice_ui_row")
-            self._safe_remove_widget_object(self.widget_container, "ref_slice_widgets")
+            self._safe_remove_widget_object(
+                self.ref_widget_container, "ref_slice_ui_row"
+            )
+            self._safe_remove_widget_object(
+                self.ref_widget_container, "ref_slice_widgets"
+            )
             # Add plot above the multiplot widgets
             self._safe_add_to_widget(
-                self.widget_container,
+                self.ref_widget_container,
                 ["multiplot_status_textbox"],
                 plot_group,
                 append=True,
                 above=True,
             )
         else:
-            self._safe_remove_widget_object(self.widget_container, "plot_choices_row")
-            self._safe_remove_widget_object(self.widget_container, "slice_ui_row")
-            self._safe_remove_widget_object(self.widget_container, "slice_widgets")
+            self._safe_remove_widget_object(
+                self.user_widget_container, "plot_choices_row"
+            )
+            self._safe_remove_widget_object(self.user_widget_container, "slice_ui_row")
+            self._safe_remove_widget_object(self.user_widget_container, "slice_widgets")
 
-            appended = self._safe_add_to_widget(
-                self.widget_container,
+            self._safe_add_to_widget(
+                self.user_widget_container,
                 ["ref_status_textbox"],
                 plot_group,
                 append=True,
                 above=True,
             )
-            # Check if the reference UI already exists
-            if appended:
-                self._display_reference_model_selection_ui()
-                self._display_multiplot_user_data_selection_ui()
 
         controller.update_textbox_text(textbox, f"{text_prefix} >> Plot created")
         controller.update_textbox_text(warning_textbox, "")
@@ -1315,6 +1367,7 @@ class UserInterface:
         """
         # Map section strings to the correct instance attributes
         if section == "ref":
+            widget_container = self.ref_widget_container
             warning_box = self.ref_warning_textbox
             plot_type_dd = self.ref_plot_type_dropdown
             choices_row = "ref_plot_choices_row"
@@ -1324,6 +1377,7 @@ class UserInterface:
             display_choices = self._ref_display_plot_choices_ui
             self.ref_chosen_slices = {}
         elif section == "multiplot":
+            widget_container = self.multiplot_widget_container
             warning_box = self.multiplot_warning_textbox
             plot_type_dd = self.multiplot_plot_type_dropdown
             choices_row = "multiplot_plot_choices_row"
@@ -1333,6 +1387,7 @@ class UserInterface:
             display_choices = self._display_multiplot_plot_choices_ui
             self.multiplot_chosen_slices = {}
         else:
+            widget_container = self.user_widget_container
             warning_box = self.warning_textbox
             plot_type_dd = self.plot_type_dropdown
             choices_row = "plot_choices_row"
@@ -1361,9 +1416,9 @@ class UserInterface:
             )
 
             # Remove preexisting plot choices UI using strings
-            self._safe_remove_widget_object(self.widget_container, choices_row)
-            self._safe_remove_widget_object(self.widget_container, slice_row)
-            self._safe_remove_widget_object(self.widget_container, slice_widgets_attr)
+            self._safe_remove_widget_object(widget_container, choices_row)
+            self._safe_remove_widget_object(widget_container, slice_row)
+            self._safe_remove_widget_object(widget_container, slice_widgets_attr)
 
             display_choices()
 
@@ -1402,6 +1457,7 @@ class UserInterface:
 
         prompt_bounds = False
         if section == "ref":
+            widget_container = self.ref_widget_container
             dataset = self.ref_dataset
             plot_type = self.ref_plot_type_dropdown.value
             x = self.ref_x_axis_dropdown.value
@@ -1409,6 +1465,7 @@ class UserInterface:
             z = self.ref_animation_axis_dropdown.value
             widget_attr, row_attr = "ref_slice_widgets", "ref_slice_ui_row"
         elif section == "multiplot":
+            widget_container = self.multiplot_widget_container
             dataset = self.dataset
             ui_plot_type = self.multiplot_plot_type_dropdown.value
             plot_type = "Heatmap" if "Heatmap" in ui_plot_type else "Line"
@@ -1428,6 +1485,7 @@ class UserInterface:
             else:
                 prompt_bounds = False
         else:
+            widget_container = self.user_widget_container
             dataset = self.dataset
             plot_type = self.plot_type_dropdown.value
             x = self.x_axis_dropdown.value
@@ -1459,8 +1517,8 @@ class UserInterface:
 
         # Handle UI cleanup if slice requirements changed
         if has_slice_widgets and existing_keys != remaining_dims:
-            self._safe_remove_widget_object(self.widget_container, row_attr)
-            self._safe_remove_widget_object(self.widget_container, widget_attr)
+            self._safe_remove_widget_object(widget_container, row_attr)
+            self._safe_remove_widget_object(widget_container, widget_attr)
             # Re-evaluate with no slice widgets now that they are cleared
             (
                 plot_valid,
@@ -1561,6 +1619,7 @@ class UserInterface:
             button = self.multiplot_plot_button
             textbox = self.multiplot_status_textbox
             status_prefix = "Overlay Plot"
+            widget_container = self.multiplot_widget_container
         elif section == "ref":
             self.ref_slice_widgets = slice_widgets
             self.ref_slice_ui_row = slice_ui_row
@@ -1568,6 +1627,7 @@ class UserInterface:
             button = self.ref_plot_button
             textbox = self.ref_status_textbox
             status_prefix = "Reference model status"
+            widget_container = self.ref_widget_container
         elif section == "user":
             self.slice_widgets = slice_widgets
             self.slice_ui_row = slice_ui_row
@@ -1575,11 +1635,10 @@ class UserInterface:
             button = self.plot_button
             textbox = self.status_textbox
             status_prefix = "User model status"
+            widget_container = self.user_widget_container
 
         # Insert the slice UI below the plot choices row
-        self._safe_add_to_widget(
-            self.widget_container, position, slice_ui_row, append=True
-        )
+        self._safe_add_to_widget(widget_container, position, slice_ui_row, append=True)
 
         # Update the UI text to prompt the user
         button.name = "Confirm Slices & Plot"
@@ -1711,7 +1770,7 @@ class UserInterface:
                 plot_diff=plot_diff,
             )
 
-    def _add_remove_btn(self, plot_pane):
+    def _add_remove_btn(self, plot_pane, widget_container):
         """
         Wrap a plot pane in a Column alongside a functional 'Remove Plot' button. Private.
         """
@@ -1723,8 +1782,8 @@ class UserInterface:
 
         # Local callback to destroy this specific plot group
         def _remove_this_plot(event):
-            if plot_group in self.widget_container:
-                self.widget_container.remove(plot_group)
+            if plot_group in widget_container:
+                widget_container.remove(plot_group)
 
         remove_btn.on_click(_remove_this_plot)
 
@@ -1781,7 +1840,10 @@ class UserInterface:
 
         if hasattr(self, item_to_remove):
             component = getattr(self, item_to_remove)
-            if component in widget_container:
+            # Identity check (rather than `in`/`==`) avoids ambiguous truth-value
+            # errors when component is an array-like object (e.g. an xarray dataset)
+            # rather than a widget.
+            if any(component is obj for obj in widget_container):
                 widget_container.remove(component)
 
             delattr(self, item_to_remove)

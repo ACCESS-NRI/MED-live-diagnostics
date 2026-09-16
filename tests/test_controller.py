@@ -18,8 +18,6 @@ def ui():
     """Return a session-scoped UserInterface instance for testing"""
 
     ui = UserInterface()
-    # Initialise the user interface widget container to prepare it for test execution
-    ui.widget_container = pn.Column()
     return ui
 
 
