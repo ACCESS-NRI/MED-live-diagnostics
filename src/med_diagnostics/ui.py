@@ -79,14 +79,6 @@ class UserInterface:
             "sizing_mode": "stretch_width",
             "collapsed": True,
             "styles": {"background": "rgba(128, 128, 128, 0.1)"},
-            "stylesheets": [
-                """
-                /* Targets the default chevron icon and turns it white */
-                .card-button::after, .accordion-button::after, .bk-caret {
-                    filter: brightness(0) invert(1) !important;
-                }
-                """
-            ],
         },
     }
 
@@ -434,7 +426,7 @@ class UserInterface:
 
         # Populate reference/comparison model widgets
         self.ref_keys_dropdown.name = "2. Select reference model (optional):"
-        self.ref_keys_dropdown.options = ["Waiting for model to load"]
+        self.ref_keys_dropdown.disabled = True
         self.ref_keys_button.name = "Load reference model"
         self.ref_keys_button.button_type = "success"
         self.ref_keys_button.disabled = True
@@ -466,6 +458,7 @@ class UserInterface:
             ]
         )
         display(self.ref_widget_container)
+        print()
 
     def _initialise_multiplot_widgets(self):
 
@@ -495,8 +488,14 @@ class UserInterface:
         self.multiplot_keys_dropdown.options = ["Waiting for model to load"]
         self.multiplot_keys_dropdown.value = self.keys_dropdown.value
 
-        self.multiplot_keys_update_button.name = "Update loaded dataset"
+        self.multiplot_keys_update_button.name = "Load User Dataset"
         self.multiplot_keys_update_button.disabled = True
+
+        self.multiplot_variable_toggle.disabled = True
+
+        self.multiplot_plot_variable_dropdown.disabled = True
+        self.multiplot_ref_keys_dropdown.disabled = True
+        self.multiplot_plot_type_dropdown.disabled = True
 
         self.multiplot_plot_variable_dropdown.name = "Variable selection"
         self.multiplot_plot_variable_dropdown.options = sorted(
@@ -537,6 +536,7 @@ class UserInterface:
         )
 
         display(self.multiplot_widget_container)
+        print()
 
     def _enable_widgets_after_catalog_load(self, model_cat, access_nri_cat):
         # Assign argument to class-accessible variables
@@ -550,16 +550,14 @@ class UserInterface:
         self.clear_ref_model_data_button.disabled = False
         self.ref_model_info_button.disabled = False
         self.ref_keys_dropdown.options = sorted(self.access_nri_cat.keys())
+        self.ref_keys_dropdown.disabled = False
 
         controller.update_textbox_text(
             self.multiplot_status_textbox,
-            "Overlay Plot >> Choose reference variables to compare with the current plot.",
+            "Overlay Plot >> Load user dataset to continue.",
         )
         self.multiplot_ref_keys_dropdown.options = sorted(self.access_nri_cat.keys())
-        self.multiplot_keys_dropdown.options = sorted(self.keys_dropdown.options)
-        self.multiplot_ref_keys_button.disabled = False
-        self.clear_multiplot_data_button.disabled = False
-        self.multiplot_select_variable_button.disabled = False
+        self.multiplot_keys_dropdown.options = sorted(self.model_cat.keys())
         self.multiplot_keys_update_button.disabled = False
 
     def _display_dataset_selection_ui(self):
@@ -630,6 +628,24 @@ class UserInterface:
             self.status_textbox, "User model status >> Data successfully loaded."
         )
         self.keys_button.name = "Load different dataset"
+
+        # enable multiplot plot UI
+        if self.multiplot_ref_keys_button.disabled:
+            self.multiplot_keys_dropdown.value = self.keys_dropdown.value
+            self.multiplot_ref_keys_button.disabled = False
+            self.clear_multiplot_data_button.disabled = False
+            self.multiplot_variable_toggle.disabled = False
+            self.multiplot_plot_variable_dropdown.options = sorted(self.dataset.keys())
+            self.multiplot_select_variable_button.disabled = False
+
+            self.multiplot_plot_variable_dropdown.disabled = False
+            self.multiplot_ref_keys_dropdown.disabled = False
+            self.multiplot_plot_type_dropdown.disabled = False
+            controller.update_textbox_text(
+                self.multiplot_status_textbox,
+                "Overlay Plot >> Load one or more reference datasets to compare.",
+            )
+
         # Check if plot already exists
         if not self.figure_exists:
             self.figure_exists = True
@@ -675,11 +691,10 @@ class UserInterface:
         """
         Loads selected reference model, and if it contains the correct dataset, adds it to a dictionary to plot.
         """
+        controller.update_textbox_text(self.multiplot_warning_textbox, "")
 
         if not hasattr(self, "multiplot_ref_dataset_dict"):
             self.multiplot_ref_dataset_dict = {}
-
-        controller.update_textbox_text(self.multiplot_warning_textbox, "")
 
         selected_ref_model_cat = self.access_nri_cat.search(
             name=self.multiplot_ref_keys_dropdown.value
@@ -845,6 +860,17 @@ class UserInterface:
             self.multiplot_status_textbox,
             "Overlay Plot Status >> New user dataset loaded, clearing loaded models",
         )
+
+        if self.multiplot_ref_keys_button.disabled:
+            self.multiplot_ref_keys_button.disabled = False
+            self.clear_multiplot_data_button.disabled = False
+            self.multiplot_variable_toggle.disabled = False
+            self.multiplot_plot_variable_dropdown.options = sorted(self.dataset.keys())
+            self.multiplot_select_variable_button.disabled = False
+
+            self.multiplot_plot_variable_dropdown.disabled = False
+            self.multiplot_ref_keys_dropdown.disabled = False
+            self.multiplot_plot_type_dropdown.disabled = False
         # Clear the loaded data, as different datasets from the selected models will need to be loaded.
         self._clear_multiplot_data()
 

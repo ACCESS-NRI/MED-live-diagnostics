@@ -1133,7 +1133,7 @@ def test_keys_dropdown_click(ui, monkeypatch, fig_exists):
         monkeypatch.setattr(
             ui, "_display_dataset_plot_ui", mock_display_dataset_plot_ui
         )
-
+    ui.multiplot_ref_keys_button.disabled = fig_exists
     # Configure mock catalog and dropdown selection on the UI instance
     ui.model_cat = {"fake": None, "catalog": None}
     ui.keys_dropdown.value = "an option"
@@ -1155,8 +1155,29 @@ def test_keys_dropdown_click(ui, monkeypatch, fig_exists):
     else:
         mock_display_dataset_plot_ui.assert_called_once_with()
 
+    # enable multiplot plot UI
+    if ui.multiplot_ref_keys_button.disabled:
+        assert ui.multiplot_keys_dropdown.value == ui.keys_dropdown.value
+        assert ui.multiplot_ref_keys_button.disabled is False
+        assert ui.clear_multiplot_data_button.disabled is False
+        assert ui.multiplot_variable_toggle.disabled is False
+        assert ui.multiplot_plot_variable_dropdown.options == sorted(ui.dataset.keys())
+        assert ui.multiplot_select_variable_button.disabled is False
 
-def test_update_multiplot_dataset(ui, monkeypatch):
+        assert ui.multiplot_plot_variable_dropdown.disabled is False
+        assert ui.multiplot_ref_keys_dropdown.disabled is False
+        assert ui.multiplot_plot_type_dropdown.disabled is False
+        assert (
+            ui.multiplot_status_textbox.value
+            == "Overlay Plot >> Load one or more reference datasets to compare."
+        )
+
+
+@pytest.mark.parametrize(
+    "button_disabled",
+    [True, False],
+)
+def test_update_multiplot_dataset(ui, monkeypatch, button_disabled):
     """Test updating the multiplot user dataset, refreshing associated dropdowns, and clearing stale multiplot data"""
 
     # Configure mock model catalog and multiplot dropdown selection
@@ -1170,7 +1191,7 @@ def test_update_multiplot_dataset(ui, monkeypatch):
 
     mock_clear_multiplot_data = MagicMock()
     monkeypatch.setattr(ui, "_clear_multiplot_data", mock_clear_multiplot_data)
-
+    ui.multiplot_ref_keys_button.disabled = button_disabled
     # Trigger the multiplot dataset update method
     ui._update_multiplot_dataset()
 
@@ -1188,6 +1209,18 @@ def test_update_multiplot_dataset(ui, monkeypatch):
         ui.multiplot_status_textbox.value
         == "Overlay Plot Status >> New user dataset loaded, clearing loaded models"
     )
+    # enable multiplot plot UI
+    if ui.multiplot_ref_keys_button.disabled:
+        assert ui.multiplot_keys_dropdown.value == ui.keys_dropdown.value
+        assert ui.multiplot_ref_keys_button.disabled is False
+        assert ui.clear_multiplot_data_button.disabled is False
+        assert ui.multiplot_variable_toggle.disabled is False
+        assert ui.multiplot_plot_variable_dropdown.options == sorted(ui.dataset.keys())
+        assert ui.multiplot_select_variable_button.disabled is False
+
+        assert ui.multiplot_plot_variable_dropdown.disabled is False
+        assert ui.multiplot_ref_keys_dropdown.disabled is False
+        assert ui.multiplot_plot_type_dropdown.disabled is False
 
     # Verify that old multiplot data is cleared out
     mock_clear_multiplot_data.assert_called_once()
@@ -2719,7 +2752,6 @@ def test_initialise_ref_widgets(uninitialised_ui):
     )
 
     assert ui.ref_keys_dropdown.name == "2. Select reference model (optional):"
-    assert ui.ref_keys_dropdown.options == ["Waiting for model to load"]
 
     # Verify the reference model widgets are correctly labelled, styled and disabled by default
     assert ui.ref_keys_button.name == "Load reference model"
@@ -2729,6 +2761,7 @@ def test_initialise_ref_widgets(uninitialised_ui):
     assert ui.clear_ref_model_data_button.name == "Clear reference model"
     assert ui.clear_ref_model_data_button.button_type == "danger"
     assert ui.clear_ref_model_data_button.disabled is True
+    assert ui.ref_keys_dropdown.disabled is True
 
     assert ui.ref_model_info_button.name == "Reference model information"
     assert ui.ref_model_info_button.button_type == "primary"
@@ -2771,7 +2804,6 @@ def test_initialise_multiplot_widgets(uninitialised_ui):
         ui.multiplot_ref_keys_dropdown.name
         == "Select one or more reference models to overlay (optional):"
     )
-    assert ui.multiplot_ref_keys_dropdown.options == ["Waiting for model to load"]
 
     # Verify the multiplot widgets are correctly labelled and disabled by default
     assert ui.multiplot_ref_keys_button.name == "Add reference model"
@@ -2785,11 +2817,15 @@ def test_initialise_multiplot_widgets(uninitialised_ui):
 
     # Verify the user dataset/variable dropdowns mirror the primary tab's selections
     assert ui.multiplot_keys_dropdown.name == "Select user dataset"
-    assert ui.multiplot_keys_dropdown.options == ["Waiting for model to load"]
     assert ui.multiplot_keys_dropdown.value == ui.keys_dropdown.value
 
-    assert ui.multiplot_keys_update_button.name == "Update loaded dataset"
+    assert ui.multiplot_keys_update_button.name == "Load User Dataset"
     assert ui.multiplot_keys_update_button.disabled is True
+    assert ui.multiplot_variable_toggle.disabled is True
+
+    assert ui.multiplot_plot_variable_dropdown.disabled is True
+    assert ui.multiplot_ref_keys_dropdown.disabled is True
+    assert ui.multiplot_plot_type_dropdown.disabled is True
 
     assert ui.multiplot_plot_variable_dropdown.name == "Variable selection"
     assert ui.multiplot_plot_variable_dropdown.options == sorted(
@@ -2845,15 +2881,13 @@ def test_enable_widgets_after_catalog_load(ui):
     assert ui.clear_ref_model_data_button.disabled is False
     assert ui.ref_model_info_button.disabled is False
     assert ui.ref_keys_dropdown.options == sorted(ui.access_nri_cat.keys())
+    assert ui.ref_keys_dropdown.disabled is False
 
     assert (
         ui.multiplot_status_textbox.value
-        == "Overlay Plot >> Choose reference variables to compare with the current plot."
+        == "Overlay Plot >> Load user dataset to continue."
     )
 
     assert ui.multiplot_ref_keys_dropdown.options == sorted(ui.access_nri_cat.keys())
-    assert ui.multiplot_keys_dropdown.options == sorted(ui.keys_dropdown.options)
-    assert ui.multiplot_ref_keys_button.disabled is False
-    assert ui.clear_multiplot_data_button.disabled is False
-    assert ui.multiplot_select_variable_button.disabled is False
+    assert ui.multiplot_keys_dropdown.options == sorted(ui.model_cat.keys())
     assert ui.multiplot_keys_update_button.disabled is False
