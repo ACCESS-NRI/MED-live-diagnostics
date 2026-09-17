@@ -422,8 +422,9 @@ def test_get_metadata():
 def test_check_plot_validity(plot_type, x, y, z, has_slice, dim_sizes, expected):
     mock_dataset = MagicMock()
     mock_dataset.__getitem__.return_value.sizes = dim_sizes
+    exp_valid, exp_req_slice, exp_inv_heat, exp_same_axes, exp_rem_dims = expected
 
-    result = controller.check_plot_validity(
+    validity, remaining_dims = controller.check_plot_validity(
         dataset=mock_dataset,
         variable="temp",
         plot_type=plot_type,
@@ -433,7 +434,13 @@ def test_check_plot_validity(plot_type, x, y, z, has_slice, dim_sizes, expected)
         has_slice_widgets=has_slice,
     )
 
-    assert result == expected
+    assert validity.plot_valid == exp_valid
+    assert validity.requires_slice == exp_req_slice
+    assert validity.invalid_heatmap_data == exp_inv_heat
+    assert validity.same_axes_chosen == exp_same_axes
+    assert validity.prompt_bounds is False
+
+    assert remaining_dims == exp_rem_dims
 
 
 @pytest.mark.parametrize(

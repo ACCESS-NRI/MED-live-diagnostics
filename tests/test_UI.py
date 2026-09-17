@@ -125,13 +125,11 @@ def test_check_plot_validity_1d(
     )
 
     # Verify that the validity check returns the expected configuration flags
-    assert results == (
-        plot_valid_output,
-        requires_slice_output,
-        invalid_heatmap_output,
-        same_axes_output,
-        False,
-    )
+    assert results.plot_valid == plot_valid_output
+    assert results.requires_slice == requires_slice_output
+    assert results.invalid_heatmap_data == invalid_heatmap_output
+    assert results.same_axes_chosen == same_axes_output
+    assert results.prompt_bounds == False
 
 
 @pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
@@ -178,13 +176,11 @@ def test_check_plot_validity_2d(
     )
 
     # Verify that the validity check returns the expected configuration flags
-    assert results == (
-        plot_valid_output,
-        requires_slice_output,
-        invalid_heatmap_output,
-        same_axes_output,
-        False,
-    )
+    assert results.plot_valid == plot_valid_output
+    assert results.requires_slice == requires_slice_output
+    assert results.invalid_heatmap_data == invalid_heatmap_output
+    assert results.same_axes_chosen == same_axes_output
+    assert results.prompt_bounds == False
 
 
 @pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
@@ -228,13 +224,11 @@ def test_check_plot_validity_3d(
     )
 
     # Verify that the validity check returns the expected configuration flags
-    assert results == (
-        plot_valid_output,
-        requires_slice_output,
-        invalid_heatmap_output,
-        same_axes_output,
-        False,
-    )
+    assert results.plot_valid == plot_valid_output
+    assert results.requires_slice == requires_slice_output
+    assert results.invalid_heatmap_data == invalid_heatmap_output
+    assert results.same_axes_chosen == same_axes_output
+    assert results.prompt_bounds == False
 
 
 @pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
@@ -317,13 +311,11 @@ def test_check_plot_validity_4d(
     )
 
     # Verify that the validity check returns the expected configuration flags
-    assert results == (
-        plot_valid_output,
-        requires_slice_output,
-        invalid_heatmap_output,
-        same_axes_output,
-        False,
-    )
+    assert results.plot_valid == plot_valid_output
+    assert results.requires_slice == requires_slice_output
+    assert results.invalid_heatmap_data == invalid_heatmap_output
+    assert results.same_axes_chosen == same_axes_output
+    assert results.prompt_bounds == False
     if requires_slice_output:
         # Determine which attributes we should be checking
         row_attr = "ref_slice_ui_row" if section == "ref" else "slice_ui_row"
@@ -1478,11 +1470,13 @@ def test_plot_button_click(
     # Mock plot validity checkers, plotting triggers, slice checks, and choice UI display methods
     mock_check_plot_validity = MagicMock(
         return_value=(
-            plot_valid,
-            requires_slice,
-            invalid_heatmap_data,
-            same_axes_chosen,
-            False,
+            controller.PlotValidationResult(
+                plot_valid=plot_valid,
+                requires_slice=requires_slice,
+                invalid_heatmap_data=invalid_heatmap_data,
+                same_axes_chosen=same_axes_chosen,
+                prompt_bounds=False,
+            )
         )
     )
     monkeypatch.setattr(ui, "_check_plot_validity_helper", mock_check_plot_validity)
@@ -1545,11 +1539,13 @@ def test_ref_plot_button_click(
     # Mock reference plot validity checkers, plotting triggers, slice checks, and choice UI display methods
     mock_check_plot_validity = MagicMock(
         return_value=(
-            plot_valid,
-            requires_slice,
-            invalid_heatmap_data,
-            same_axes_chosen,
-            False,
+            controller.PlotValidationResult(
+                plot_valid=plot_valid,
+                requires_slice=requires_slice,
+                invalid_heatmap_data=invalid_heatmap_data,
+                same_axes_chosen=same_axes_chosen,
+                prompt_bounds=False,
+            )
         )
     )
     monkeypatch.setattr(ui, "_check_plot_validity_helper", mock_check_plot_validity)
@@ -1620,11 +1616,13 @@ def test_multiplot_plot_button_click(
     # Mock multiplot plot validity checkers, plotting triggers, slice checks, and bounds prompt UI methods
     mock_check_plot_validity = MagicMock(
         return_value=(
-            plot_valid,
-            requires_slice,
-            invalid_heatmap_data,
-            same_axes_chosen,
-            prompt_bounds,
+            controller.PlotValidationResult(
+                plot_valid=plot_valid,
+                requires_slice=requires_slice,
+                invalid_heatmap_data=invalid_heatmap_data,
+                same_axes_chosen=same_axes_chosen,
+                prompt_bounds=prompt_bounds,
+            )
         )
     )
     monkeypatch.setattr(ui, "_check_plot_validity_helper", mock_check_plot_validity)
@@ -1867,7 +1865,14 @@ def test_check_plot_validity_routing(
     monkeypatch.setattr(controller, "check_bounds", mock_multiplot_check_bounds)
 
     # Base mock return: plot_valid is True
-    mock_return_value = (True, False, False, False, ["remaining_dims"])
+    validity = controller.PlotValidationResult(
+        plot_valid=True,
+        requires_slice=False,
+        invalid_heatmap_data=False,
+        same_axes_chosen=False,
+        prompt_bounds=False,
+    )
+    mock_return_value = (validity, ["remaining_dims"])
     mock_check_plot_validity = MagicMock(return_value=mock_return_value)
     monkeypatch.setattr(controller, "check_plot_validity", mock_check_plot_validity)
 
@@ -1911,7 +1916,9 @@ def test_check_plot_validity_routing(
             )
 
     # Verify the final returned tuple
-    assert results == (expected_plot_valid, False, False, False, expected_prompt_bounds)
+    assert results == validity
+    assert validity.plot_valid == expected_plot_valid
+    assert validity.prompt_bounds == expected_prompt_bounds
 
 
 @pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
@@ -1929,8 +1936,15 @@ def test_check_plot_validity_slice_cleanup(ui, monkeypatch, section, keys_match)
     mock_safe_remove = MagicMock()
     monkeypatch.setattr(ui, "_safe_remove_widget_object", mock_safe_remove)
 
+    validity = controller.PlotValidationResult(
+        plot_valid=True,
+        requires_slice=False,
+        invalid_heatmap_data=False,
+        same_axes_chosen=False,
+        prompt_bounds=False,
+    )
     # Controller says the remaining dimensions are ["time", "lat"]
-    mock_return = (True, False, False, False, ["time", "lat"])
+    mock_return = (validity, ["time", "lat"])
     mock_check_plot_validity = MagicMock(return_value=mock_return)
     monkeypatch.setattr(controller, "check_plot_validity", mock_check_plot_validity)
 

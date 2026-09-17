@@ -1,4 +1,5 @@
 import datetime
+from dataclasses import dataclass
 
 import hvplot.xarray  # noqa: F401 Ruff keeps removing this even though it is required for animations
 import matplotlib.pyplot as plt
@@ -6,6 +7,19 @@ import panel as pn
 import xarray as xr
 
 from med_diagnostics import data
+
+
+@dataclass
+class PlotValidationResult:
+    """
+    Class for returning plot validation results from check_plot_validity
+    """
+
+    plot_valid: bool = False
+    requires_slice: bool = False
+    invalid_heatmap_data: bool = False
+    same_axes_chosen: bool = False
+    prompt_bounds: bool = False
 
 
 def update_textbox_text(textbox_obj, text):
@@ -369,11 +383,13 @@ def check_plot_validity(
     has_slice_widgets : bool, optional
         Indicates whether slice widgets have already been initialized for this section.
         Defaults to False.
+    ref_dict : dict, optional
+        Dictionary containing reference datasets. Defaults to None.
 
     Returns
     -------
-    tuple of (bool, bool, bool, bool, list of str)
-        A 5-tuple containing:
+    PlotValidationResult
+        A dataclass containing the validation results:
         - plot_valid : bool
           True if the configuration is valid and ready to plot.
         - requires_slice : bool
@@ -382,6 +398,8 @@ def check_plot_validity(
           True if the plot type lacks sufficient dimensions or required axes.
         - same_axes_chosen : bool
           True if duplicate axes were selected.
+        - prompt_bounds : bool
+          True if bounds prompting is required.
         - remaining_dims : list of str
           List of unplotted dimensions remaining in the dataset.
     """
@@ -397,7 +415,16 @@ def check_plot_validity(
 
     if not x:
         plot_valid = False
-        return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, []
+        remaining_dims = []
+        return (
+            PlotValidationResult(
+                plot_valid=plot_valid,
+                requires_slice=requires_slice,
+                invalid_heatmap_data=invalid_heatmap_data,
+                same_axes_chosen=same_axes_chosen,
+            ),
+            remaining_dims,
+        )
 
     # 1. Build chosen_axes first so we can filter dimensions
     if plot_type == "Animation":
@@ -430,10 +457,12 @@ def check_plot_validity(
         same_axes_chosen = True
 
     return (
-        plot_valid,
-        requires_slice,
-        invalid_heatmap_data,
-        same_axes_chosen,
+        PlotValidationResult(
+            plot_valid=plot_valid,
+            requires_slice=requires_slice,
+            invalid_heatmap_data=invalid_heatmap_data,
+            same_axes_chosen=same_axes_chosen,
+        ),
         remaining_dims,
     )
 
