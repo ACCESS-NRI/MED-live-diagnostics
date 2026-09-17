@@ -13,7 +13,15 @@ import xarray as xr
 
 import med_diagnostics.data as med_data
 from med_diagnostics import controller
-from med_diagnostics.types import Animation, Heatmap, Line, MultiplotHeatmap
+from med_diagnostics.types import (
+    Animation,
+    Heatmap,
+    Line,
+    Multiplot,
+    MultiplotHeatmap,
+    Ref,
+    User,
+)
 from med_diagnostics.ui import UserInterface
 
 
@@ -60,7 +68,7 @@ def run_validity_check(ui, section, x_value, y_value, z_value, plot_type, var, d
     """Check the validity of reference or user plots based on current UI selections"""
 
     # Assign to correct UI attributes based on whether it is the reference data functions or user data
-    if section == "ref":
+    if isinstance(section, Ref):
         ui.ref_dataset = ds
         ui.ref_x_axis_dropdown.value = x_value
         ui.ref_y_axis_dropdown.value = y_value
@@ -68,7 +76,7 @@ def run_validity_check(ui, section, x_value, y_value, z_value, plot_type, var, d
         ui.ref_plot_type_dropdown.value = plot_type
         ui.ref_plot_variable_dropdown.value = var
         return ui._check_plot_validity_helper(section=section)
-    if section == "multiplot":
+    if isinstance(section, Multiplot):
         if isinstance(plot_type, Animation):
             pytest.skip("Multiplot tab does not plot animation plot type, skipping")
         else:
@@ -89,7 +97,7 @@ def run_validity_check(ui, section, x_value, y_value, z_value, plot_type, var, d
         return ui._check_plot_validity_helper(section=section)
 
 
-@pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
+@pytest.mark.parametrize("section", [User(), Ref(), Multiplot()])
 @pytest.mark.parametrize(
     "x_value, y_value, z_value, plot_type, variable_value, plot_valid_output, requires_slice_output, invalid_heatmap_output, same_axes_output",
     [
@@ -133,7 +141,7 @@ def test_check_plot_validity_1d(
     assert results.prompt_bounds == False
 
 
-@pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
+@pytest.mark.parametrize("section", [User(), Ref(), Multiplot()])
 @pytest.mark.parametrize(
     "x_value, y_value, z_value, plot_type, variable_value, plot_valid_output, requires_slice_output, invalid_heatmap_output, same_axes_output",
     [
@@ -184,7 +192,7 @@ def test_check_plot_validity_2d(
     assert results.prompt_bounds == False
 
 
-@pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
+@pytest.mark.parametrize("section", [User(), Ref(), Multiplot()])
 @pytest.mark.parametrize(
     "x_value, y_value, z_value, plot_type, variable_value, plot_valid_output, requires_slice_output, invalid_heatmap_output, same_axes_output",
     [
@@ -232,7 +240,7 @@ def test_check_plot_validity_3d(
     assert results.prompt_bounds == False
 
 
-@pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
+@pytest.mark.parametrize("section", [User(), Ref(), Multiplot()])
 @pytest.mark.parametrize(
     "x_value, y_value, z_value, plot_type, variable_value, plot_valid_output, requires_slice_output, invalid_heatmap_output, same_axes_output",
     [
@@ -280,18 +288,18 @@ def test_check_plot_validity_4d(
         },
     )
 
-    if section == "ref":
+    if isinstance(section, Ref):
         section_container = ui.ref_widget_container
-    elif section == "multiplot":
+    elif isinstance(section, Multiplot):
         section_container = ui.multiplot_widget_container
     else:
         section_container = ui.user_widget_container
 
     if requires_slice_output:
         # Determine which attributes we should be checking
-        if section == "ref":
+        if isinstance(section, Ref):
             row_attr, widget_attr = "ref_slice_ui_row", "ref_slice_widgets"
-        elif section == "multiplot":
+        elif isinstance(section, Multiplot):
             row_attr, widget_attr = "multiplot_slice_ui_row", "multiplot_slice_widgets"
         else:
             row_attr, widget_attr = "slice_ui_row", "slice_widgets"
@@ -319,8 +327,10 @@ def test_check_plot_validity_4d(
     assert results.prompt_bounds == False
     if requires_slice_output:
         # Determine which attributes we should be checking
-        row_attr = "ref_slice_ui_row" if section == "ref" else "slice_ui_row"
-        widget_attr = "ref_slice_widgets" if section == "ref" else "slice_widgets"
+        row_attr = "ref_slice_ui_row" if isinstance(section, Ref) else "slice_ui_row"
+        widget_attr = (
+            "ref_slice_widgets" if isinstance(section, Ref) else "slice_widgets"
+        )
 
         # If the function exits early due to no x_axis, the cleanup never happens
         if not x_value:
@@ -1847,14 +1857,14 @@ def test_prompt_bounds_button_click(ui, monkeypatch):
 @pytest.mark.parametrize(
     "section, plot_type",
     [
-        ("user", Line()),
-        ("ref", Line()),
-        ("multiplot", Line()),
-        ("user", Heatmap()),
-        ("ref", Heatmap()),
-        ("multiplot", MultiplotHeatmap()),
-        ("user", Animation()),
-        ("ref", Animation()),
+        (User(), Line()),
+        (Ref(), Line()),
+        (Multiplot(), Line()),
+        (User(), Heatmap()),
+        (Ref(), Heatmap()),
+        (Multiplot(), MultiplotHeatmap()),
+        (User(), Animation()),
+        (Ref(), Animation()),
     ],
 )
 @pytest.mark.parametrize("bounds_return", [True, False])
@@ -1886,13 +1896,13 @@ def test_check_plot_validity_routing(
 
     # Setup UI mocks based on section
     ds = mock_dataset()
-    if section == "ref":
+    if isinstance(section, Ref):
         ui.ref_dataset = ds
         ui.ref_plot_type_dropdown.value = plot_type
         ui.ref_x_axis_dropdown.value = "x"
         ui.ref_y_axis_dropdown.value = "y"
         ui.ref_animation_axis_dropdown.value = "z"
-    elif section == "multiplot":
+    elif isinstance(section, Multiplot):
         ui.dataset = ds
         ui.multiplot_plot_type_dropdown.value = plot_type
         ui.multiplot_x_axis_dropdown.value = "x"
@@ -1915,7 +1925,7 @@ def test_check_plot_validity_routing(
     expected_plot_valid = True
     expected_prompt_bounds = False
 
-    if section == "multiplot" and isinstance(plot_type, Line):
+    if isinstance(section, Multiplot) and isinstance(plot_type, Line):
         mock_multiplot_check_bounds.assert_called_once()
         expected_prompt_bounds = bounds_return
         if bounds_return:
@@ -1929,7 +1939,7 @@ def test_check_plot_validity_routing(
     assert validity.prompt_bounds == expected_prompt_bounds
 
 
-@pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
+@pytest.mark.parametrize("section", [User(), Ref(), Multiplot()])
 @pytest.mark.parametrize("keys_match", [True, False])
 def test_check_plot_validity_slice_cleanup(ui, monkeypatch, section, keys_match):
     """Tests the layout cleanup logic when slice dimensions change."""
@@ -1963,7 +1973,7 @@ def test_check_plot_validity_slice_cleanup(ui, monkeypatch, section, keys_match)
         mock_widgets = {"old_dim": MagicMock()}  # Mismatch! Will trigger cleanup.
 
     ds = mock_dataset()
-    if section == "ref":
+    if isinstance(section, Ref):
         ui.ref_dataset = ds
         ui.ref_plot_type_dropdown.value = Heatmap()
         ui.ref_x_axis_dropdown.value = "x"
@@ -1971,7 +1981,7 @@ def test_check_plot_validity_slice_cleanup(ui, monkeypatch, section, keys_match)
         ui.ref_animation_axis_dropdown.value = "z"
         ui.ref_slice_widgets = mock_widgets
         ui.ref_slice_ui_row = "dummy_row"
-    elif section == "multiplot":
+    elif isinstance(section, Multiplot):
         ui.dataset = ds
         ui.multiplot_ref_dataset_dict = {}
         ui.multiplot_plot_type_dropdown.value = MultiplotHeatmap
@@ -2003,10 +2013,10 @@ def test_check_plot_validity_slice_cleanup(ui, monkeypatch, section, keys_match)
 @pytest.mark.parametrize(
     "section, expected_attr_prefix, expected_position, expected_status_prefix, expected_dims",
     [
-        ("user", "", ["plot_choices_row"], "User model status", ["time", "lat"]),
-        ("ref", "ref_", ["ref_plot_choices_row"], "Reference model status", ["time"]),
+        (User(), "", ["plot_choices_row"], "User model status", ["time", "lat"]),
+        (Ref(), "ref_", ["ref_plot_choices_row"], "Reference model status", ["time"]),
         (
-            "multiplot",
+            Multiplot(),
             "multiplot_",
             ["multiplot_plot_choices_row"],
             "Overlay Plot",
@@ -2060,11 +2070,11 @@ def test_check_slice(
     ui._check_slice(section=section)
 
     # Determine the target UI components based on the parameterised section
-    if section == "user":
+    if isinstance(section, User):
         btn = ui.plot_button
         txt = ui.status_textbox
         expected_container = ui.user_widget_container
-    elif section == "ref":
+    elif isinstance(section, Ref):
         btn = ui.ref_plot_button
         txt = ui.ref_status_textbox
         expected_container = ui.ref_widget_container
@@ -2117,12 +2127,12 @@ def test_check_slice(
 @pytest.mark.parametrize(
     "is_ref, expected_section, plot_type",
     [
-        (True, "ref", Line()),
-        (True, "ref", Heatmap()),
-        (True, "ref", Animation()),
-        (False, "user", Line()),
-        (False, "user", Heatmap()),
-        (False, "user", Animation()),
+        (True, Ref(), Line()),
+        (True, Ref(), Heatmap()),
+        (True, Ref(), Animation()),
+        (False, User(), Line()),
+        (False, User(), Heatmap()),
+        (False, User(), Animation()),
     ],
 )
 def test_plot_dataset_helper(ui, monkeypatch, is_ref, expected_section, plot_type):
@@ -2175,8 +2185,8 @@ def test_plot_dataset_helper(ui, monkeypatch, is_ref, expected_section, plot_typ
 
     result = ui._plot_dataset_helper(is_ref=is_ref, plot_type=plot_type)
 
-    # Ensure the helper successfully pulled the variable string
-    mock_get_variable_helper.assert_called_once_with(expected_section)
+    # Ensure the helper successfully using the right class
+    mock_get_variable_helper.assert_called_once_with(section=expected_section)
 
     if isinstance(plot_type, Animation):
         assert result == mock_animation

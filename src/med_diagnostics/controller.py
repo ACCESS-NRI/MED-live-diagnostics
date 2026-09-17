@@ -1,5 +1,4 @@
 import datetime
-from dataclasses import dataclass
 
 import hvplot.xarray  # noqa: F401 Ruff keeps removing this even though it is required for animations
 import matplotlib.pyplot as plt
@@ -7,20 +6,13 @@ import panel as pn
 import xarray as xr
 
 from med_diagnostics import data
-from med_diagnostics.types import Animation, Heatmap, Line, MultiplotHeatmap
-
-
-@dataclass
-class PlotValidationResult:
-    """
-    Class for returning plot validation results from check_plot_validity
-    """
-
-    plot_valid: bool = False
-    requires_slice: bool = False
-    invalid_heatmap_data: bool = False
-    same_axes_chosen: bool = False
-    prompt_bounds: bool = False
+from med_diagnostics.types import (
+    Animation,
+    Heatmap,
+    Line,
+    MultiplotHeatmap,
+    PlotValidationResult,
+)
 
 
 def update_textbox_text(textbox_obj, text):
