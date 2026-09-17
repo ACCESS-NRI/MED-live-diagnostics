@@ -7,6 +7,7 @@ import panel as pn
 import xarray as xr
 
 from med_diagnostics import data
+from med_diagnostics.types import Animation, Heatmap, Line, MultiplotHeatmap
 
 
 @dataclass
@@ -77,7 +78,7 @@ def plot_dataset(
     chosen_slices,
     is_ref,
     model_name="User",
-    plot_type="Line",
+    plot_type=Line,
     y_axis=None,
 ):
     """
@@ -98,11 +99,11 @@ def plot_dataset(
     sliced_data = dataset.sel(**chosen_slices, method="nearest")
 
     # Plot all model variants if multiple exist
-    if "member" in sliced_data.dims and plot_type != "Heatmap":
+    if "member" in sliced_data.dims and not isinstance(plot_type, Heatmap):
         for mem in sliced_data.member.values:
             sliced_data[variable].sel(member=mem).plot(label=mem, x=x_axis, ax=ax)
     else:
-        if plot_type == "Heatmap":
+        if isinstance(plot_type, Heatmap):
             sliced_data[variable].plot(x=x_axis, y=y_axis, ax=ax)
         else:
             sliced_data[variable].plot(x=x_axis, ax=ax)
@@ -411,7 +412,7 @@ def check_plot_validity(
     invalid_heatmap_data = False
     same_axes_chosen = False
 
-    heatmaps = ["Heatmap", "Heatmap (grid)"]
+    heatmaps = (Heatmap, MultiplotHeatmap)
 
     if not x:
         plot_valid = False
@@ -427,9 +428,9 @@ def check_plot_validity(
         )
 
     # 1. Build chosen_axes first so we can filter dimensions
-    if plot_type == "Animation":
+    if isinstance(plot_type, Animation):
         chosen_axes = (x, y, z)
-    elif plot_type in heatmaps or plot_type == "Heatmap (grid)":
+    elif isinstance(plot_type, heatmaps):
         chosen_axes = (x, y)
     else:
         chosen_axes = (x,)
@@ -445,10 +446,10 @@ def check_plot_validity(
 
     # If the dataset lacks enough dimensions for the chosen plot type
     if (
-        (len(viable_dims) == 1 and plot_type in heatmaps)
-        or (len(viable_dims) in (1, 2) and plot_type == "Animation")
-        or (plot_type in heatmaps and not y)
-        or (plot_type == "Animation" and not (y and z))
+        (len(viable_dims) == 1 and isinstance(plot_type, heatmaps))
+        or (len(viable_dims) in (1, 2) and isinstance(plot_type, Animation))
+        or (isinstance(plot_type, heatmaps) and not y)
+        or (isinstance(plot_type, Animation) and not (y and z))
     ):
         plot_valid = False
         invalid_heatmap_data = True

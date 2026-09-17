@@ -9,6 +9,7 @@ import panel as pn
 from IPython.display import display
 
 from med_diagnostics import controller, data
+from med_diagnostics.types import Animation, Heatmap, Line, MultiplotHeatmap
 
 
 class UserInterface:
@@ -265,6 +266,17 @@ class UserInterface:
             self._multiplot_variable_toggle_click, "value"
         )
 
+        self.plot_type_mapping = {
+            Line.value: Line(),
+            Heatmap.value: Heatmap(),
+            Animation.value: Animation(),
+        }
+
+        self.multiplot_type_mapping = {
+            Line.value: Line(),
+            MultiplotHeatmap.value: MultiplotHeatmap(),
+        }
+
     def _keys_button_click(self, event):
         """Event wrapper for the primary keys dropdown click."""
 
@@ -497,7 +509,7 @@ class UserInterface:
             section="user"
         )
         self.multiplot_plot_type_dropdown.name = "Select plot type"
-        self.multiplot_plot_type_dropdown.options = ["Line", "Heatmap (grid)"]
+        self.multiplot_plot_type_dropdown.options = self.multiplot_type_mapping
 
         self.multiplot_user_dataset_keys_selection_row = pn.Row(
             self.multiplot_keys_dropdown, self.multiplot_keys_update_button
@@ -915,7 +927,7 @@ class UserInterface:
         plot_variable_dropdown.options = sorted(dataset.keys())
 
         plot_type_dropdown.name = "Select plot type"
-        plot_type_dropdown.options = ["Line", "Heatmap", "Animation"]
+        plot_type_dropdown.options = self.plot_type_mapping
         variable_toggle.value = False
 
         select_variable_button.name = "Select variable and plot type"
@@ -991,20 +1003,20 @@ class UserInterface:
         plot_button.name = "Plot data"
 
         # If the user chooses to plot a heatmap, allow them to choose the Y-axis
-        if plot_type_dropdown.value == "Heatmap":
+        if isinstance(plot_type_dropdown.value, Heatmap):
             # Check if enough dimensions to make heatmap, if not, throw error and don't let the user do it.
             if len(viable_dims) < 2:
                 controller.update_textbox_text(
                     warning_textbox,
                     "Warning >> Not enough dimensions available for this variable to plot a Heatmap.",
                 )
-                plot_type_dropdown.value = "Line"
+                plot_type_dropdown.value = Line()
                 show_plot_choices = False
             else:
                 y_dropdown.name = "Select Y-Axis dimension"
                 y_dropdown.options = sorted(viable_dims)
                 plot_choices_row = pn.Row(x_dropdown, y_dropdown, plot_button)
-        elif plot_type_dropdown.value == "Line":
+        elif isinstance(plot_type_dropdown.value, Line):
             # If there is only 1 viable x-axis, plot automatically without user prompt to select x-axis.
             if len(viable_dims) == 1:
                 controller.update_textbox_text(
@@ -1016,14 +1028,14 @@ class UserInterface:
                 plot_action()
             else:
                 plot_choices_row = pn.Row(x_dropdown, plot_button)
-        elif plot_type_dropdown.value == "Animation":
+        elif isinstance(plot_type_dropdown.value, Animation):
             # Check if enough dimensions to make animation, if not, throw error and don't let the user do it.
             if len(viable_dims) < 2:
                 controller.update_textbox_text(
                     warning_textbox,
                     "Warning >> Not enough dimensions available for this variable to plot an animation.",
                 )
-                plot_type_dropdown.value = "Line"
+                plot_type_dropdown.value = Line()
                 show_plot_choices = False
             else:
                 y_dropdown.name = "Select Y-Axis dimension"
@@ -1104,13 +1116,13 @@ class UserInterface:
         plot_type = self.multiplot_plot_type_dropdown.value
 
         # If the user chooses to plot a heatmap, allow them to choose the Y-axis
-        if plot_type == "Heatmap (grid)":
+        if isinstance(plot_type, MultiplotHeatmap):
             if len(viable_dims) < 2:
                 controller.update_textbox_text(
                     self.multiplot_warning_textbox,
                     "Warning >> Not enough dimensions available for this variable to plot a Heatmap.",
                 )
-                self.multiplot_plot_type_dropdown.value = "Line"
+                self.multiplot_plot_type_dropdown.value = Line()
                 return  # Stop generating the heatmap UI; dropdown change triggers a new callback
 
             self.multiplot_y_axis_dropdown.name = "Select Y-Axis dimension"
@@ -1130,7 +1142,7 @@ class UserInterface:
                 self.multiplot_analysis_choice_dropdown,
                 self.multiplot_plot_button,
             )
-        elif plot_type == "Line":
+        elif isinstance(plot_type, Line):
             x_axis = self.multiplot_x_axis_dropdown.value
 
             needs_bounds_ui = False
@@ -1247,7 +1259,9 @@ class UserInterface:
                 self.multiplot_chosen_slices[dim] = widget.value
         # Based on plot type change function that is used
         ui_plot_type = self.multiplot_plot_type_dropdown.value
-        helper_plot_type = "Heatmap" if ui_plot_type == "Heatmap (grid)" else "Line"
+        helper_plot_type = (
+            Heatmap() if isinstance(ui_plot_type, MultiplotHeatmap) else Line()
+        )
 
         # Generate the figures based on the analysis choice
         analysis_choice = self.multiplot_analysis_choice_dropdown.value
@@ -1342,12 +1356,12 @@ class UserInterface:
         fig_animated = None
 
         # Based on plot type change function that is used
-        if plot_type_dropdown.value == "Heatmap":
-            fig = self._plot_dataset_helper(is_ref=ref, plot_type="Heatmap")
-        elif plot_type_dropdown.value == "Line":
-            fig = self._plot_dataset_helper(is_ref=ref)
-        elif plot_type_dropdown.value == "Animation":
-            fig_animated = self._plot_dataset_helper(is_ref=ref, plot_type="Animation")
+        if isinstance(plot_type_dropdown.value, Heatmap):
+            fig = self._plot_dataset_helper(is_ref=ref, plot_type=Heatmap())
+        elif isinstance(plot_type_dropdown.value, Line):
+            fig = self._plot_dataset_helper(is_ref=ref, plot_type=Line())
+        elif isinstance(plot_type_dropdown.value, Animation):
+            fig_animated = self._plot_dataset_helper(is_ref=ref, plot_type=Animation())
 
         if fig_animated:
             new_plot_pane = fig_animated
@@ -1443,7 +1457,7 @@ class UserInterface:
                 warning_box,
                 "Warning >> The dataset only has one plottable dimension. Defaulting to line plot.",
             )
-            plot_type_dd.value = "Line"
+            plot_type_dd.value = Line()
             if section != "multiplot":
                 plot_action()
         elif validity.same_axes_chosen:
@@ -1495,13 +1509,16 @@ class UserInterface:
             widget_container = self.multiplot_widget_container
             dataset = self.dataset
             ui_plot_type = self.multiplot_plot_type_dropdown.value
-            plot_type = "Heatmap" if "Heatmap" in ui_plot_type else "Line"
+            if isinstance(ui_plot_type, (Heatmap, MultiplotHeatmap)):
+                plot_type = Heatmap()
+            else:
+                plot_type = Line()
             x = self.multiplot_x_axis_dropdown.value
             y = self.multiplot_y_axis_dropdown.value
             z = None
             widget_attr, row_attr = "multiplot_slice_widgets", "multiplot_slice_ui_row"
 
-            if plot_type == "Line" and x:
+            if isinstance(plot_type, Line) and x:
                 (
                     prompt_bounds,
                     self.global_min,
@@ -1663,7 +1680,7 @@ class UserInterface:
             f"{status_prefix} >> Action required: Select slice values and click plot again.",
         )
 
-    def _plot_dataset_helper(self, is_ref=False, plot_type="Line"):
+    def _plot_dataset_helper(self, is_ref=False, plot_type=Line):
         """
         Plot either the user or reference dataset based on the current UI state.
 
@@ -1695,7 +1712,7 @@ class UserInterface:
             key_val = self.keys_dropdown.value
 
         # Generate figure based on plot type
-        if plot_type == "Animation":
+        if isinstance(plot_type, Animation):
             figure = controller.plot_animation(
                 dataset,
                 key_val,
@@ -1707,7 +1724,7 @@ class UserInterface:
                 is_ref=is_ref,
             )
         else:
-            effective_y_axis = y_axis if plot_type == "Heatmap" else None
+            effective_y_axis = y_axis if isinstance(plot_type, Heatmap) else None
             if is_ref:
                 figure = controller.plot_dataset(
                     dataset,
@@ -1742,7 +1759,7 @@ class UserInterface:
 
         return figure
 
-    def _multiplot_plot_dataset_helper(self, plot_diff=False, plot_type="Line"):
+    def _multiplot_plot_dataset_helper(self, plot_diff=False, plot_type=Line):
         """
         Plot multiplot datasets (line or heatmap) with optional difference and bounds constraints.
         """
@@ -1751,7 +1768,7 @@ class UserInterface:
         x_axis = self.multiplot_x_axis_dropdown.value
 
         # Plot directly, passing plot_diff dynamically
-        if plot_type == "Line":
+        if isinstance(plot_type, Line):
             _, self.global_min, self.global_max, self.dataset_min, self.dataset_max = (
                 controller.check_bounds(
                     self.dataset, x_axis, self.multiplot_ref_dataset_dict

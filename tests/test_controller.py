@@ -10,6 +10,7 @@ import xarray as xr
 
 import med_diagnostics.data as med_data
 from med_diagnostics import controller
+from med_diagnostics.types import Animation, Heatmap, Line
 from med_diagnostics.ui import UserInterface
 
 
@@ -76,15 +77,15 @@ def test_get_current_time(mock_datetime):
         # Case 1: Member dims exist, Line plot, Is Reference
         (
             True,
-            "Line",
+            Line(),
             True,
             {"long_name": "Test Var"},
             "Model: TestModel\nDataset: TestData",
         ),
         # Case 2: Heatmap plot (bypasses member loop), Not Reference
-        (True, "Heatmap", False, {}, "User model \nDataset: TestData"),
+        (True, Heatmap(), False, {}, "User model \nDataset: TestData"),
         # Case 3: No member dims, Line plot, Not Reference
-        (False, "Line", False, {}, "User model \nDataset: TestData"),
+        (False, Line(), False, {}, "User model \nDataset: TestData"),
     ],
 )
 def test_plot_dataset(
@@ -144,7 +145,7 @@ def test_plot_dataset(
     dataset.sel.assert_called_once_with(**chosen_slices, method="nearest")
 
     # Verify the correct plot method was called based on the branch
-    if has_member and plot_type != "Heatmap":
+    if has_member and not isinstance(plot_type, Heatmap):
         assert mock_da.sel.call_count == 2
         mock_mem_da.plot.assert_has_calls(
             [
@@ -152,7 +153,7 @@ def test_plot_dataset(
                 call(label="mem2", x=x_axis, ax=mock_ax),
             ]
         )
-    elif plot_type == "Heatmap":
+    elif isinstance(plot_type, Heatmap):
         mock_da.plot.assert_called_once_with(x=x_axis, y=y_axis, ax=mock_ax)
     else:
         mock_da.plot.assert_called_once_with(x=x_axis, ax=mock_ax)
@@ -328,7 +329,7 @@ def test_get_metadata():
     [
         # (plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, remaining_dims)
         (
-            "Line",
+            Line(),
             None,
             None,
             None,
@@ -337,7 +338,7 @@ def test_get_metadata():
             (False, False, False, False, []),
         ),
         (
-            "Line",
+            Line(),
             "time",
             None,
             None,
@@ -346,7 +347,7 @@ def test_get_metadata():
             (True, False, False, False, []),
         ),
         (
-            "Line",
+            Line(),
             "time",
             None,
             None,
@@ -355,7 +356,7 @@ def test_get_metadata():
             (False, True, False, False, ["lat"]),
         ),
         (
-            "Heatmap",
+            Heatmap(),
             "time",
             "lat",
             None,
@@ -364,7 +365,7 @@ def test_get_metadata():
             (True, False, False, False, []),
         ),
         (
-            "Heatmap",
+            Heatmap(),
             "time",
             "lat",
             None,
@@ -373,7 +374,7 @@ def test_get_metadata():
             (False, False, True, False, []),
         ),
         (
-            "Heatmap",
+            Heatmap(),
             "time",
             None,
             None,
@@ -382,7 +383,7 @@ def test_get_metadata():
             (False, False, True, False, ["lat"]),
         ),
         (
-            "Heatmap",
+            Heatmap(),
             "time",
             "time",
             None,
@@ -391,7 +392,7 @@ def test_get_metadata():
             (False, False, False, True, ["lat"]),
         ),
         (
-            "Animation",
+            Animation(),
             "time",
             "lat",
             "lon",
@@ -400,7 +401,7 @@ def test_get_metadata():
             (True, False, False, False, []),
         ),
         (
-            "Animation",
+            Animation(),
             "time",
             "lat",
             "lon",
@@ -409,7 +410,7 @@ def test_get_metadata():
             (False, False, True, False, []),
         ),
         (
-            "Animation",
+            Animation(),
             "time",
             "lat",
             None,
