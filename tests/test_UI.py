@@ -13,6 +13,20 @@ import xarray as xr
 
 import med_diagnostics.data as med_data
 from med_diagnostics import controller
+from med_diagnostics.types import (
+    AllAnalysis,
+    Animation,
+    ConstrainToRef,
+    ConstrainToUser,
+    DiffAnalysis,
+    Heatmap,
+    Line,
+    Multiplot,
+    MultiplotHeatmap,
+    NoAnalysis,
+    Ref,
+    User,
+)
 from med_diagnostics.ui import UserInterface
 
 
@@ -59,7 +73,7 @@ def run_validity_check(ui, section, x_value, y_value, z_value, plot_type, var, d
     """Check the validity of reference or user plots based on current UI selections"""
 
     # Assign to correct UI attributes based on whether it is the reference data functions or user data
-    if section == "ref":
+    if isinstance(section, Ref):
         ui.ref_dataset = ds
         ui.ref_x_axis_dropdown.value = x_value
         ui.ref_y_axis_dropdown.value = y_value
@@ -67,8 +81,8 @@ def run_validity_check(ui, section, x_value, y_value, z_value, plot_type, var, d
         ui.ref_plot_type_dropdown.value = plot_type
         ui.ref_plot_variable_dropdown.value = var
         return ui._check_plot_validity_helper(section=section)
-    if section == "multiplot":
-        if plot_type == "Animation":
+    if isinstance(section, Multiplot):
+        if isinstance(plot_type, Animation):
             pytest.skip("Multiplot tab does not plot animation plot type, skipping")
         else:
             ui.dataset = ds
@@ -88,17 +102,17 @@ def run_validity_check(ui, section, x_value, y_value, z_value, plot_type, var, d
         return ui._check_plot_validity_helper(section=section)
 
 
-@pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
+@pytest.mark.parametrize("section", [User(), Ref(), Multiplot()])
 @pytest.mark.parametrize(
     "x_value, y_value, z_value, plot_type, variable_value, plot_valid_output, requires_slice_output, invalid_heatmap_output, same_axes_output",
     [
-        ("x", "", "", "line", "data", True, False, False, False),
-        ("x", "", "", "Heatmap", "data", False, False, True, False),
-        ("x", "", "", "Animation", "data", False, False, True, False),
-        ("x", "y", "", "line", "data", True, False, False, False),
-        ("x", "y", "z", "line", "data", True, False, False, False),
-        ("x", "x", "z", "line", "data", True, False, False, False),
-        ("", "", "", "line", "data", False, False, False, False),
+        ("x", "", "", Line(), "data", True, False, False, False),
+        ("x", "", "", Heatmap(), "data", False, False, True, False),
+        ("x", "", "", Animation(), "data", False, False, True, False),
+        ("x", "y", "", Line(), "data", True, False, False, False),
+        ("x", "y", "z", Line(), "data", True, False, False, False),
+        ("x", "x", "z", Line(), "data", True, False, False, False),
+        ("", "", "", Line(), "data", False, False, False, False),
     ],
 )
 def test_check_plot_validity_1d(
@@ -125,29 +139,27 @@ def test_check_plot_validity_1d(
     )
 
     # Verify that the validity check returns the expected configuration flags
-    assert results == (
-        plot_valid_output,
-        requires_slice_output,
-        invalid_heatmap_output,
-        same_axes_output,
-        False,
-    )
+    assert results.plot_valid == plot_valid_output
+    assert results.requires_slice == requires_slice_output
+    assert results.invalid_heatmap_data == invalid_heatmap_output
+    assert results.same_axes_chosen == same_axes_output
+    assert results.prompt_bounds == False
 
 
-@pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
+@pytest.mark.parametrize("section", [User(), Ref(), Multiplot()])
 @pytest.mark.parametrize(
     "x_value, y_value, z_value, plot_type, variable_value, plot_valid_output, requires_slice_output, invalid_heatmap_output, same_axes_output",
     [
-        ("x", "", "", "line", "data", False, True, False, False),
-        ("x", "", "", "Heatmap", "data", False, True, True, False),
-        ("x", "", "", "Animation", "data", False, True, True, False),
-        ("x", "y", "", "Heatmap", "data", True, False, False, False),
-        ("x", "y", "z", "Heatmap", "data", True, False, False, False),
-        ("x", "y", "", "line", "data", False, True, False, False),
-        ("x", "y", "z", "line", "data", False, True, False, False),
-        ("x", "x", "z", "line", "data", False, True, False, False),
-        ("x", "x", "z", "Heatmap", "data", False, True, False, True),
-        ("", "", "", "line", "data", False, False, False, False),
+        ("x", "", "", Line(), "data", False, True, False, False),
+        ("x", "", "", Heatmap(), "data", False, True, True, False),
+        ("x", "", "", Animation(), "data", False, True, True, False),
+        ("x", "y", "", Heatmap(), "data", True, False, False, False),
+        ("x", "y", "z", Heatmap(), "data", True, False, False, False),
+        ("x", "y", "", Line(), "data", False, True, False, False),
+        ("x", "y", "z", Line(), "data", False, True, False, False),
+        ("x", "x", "z", Line(), "data", False, True, False, False),
+        ("x", "x", "z", Heatmap(), "data", False, True, False, True),
+        ("", "", "", Line(), "data", False, False, False, False),
     ],
 )
 def test_check_plot_validity_2d(
@@ -178,34 +190,32 @@ def test_check_plot_validity_2d(
     )
 
     # Verify that the validity check returns the expected configuration flags
-    assert results == (
-        plot_valid_output,
-        requires_slice_output,
-        invalid_heatmap_output,
-        same_axes_output,
-        False,
-    )
+    assert results.plot_valid == plot_valid_output
+    assert results.requires_slice == requires_slice_output
+    assert results.invalid_heatmap_data == invalid_heatmap_output
+    assert results.same_axes_chosen == same_axes_output
+    assert results.prompt_bounds == False
 
 
-@pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
+@pytest.mark.parametrize("section", [User(), Ref(), Multiplot()])
 @pytest.mark.parametrize(
     "x_value, y_value, z_value, plot_type, variable_value, plot_valid_output, requires_slice_output, invalid_heatmap_output, same_axes_output",
     [
-        ("x", "", "", "line", "data", False, True, False, False),
-        ("x", "", "", "Heatmap", "data", False, True, True, False),
-        ("x", "", "", "Animation", "data", False, True, True, False),
-        ("x", "y", "", "Animation", "data", False, True, True, False),
-        ("x", "x", "x", "Animation", "data", False, True, False, True),
-        ("x", "z", "z", "Animation", "data", False, True, False, True),
-        ("x", "x", "z", "Animation", "data", False, True, False, True),
-        ("x", "y", "z", "Animation", "data", True, False, False, False),
-        ("x", "y", "", "Heatmap", "data", False, True, False, False),
-        ("x", "y", "z", "Heatmap", "data", False, True, False, False),
-        ("x", "y", "", "line", "data", False, True, False, False),
-        ("x", "y", "z", "line", "data", False, True, False, False),
-        ("x", "x", "z", "line", "data", False, True, False, False),
-        ("x", "x", "z", "Heatmap", "data", False, True, False, True),
-        ("", "", "", "line", "data", False, False, False, False),
+        ("x", "", "", Line(), "data", False, True, False, False),
+        ("x", "", "", Heatmap(), "data", False, True, True, False),
+        ("x", "", "", Animation(), "data", False, True, True, False),
+        ("x", "y", "", Animation(), "data", False, True, True, False),
+        ("x", "x", "x", Animation(), "data", False, True, False, True),
+        ("x", "z", "z", Animation(), "data", False, True, False, True),
+        ("x", "x", "z", Animation(), "data", False, True, False, True),
+        ("x", "y", "z", Animation(), "data", True, False, False, False),
+        ("x", "y", "", Heatmap(), "data", False, True, False, False),
+        ("x", "y", "z", Heatmap(), "data", False, True, False, False),
+        ("x", "y", "", Line(), "data", False, True, False, False),
+        ("x", "y", "z", Line(), "data", False, True, False, False),
+        ("x", "x", "z", Line(), "data", False, True, False, False),
+        ("x", "x", "z", Heatmap(), "data", False, True, False, True),
+        ("", "", "", Line(), "data", False, False, False, False),
     ],
 )
 def test_check_plot_validity_3d(
@@ -228,34 +238,32 @@ def test_check_plot_validity_3d(
     )
 
     # Verify that the validity check returns the expected configuration flags
-    assert results == (
-        plot_valid_output,
-        requires_slice_output,
-        invalid_heatmap_output,
-        same_axes_output,
-        False,
-    )
+    assert results.plot_valid == plot_valid_output
+    assert results.requires_slice == requires_slice_output
+    assert results.invalid_heatmap_data == invalid_heatmap_output
+    assert results.same_axes_chosen == same_axes_output
+    assert results.prompt_bounds == False
 
 
-@pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
+@pytest.mark.parametrize("section", [User(), Ref(), Multiplot()])
 @pytest.mark.parametrize(
     "x_value, y_value, z_value, plot_type, variable_value, plot_valid_output, requires_slice_output, invalid_heatmap_output, same_axes_output",
     [
-        ("x", "", "", "line", "data", False, True, False, False),
-        ("x", "", "", "Heatmap", "data", False, True, True, False),
-        ("x", "", "", "Animation", "data", False, True, True, False),
-        ("x", "y", "", "Animation", "data", False, True, True, False),
-        ("x", "x", "x", "Animation", "data", False, True, False, True),
-        ("x", "z", "z", "Animation", "data", False, True, False, True),
-        ("x", "x", "z", "Animation", "data", False, True, False, True),
-        ("x", "y", "z", "Animation", "data", False, True, False, False),
-        ("x", "y", "", "Heatmap", "data", False, True, False, False),
-        ("x", "y", "z", "Heatmap", "data", False, True, False, False),
-        ("x", "y", "", "line", "data", False, True, False, False),
-        ("x", "y", "z", "line", "data", False, True, False, False),
-        ("x", "x", "z", "line", "data", False, True, False, False),
-        ("x", "x", "z", "Heatmap", "data", False, True, False, True),
-        ("", "", "", "line", "data", False, False, False, False),
+        ("x", "", "", Line(), "data", False, True, False, False),
+        ("x", "", "", Heatmap(), "data", False, True, True, False),
+        ("x", "", "", Animation(), "data", False, True, True, False),
+        ("x", "y", "", Animation(), "data", False, True, True, False),
+        ("x", "x", "x", Animation(), "data", False, True, False, True),
+        ("x", "z", "z", Animation(), "data", False, True, False, True),
+        ("x", "x", "z", Animation(), "data", False, True, False, True),
+        ("x", "y", "z", Animation(), "data", False, True, False, False),
+        ("x", "y", "", Heatmap(), "data", False, True, False, False),
+        ("x", "y", "z", Heatmap(), "data", False, True, False, False),
+        ("x", "y", "", Line(), "data", False, True, False, False),
+        ("x", "y", "z", Line(), "data", False, True, False, False),
+        ("x", "x", "z", Line(), "data", False, True, False, False),
+        ("x", "x", "z", Heatmap(), "data", False, True, False, True),
+        ("", "", "", Line(), "data", False, False, False, False),
     ],
 )
 def test_check_plot_validity_4d(
@@ -285,18 +293,18 @@ def test_check_plot_validity_4d(
         },
     )
 
-    if section == "ref":
+    if isinstance(section, Ref):
         section_container = ui.ref_widget_container
-    elif section == "multiplot":
+    elif isinstance(section, Multiplot):
         section_container = ui.multiplot_widget_container
     else:
         section_container = ui.user_widget_container
 
     if requires_slice_output:
         # Determine which attributes we should be checking
-        if section == "ref":
+        if isinstance(section, Ref):
             row_attr, widget_attr = "ref_slice_ui_row", "ref_slice_widgets"
-        elif section == "multiplot":
+        elif isinstance(section, Multiplot):
             row_attr, widget_attr = "multiplot_slice_ui_row", "multiplot_slice_widgets"
         else:
             row_attr, widget_attr = "slice_ui_row", "slice_widgets"
@@ -317,17 +325,17 @@ def test_check_plot_validity_4d(
     )
 
     # Verify that the validity check returns the expected configuration flags
-    assert results == (
-        plot_valid_output,
-        requires_slice_output,
-        invalid_heatmap_output,
-        same_axes_output,
-        False,
-    )
+    assert results.plot_valid == plot_valid_output
+    assert results.requires_slice == requires_slice_output
+    assert results.invalid_heatmap_data == invalid_heatmap_output
+    assert results.same_axes_chosen == same_axes_output
+    assert results.prompt_bounds == False
     if requires_slice_output:
         # Determine which attributes we should be checking
-        row_attr = "ref_slice_ui_row" if section == "ref" else "slice_ui_row"
-        widget_attr = "ref_slice_widgets" if section == "ref" else "slice_widgets"
+        row_attr = "ref_slice_ui_row" if isinstance(section, Ref) else "slice_ui_row"
+        widget_attr = (
+            "ref_slice_widgets" if isinstance(section, Ref) else "slice_widgets"
+        )
 
         # If the function exits early due to no x_axis, the cleanup never happens
         if not x_value:
@@ -461,9 +469,9 @@ def test_display_reference_dataset_selection_ui(
 @pytest.mark.parametrize(
     "plot_type, slice_dict",
     [
-        ("Heatmap", {"time": pn.widgets.DiscreteSlider(options=[0, 1], value=0)}),
-        ("Line", {}),
-        ("Animation", {}),
+        (Heatmap(), {"time": pn.widgets.DiscreteSlider(options=[0, 1], value=0)}),
+        (Line(), {}),
+        (Animation(), {}),
     ],
 )
 @patch("med_diagnostics.ui.UserInterface._plot_dataset_helper")
@@ -521,12 +529,12 @@ def test_plot_data_button_click(
     assert ui.chosen_slices == expected_slices
 
     # Verify that the correct internal plot generation method is called based on the selected plot type
-    if plot_type == "Heatmap":
-        mock_plot_dataset.assert_called_once_with(is_ref=False, plot_type="Heatmap")
-    elif plot_type == "Line":
-        mock_plot_dataset.assert_called_once_with(is_ref=False)
-    elif plot_type == "Animation":
-        mock_plot_dataset.assert_called_once_with(is_ref=False, plot_type="Animation")
+    if isinstance(plot_type, Heatmap):
+        mock_plot_dataset.assert_called_once_with(is_ref=False, plot_type=Heatmap())
+    elif isinstance(plot_type, Line):
+        mock_plot_dataset.assert_called_once_with(is_ref=False, plot_type=Line())
+    elif isinstance(plot_type, Animation):
+        mock_plot_dataset.assert_called_once_with(is_ref=False, plot_type=Animation())
 
     # Verify that plot choices and slice UI components are removed from the widget container
     assert not hasattr(ui, "plot_choices_row")
@@ -537,9 +545,9 @@ def test_plot_data_button_click(
 @pytest.mark.parametrize(
     "plot_type, slice_dict",
     [
-        ("Heatmap", {"time": pn.widgets.DiscreteSlider(options=[0, 1], value=0)}),
-        ("Line", {}),
-        ("Animation", {}),
+        (Heatmap(), {"time": pn.widgets.DiscreteSlider(options=[0, 1], value=0)}),
+        (Line(), {}),
+        (Animation(), {}),
     ],
 )
 @patch("med_diagnostics.ui.UserInterface._plot_dataset_helper")
@@ -595,13 +603,13 @@ def test_plot_ref_data_button_click(
     assert ui.ref_chosen_slices == expected_slices
 
     # Verify that the correct internal reference plot generation method is called based on the selected plot type
-    if plot_type == "Heatmap":
-        mock_plot_ref_dataset.assert_called_once_with(is_ref=True, plot_type="Heatmap")
-    elif plot_type == "Line":
-        mock_plot_ref_dataset.assert_called_once_with(is_ref=True)
-    elif plot_type == "Animation":
+    if isinstance(plot_type, Heatmap):
+        mock_plot_ref_dataset.assert_called_once_with(is_ref=True, plot_type=Heatmap())
+    elif isinstance(plot_type, Line):
+        mock_plot_ref_dataset.assert_called_once_with(is_ref=True, plot_type=Line())
+    elif isinstance(plot_type, Animation):
         mock_plot_ref_dataset.assert_called_once_with(
-            is_ref=True, plot_type="Animation"
+            is_ref=True, plot_type=Animation()
         )
 
     # Verify that reference plot choices and slice UI components are removed from the widget container
@@ -614,21 +622,21 @@ def test_plot_ref_data_button_click(
     "plot_type, analysis_type, slice_dict",
     [
         (
-            "Heatmap (grid)",
+            MultiplotHeatmap(),
             "None (plot all loaded data)",
             {"time": pn.widgets.DiscreteSlider(options=[0, 1], value=0)},
         ),
-        ("Heatmap (grid)", "Plot Difference (Ref. - User data)", {}),
-        ("Heatmap (grid)", "Plot All Data & Difference", {}),
-        ("Line", "None (plot all loaded data)", {}),
+        (MultiplotHeatmap(), DiffAnalysis(), {}),
+        (MultiplotHeatmap(), AllAnalysis(), {}),
+        (Line(), NoAnalysis(), {}),
         (
-            "Line",
-            "Plot Difference (Ref. - User data)",
+            Line(),
+            DiffAnalysis(),
             {"time": pn.widgets.DiscreteSlider(options=[0, 1], value=0)},
         ),
         (
-            "Line",
-            "Plot All Data & Difference",
+            Line(),
+            AllAnalysis(),
             {"time": pn.widgets.DiscreteSlider(options=[0, 1], value=0)},
         ),
     ],
@@ -683,39 +691,41 @@ def test_plot_multiplot_data_button_click(
     assert ui.multiplot_chosen_slices == expected_slices
 
     # Verify that the correct internal multiplot generation methods are called based on the selected plot and analysis type
-    if plot_type == "Heatmap (grid)" and analysis_type == "None (plot all loaded data)":
-        mock_multiplot_plot_dataset_helper.assert_called_once_with(plot_type="Heatmap")
-    elif (
-        plot_type == "Heatmap (grid)"
-        and analysis_type == "Plot Difference (Ref. - User data)"
+    if (
+        isinstance(plot_type, MultiplotHeatmap)
+        and analysis_type == "None (plot all loaded data)"
+    ):
+        mock_multiplot_plot_dataset_helper.assert_called_once_with(plot_type=Heatmap())
+    elif isinstance(plot_type, MultiplotHeatmap) and isinstance(
+        analysis_type, DiffAnalysis
     ):
         mock_multiplot_plot_dataset_helper.assert_called_once_with(
-            plot_diff=True, plot_type="Heatmap"
+            plot_diff=True, plot_type=Heatmap()
         )
-    elif (
-        plot_type == "Heatmap (grid)" and analysis_type == "Plot All Data & Difference"
+    elif isinstance(plot_type, MultiplotHeatmap) and isinstance(
+        analysis_type, AllAnalysis
     ):
         assert mock_multiplot_plot_dataset_helper.call_count == 2
 
         mock_multiplot_plot_dataset_helper.assert_has_calls(
             [
-                call(plot_type="Heatmap"),  # Expected first call (defaults)
-                call(plot_diff=True, plot_type="Heatmap"),  # Expected second call
+                call(plot_type=Heatmap()),  # Expected first call (defaults)
+                call(plot_diff=True, plot_type=Heatmap()),  # Expected second call
             ]
         )
-    elif plot_type == "Line" and analysis_type == "None (plot all loaded data)":
-        mock_multiplot_plot_dataset_helper.assert_called_once_with(plot_type="Line")
-    elif plot_type == "Line" and analysis_type == "Plot Difference (Ref. - User data)":
+    elif isinstance(plot_type, Line) and analysis_type == "None (plot all loaded data)":
+        mock_multiplot_plot_dataset_helper.assert_called_once_with(plot_type=Line())
+    elif isinstance(plot_type, Line) and isinstance(analysis_type, DiffAnalysis):
         mock_multiplot_plot_dataset_helper.assert_called_once_with(
-            plot_diff=True, plot_type="Line"
+            plot_diff=True, plot_type=Line()
         )
-    elif plot_type == "Line" and analysis_type == "Plot All Data & Difference":
+    elif isinstance(plot_type, Line) and analysis_type == "Plot All Data & Difference":
         assert mock_multiplot_plot_dataset_helper.call_count == 2
 
         mock_multiplot_plot_dataset_helper.assert_has_calls(
             [
-                call(plot_type="Line"),  # Expected first call (defaults)
-                call(plot_diff=True, plot_type="Line"),  # Expected second call
+                call(plot_type=Line()),  # Expected first call (defaults)
+                call(plot_diff=True, plot_type=Line()),  # Expected second call
             ]
         )
 
@@ -739,7 +749,7 @@ def test_display_dataset_plot_ui(ui):
     assert ui.plot_variable_dropdown.name == "Available variables"
     assert ui.plot_variable_dropdown.options == sorted(dataset.keys())
     assert ui.plot_type_dropdown.name == "Select plot type"
-    assert ui.plot_type_dropdown.options == ["Line", "Heatmap", "Animation"]
+    assert ui.plot_type_dropdown.options == ui.plot_type_mapping
     assert ui.variable_toggle.value == False
     assert ui.select_variable_button.name == "Select variable and plot type"
 
@@ -773,7 +783,7 @@ def test_ref_display_dataset_plot_ui(ui, datakeysexists):
     assert ui.ref_plot_variable_dropdown.name == "Available variables"
     assert ui.ref_plot_variable_dropdown.options == sorted(dataset.keys())
     assert ui.ref_plot_type_dropdown.name == "Select plot type"
-    assert ui.ref_plot_type_dropdown.options == ["Line", "Heatmap", "Animation"]
+    assert ui.ref_plot_type_dropdown.options == ui.plot_type_mapping
     assert ui.ref_variable_toggle.value == False
     assert ui.ref_select_variable_button.name == "Select variable and plot type"
     assert hasattr(ui, "ref_plot_ui_row")
@@ -793,12 +803,12 @@ def test_ref_display_dataset_plot_ui(ui, datakeysexists):
 @pytest.mark.parametrize(
     "plot_type, dim_dict, has_existing_row, has_plot_ui, expected_outcome",
     [
-        ("Heatmap", {"time": 10, "lat": 10}, True, False, "success_heatmap"),
-        ("Heatmap", {"time": 10, "nv": 5, "scalar": 1}, False, False, "fail_dim_check"),
-        ("Line", {"time": 10, "lat": 10}, False, True, "success_line"),
-        ("Line", {"time": 10}, False, False, "auto_plot_line"),
-        ("Animation", {"time": 10}, False, False, "fail_dim_check_animation"),
-        ("Animation", {"time": 10, "lat": 10}, False, False, "success_animation"),
+        (Heatmap(), {"time": 10, "lat": 10}, True, False, "success_heatmap"),
+        (Heatmap(), {"time": 10, "nv": 5, "scalar": 1}, False, False, "fail_dim_check"),
+        (Line(), {"time": 10, "lat": 10}, False, True, "success_line"),
+        (Line(), {"time": 10}, False, False, "auto_plot_line"),
+        (Animation(), {"time": 10}, False, False, "fail_dim_check_animation"),
+        (Animation(), {"time": 10, "lat": 10}, False, False, "success_animation"),
     ],
 )
 def test_display_plot_choices_ui(
@@ -857,7 +867,7 @@ def test_display_plot_choices_ui(
 
     # Verify expected outcomes for dimension check failures, automatic plotting, or successful UI layout generation
     if expected_outcome == "fail_dim_check":
-        assert ui.plot_type_dropdown.value == "Line"
+        assert isinstance(ui.plot_type_dropdown.value, Line)
         assert (
             ui.warning_textbox.value
             == "Warning >> Not enough dimensions available for this variable to plot a Heatmap."
@@ -877,7 +887,7 @@ def test_display_plot_choices_ui(
             ui.warning_textbox.value
             == "Warning >> Not enough dimensions available for this variable to plot an animation."
         )
-        assert ui.plot_type_dropdown.value == "Line"
+        assert isinstance(ui.plot_type_dropdown.value, Line)
         assert not hasattr(ui, "plot_choices_row")
 
     else:
@@ -903,12 +913,12 @@ def test_display_plot_choices_ui(
 @pytest.mark.parametrize(
     "plot_type, dim_dict, has_existing_row, has_plot_ui, expected_outcome",
     [
-        ("Heatmap", {"time": 10, "lat": 10}, True, False, "success_heatmap"),
-        ("Heatmap", {"time": 10, "nv": 5, "scalar": 1}, False, False, "fail_dim_check"),
-        ("Line", {"time": 10, "lat": 10}, False, True, "success_line"),
-        ("Line", {"time": 10}, False, False, "auto_plot_line"),
-        ("Animation", {"time": 10}, False, False, "fail_dim_check_animation"),
-        ("Animation", {"time": 10, "lat": 10}, False, False, "success_animation"),
+        (Heatmap(), {"time": 10, "lat": 10}, True, False, "success_heatmap"),
+        (Heatmap(), {"time": 10, "nv": 5, "scalar": 1}, False, False, "fail_dim_check"),
+        (Line(), {"time": 10, "lat": 10}, False, True, "success_line"),
+        (Line(), {"time": 10}, False, False, "auto_plot_line"),
+        (Animation(), {"time": 10}, False, False, "fail_dim_check_animation"),
+        (Animation(), {"time": 10, "lat": 10}, False, False, "success_animation"),
     ],
 )
 def test_ref_display_plot_choices_ui(
@@ -969,7 +979,7 @@ def test_ref_display_plot_choices_ui(
 
     # Verify expected outcomes for dimension check failures, automatic plotting, or successful UI layout generation
     if expected_outcome == "fail_dim_check":
-        assert ui.ref_plot_type_dropdown.value == "Line"
+        assert isinstance(ui.ref_plot_type_dropdown.value, Line)
         assert (
             ui.ref_warning_textbox.value
             == "Warning >> Not enough dimensions available for this variable to plot a Heatmap."
@@ -993,7 +1003,7 @@ def test_ref_display_plot_choices_ui(
             ui.ref_warning_textbox.value
             == "Warning >> Not enough dimensions available for this variable to plot an animation."
         )
-        assert ui.ref_plot_type_dropdown.value == "Line"
+        assert isinstance(ui.ref_plot_type_dropdown.value, Line)
         assert not hasattr(ui, "ref_plot_choices_row")
 
     else:
@@ -1083,10 +1093,7 @@ def test_prompt_bounds_ui(ui, ui_row):
 
     # Verify that the bounds dropdown name, options, and container row are correctly configured
     assert ui.prompt_bounds_dropdown.name == "Choose how to constrain the x-axis bounds"
-    assert ui.prompt_bounds_dropdown.options == [
-        "Constrain to user dataset bounds",
-        "Constrain to min-max reference dataset bounds",
-    ]
+    assert ui.prompt_bounds_dropdown.options == ui.prompt_bounds_mapping
     assert hasattr(ui, "prompt_bounds_row")
 
     # Verify that the bounds prompt row is positioned immediately after the corresponding multiplot row in the container
@@ -1478,11 +1485,13 @@ def test_plot_button_click(
     # Mock plot validity checkers, plotting triggers, slice checks, and choice UI display methods
     mock_check_plot_validity = MagicMock(
         return_value=(
-            plot_valid,
-            requires_slice,
-            invalid_heatmap_data,
-            same_axes_chosen,
-            False,
+            controller.PlotValidationResult(
+                plot_valid=plot_valid,
+                requires_slice=requires_slice,
+                invalid_heatmap_data=invalid_heatmap_data,
+                same_axes_chosen=same_axes_chosen,
+                prompt_bounds=False,
+            )
         )
     )
     monkeypatch.setattr(ui, "_check_plot_validity_helper", mock_check_plot_validity)
@@ -1516,7 +1525,7 @@ def test_plot_button_click(
             ui.warning_textbox.value
             == "Warning >> The dataset only has one plottable dimension. Defaulting to line plot."
         )
-        assert ui.plot_type_dropdown.value == "Line"
+        assert isinstance(ui.plot_type_dropdown.value, Line)
         mock_plot_data_button_click.assert_called()
     elif same_axes_chosen:
         assert (
@@ -1545,11 +1554,13 @@ def test_ref_plot_button_click(
     # Mock reference plot validity checkers, plotting triggers, slice checks, and choice UI display methods
     mock_check_plot_validity = MagicMock(
         return_value=(
-            plot_valid,
-            requires_slice,
-            invalid_heatmap_data,
-            same_axes_chosen,
-            False,
+            controller.PlotValidationResult(
+                plot_valid=plot_valid,
+                requires_slice=requires_slice,
+                invalid_heatmap_data=invalid_heatmap_data,
+                same_axes_chosen=same_axes_chosen,
+                prompt_bounds=False,
+            )
         )
     )
     monkeypatch.setattr(ui, "_check_plot_validity_helper", mock_check_plot_validity)
@@ -1584,7 +1595,7 @@ def test_ref_plot_button_click(
             ui.ref_warning_textbox.value
             == "Warning >> The dataset only has one plottable dimension. Defaulting to line plot."
         )
-        assert ui.ref_plot_type_dropdown.value == "Line"
+        assert isinstance(ui.ref_plot_type_dropdown.value, Line)
         mock_plot_data_button_click.assert_called()
     elif same_axes_chosen:
         assert (
@@ -1620,11 +1631,13 @@ def test_multiplot_plot_button_click(
     # Mock multiplot plot validity checkers, plotting triggers, slice checks, and bounds prompt UI methods
     mock_check_plot_validity = MagicMock(
         return_value=(
-            plot_valid,
-            requires_slice,
-            invalid_heatmap_data,
-            same_axes_chosen,
-            prompt_bounds,
+            controller.PlotValidationResult(
+                plot_valid=plot_valid,
+                requires_slice=requires_slice,
+                invalid_heatmap_data=invalid_heatmap_data,
+                same_axes_chosen=same_axes_chosen,
+                prompt_bounds=prompt_bounds,
+            )
         )
     )
     monkeypatch.setattr(ui, "_check_plot_validity_helper", mock_check_plot_validity)
@@ -1841,14 +1854,14 @@ def test_prompt_bounds_button_click(ui, monkeypatch):
 @pytest.mark.parametrize(
     "section, plot_type",
     [
-        ("user", "Line"),
-        ("ref", "Line"),
-        ("multiplot", "Line"),
-        ("user", "Heatmap"),
-        ("ref", "Heatmap"),
-        ("multiplot", "Heatmap (grid)"),
-        ("user", "Animation"),
-        ("ref", "Animation"),
+        (User(), Line()),
+        (Ref(), Line()),
+        (Multiplot(), Line()),
+        (User(), Heatmap()),
+        (Ref(), Heatmap()),
+        (Multiplot(), MultiplotHeatmap()),
+        (User(), Animation()),
+        (Ref(), Animation()),
     ],
 )
 @pytest.mark.parametrize("bounds_return", [True, False])
@@ -1867,19 +1880,26 @@ def test_check_plot_validity_routing(
     monkeypatch.setattr(controller, "check_bounds", mock_multiplot_check_bounds)
 
     # Base mock return: plot_valid is True
-    mock_return_value = (True, False, False, False, ["remaining_dims"])
+    validity = controller.PlotValidationResult(
+        plot_valid=True,
+        requires_slice=False,
+        invalid_heatmap_data=False,
+        same_axes_chosen=False,
+        prompt_bounds=False,
+    )
+    mock_return_value = (validity, ["remaining_dims"])
     mock_check_plot_validity = MagicMock(return_value=mock_return_value)
     monkeypatch.setattr(controller, "check_plot_validity", mock_check_plot_validity)
 
     # Setup UI mocks based on section
     ds = mock_dataset()
-    if section == "ref":
+    if isinstance(section, Ref):
         ui.ref_dataset = ds
         ui.ref_plot_type_dropdown.value = plot_type
         ui.ref_x_axis_dropdown.value = "x"
         ui.ref_y_axis_dropdown.value = "y"
         ui.ref_animation_axis_dropdown.value = "z"
-    elif section == "multiplot":
+    elif isinstance(section, Multiplot):
         ui.dataset = ds
         ui.multiplot_plot_type_dropdown.value = plot_type
         ui.multiplot_x_axis_dropdown.value = "x"
@@ -1902,7 +1922,7 @@ def test_check_plot_validity_routing(
     expected_plot_valid = True
     expected_prompt_bounds = False
 
-    if section == "multiplot" and plot_type == "Line":
+    if isinstance(section, Multiplot) and isinstance(plot_type, Line):
         mock_multiplot_check_bounds.assert_called_once()
         expected_prompt_bounds = bounds_return
         if bounds_return:
@@ -1911,10 +1931,12 @@ def test_check_plot_validity_routing(
             )
 
     # Verify the final returned tuple
-    assert results == (expected_plot_valid, False, False, False, expected_prompt_bounds)
+    assert results == validity
+    assert validity.plot_valid == expected_plot_valid
+    assert validity.prompt_bounds == expected_prompt_bounds
 
 
-@pytest.mark.parametrize("section", ["user", "ref", "multiplot"])
+@pytest.mark.parametrize("section", [User(), Ref(), Multiplot()])
 @pytest.mark.parametrize("keys_match", [True, False])
 def test_check_plot_validity_slice_cleanup(ui, monkeypatch, section, keys_match):
     """Tests the layout cleanup logic when slice dimensions change."""
@@ -1929,8 +1951,15 @@ def test_check_plot_validity_slice_cleanup(ui, monkeypatch, section, keys_match)
     mock_safe_remove = MagicMock()
     monkeypatch.setattr(ui, "_safe_remove_widget_object", mock_safe_remove)
 
+    validity = controller.PlotValidationResult(
+        plot_valid=True,
+        requires_slice=False,
+        invalid_heatmap_data=False,
+        same_axes_chosen=False,
+        prompt_bounds=False,
+    )
     # Controller says the remaining dimensions are ["time", "lat"]
-    mock_return = (True, False, False, False, ["time", "lat"])
+    mock_return = (validity, ["time", "lat"])
     mock_check_plot_validity = MagicMock(return_value=mock_return)
     monkeypatch.setattr(controller, "check_plot_validity", mock_check_plot_validity)
 
@@ -1941,25 +1970,25 @@ def test_check_plot_validity_slice_cleanup(ui, monkeypatch, section, keys_match)
         mock_widgets = {"old_dim": MagicMock()}  # Mismatch! Will trigger cleanup.
 
     ds = mock_dataset()
-    if section == "ref":
+    if isinstance(section, Ref):
         ui.ref_dataset = ds
-        ui.ref_plot_type_dropdown.value = "Heatmap"
+        ui.ref_plot_type_dropdown.value = Heatmap()
         ui.ref_x_axis_dropdown.value = "x"
         ui.ref_y_axis_dropdown.value = "y"
         ui.ref_animation_axis_dropdown.value = "z"
         ui.ref_slice_widgets = mock_widgets
         ui.ref_slice_ui_row = "dummy_row"
-    elif section == "multiplot":
+    elif isinstance(section, Multiplot):
         ui.dataset = ds
         ui.multiplot_ref_dataset_dict = {}
-        ui.multiplot_plot_type_dropdown.value = "Heatmap (grid)"
+        ui.multiplot_plot_type_dropdown.value = MultiplotHeatmap
         ui.multiplot_x_axis_dropdown.value = "x"
         ui.multiplot_y_axis_dropdown.value = "y"
         ui.multiplot_slice_widgets = mock_widgets
         ui.multiplot_slice_ui_row = "dummy_row"
     else:
         ui.dataset = ds
-        ui.plot_type_dropdown.value = "Heatmap"
+        ui.plot_type_dropdown.value = Heatmap()
         ui.x_axis_dropdown.value = "x"
         ui.y_axis_dropdown.value = "y"
         ui.animation_axis_dropdown.value = "z"
@@ -1981,10 +2010,10 @@ def test_check_plot_validity_slice_cleanup(ui, monkeypatch, section, keys_match)
 @pytest.mark.parametrize(
     "section, expected_attr_prefix, expected_position, expected_status_prefix, expected_dims",
     [
-        ("user", "", ["plot_choices_row"], "User model status", ["time", "lat"]),
-        ("ref", "ref_", ["ref_plot_choices_row"], "Reference model status", ["time"]),
+        (User(), "", ["plot_choices_row"], "User model status", ["time", "lat"]),
+        (Ref(), "ref_", ["ref_plot_choices_row"], "Reference model status", ["time"]),
         (
-            "multiplot",
+            Multiplot(),
             "multiplot_",
             ["multiplot_plot_choices_row"],
             "Overlay Plot",
@@ -2038,11 +2067,11 @@ def test_check_slice(
     ui._check_slice(section=section)
 
     # Determine the target UI components based on the parameterised section
-    if section == "user":
+    if isinstance(section, User):
         btn = ui.plot_button
         txt = ui.status_textbox
         expected_container = ui.user_widget_container
-    elif section == "ref":
+    elif isinstance(section, Ref):
         btn = ui.ref_plot_button
         txt = ui.ref_status_textbox
         expected_container = ui.ref_widget_container
@@ -2095,12 +2124,12 @@ def test_check_slice(
 @pytest.mark.parametrize(
     "is_ref, expected_section, plot_type",
     [
-        (True, "ref", "Line"),
-        (True, "ref", "Heatmap"),
-        (True, "ref", "Animation"),
-        (False, "user", "Line"),
-        (False, "user", "Heatmap"),
-        (False, "user", "Animation"),
+        (True, Ref(), Line()),
+        (True, Ref(), Heatmap()),
+        (True, Ref(), Animation()),
+        (False, User(), Line()),
+        (False, User(), Heatmap()),
+        (False, User(), Animation()),
     ],
 )
 def test_plot_dataset_helper(ui, monkeypatch, is_ref, expected_section, plot_type):
@@ -2123,13 +2152,13 @@ def test_plot_dataset_helper(ui, monkeypatch, is_ref, expected_section, plot_typ
     ui.dataset = "mock_user_dataset"
     ui.keys_dropdown = MagicMock(value="user_model_key")
     ui.x_axis_dropdown = MagicMock(value="user_x_axis")
-    if plot_type == "Heatmap":
+    if isinstance(plot_type, Heatmap):
         ui.y_axis_dropdown.value = "y"
         ui.ref_y_axis_dropdown.value = "y"
 
         y = "y"
         z = None
-    elif plot_type == "Animation":
+    elif isinstance(plot_type, Animation):
         ui.y_axis_dropdown.value = "y"
         ui.ref_y_axis_dropdown.value = "y"
         ui.animation_axis_dropdown.value = "z"
@@ -2153,10 +2182,10 @@ def test_plot_dataset_helper(ui, monkeypatch, is_ref, expected_section, plot_typ
 
     result = ui._plot_dataset_helper(is_ref=is_ref, plot_type=plot_type)
 
-    # Ensure the helper successfully pulled the variable string
-    mock_get_variable_helper.assert_called_once_with(expected_section)
+    # Ensure the helper successfully using the right class
+    mock_get_variable_helper.assert_called_once_with(section=expected_section)
 
-    if plot_type == "Animation":
+    if isinstance(plot_type, Animation):
         assert result == mock_animation
         if is_ref:
             # Verify state changes
@@ -2228,19 +2257,19 @@ def test_plot_dataset_helper(ui, monkeypatch, is_ref, expected_section, plot_typ
 @pytest.mark.parametrize(
     "plot_type, dim_sizes, preset_x_val, needs_bounds_ui, expected_scenario",
     [
-        ("Heatmap (grid)", {"time": 10, "nv": 2}, None, False, "heatmap_invalid"),
-        ("Heatmap (grid)", {"lat": 10, "lev": 5}, "lat", False, "heatmap_valid_if"),
+        (MultiplotHeatmap(), {"time": 10, "nv": 2}, None, False, "heatmap_invalid"),
+        (MultiplotHeatmap(), {"lat": 10, "lev": 5}, "lat", False, "heatmap_valid_if"),
         (
-            "Heatmap (grid)",
+            MultiplotHeatmap(),
             {"time": 10, "lat": 10, "lev": 5},
             "time",
             False,
             "heatmap_valid_else",
         ),
-        ("Line", {"time": 10, "nv": 2}, None, False, "line_1dim_nobounds"),
-        ("Line", {"time": 10, "nv": 2}, None, True, "line_1dim_bounds"),
-        ("Line", {"time": 10, "lat": 10}, None, False, "line_multidim"),
-        ("Line", {"nv": 2}, None, False, "empty_dims"),
+        (Line(), {"time": 10, "nv": 2}, None, False, "line_1dim_nobounds"),
+        (Line(), {"time": 10, "nv": 2}, None, True, "line_1dim_bounds"),
+        (Line(), {"time": 10, "lat": 10}, None, False, "line_multidim"),
+        (Line(), {"nv": 2}, None, False, "empty_dims"),
     ],
 )
 def test_display_multiplot_plot_choices_ui(
@@ -2296,12 +2325,9 @@ def test_display_multiplot_plot_choices_ui(
     assert ui.multiplot_analysis_choice_dropdown.name == "Select analysis type"
     assert ui.multiplot_plot_button.name == "Plot data"
 
-    assert ui.multiplot_analysis_choice_dropdown.options == [
-        "None (plot all loaded data)",
-        "Plot Difference (Ref. - User data)",
-        "Plot All Data & Difference",
-    ]
-
+    assert (
+        ui.multiplot_analysis_choice_dropdown.options == ui.multiplot_analysis_mapping
+    )
     viable_dims = sorted(
         [dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"]
     )
@@ -2313,7 +2339,7 @@ def test_display_multiplot_plot_choices_ui(
             ui.multiplot_warning_textbox,
             "Warning >> Not enough dimensions available for this variable to plot a Heatmap.",
         )
-        assert ui.multiplot_plot_type_dropdown.value == "Line"
+        assert isinstance(ui.multiplot_plot_type_dropdown.value, Line)
         mock_safe_add.assert_not_called()
 
     elif expected_scenario == "heatmap_valid":
@@ -2387,13 +2413,13 @@ def test_display_multiplot_plot_choices_ui(
     "plot_type, plot_diff, bounds_dropdown_val, expected_xmin, expected_xmax",
     [
         # 1. Line plot, no diff, constrain to user bounds
-        ("Line", False, "Constrain to user dataset bounds", 2, 8),
+        (Line(), False, ConstrainToUser(), 2, 8),
         # 2. Line plot, diff, use global bounds (simulating "Expand bounds to fit all" or similar)
-        ("Line", True, "Expand bounds", 0, 10),
+        (Line(), True, ConstrainToRef(), 0, 10),
         # 3. Heatmap, no diff (bounds don't matter)
-        ("Heatmap (grid)", False, "Constrain to user dataset bounds", None, None),
+        (MultiplotHeatmap(), False, ConstrainToUser(), None, None),
         # 4. Heatmap, diff (bounds don't matter)
-        ("Heatmap (grid)", True, "Expand bounds", None, None),
+        (MultiplotHeatmap(), True, ConstrainToRef(), None, None),
     ],
 )
 def test_multiplot_plot_dataset_helper(
@@ -2439,7 +2465,7 @@ def test_multiplot_plot_dataset_helper(
     result = ui._multiplot_plot_dataset_helper(plot_diff=plot_diff, plot_type=plot_type)
 
     # 4. Assertions
-    if plot_type == "Line":
+    if isinstance(plot_type, Line):
         # Check that bounds were calculated
         mock_check_bounds.assert_called_once_with(
             "mock_primary_ds", "time", {"ref1": "mock_ref_ds"}
@@ -2506,7 +2532,7 @@ def test_multiplot_plot_data_button_click_line(ui, mock_multiplot_datasets):
     ui.multiplot_ref_dataset_dict = {"ref_model_1": ds_ref}
     ui.multiplot_plot_variable_dropdown.value = "salt_surface_ave"
     ui.multiplot_x_axis_dropdown.value = "time"
-    ui.multiplot_plot_type_dropdown.value = "Line"
+    ui.multiplot_plot_type_dropdown.value = Line()
     ui.multiplot_analysis_choice_dropdown.value = "None (plot all loaded data)"
     ui.prompt_bounds_dropdown.value = "Global bounds"
 
@@ -2534,9 +2560,9 @@ def test_multiplot_plot_data_button_click_line(ui, mock_multiplot_datasets):
 @pytest.mark.parametrize(
     "analysis_choice",
     [
-        "None (plot all loaded data)",
-        "Plot Difference (Ref. - User data)",
-        "Plot All Data & Difference",
+        NoAnalysis(),
+        DiffAnalysis(),
+        AllAnalysis(),
     ],
 )
 def test_multiplot_plot_data_button_click_all_analysis_modes(
@@ -2549,9 +2575,9 @@ def test_multiplot_plot_data_button_click_all_analysis_modes(
     ui.multiplot_ref_dataset_dict = {"ref_model_1": ds_ref}
     ui.multiplot_plot_variable_dropdown.value = "salt_surface_ave"
     ui.multiplot_x_axis_dropdown.value = "time"
-    ui.multiplot_plot_type_dropdown.value = "Line"
+    ui.multiplot_plot_type_dropdown.value = Line()
     ui.multiplot_analysis_choice_dropdown.value = analysis_choice
-    ui.prompt_bounds_dropdown.value = "Constrain to user dataset bounds"
+    ui.prompt_bounds_dropdown.value = ConstrainToUser()
 
     ui._multiplot_plot_data_button_click()
 
@@ -2568,7 +2594,7 @@ def test_reproduce_live_multiplot_flow(ui, mock_multiplot_datasets):
     ui.dataset = ds_user
     ui.multiplot_ref_dataset_dict = {"ref_model_1": ds_ref}
     ui.multiplot_plot_variable_dropdown.value = "salt_surface_ave"
-    ui.multiplot_plot_type_dropdown.value = "Line"
+    ui.multiplot_plot_type_dropdown.value = Line()
 
     # 2. Simulate clicking "Select variable and plot type"
     # Ensure any preexisting row isn't present
@@ -2624,12 +2650,12 @@ def test_multiplot_plot_dataset_helper_reproduce(ui):
     ui.multiplot_ref_dataset_dict = {"ref_model": ds_ref}
     ui.multiplot_plot_variable_dropdown.value = "salt_surface_ave"
     ui.multiplot_x_axis_dropdown.value = "time"
-    ui.multiplot_plot_type_dropdown.value = "Line"
+    ui.multiplot_plot_type_dropdown.value = Line()
     ui.multiplot_chosen_slices = {}
-    ui.prompt_bounds_dropdown.value = "Constrain to user dataset bounds"
+    ui.prompt_bounds_dropdown.value = ConstrainToUser()
 
     # Call the helper directly
-    fig = ui._multiplot_plot_dataset_helper(plot_diff=False, plot_type="Line")
+    fig = ui._multiplot_plot_dataset_helper(plot_diff=False, plot_type=Line())
     assert fig is not None
 
 
@@ -2872,7 +2898,7 @@ def test_initialise_multiplot_widgets(uninitialised_ui):
     )
 
     assert ui.multiplot_plot_type_dropdown.name == "Select plot type"
-    assert ui.multiplot_plot_type_dropdown.options == ["Line", "Heatmap (grid)"]
+    assert ui.multiplot_plot_type_dropdown.options == ui.multiplot_type_mapping
 
     # Verify the selection rows group the correct widgets together
     assert list(ui.multiplot_user_dataset_keys_selection_row) == [

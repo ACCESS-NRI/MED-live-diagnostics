@@ -6,6 +6,13 @@ import panel as pn
 import xarray as xr
 
 from med_diagnostics import data
+from med_diagnostics.types import (
+    Animation,
+    Heatmap,
+    Line,
+    MultiplotHeatmap,
+    PlotValidationResult,
+)
 
 
 def update_textbox_text(textbox_obj, text):
@@ -63,20 +70,41 @@ def plot_dataset(
     chosen_slices,
     is_ref,
     model_name="User",
-    plot_type="Line",
+    plot_type=Line,
     y_axis=None,
 ):
     """
-    Plot 2D time-series from model data. Private.
+    Generate a 1D line plot or 2D heatmap from model data, applying slicing and standard formatting.
 
     Parameters
     ----------
+    dataset : xarray.Dataset
+        The dataset containing the data to be plotted.
+    dataset_name : str
+        The name of the dataset, used to generate the plot caption.
     variable : str
-        Model data variable as selected from panel dropdown.
+        The name of the data variable to extract and plot.
+    x_axis : str
+        The dimension or coordinate to plot along the x-axis.
+    chosen_slices : dict
+        A dictionary mapping dimension names to scalar values used to slice the dataset.
+    is_ref : bool
+        Flag indicating if the dataset is a reference model (alters the caption text).
+    model_name : str, optional
+        The name of the model to display in the caption. Defaults to "User".
+    plot_type : PlotType, optional
+        The semantic marker class instance dictating the plot style (e.g., Line() or Heatmap()).
+        Defaults to Line.
+    y_axis : str, optional
+        The dimension or coordinate to plot along the y-axis (required for Heatmap).
+        Defaults to None.
+
     Returns
-    ----------
-    self.fig : matplotlib.pyplot.figure()
+    -------
+    matplotlib.figure.Figure
+        The generated Matplotlib figure with standard formatting applied.
     """
+
     # Plot primary (user) model data
     fig, ax = plt.subplots(figsize=[8, 4])
 
@@ -84,11 +112,11 @@ def plot_dataset(
     sliced_data = dataset.sel(**chosen_slices, method="nearest")
 
     # Plot all model variants if multiple exist
-    if "member" in sliced_data.dims and plot_type != "Heatmap":
+    if "member" in sliced_data.dims and not isinstance(plot_type, Heatmap):
         for mem in sliced_data.member.values:
             sliced_data[variable].sel(member=mem).plot(label=mem, x=x_axis, ax=ax)
     else:
-        if plot_type == "Heatmap":
+        if isinstance(plot_type, Heatmap):
             sliced_data[variable].plot(x=x_axis, y=y_axis, ax=ax)
         else:
             sliced_data[variable].plot(x=x_axis, ax=ax)
@@ -369,11 +397,13 @@ def check_plot_validity(
     has_slice_widgets : bool, optional
         Indicates whether slice widgets have already been initialized for this section.
         Defaults to False.
+    ref_dict : dict, optional
+        Dictionary containing reference datasets. Defaults to None.
 
     Returns
     -------
-    tuple of (bool, bool, bool, bool, list of str)
-        A 5-tuple containing:
+    PlotValidationResult
+        A dataclass containing the validation results:
         - plot_valid : bool
           True if the configuration is valid and ready to plot.
         - requires_slice : bool
@@ -382,6 +412,8 @@ def check_plot_validity(
           True if the plot type lacks sufficient dimensions or required axes.
         - same_axes_chosen : bool
           True if duplicate axes were selected.
+        - prompt_bounds : bool
+          True if bounds prompting is required.
         - remaining_dims : list of str
           List of unplotted dimensions remaining in the dataset.
     """
@@ -393,16 +425,25 @@ def check_plot_validity(
     invalid_heatmap_data = False
     same_axes_chosen = False
 
-    heatmaps = ["Heatmap", "Heatmap (grid)"]
+    heatmaps = (Heatmap, MultiplotHeatmap)
 
     if not x:
         plot_valid = False
-        return plot_valid, requires_slice, invalid_heatmap_data, same_axes_chosen, []
+        remaining_dims = []
+        return (
+            PlotValidationResult(
+                plot_valid=plot_valid,
+                requires_slice=requires_slice,
+                invalid_heatmap_data=invalid_heatmap_data,
+                same_axes_chosen=same_axes_chosen,
+            ),
+            remaining_dims,
+        )
 
     # 1. Build chosen_axes first so we can filter dimensions
-    if plot_type == "Animation":
+    if isinstance(plot_type, Animation):
         chosen_axes = (x, y, z)
-    elif plot_type in heatmaps or plot_type == "Heatmap (grid)":
+    elif isinstance(plot_type, heatmaps):
         chosen_axes = (x, y)
     else:
         chosen_axes = (x,)
@@ -418,10 +459,10 @@ def check_plot_validity(
 
     # If the dataset lacks enough dimensions for the chosen plot type
     if (
-        (len(viable_dims) == 1 and plot_type in heatmaps)
-        or (len(viable_dims) in (1, 2) and plot_type == "Animation")
-        or (plot_type in heatmaps and not y)
-        or (plot_type == "Animation" and not (y and z))
+        (len(viable_dims) == 1 and isinstance(plot_type, heatmaps))
+        or (len(viable_dims) in (1, 2) and isinstance(plot_type, Animation))
+        or (isinstance(plot_type, heatmaps) and not y)
+        or (isinstance(plot_type, Animation) and not (y and z))
     ):
         plot_valid = False
         invalid_heatmap_data = True
@@ -430,10 +471,12 @@ def check_plot_validity(
         same_axes_chosen = True
 
     return (
-        plot_valid,
-        requires_slice,
-        invalid_heatmap_data,
-        same_axes_chosen,
+        PlotValidationResult(
+            plot_valid=plot_valid,
+            requires_slice=requires_slice,
+            invalid_heatmap_data=invalid_heatmap_data,
+            same_axes_chosen=same_axes_chosen,
+        ),
         remaining_dims,
     )
 
