@@ -1,25 +1,19 @@
 # Copyright 2023 ACCESS-NRI and contributors. See the top-level COPYRIGHT file for details.
 # SPDX-License-Identifier: Apache-2.0
 
-""" Session class functions for med-diagnostics live diagnostics """
+"""Session class functions for med-diagnostics live diagnostics"""
 
-
-import os
-import intake
-import panel as pn
-
-from med_diagnostics import data, ui
 from distributed import Client
 
+from med_diagnostics import controller, data, ui
 
-class CreateModelDiagnosticsSession():
 
+class CreateModelDiagnosticsSession:
     """
     Primary class for starting a model diagnostics session
     """
 
     def __init__(self, model_type, model_path, timezone=None):
-
         """
         Initialise a CreateLiveSession instance to start a model diagnostics session.
 
@@ -30,63 +24,73 @@ class CreateModelDiagnosticsSession():
         model_path : str
             Path to model output directory/files on Gadi.
         timezone : str, optional, default 'Australia/Canberra'
-            Timezone required for scheduler in tinfo 'Region/Location' format. 
-            
+            Timezone required for scheduler in tinfo 'Region/Location' format.
+
         """
 
         # Set local variables
         self.model_type = str(model_type).lower()
         # self.model_realm = str(model_realm)
         self.model_path = str(model_path)
+        self.model_data = []
 
-        self.timezone = str(timezone) if timezone != None else 'Australia/Canberra'
-        
+        self.timezone = str(timezone) if timezone is not None else "Australia/Canberra"
+
+        self.data_update = False
+
         # Start dask client
         self.client = Client(threads_per_worker=1)
 
         print()
-        print('----------------------- Live diagnostics session started -----------------------')
+        print(
+            "----------------------- Live diagnostics session started -----------------------"
+        )
         print()
-        print('Model type:', str(model_type))
-        print('Model data path:', self.model_path)
+        print("Model type:", str(model_type))
+        print("Model data path:", self.model_path)
         print()
-        print('Started dask client:', self.client.dashboard_link)
+        print("Started dask client:", self.client.dashboard_link)
         print()
-        print('--------------------------------------------------------------------------------')
+        print(
+            "--------------------------------------------------------------------------------"
+        )
         print()
 
         # Start UserUI instance and display initial status text
         self.ui = ui.UserInterface()
-        self.ui._display_status_text()
+        self.ui._initialise_widgets()
 
         # Get initial model data
         self._get_data()
 
     def end_session(self):
-
         """
         Stop background scheduler and close dask client to end current CreateModelDiagnosticsSession instance.
         """
 
         self.client.close()
 
-        self.ui.widget_container.clear()
+        self.ui.user_widget_container.clear()
+        self.ui.ref_widget_container.clear()
+        self.ui.multiplot_widget_container.clear()
 
-        print('------------------------ Live diagnostics session ended ------------------------')
+        print(
+            "------------------------ Live diagnostics session ended ------------------------"
+        )
 
     def _get_data(self):
         """
         Check nominated model data path for new data. Private.
         """
         data._build_new_catalog(self.model_path, self.model_type)
-        
 
         # Update status text
-        self.ui._update_status_text(
-            "User model status >> Model data catalog built."
+        controller.update_textbox_text(
+            self.ui.status_textbox, "User model status >> Model data catalog built."
         )
-        self.ui._update_last_data_load_text(
-            "Last model data catalog build >> " + self.ui._get_current_time()
+        controller.update_textbox_text(
+            self.ui.last_data_load_textbox,
+            "Last model data catalog build >> " + controller.get_current_time(),
         )
 
         # Load new catalog
@@ -95,14 +99,14 @@ class CreateModelDiagnosticsSession():
         # Load access_nri catalog for model comparison filtered by model type
         self.access_nri_cat = data._load_access_nri_catalog(self.model_type)
 
+        self.ui._enable_widgets_after_catalog_load(self.model_cat, self.access_nri_cat)
         # Generate UI
-        self.ui._display_dataset_selection_ui(self.model_cat, self.access_nri_cat)
+        self.ui._display_dataset_selection_ui()
 
     def return_model_data_catalog(self):
-
         """
         Convenience function to return currently loaded model data catalog.
-        
+
         Returns
         ----------
         Intake-ESM datastore object
