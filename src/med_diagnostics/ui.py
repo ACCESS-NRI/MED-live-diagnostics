@@ -1317,14 +1317,7 @@ class UserInterface:
             self.multiplot_widget_container, "multiplot_slice_widgets"
         )
 
-        # Insert new plot directly below the controls, above any earlier plots
-        self._safe_add_to_widget(
-            self.multiplot_widget_container,
-            ["multiplot_type_selection_row"],
-            plot_group,
-            append=True,
-            above=False,
-        )
+        self.multiplot_widget_container.append(plot_group)
 
         controller.update_textbox_text(
             self.multiplot_status_textbox, "Overlay plot status >> Plot created"
@@ -1408,13 +1401,13 @@ class UserInterface:
             self._safe_remove_widget_object(
                 self.ref_widget_container, "ref_slice_widgets"
             )
-            # Insert new plot directly below the controls, above any earlier plots
+            # Add plot above the multiplot widgets
             self._safe_add_to_widget(
                 self.ref_widget_container,
-                ["ref_plot_ui_row"],
+                ["multiplot_status_textbox"],
                 plot_group,
                 append=True,
-                above=False,
+                above=True,
             )
         else:
             self._safe_remove_widget_object(
@@ -1423,13 +1416,12 @@ class UserInterface:
             self._safe_remove_widget_object(self.user_widget_container, "slice_ui_row")
             self._safe_remove_widget_object(self.user_widget_container, "slice_widgets")
 
-            # Insert new plot directly below the controls, above any earlier plots
             self._safe_add_to_widget(
                 self.user_widget_container,
-                ["plot_ui_row"],
+                ["ref_status_textbox"],
                 plot_group,
                 append=True,
-                above=False,
+                above=True,
             )
 
         controller.update_textbox_text(textbox, f"{text_prefix} >> Plot created")

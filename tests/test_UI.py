@@ -2546,12 +2546,9 @@ def test_multiplot_plot_data_button_click_line(ui, mock_multiplot_datasets):
     assert ui.multiplot_status_textbox.value == "Overlay plot status >> Plot created"
     assert ui.multiplot_warning_textbox.value == ""
 
-    # Assert a new plot layout was inserted directly below the controls
+    # Assert a new plot layout was appended to widget container
     assert len(ui.multiplot_widget_container) == initial_widget_count + 1
-    plot_index = (
-        ui.multiplot_widget_container.index(ui.multiplot_type_selection_row) + 1
-    )
-    plot_group = ui.multiplot_widget_container[plot_index]
+    plot_group = ui.multiplot_widget_container[-1]
     assert isinstance(plot_group, pn.Column)
 
     # Assert Matplotlib pane exists within the group and holds an active figure
@@ -2586,10 +2583,7 @@ def test_multiplot_plot_data_button_click_all_analysis_modes(
 
     assert ui.multiplot_status_textbox.value == "Overlay plot status >> Plot created"
     assert ui.multiplot_warning_textbox.value == ""
-    plot_index = (
-        ui.multiplot_widget_container.index(ui.multiplot_type_selection_row) + 1
-    )
-    assert isinstance(ui.multiplot_widget_container[plot_index], pn.Column)
+    assert isinstance(ui.multiplot_widget_container[-1], pn.Column)
 
 
 def test_reproduce_live_multiplot_flow(ui, mock_multiplot_datasets):
@@ -2630,13 +2624,9 @@ def test_reproduce_live_multiplot_flow(ui, mock_multiplot_datasets):
     assert ui.multiplot_status_textbox.value == "Overlay plot status >> Plot created"
     assert len(ui.multiplot_widget_container) >= initial_widget_count
 
-    # Verify choices row was cleaned up and new plot column was inserted
-    # directly below the controls
+    # Verify choices row was cleaned up and new plot column was appended
     assert not hasattr(ui, "multiplot_plot_choices_row")
-    plot_index = (
-        ui.multiplot_widget_container.index(ui.multiplot_type_selection_row) + 1
-    )
-    latest_widget = ui.multiplot_widget_container[plot_index]
+    latest_widget = ui.multiplot_widget_container[-1]
     assert isinstance(latest_widget, pn.Column)
 
 
