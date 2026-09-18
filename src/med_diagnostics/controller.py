@@ -450,7 +450,12 @@ def check_plot_validity(
 
     dim_sizes = dataset[variable].sizes
     viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"]
-    remaining_dims = [dim for dim in viable_dims if dim not in chosen_axes]
+    remaining_dims = [
+        dim
+        for dim in viable_dims
+        if dim not in chosen_axes
+        and not (dim == "member" and isinstance(plot_type, Line))
+    ]
 
     # If there are dimensions remaining and no slice widgets exist yet
     if len(remaining_dims) > 0 and not has_slice_widgets:
@@ -565,8 +570,9 @@ def plot_animation(
     slice_str = ", ".join(
         [f"{dim}: {round_slice_val(val)}" for dim, val in chosen_slices.items()]
     )
+    model_text = "Reference model" if is_ref else "User model"
     caption_text = (
-        "Variable: " + variable_text + "<br>User model<br>Dataset: " + dataset_name
+        f"Variable: {variable_text}<br>{model_text}<br>Dataset: {dataset_name}"
     )
     if slice_str:
         caption_text += f"<br>Sliced by: {slice_str}"
@@ -625,7 +631,7 @@ def plot_multiplot_dataset(
         # Plot all model variants if multiple exist
         if "member" in plot_data.dims:
             for mem in plot_data.member.values:
-                plot_data[variable].sel(member=mem, method="nearest").plot(
+                plot_data[variable].sel(member=mem).plot(
                     label=f"{model_key} (mem: {mem})", x=x_axis, ax=ax
                 )
         else:
