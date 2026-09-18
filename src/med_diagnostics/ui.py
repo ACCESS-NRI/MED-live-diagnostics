@@ -10,11 +10,16 @@ from IPython.display import display
 
 from med_diagnostics import controller, data
 from med_diagnostics.types import (
+    AllAnalysis,
     Animation,
+    ConstrainToRef,
+    ConstrainToUser,
+    DiffAnalysis,
     Heatmap,
     Line,
     Multiplot,
     MultiplotHeatmap,
+    NoAnalysis,
     Ref,
     User,
 )
@@ -283,6 +288,17 @@ class UserInterface:
         self.multiplot_type_mapping = {
             Line.value: Line(),
             MultiplotHeatmap.value: MultiplotHeatmap(),
+        }
+
+        self.multiplot_analysis_mapping = {
+            NoAnalysis.value: NoAnalysis(),
+            DiffAnalysis.value: DiffAnalysis(),
+            AllAnalysis.value: AllAnalysis(),
+        }
+
+        self.prompt_bounds_mapping = {
+            ConstrainToUser.value: ConstrainToUser(),
+            ConstrainToRef.value: ConstrainToRef(),
         }
 
     def _keys_button_click(self, event):
@@ -1114,11 +1130,9 @@ class UserInterface:
             self.multiplot_x_axis_dropdown.value = None
 
         self.multiplot_analysis_choice_dropdown.name = "Select analysis type"
-        self.multiplot_analysis_choice_dropdown.options = [
-            "None (plot all loaded data)",
-            "Plot Difference (Ref. - User data)",
-            "Plot All Data & Difference",
-        ]
+        self.multiplot_analysis_choice_dropdown.options = (
+            self.multiplot_analysis_mapping
+        )
         self.multiplot_plot_button.name = "Plot data"
 
         plot_type = self.multiplot_plot_type_dropdown.value
@@ -1201,10 +1215,7 @@ class UserInterface:
         )
 
         self.prompt_bounds_dropdown.name = "Choose how to constrain the x-axis bounds"
-        self.prompt_bounds_dropdown.options = [
-            "Constrain to user dataset bounds",
-            "Constrain to min-max reference dataset bounds",
-        ]
+        self.prompt_bounds_dropdown.options = self.prompt_bounds_mapping
 
         self.prompt_bounds_row = pn.Row(
             self.prompt_bounds_dropdown, self.prompt_bounds_button
@@ -1275,12 +1286,12 @@ class UserInterface:
         analysis_choice = self.multiplot_analysis_choice_dropdown.value
         fig, fig1, fig2 = None, None, None
 
-        if analysis_choice == "Plot All Data & Difference":
+        if isinstance(analysis_choice, AllAnalysis):
             fig1 = self._multiplot_plot_dataset_helper(plot_type=helper_plot_type)
             fig2 = self._multiplot_plot_dataset_helper(
                 plot_diff=True, plot_type=helper_plot_type
             )
-        elif analysis_choice == "Plot Difference (Ref. - User data)":
+        elif isinstance(analysis_choice, DiffAnalysis):
             fig = self._multiplot_plot_dataset_helper(
                 plot_diff=True, plot_type=helper_plot_type
             )
@@ -1494,9 +1505,8 @@ class UserInterface:
 
         Parameters
         ----------
-        section : str, optional
-            The UI section being evaluated. Valid options are "user", "ref", or
-            "multiplot". Defaults to "user".
+        section : med_diagnostics.type.Section, optional
+            The UI section being evaluated. Valid options are User, Ref, or Multiplot. Defaults to User.
 
         Returns
         -------
@@ -1617,9 +1627,8 @@ class UserInterface:
 
         Parameters
         ----------
-        section : str, optional
-            The UI section being evaluated. Valid options are "user", "ref", or
-            "multiplot". Defaults to "user".
+        section : med_diagnostics.type.Section, optional
+            The UI section being evaluated. Valid options are User, Ref, or Multiplot. Defaults to User.
         """
 
         if isinstance(section, Multiplot):
@@ -1697,8 +1706,9 @@ class UserInterface:
         is_ref : bool, optional
             Whether to plot the reference dataset (True) or the user dataset (False).
             Defaults to False.
-        plot_type : str, optional
-            The type of plot to generate ("Line", "Heatmap", or "Animation").
+        plot_type : PlotType, optional
+            The semantic type of the plot to generate (e.g., Line() or Heatmap()).
+            Defaults to Line.
         """
 
         if is_ref:
@@ -1770,6 +1780,26 @@ class UserInterface:
     def _multiplot_plot_dataset_helper(self, plot_diff=False, plot_type=Line):
         """
         Plot multiplot datasets (line or heatmap) with optional difference and bounds constraints.
+
+        This method extracts variables and axis selections from the multi-plot UI section,
+        calculates domain bounds using the controller, and applies the user's selected
+        boundary constraints. It then dispatches the data to the appropriate controller
+        method based on the semantic plot type.
+
+        Parameters
+        ----------
+        plot_diff : bool, optional
+            Whether to calculate and plot the difference between the reference and user
+            datasets. Defaults to False.
+        plot_type : PlotType, optional
+            The semantic type of the plot to generate (e.g., Line() or Heatmap()).
+            Defaults to Line.
+
+        Returns
+        -------
+        object
+            The generated multi-plot object (typically a HoloViews or Panel layout)
+            returned by the controller's plotting functions.
         """
 
         variable = self._get_variable_helper(section=Multiplot())
@@ -1784,7 +1814,7 @@ class UserInterface:
             )
 
             # Set x_min and x_max using the newly unpacked variables
-            if self.prompt_bounds_dropdown.value == "Constrain to user dataset bounds":
+            if isinstance(self.prompt_bounds_dropdown.value, ConstrainToUser):
                 x_min = self.dataset_min
                 x_max = self.dataset_max
             else:
@@ -1836,9 +1866,8 @@ class UserInterface:
 
         Parameters
         ----------
-        section : str, optional
-            The section of the UI to query. Valid options are "user", "ref", or
-            "multiplot". Defaults to "user".
+        section : med_diagnostics.type.Section, optional
+            The UI section being evaluated. Valid options are User, Ref, or Multiplot. Defaults to User.
 
         Returns
         -------

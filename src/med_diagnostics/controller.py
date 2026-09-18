@@ -74,16 +74,37 @@ def plot_dataset(
     y_axis=None,
 ):
     """
-    Plot 2D time-series from model data. Private.
+    Generate a 1D line plot or 2D heatmap from model data, applying slicing and standard formatting.
 
     Parameters
     ----------
+    dataset : xarray.Dataset
+        The dataset containing the data to be plotted.
+    dataset_name : str
+        The name of the dataset, used to generate the plot caption.
     variable : str
-        Model data variable as selected from panel dropdown.
+        The name of the data variable to extract and plot.
+    x_axis : str
+        The dimension or coordinate to plot along the x-axis.
+    chosen_slices : dict
+        A dictionary mapping dimension names to scalar values used to slice the dataset.
+    is_ref : bool
+        Flag indicating if the dataset is a reference model (alters the caption text).
+    model_name : str, optional
+        The name of the model to display in the caption. Defaults to "User".
+    plot_type : PlotType, optional
+        The semantic marker class instance dictating the plot style (e.g., Line() or Heatmap()).
+        Defaults to Line.
+    y_axis : str, optional
+        The dimension or coordinate to plot along the y-axis (required for Heatmap).
+        Defaults to None.
+
     Returns
-    ----------
-    self.fig : matplotlib.pyplot.figure()
+    -------
+    matplotlib.figure.Figure
+        The generated Matplotlib figure with standard formatting applied.
     """
+
     # Plot primary (user) model data
     fig, ax = plt.subplots(figsize=[8, 4])
 

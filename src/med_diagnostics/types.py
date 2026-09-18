@@ -16,15 +16,63 @@ class PlotType:
 
 class Section:
     """
-    Base marker class representing a generic plot type.
+    Base marker class representing a specific UI section.
+    """
+
+
+class MultiplotAnalysis:
+    """
+    Base marker class representing a multi-plot analysis configuration.
 
     Attributes
     ----------
     value : str
-        The string representation of the plot type used by the UI dropdowns.
+        The string representation of the analysis type used by the UI dropdowns.
     """
 
     value: str
+
+
+@dataclass
+class NoAnalysis(MultiplotAnalysis):
+    """
+    Marker class indicating no specific analysis (plot all loaded data).
+
+    Attributes
+    ----------
+    value : str
+        The string representation, defaults to "None (plot all loaded data)".
+    """
+
+    value = "None (plot all loaded data)"
+
+
+@dataclass
+class DiffAnalysis(MultiplotAnalysis):
+    """
+    Marker class indicating a difference analysis plot (Reference - User).
+
+    Attributes
+    ----------
+    value : str
+        The string representation, defaults to "Plot Difference (Ref. - User data)".
+    """
+
+    value = "Plot Difference (Ref. - User data)"
+
+
+@dataclass
+class AllAnalysis(MultiplotAnalysis):
+    """
+    Marker class indicating a combined plot of all loaded data and their difference.
+
+    Attributes
+    ----------
+    value : str
+        The string representation, defaults to "Plot All Data & Difference".
+    """
+
+    value = "Plot All Data & Difference"
 
 
 @dataclass
@@ -55,6 +103,7 @@ class Heatmap(PlotType):
     value = "Heatmap"
 
 
+@dataclass
 class MultiplotHeatmap(PlotType):
     """
     Marker class for a 2D heatmap configured for a multi-plot grid.
@@ -84,19 +133,51 @@ class Animation(PlotType):
 
 @dataclass
 class User(Section):
-    value = (
-        "user"  # not sure if this is even necessary but can I define an empty class?
-    )
+    """
+    Marker class representing the user dataset section of the UI.
+    """
 
 
 @dataclass
 class Ref(Section):
-    value = "ref"
+    """
+    Marker class representing the reference dataset section of the UI.
+    """
 
 
 @dataclass
 class Multiplot(Section):
-    value = "multiplot"
+    """
+    Marker class representing the multi-plot overlay section of the UI.
+    """
+
+
+@dataclass
+class ConstrainToRef:
+    """
+    Marker class indicating plot bounds should be constrained to the reference dataset.
+
+    Attributes
+    ----------
+    value : str
+        The string representation used by the UI dropdowns.
+    """
+
+    value = "Constrain to min-max reference dataset bounds"
+
+
+@dataclass
+class ConstrainToUser:
+    """
+    Marker class indicating plot bounds should be constrained to the user dataset.
+
+    Attributes
+    ----------
+    value : str
+        The string representation used by the UI dropdowns.
+    """
+
+    value = "Constrain to user dataset bounds"
 
 
 @dataclass

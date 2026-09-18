@@ -14,11 +14,16 @@ import xarray as xr
 import med_diagnostics.data as med_data
 from med_diagnostics import controller
 from med_diagnostics.types import (
+    AllAnalysis,
     Animation,
+    ConstrainToRef,
+    ConstrainToUser,
+    DiffAnalysis,
     Heatmap,
     Line,
     Multiplot,
     MultiplotHeatmap,
+    NoAnalysis,
     Ref,
     User,
 )
@@ -621,17 +626,17 @@ def test_plot_ref_data_button_click(
             "None (plot all loaded data)",
             {"time": pn.widgets.DiscreteSlider(options=[0, 1], value=0)},
         ),
-        (MultiplotHeatmap(), "Plot Difference (Ref. - User data)", {}),
-        (MultiplotHeatmap(), "Plot All Data & Difference", {}),
-        (Line(), "None (plot all loaded data)", {}),
+        (MultiplotHeatmap(), DiffAnalysis(), {}),
+        (MultiplotHeatmap(), AllAnalysis(), {}),
+        (Line(), NoAnalysis(), {}),
         (
             Line(),
-            "Plot Difference (Ref. - User data)",
+            DiffAnalysis(),
             {"time": pn.widgets.DiscreteSlider(options=[0, 1], value=0)},
         ),
         (
             Line(),
-            "Plot All Data & Difference",
+            AllAnalysis(),
             {"time": pn.widgets.DiscreteSlider(options=[0, 1], value=0)},
         ),
     ],
@@ -691,16 +696,14 @@ def test_plot_multiplot_data_button_click(
         and analysis_type == "None (plot all loaded data)"
     ):
         mock_multiplot_plot_dataset_helper.assert_called_once_with(plot_type=Heatmap())
-    elif (
-        isinstance(plot_type, MultiplotHeatmap)
-        and analysis_type == "Plot Difference (Ref. - User data)"
+    elif isinstance(plot_type, MultiplotHeatmap) and isinstance(
+        analysis_type, DiffAnalysis
     ):
         mock_multiplot_plot_dataset_helper.assert_called_once_with(
             plot_diff=True, plot_type=Heatmap()
         )
-    elif (
-        isinstance(plot_type, MultiplotHeatmap)
-        and analysis_type == "Plot All Data & Difference"
+    elif isinstance(plot_type, MultiplotHeatmap) and isinstance(
+        analysis_type, AllAnalysis
     ):
         assert mock_multiplot_plot_dataset_helper.call_count == 2
 
@@ -712,10 +715,7 @@ def test_plot_multiplot_data_button_click(
         )
     elif isinstance(plot_type, Line) and analysis_type == "None (plot all loaded data)":
         mock_multiplot_plot_dataset_helper.assert_called_once_with(plot_type=Line())
-    elif (
-        isinstance(plot_type, Line)
-        and analysis_type == "Plot Difference (Ref. - User data)"
-    ):
+    elif isinstance(plot_type, Line) and isinstance(analysis_type, DiffAnalysis):
         mock_multiplot_plot_dataset_helper.assert_called_once_with(
             plot_diff=True, plot_type=Line()
         )
@@ -1093,10 +1093,7 @@ def test_prompt_bounds_ui(ui, ui_row):
 
     # Verify that the bounds dropdown name, options, and container row are correctly configured
     assert ui.prompt_bounds_dropdown.name == "Choose how to constrain the x-axis bounds"
-    assert ui.prompt_bounds_dropdown.options == [
-        "Constrain to user dataset bounds",
-        "Constrain to min-max reference dataset bounds",
-    ]
+    assert ui.prompt_bounds_dropdown.options == ui.prompt_bounds_mapping
     assert hasattr(ui, "prompt_bounds_row")
 
     # Verify that the bounds prompt row is positioned immediately after the corresponding multiplot row in the container
@@ -2328,12 +2325,9 @@ def test_display_multiplot_plot_choices_ui(
     assert ui.multiplot_analysis_choice_dropdown.name == "Select analysis type"
     assert ui.multiplot_plot_button.name == "Plot data"
 
-    assert ui.multiplot_analysis_choice_dropdown.options == [
-        "None (plot all loaded data)",
-        "Plot Difference (Ref. - User data)",
-        "Plot All Data & Difference",
-    ]
-
+    assert (
+        ui.multiplot_analysis_choice_dropdown.options == ui.multiplot_analysis_mapping
+    )
     viable_dims = sorted(
         [dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"]
     )
@@ -2419,13 +2413,13 @@ def test_display_multiplot_plot_choices_ui(
     "plot_type, plot_diff, bounds_dropdown_val, expected_xmin, expected_xmax",
     [
         # 1. Line plot, no diff, constrain to user bounds
-        (Line(), False, "Constrain to user dataset bounds", 2, 8),
+        (Line(), False, ConstrainToUser(), 2, 8),
         # 2. Line plot, diff, use global bounds (simulating "Expand bounds to fit all" or similar)
-        (Line(), True, "Expand bounds", 0, 10),
+        (Line(), True, ConstrainToRef(), 0, 10),
         # 3. Heatmap, no diff (bounds don't matter)
-        (MultiplotHeatmap(), False, "Constrain to user dataset bounds", None, None),
+        (MultiplotHeatmap(), False, ConstrainToUser(), None, None),
         # 4. Heatmap, diff (bounds don't matter)
-        (MultiplotHeatmap(), True, "Expand bounds", None, None),
+        (MultiplotHeatmap(), True, ConstrainToRef(), None, None),
     ],
 )
 def test_multiplot_plot_dataset_helper(
@@ -2566,9 +2560,9 @@ def test_multiplot_plot_data_button_click_line(ui, mock_multiplot_datasets):
 @pytest.mark.parametrize(
     "analysis_choice",
     [
-        "None (plot all loaded data)",
-        "Plot Difference (Ref. - User data)",
-        "Plot All Data & Difference",
+        NoAnalysis(),
+        DiffAnalysis(),
+        AllAnalysis(),
     ],
 )
 def test_multiplot_plot_data_button_click_all_analysis_modes(
@@ -2583,7 +2577,7 @@ def test_multiplot_plot_data_button_click_all_analysis_modes(
     ui.multiplot_x_axis_dropdown.value = "time"
     ui.multiplot_plot_type_dropdown.value = Line()
     ui.multiplot_analysis_choice_dropdown.value = analysis_choice
-    ui.prompt_bounds_dropdown.value = "Constrain to user dataset bounds"
+    ui.prompt_bounds_dropdown.value = ConstrainToUser()
 
     ui._multiplot_plot_data_button_click()
 
@@ -2658,7 +2652,7 @@ def test_multiplot_plot_dataset_helper_reproduce(ui):
     ui.multiplot_x_axis_dropdown.value = "time"
     ui.multiplot_plot_type_dropdown.value = Line()
     ui.multiplot_chosen_slices = {}
-    ui.prompt_bounds_dropdown.value = "Constrain to user dataset bounds"
+    ui.prompt_bounds_dropdown.value = ConstrainToUser()
 
     # Call the helper directly
     fig = ui._multiplot_plot_dataset_helper(plot_diff=False, plot_type=Line())
