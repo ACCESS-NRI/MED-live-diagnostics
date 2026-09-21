@@ -6,20 +6,55 @@
 import matplotlib.pyplot as plt
 import nc_time_axis  # noqa: F401 - registers matplotlib's cftime unit converter
 import numpy as np
+import xclim.indices as xcl
+
+PREDEFINED_REGIONS = {
+    "nino34": {"lat": (-5, 5), "lon": (-170, -120)},
+    "nino3": {"lat": (-5, 5), "lon": (-150, -90)},
+    "nino4": {"lat": (-5, 5), "lon": (160, -150)},
+    "tasmania": {"lat": (-44, -39), "lon": (143, 149)},
+}
 
 
-def nino34(dataset, lon_dim, lat_dim):
-    """Returns dataset selected for the Niño 3.4 region (5N-5S, 170W-120W).
-
-    Detects whether lon_dim uses a 0-360 or -180-180 convention so the same
-    call works across model grids (e.g. ocean xt_ocean vs atmos lon).
+def extract_region(dataset, region, lon_dim="lon", lat_dim="lat"):
     """
-    if dataset[lon_dim].max() > 180:
-        lon_slice = slice(190, 240)
+    Extracts a spatial bounding box from an xarray Dataset or DataArray.
+
+    Parameters:
+    - dataset: xarray object
+    - region: String (key from PREDEFINED_REGIONS) OR a dictionary mapping 'lat' and 'lon' to tuples.
+    - lon_dim: Name of longitude dimension (e.g., "xt_ocean" or "lon")
+    - lat_dim: Name of latitude dimension (e.g., "yt_ocean" or "lat")
+    """
+    # check region that is passed in
+    if isinstance(region, str):
+        region_key = region.lower()
+        if region_key not in PREDEFINED_REGIONS:
+            raise ValueError(
+                f"Region '{region}' not found. Available: {list(PREDEFINED_REGIONS.keys())}"
+            )
+        bounds = PREDEFINED_REGIONS[region_key]
+    elif isinstance(region, dict) and "lat" in region and "lon" in region:
+        bounds = region
     else:
-        lon_slice = slice(-170, -120)
-    nino34_ds = dataset.sel({lat_dim: slice(-5, 5), lon_dim: lon_slice})
-    return nino34_ds
+        raise TypeError(
+            "Region must be a valid string or a dictionary with 'lat' and 'lon' tuples."
+        )
+
+    lon_min, lon_max = bounds["lon"]
+    lat_min, lat_max = bounds["lat"]
+
+    # 2. Dynamically handle 0-360 vs -180-180 longitude grids
+    if dataset[lon_dim].max() > 180:
+        lon_min = lon_min % 360
+        lon_max = lon_max % 360
+
+    # 3. Sort slices to ensure xarray returns data
+    # (Slicing max to min returns empty arrays in xarray)
+    lon_slice = slice(min(lon_min, lon_max), max(lon_min, lon_max))
+    lat_slice = slice(min(lat_min, lat_max), max(lat_min, lat_max))
+
+    return dataset.sel({lat_dim: lat_slice, lon_dim: lon_slice})
 
 
 def select_extra_dims(data, exclude_dims, extra_dim_selectors=None):
@@ -96,7 +131,7 @@ def rolling_window_size(time_da, target_days=150):
 def sst_anomaly_nino34(
     dataset, x_dim, y_dim, var, extra_dim_selectors=None, start_date=None
 ):
-    """Compute and plot the normalized, rolling-mean Niño 3.4 SST anomaly index.
+    """Compute and plot the normalized, rolling-mean Niño 3.4 index for a given variable.
 
     x_dim/y_dim/var are passed through so this works against any model's
     native coordinate names (e.g. lon/lat or xt_ocean/yt_ocean).
@@ -114,7 +149,7 @@ def sst_anomaly_nino34(
     if start_date is not None:
         dataset = dataset.sel(time=slice(start_date, None))
 
-    nino34_ds = nino34(dataset, x_dim, y_dim)
+    nino34_ds = extract_region(dataset, "nino34", x_dim, y_dim)
     anomalies = calc_anomolies(
         nino34_ds, x_dim, y_dim, var, extra_dim_selectors=extra_dim_selectors
     )
@@ -160,6 +195,25 @@ def sst_anomaly_nino34(
     ax.axhline(0.4, color="black", linewidth=0.5, linestyle="dotted")
     ax.axhline(-0.4, color="black", linewidth=0.5, linestyle="dotted")
     ax.set_title("Niño 3.4 Index")
-    ax.set_ylabel("SST Anomaly (°C)")
+
+    return fig
+
+
+def tg_days_above_helper(dataset, var, xdim, ydim, thresh_kelvin, freq="YS"):
+
+    weights = np.cos(np.deg2rad(dataset[ydim]))
+    spatial_mean = dataset[var].weighted(weights).mean(dim=[xdim, ydim])
+
+    spatial_mean.attrs["units"] = "degK"
+
+    convective_periods_per_year = xcl.tg_days_above(
+        tas=spatial_mean, thresh=f"{thresh_kelvin} degK", freq=freq
+    )
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    convective_periods_per_year.compute().plot(ax=ax, color="black")
+
+    ax.set_title(f"Periods per {freq} exceeding {thresh_kelvin}K")
+    ax.set_ylabel("Count")
 
     return fig
