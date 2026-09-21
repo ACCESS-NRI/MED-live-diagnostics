@@ -4,6 +4,7 @@
 """This is a placeholder for diagnostic recipes / scripting"""
 
 import matplotlib.pyplot as plt
+import nc_time_axis  # noqa: F401 - registers matplotlib's cftime unit converter
 import numpy as np
 
 
@@ -31,9 +32,18 @@ def select_extra_dims(data, exclude_dims, extra_dim_selectors=None):
     """
     extra_dim_selectors = extra_dim_selectors or {}
     extra_dims = [d for d in data.dims if d not in exclude_dims]
-    selectors = {d: extra_dim_selectors.get(d, 0) for d in extra_dims}
-    if selectors:
-        data = data.sel(selectors, method="nearest")
+    for d in extra_dims:
+        if d in extra_dim_selectors:
+            # Caller gave an explicit value (numeric or label) - match it exactly
+            data = data.sel({d: extra_dim_selectors[d]})
+        elif np.issubdtype(data[d].dtype, np.number):
+            # Depth/level-type dim: nearest to 0 is the surface
+            data = data.sel({d: 0}, method="nearest")
+        else:
+            # Non-numeric dim (e.g. ensemble member IDs): nearest-value
+            # selection isn't meaningful, so just take the first entry -
+            # matches controller.py's own convention for member handling.
+            data = data.isel({d: 0})
     return data
 
 
@@ -59,7 +69,9 @@ def calc_anomolies(dataset, lon_dim, lat_dim, var, extra_dim_selectors=None):
     return index_nino34
 
 
-def sst_anomaly_nino34(dataset, x_dim, y_dim, var, extra_dim_selectors=None):
+def sst_anomaly_nino34(
+    dataset, x_dim, y_dim, var, extra_dim_selectors=None, start_date=None
+):
     """Compute and plot the normalized, rolling-mean Niño 3.4 SST anomaly index.
 
     x_dim/y_dim/var are passed through so this works against any model's
@@ -69,8 +81,15 @@ def sst_anomaly_nino34(dataset, x_dim, y_dim, var, extra_dim_selectors=None):
     depth dim like st_ocean/deptht/lev) to the value to select; any such
     dimension left unspecified defaults to the level nearest 0 (the surface).
 
+    start_date optionally drops all time steps before it (e.g. "1920-01-01")
+    before any computation, so model spinup years don't skew the climatology,
+    anomaly, or normalization - not just the plotted window.
+
     Returns the matplotlib Figure so callers (e.g. ui.py) can embed it.
     """
+    if start_date is not None:
+        dataset = dataset.sel(time=slice(start_date, None))
+
     nino34_ds = nino34(dataset, x_dim, y_dim)
     anomalies = calc_anomolies(
         nino34_ds, x_dim, y_dim, var, extra_dim_selectors=extra_dim_selectors
