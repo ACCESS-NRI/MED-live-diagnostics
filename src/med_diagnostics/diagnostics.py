@@ -13,13 +13,13 @@ def nino34(dataset, lon_dim, lat_dim):
     return nino34_ds
 
 
-def calc_anomolies(dataset, lat_dim, lon_dim):
+def calc_anomolies(dataset, lon_dim, lat_dim, var):
     # Calculate anomalies from the monthly climatology
-    gb = dataset.sst.groupby("time.month")
+    gb = dataset[var].groupby("time.month")
     sst_nino34_anom = gb - gb.mean(dim="time")
 
     # Create weights based on the cosine of the latitude
-    weights = np.cos(np.deg2rad(dataset.lat))
+    weights = np.cos(np.deg2rad(dataset[lat_dim]))
     weights.name = "weights"
 
     # Apply the latitude weights and calculate the spatial mean
@@ -28,15 +28,12 @@ def calc_anomolies(dataset, lat_dim, lon_dim):
     return index_nino34
 
 
-def sst_anomaly_nino34(dataset, model_type):
-    if model_type == "OM2":  # TODO fix and replace so not checking on string
-        lon_dim = "xt_ocean"
-        lat_dim = "yt_ocean"
+def sst_anomaly_nino34(dataset, x_dim, y_dim, var):
 
-    nino34_ds = nino34(dataset, lon_dim, lat_dim)
-    anomalies = calc_anomolies(nino34_ds, lat_dim, lon_dim)
+    nino34_ds = nino34(dataset, x_dim, y_dim)
+    anomalies = calc_anomolies(nino34_ds, x_dim, y_dim, var)
     anomolies_rolling_mean = anomalies.rolling(time=5, center=True).mean()
-    std_dev = nino34_ds.sst.std()
+    std_dev = anomalies.std()
     normalized_index_nino34_rolling_mean = anomolies_rolling_mean / std_dev
     # Compute the data into memory first
     index_plot = normalized_index_nino34_rolling_mean.compute()
@@ -52,8 +49,8 @@ def sst_anomaly_nino34(dataset, model_type):
         time_vals,
         y_vals,
         0.4,
-        where=(y_vals >= 0.4),  # Matplotlib's boolean mask
-        interpolate=True,  # Smooths the fill precisely to the intersection
+        where=(y_vals >= 0.4),
+        interpolate=True,
         color="red",
         alpha=0.9,
     )
