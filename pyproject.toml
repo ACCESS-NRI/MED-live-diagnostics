@@ -55,6 +55,7 @@ versioneer = ">=0.29,<0.30"
 pre-commit = ">=4.6.2,<5"
 ruff = ">=0.16.7,<0.17"
 datashader = ">=0.19.1,<0.20"
+cartopy = ">=0.26.0,<0.27"
 
 [tool.mypy]
 exclude = [
