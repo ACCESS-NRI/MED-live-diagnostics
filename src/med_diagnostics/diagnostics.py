@@ -3,6 +3,8 @@
 
 """This is a placeholder for diagnostic recipes / scripting"""
 
+import types
+
 import matplotlib.pyplot as plt
 import nc_time_axis  # noqa: F401 - registers matplotlib's cftime unit converter
 import numpy as np
@@ -262,6 +264,7 @@ def run_xclim_index(
     return result
 
 
+# The xclim realms are only
 def get_realm_indicators(realm: str) -> list[str]:
     """Dynamically return available indicator names for a given xclim realm."""
     submodule = getattr(xclim.indicators, realm, None)
@@ -293,51 +296,65 @@ def get_indicator_inputs(realm: str, indicator_name: str) -> dict:
 
 
 def run_xclim_indicator(
-    dataset,
-    var_name,
-    realm,
-    indicator_name,
-    units,
-    xdim,
-    ydim,
-    xclim_arg="tas",
-    **kwargs,
+    dataset, realm, indicator_name, var_mapping, xdim, ydim, units=None, **kwargs
 ):
     """
     Universal wrapper to run any xclim.indicator on a spatially averaged dataset.
 
     Parameters:
     - dataset: xarray.Dataset containing the data.
-    - var_name: Name of the variable in the dataset to process.
     - realm: String of the xclim realm (e.g., 'atmos', 'land', 'seaIce').
     - indicator_name: String of the xclim indicator to use (e.g., 'tg_days_above').
-    - units: String of the units to assign to the data before processing.
+    - var_mapping: Dictionary mapping the xclim argument name to your dataset's variable name
+                   (e.g., {'tasmin': 'my_tmin_data', 'tasmax': 'my_tmax_data'}).
     - xdim, ydim: Strings of the spatial dimensions (e.g., 'lon', 'lat').
-    - xclim_arg: The variable name xclim expects (e.g., 'tas', 'pr').
+    - units: String or Dictionary. If a string, applies to all variables.
+             If a dict, maps units by xclim argument name (e.g., {'tasmin': 'degC', 'pr': 'mm/day'}).
+             If None, relies on existing dataset units.
     - **kwargs: Any extra arguments the specific xclim indicator requires (thresh, freq, etc.).
     """
-
-    # Apply spatial weighting and mean
-    weights = np.cos(np.deg2rad(dataset[ydim]))
-    spatial_mean = dataset[var_name].weighted(weights).mean(dim=[xdim, ydim])
-
-    # Apply units honestly
-    spatial_mean.attrs["units"] = units
 
     # Retrieve the requested realm submodule
     submodule = getattr(xclim.indicators, realm, None)
     if submodule is None:
-        raise TypeError(f"'{realm}' is not a valid xclim.indicators realm.")
+        raise ValueError(f"'{realm}' is not a valid xclim.indicators realm.")
 
     # Retrieve the requested indicator dynamically
     indicator = getattr(submodule, indicator_name, None)
     if not isinstance(indicator, Indicator):
         raise TypeError(f"'{indicator_name}' is not a valid Indicator in '{realm}'.")
 
-    # Inject the processed spatial mean into the kwargs (e.g., tas=spatial_mean)
-    kwargs[xclim_arg] = spatial_mean
+    # Calculate spatial weights once
+    weights = np.cos(np.deg2rad(dataset[ydim]))
+
+    # Process each variable in the mapping
+    for xclim_arg, dataset_var in var_mapping.items():
+        # Apply spatial weighting and mean
+        spatial_mean = dataset[dataset_var].weighted(weights).mean(dim=[xdim, ydim])
+
+        # Apply units honestly
+        if isinstance(units, dict) and xclim_arg in units:
+            spatial_mean.attrs["units"] = units[xclim_arg]
+        elif isinstance(units, str):
+            spatial_mean.attrs["units"] = units
+
+        # Inject the processed spatial mean into the kwargs
+        kwargs[xclim_arg] = spatial_mean
 
     # Execute the xclim indicator with all provided arguments
     result = indicator(**kwargs)
 
     return result
+
+
+def get_indicator_groups() -> list[str]:
+    """
+    Returns a list of all indicator groups (realms and virtual modules)
+    available in xclim.indicators (e.g., 'atmos', 'cf', 'icclim', 'anuclim').
+    """
+    return [
+        name
+        for name in dir(xclim.indicators)
+        if isinstance(getattr(xclim.indicators, name), types.ModuleType)
+        and not name.startswith("_")
+    ]
