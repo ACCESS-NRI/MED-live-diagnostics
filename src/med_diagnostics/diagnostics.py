@@ -105,7 +105,7 @@ def calc_anomolies(dataset, lon_dim, lat_dim, var, extra_dim_selectors=None):
 
 
 def rolling_window_size(time_da, target_days=150):
-    """Approximate a 5-month (~150 day) rolling window in native timesteps.
+    """Approximate a 5-month (150 day) rolling window in native timesteps.
 
     A hardcoded window of 5 assumes monthly data: it's far too short to
     smooth daily data, and can exceed the record length entirely for
@@ -224,3 +224,37 @@ def tg_days_above_below_helper(
     ax.set_ylabel("Count")
 
     return fig
+
+
+def run_xclim_index(
+    dataset, var_name, index_name, units, xdim, ydim, xclim_arg="tas", **kwargs
+):
+    """
+    Universal wrapper to run any xclim.indices function on a spatially averaged dataset.
+
+    Parameters:
+    - index_name: String of the xclim function to use (e.g., 'tg_days_above').
+    - xclim_arg: The variable name xclim expects (e.g., 'tas' for temp, 'pr' for precip).
+    - **kwargs: Any extra arguments the specific xclim function requires (thresh, freq, etc.).
+    """
+
+    # Apply spatial weighting and mean
+    weights = np.cos(np.deg2rad(dataset[ydim]))
+    spatial_mean = dataset[var_name].weighted(weights).mean(dim=[xdim, ydim])
+
+    # Apply units honestly
+    spatial_mean.attrs["units"] = units
+
+    # Retrieve the requested function dynamically from the xclim package
+    try:
+        xclim_function = getattr(xcl, index_name)
+    except AttributeError:
+        raise AttributeError(f"'{index_name}' is not a valid xclim.indices function.")
+
+    # Inject the processed spatial mean into the kwargs (e.g., tas=spatial_mean)
+    kwargs[xclim_arg] = spatial_mean
+
+    # 5. Execute the xclim function with all provided arguments
+    result = xclim_function(**kwargs)
+
+    return result
