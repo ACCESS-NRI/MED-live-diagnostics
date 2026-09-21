@@ -6,7 +6,9 @@
 import matplotlib.pyplot as plt
 import nc_time_axis  # noqa: F401 - registers matplotlib's cftime unit converter
 import numpy as np
+import xclim.indicators
 import xclim.indices as xcl
+from xclim.core.indicator import Indicator
 
 PREDEFINED_REGIONS = {
     "nino34": {"lat": (-5, 5), "lon": (-170, -120)},
@@ -256,5 +258,86 @@ def run_xclim_index(
 
     # 5. Execute the xclim function with all provided arguments
     result = xclim_function(**kwargs)
+
+    return result
+
+
+def get_realm_indicators(realm: str) -> list[str]:
+    """Dynamically return available indicator names for a given xclim realm."""
+    submodule = getattr(xclim.indicators, realm, None)
+
+    if submodule is None:
+        valid_realms = [p for p in dir(xclim.indicators) if not p.startswith("_")]
+        raise ValueError(f"Invalid realm '{realm}'. Choose from: {valid_realms}")
+
+    # Filter submodule attributes to find active xclim Indicator instances
+    return [
+        name
+        for name in dir(submodule)
+        if isinstance(getattr(submodule, name), Indicator)
+    ]
+
+
+def get_indicator_inputs(realm: str, indicator_name: str) -> dict:
+    """Dynamically returns the required inputs for a specific xclim indicator."""
+    submodule = getattr(xclim.indicators, realm, None)
+    if submodule is None:
+        raise ValueError(f"Realm '{realm}' not found.")
+
+    indicator = getattr(submodule, indicator_name, None)
+    if not isinstance(indicator, Indicator):
+        raise TypeError(f"'{indicator_name}' is not a valid Indicator in '{realm}'.")
+
+    # The parameters attribute provides a dictionary of all inputs
+    return indicator.parameters
+
+
+def run_xclim_indicator(
+    dataset,
+    var_name,
+    realm,
+    indicator_name,
+    units,
+    xdim,
+    ydim,
+    xclim_arg="tas",
+    **kwargs,
+):
+    """
+    Universal wrapper to run any xclim.indicator on a spatially averaged dataset.
+
+    Parameters:
+    - dataset: xarray.Dataset containing the data.
+    - var_name: Name of the variable in the dataset to process.
+    - realm: String of the xclim realm (e.g., 'atmos', 'land', 'seaIce').
+    - indicator_name: String of the xclim indicator to use (e.g., 'tg_days_above').
+    - units: String of the units to assign to the data before processing.
+    - xdim, ydim: Strings of the spatial dimensions (e.g., 'lon', 'lat').
+    - xclim_arg: The variable name xclim expects (e.g., 'tas', 'pr').
+    - **kwargs: Any extra arguments the specific xclim indicator requires (thresh, freq, etc.).
+    """
+
+    # Apply spatial weighting and mean
+    weights = np.cos(np.deg2rad(dataset[ydim]))
+    spatial_mean = dataset[var_name].weighted(weights).mean(dim=[xdim, ydim])
+
+    # Apply units honestly
+    spatial_mean.attrs["units"] = units
+
+    # Retrieve the requested realm submodule
+    submodule = getattr(xclim.indicators, realm, None)
+    if submodule is None:
+        raise TypeError(f"'{realm}' is not a valid xclim.indicators realm.")
+
+    # Retrieve the requested indicator dynamically
+    indicator = getattr(submodule, indicator_name, None)
+    if not isinstance(indicator, Indicator):
+        raise TypeError(f"'{indicator_name}' is not a valid Indicator in '{realm}'.")
+
+    # Inject the processed spatial mean into the kwargs (e.g., tas=spatial_mean)
+    kwargs[xclim_arg] = spatial_mean
+
+    # Execute the xclim indicator with all provided arguments
+    result = indicator(**kwargs)
 
     return result
