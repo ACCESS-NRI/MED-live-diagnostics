@@ -199,21 +199,28 @@ def sst_anomaly_nino34(
     return fig
 
 
-def tg_days_above_helper(dataset, var, xdim, ydim, thresh_kelvin, freq="YS"):
+def tg_days_above_below_helper(
+    dataset, var, xdim, ydim, thresh_kelvin, freq="YS", op=">"
+):
 
     weights = np.cos(np.deg2rad(dataset[ydim]))
     spatial_mean = dataset[var].weighted(weights).mean(dim=[xdim, ydim])
 
     spatial_mean.attrs["units"] = "degK"
 
-    convective_periods_per_year = xcl.tg_days_above(
-        tas=spatial_mean, thresh=f"{thresh_kelvin} degK", freq=freq
-    )
+    if op in ["<", "lt", "<=", "le"]:
+        convective_periods_per_year = xcl.tg_days_below(
+            tas=spatial_mean, thresh=f"{thresh_kelvin} degK", freq=freq, op=op
+        )
+    else:
+        convective_periods_per_year = xcl.tg_days_above(
+            tas=spatial_mean, thresh=f"{thresh_kelvin} degK", freq=freq, op=op
+        )
 
     fig, ax = plt.subplots(figsize=(12, 6))
     convective_periods_per_year.compute().plot(ax=ax, color="black")
 
-    ax.set_title(f"Periods per {freq} exceeding {thresh_kelvin}K")
+    ax.set_title(f"Periods per {freq} {op} {thresh_kelvin}K")
     ax.set_ylabel("Count")
 
     return fig
