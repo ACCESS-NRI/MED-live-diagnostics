@@ -44,7 +44,7 @@ def _seasonal_dataset(
 
 
 # --------------------------------------------------------------------------
-# nino34
+# extract_region
 # --------------------------------------------------------------------------
 
 
@@ -61,8 +61,10 @@ def _seasonal_dataset(
         (np.arange(-279.5, 80, 1.0), -170, -120),
     ],
 )
-def test_nino34_detects_longitude_convention(lon_values, expected_min, expected_max):
-    """nino34() must auto-detect 0-360 vs -180/180 longitude conventions.
+def test_extract_region_detects_longitude_convention(
+    lon_values, expected_min, expected_max
+):
+    """extract_region() must auto-detect 0-360 vs -180/180 longitude conventions.
 
     A hardcoded convention gives an empty or wrong selection on the other
     grid type (this was a real bug: the function used to hardcode one
@@ -74,15 +76,15 @@ def test_nino34_detects_longitude_convention(lon_values, expected_min, expected_
         coords={"lat": lat, "lon": lon_values},
     )
 
-    result = diagnostics.nino34(ds, "lon", "lat")
+    result = diagnostics.extract_region(ds, "nino34", "lon", "lat")
 
     assert result.lon.size > 0, "no longitude points selected for the Niño 3.4 box"
     assert result.lon.min() >= expected_min
     assert result.lon.max() <= expected_max
 
 
-def test_nino34_selects_latitude_band():
-    """nino34() must restrict latitude to the 5S-5N Niño 3.4 band regardless of grid extent."""
+def test_extract_region_selects_latitude_band():
+    """extract_region() must restrict latitude to a predefined region's band regardless of grid extent."""
     lat = np.linspace(-20, 20, 41)
     lon = np.arange(0, 360, 5)
     ds = xr.Dataset(
@@ -90,10 +92,129 @@ def test_nino34_selects_latitude_band():
         coords={"lat": lat, "lon": lon},
     )
 
-    result = diagnostics.nino34(ds, "lon", "lat")
+    result = diagnostics.extract_region(ds, "nino34", "lon", "lat")
 
     assert result.lat.min() >= -5
     assert result.lat.max() <= 5
+
+
+def test_extract_region_case_insensitive_string_lookup():
+    """Predefined region names should match regardless of case, since callers may pass either."""
+    lat = np.linspace(-20, 20, 21)
+    lon = np.arange(0, 360, 5)
+    ds = xr.Dataset(
+        {"sst": (["lat", "lon"], np.zeros((len(lat), len(lon))))},
+        coords={"lat": lat, "lon": lon},
+    )
+
+    result = diagnostics.extract_region(ds, "NINO34", "lon", "lat")
+
+    assert result.lon.size > 0
+
+
+def test_extract_region_unknown_string_raises_value_error():
+    """An unrecognized region name must fail loudly with the available options, not silently return empty data."""
+    ds = xr.Dataset(
+        {"sst": (["lat", "lon"], np.zeros((3, 3)))},
+        coords={"lat": [0, 1, 2], "lon": [0, 1, 2]},
+    )
+
+    with pytest.raises(ValueError, match="not found"):
+        diagnostics.extract_region(ds, "not_a_real_region", "lon", "lat")
+
+
+def test_extract_region_invalid_type_raises_type_error():
+    """A region that's neither a known string nor a lat/lon dict must raise TypeError, not fail deeper inside .sel()."""
+    ds = xr.Dataset(
+        {"sst": (["lat", "lon"], np.zeros((3, 3)))},
+        coords={"lat": [0, 1, 2], "lon": [0, 1, 2]},
+    )
+
+    with pytest.raises(TypeError):
+        diagnostics.extract_region(ds, ["not", "a", "dict"], "lon", "lat")
+
+
+def test_extract_region_accepts_custom_dict_bounds():
+    """A dict with 'lat'/'lon' tuples must bypass PREDEFINED_REGIONS and use the given bounds directly.
+
+    This is the main new capability: extract_region() no longer only works
+    for the hardcoded Nino 3.4 box, it accepts an arbitrary custom region.
+    """
+    lat = np.linspace(-20, 20, 41)
+    lon = np.arange(0, 360, 5)
+    ds = xr.Dataset(
+        {"sst": (["lat", "lon"], np.zeros((len(lat), len(lon))))},
+        coords={"lat": lat, "lon": lon},
+    )
+    custom_region = {"lat": (-10, 10), "lon": (100, 120)}
+
+    result = diagnostics.extract_region(ds, custom_region, "lon", "lat")
+
+    assert result.lat.min() >= -10
+    assert result.lat.max() <= 10
+    assert result.lon.min() >= 100
+    assert result.lon.max() <= 120
+
+
+def test_extract_region_custom_dict_handles_0_360_conversion():
+    """A custom dict given in -180/180 bounds must still be converted onto a 0-360 grid.
+
+    The longitude-convention auto-detection happens after the region lookup,
+    so it must apply equally to caller-supplied dicts, not just predefined
+    regions.
+    """
+    lat = np.linspace(-20, 20, 9)
+    lon = np.arange(0, 360, 5)
+    ds = xr.Dataset(
+        {"sst": (["lat", "lon"], np.zeros((len(lat), len(lon))))},
+        coords={"lat": lat, "lon": lon},
+    )
+    custom_region = {"lat": (-5, 5), "lon": (-170, -120)}  # nino34-equivalent bounds
+
+    result = diagnostics.extract_region(ds, custom_region, "lon", "lat")
+
+    assert result.lon.size > 0
+    assert result.lon.min() >= 190
+    assert result.lon.max() <= 240
+
+
+def test_extract_region_handles_custom_dimension_names():
+    """lon_dim/lat_dim overrides must be honored, e.g. ocean grids using xt_ocean/yt_ocean."""
+    lat = np.linspace(-20, 20, 21)
+    lon = np.arange(0, 360, 5)
+    ds = xr.Dataset(
+        {"sst": (["yt_ocean", "xt_ocean"], np.zeros((len(lat), len(lon))))},
+        coords={"yt_ocean": lat, "xt_ocean": lon},
+    )
+
+    result = diagnostics.extract_region(
+        ds, "nino34", lon_dim="xt_ocean", lat_dim="yt_ocean"
+    )
+
+    assert result.xt_ocean.size > 0
+    assert result.yt_ocean.min() >= -5
+    assert result.yt_ocean.max() <= 5
+
+
+def test_extract_region_tasmania_no_wraparound_needed():
+    """A second predefined region (tasmania) confirms lookup isn't hardcoded to nino34.
+
+    tasmania's bounds sit entirely within 0-180, so this also sanity-checks
+    that the 0-360 conversion doesn't corrupt a region that never needed it.
+    """
+    lat = np.linspace(-50, -30, 21)
+    lon = np.arange(0, 360, 2)
+    ds = xr.Dataset(
+        {"sst": (["lat", "lon"], np.zeros((len(lat), len(lon))))},
+        coords={"lat": lat, "lon": lon},
+    )
+
+    result = diagnostics.extract_region(ds, "tasmania", "lon", "lat")
+
+    assert result.lon.min() >= 143
+    assert result.lon.max() <= 149
+    assert result.lat.min() >= -44
+    assert result.lat.max() <= -39
 
 
 # --------------------------------------------------------------------------

@@ -27,6 +27,9 @@ requires = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+med_diagnostics = ["master_map.csv"]
+
 [tool.versioneer]
 VCS = "git"
 style = "pep440"
@@ -56,6 +59,7 @@ pre-commit = ">=4.6.2,<5"
 ruff = ">=0.16.7,<0.17"
 datashader = ">=0.19.1,<0.20"
 cartopy = ">=0.26.0,<0.27"
+xclim = ">=0.62.0,<0.63"
 
 [tool.mypy]
 exclude = [
