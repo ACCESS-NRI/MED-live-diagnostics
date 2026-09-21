@@ -69,6 +69,30 @@ def calc_anomolies(dataset, lon_dim, lat_dim, var, extra_dim_selectors=None):
     return index_nino34
 
 
+def rolling_window_size(time_da, target_days=150):
+    """Approximate a 5-month (~150 day) rolling window in native timesteps.
+
+    A hardcoded window of 5 assumes monthly data: it's far too short to
+    smooth daily data, and can exceed the record length entirely for
+    yearly/short records - xarray's bottleneck-accelerated rolling mean
+    raises ValueError (not just NaNs) when window > len(time). Inferring
+    the actual timestep lets the same ~5-month smoothing target apply
+    across daily/monthly/yearly data, and the result is always clamped to
+    the available record length.
+    """
+    n = time_da.size
+    if n <= 1:
+        return 1
+    diffs = np.diff(time_da.values)
+    if diffs.dtype == object:
+        # cftime diffs are datetime.timedelta objects
+        step_days = np.median([d.days + d.seconds / 86400 for d in diffs])
+    else:
+        step_days = np.median(diffs / np.timedelta64(1, "D"))
+    window = max(1, round(target_days / step_days)) if step_days > 0 else 5
+    return min(window, n)
+
+
 def sst_anomaly_nino34(
     dataset, x_dim, y_dim, var, extra_dim_selectors=None, start_date=None
 ):
@@ -94,7 +118,8 @@ def sst_anomaly_nino34(
     anomalies = calc_anomolies(
         nino34_ds, x_dim, y_dim, var, extra_dim_selectors=extra_dim_selectors
     )
-    anomolies_rolling_mean = anomalies.rolling(time=5, center=True).mean()
+    window = rolling_window_size(anomalies["time"])
+    anomolies_rolling_mean = anomalies.rolling(time=window, center=True).mean()
     std_dev = anomalies.std()
     normalized_index_nino34_rolling_mean = anomolies_rolling_mean / std_dev
     # Compute the data into memory first
