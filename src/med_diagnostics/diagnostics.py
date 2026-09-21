@@ -118,6 +118,8 @@ def sst_anomaly_nino34(
     anomalies = calc_anomolies(
         nino34_ds, x_dim, y_dim, var, extra_dim_selectors=extra_dim_selectors
     )
+
+    anomalies = anomalies.chunk({"time": -1})
     window = rolling_window_size(anomalies["time"])
     anomolies_rolling_mean = anomalies.rolling(time=window, center=True).mean()
     std_dev = anomalies.std()
