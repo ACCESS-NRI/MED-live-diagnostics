@@ -162,37 +162,3 @@ def _load_access_nri_catalog(model_type, filter=True):
     else:
         # Filter catalog by model type
         return catalog.search(model=f".*{model_type.upper()}.*")
-
-
-def load_reference_dataset(experiment_name, dataset_key):
-    """
-    Load a single dataset from a named ACCESS-NRI intake catalog experiment,
-    for use as a comparison/reference dataset (e.g. alongside a live model
-    run passed to diagnostics.plot_ocean_global_scalars) without going
-    through the ui.py "Reference Model" dropdowns.
-
-    Reuses the same catalog lookup ui.py's reference-model widgets already
-    do (`access_nri_cat.search(name=...).to_source()`), just with the
-    experiment name supplied directly instead of a dropdown value - the
-    `model=` regex filter `_load_access_nri_catalog` applies is only there
-    to shrink that dropdown's option list, so it's skipped here in favour of
-    searching the full catalog by exact name.
-
-    Parameters
-    ----------
-    experiment_name : str
-        The experiment's `name` field in the ACCESS-NRI catalog (e.g.
-        "025deg_jra55_iaf_omip2_cycle1") - whatever a search of
-        `intake.cat.access_nri` for that experiment resolves to.
-    dataset_key : str
-        The dataset/variable-group key within that experiment (e.g.
-        "ocean_month"), matching what `_build_data_object` expects.
-
-    Returns
-    ----------
-    dataset : xarray object
-        Dask xarray object for the requested experiment/dataset.
-    """
-
-    ref_cat = intake.cat.access_nri.search(name=experiment_name).to_source()
-    return _build_data_object(ref_cat, dataset_key)
