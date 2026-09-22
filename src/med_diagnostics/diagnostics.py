@@ -356,9 +356,12 @@ def plot_ocean_global_scalars(
     """
     all_ref_cat = dt._load_access_nri_catalog("OM2", filter=False)
     ref_model_cat = all_ref_cat(name="025deg_jra55_iaf_omip2_cycle1").to_source()
-    dataset = dt._build_data_object(ref_model_cat, "ocean.1mon.nv:2.scalar_axis:1")
 
-    datasets = {"025deg_jra55_iaf_omip2_cycle1": dataset}
+    # Load the 1D global scalar output
+    ref_dataset = dt._build_data_object(ref_model_cat, "ocean.1mon.nv:2.scalar_axis:1")
+
+    # Add it to the dictionary
+    datasets["025deg_jra55_iaf_omip2_cycle1"] = ref_dataset
 
     variables = variables or list(OM3_GLOBAL_SCALARS)
 
