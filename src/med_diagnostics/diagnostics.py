@@ -493,20 +493,21 @@ def get_indicator_groups() -> list[str]:
 def get_indicator_data_requirements(realm, indicator_name):
     """
     Extracts the expected CF variable names (e.g., 'tas', 'pr') that an xclim indicator requires.
+
+    `indicator.parameters` maps arg name -> a `Parameter` object (not a dict,
+    so it has no `.get()`), whose `.kind` is an `InputKind` enum value. Only
+    `InputKind.VARIABLE` args are mandatory data inputs the caller must
+    supply; `InputKind.OPTIONAL_VARIABLE` args (e.g. an optional snow-depth
+    input) default to None and aren't required. This mirrors the
+    `variable_args` check `run_xclim_indicator` already uses.
     """
     indicator = getattr(getattr(xclim.indicators, realm), indicator_name)
-    required_vars = []
 
-    for arg_name, meta in indicator.parameters.items():
-        # Identify data arguments: they either have 'DataArray' in their type,
-        # or their default value is flagged as MISSING by xclim.
-        is_data_array = "DataArray" in str(meta.get("type", ""))
-        is_missing_default = meta.get("default").__class__.__name__ == "MISSING"
-
-        if (is_data_array or is_missing_default) and arg_name != "ds":
-            required_vars.append(arg_name)
-
-    return required_vars
+    return [
+        arg_name
+        for arg_name, param in indicator.parameters.items()
+        if param.kind == InputKind.VARIABLE
+    ]
 
 
 def discover_indicators(dataset, realm):
