@@ -25,7 +25,7 @@ from xclim.core.utils import InputKind
 SUPPLEMENTARY_DIRECT_MAPPINGS = {
     "temp_global_ave": ("thetaoga", "degC"),
     "temp_surface_ave": ("tosga", "degC"),
-    "sst": ("thetaoga", "degC"),
+    "sst": ("tosga", "degC"),
 }
 
 
@@ -462,7 +462,7 @@ def plot_ocean_global_scalars(
             data = data.compute()
             plotted_any = True
             units = units or data.attrs.get("units")
-            long_name = data.attrs.get("long_name", long_name)
+            long_name_attr = data.attrs.get("long_name", long_name)
             color = label_colors.setdefault(label, next(color_cycle))
 
             if show_rolling_mean:
@@ -487,11 +487,12 @@ def plot_ocean_global_scalars(
             else:
                 ax.plot(data["time"].values, data.values, color=color, label=label)
 
-        ax.set_title(long_name)
+        display_title = f"{var}: {long_name_attr}" if long_name_attr else var
+        ax.set_title(display_title)
         if units:
             ax.set_ylabel(units)
         if plotted_any:
-            ax.legend()
+            ax.legend(loc="center left", bbox_to_anchor=(1.05, 0.5))
         else:
             ax.text(
                 0.5,
