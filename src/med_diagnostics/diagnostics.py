@@ -349,7 +349,35 @@ def sst_anomaly_nino34(
     return fig
 
 
-OM3_GLOBAL_SCALARS = ["masso", "thetaoga", "soga", "tosga", "sosga"]
+OM3_GLOBAL_SCALARS = [
+    "masso",
+    "thetaoga",
+    "soga",
+    "tosga",
+    "sosga",
+    "speed_max",
+    "mlotst_max",
+    "tos_max",
+    "tos_min",
+    "sos_max",
+    "sos_min",
+    "zos_max",
+    "zos_min",
+    "total_salt_Flux_Added",
+    "total_salt_flux",
+    "net_fresh_water_global_adjustment",
+    "salt_flux_global_restoring_adjustment",
+    "total_wfo",
+    "total_evs",
+    "total_fsitherm",
+    "total_precip",
+    "total_prsn",
+    "total_Iprec",
+    "total_ficeberg",
+    "total_friver",
+    "total_net_massout",
+    "total_net_massin",
+]
 
 # {"model name": "path to intake-esm datastore JSON"}
 DEFAULT_REFERENCE_CATALOGS = {
