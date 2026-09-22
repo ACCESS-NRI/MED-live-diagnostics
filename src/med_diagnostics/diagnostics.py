@@ -355,7 +355,7 @@ def plot_ocean_global_scalars(
     Returns the matplotlib Figure (one subplot per variable).
     """
     all_ref_cat = dt._load_access_nri_catalog("OM2", filter=False)
-    ref_model_cat = all_ref_cat(name="025deg_jra55_iaf_omip2_cycle1").to_source()
+    ref_model_cat = all_ref_cat.search(name="025deg_jra55_iaf_omip2_cycle1").to_source()
 
     # Load the 1D global scalar output
     ref_dataset = dt._build_data_object(ref_model_cat, "ocean.1mon.nv:2.scalar_axis:1")
