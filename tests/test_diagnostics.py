@@ -624,3 +624,122 @@ def test_sst_anomaly_nino34_start_date_trims_record_before_computation():
 
     plt.close(fig_full)
     plt.close(fig_trimmed)
+
+
+class _FakeMatchedCatalog:
+    def __init__(self, keys):
+        self._keys = keys
+
+    def keys(self):
+        return self._keys
+
+
+class _FakeModel:
+    """Stand-in for the esm_datastore returned by `.search(name=...).to_source()`.
+
+    Maps a (realm, frequency, variables) query to whichever key(s) a real
+    catalog search would return, so tests can control that without a real
+    intake-esm/access_nri_intake catalog.
+    """
+
+    def __init__(self, keys_by_query):
+        self._keys_by_query = keys_by_query
+
+    def search(self, **kwargs):
+        query = (
+            kwargs.get("realm"),
+            kwargs.get("frequency"),
+            tuple(kwargs.get("variable", ())),
+        )
+        return _FakeMatchedCatalog(self._keys_by_query.get(query, []))
+
+    def keys(self):
+        return sorted({k for keys in self._keys_by_query.values() for k in keys})
+
+
+def test_load_default_om3_reference_datasets_looks_up_experiment_by_name_directly(
+    monkeypatch,
+):
+    """The KeyError Theo hit wasn't caused by an unstable key string - he
+    confirmed 'ocean.1mon.nv:2.scalar_axis:1' is a genuine file_id when the
+    experiment is looked up directly via `intake.cat.access_nri[name]`. It
+    was caused by the old code going through
+    `_load_access_nri_catalog("OM2", filter=True).search(name=name).to_source()`,
+    which pre-filters the metacatalog by a `model=".*OM2.*"` regex before
+    searching by name - a filter that can silently narrow the datastore
+    returned for that name. The fix must look up each reference experiment
+    directly by name via data._load_access_nri_experiment (no model-type
+    pre-filter), never via data._load_access_nri_catalog.
+    """
+    ds = xr.Dataset({"masso": ("time", [1.0, 2.0])}, coords={"time": [0, 1]})
+    query = ("ocean", "1mon", tuple(diagnostics.OM3_GLOBAL_SCALARS))
+    fake_model = _FakeModel({query: ["key_a"]})
+
+    calls = []
+    monkeypatch.setattr(
+        diagnostics.data,
+        "_load_access_nri_experiment",
+        lambda name: (calls.append(name), fake_model)[1],
+    )
+    monkeypatch.setattr(
+        diagnostics.data,
+        "_load_access_nri_catalog",
+        lambda *a, **k: pytest.fail(
+            "load_default_om3_reference_datasets must not pre-filter by "
+            "model type via _load_access_nri_catalog"
+        ),
+    )
+    monkeypatch.setattr(
+        diagnostics.data, "_build_data_object", lambda model_cat, key: ds
+    )
+
+    refs = diagnostics.load_default_om3_reference_datasets()
+
+    name = diagnostics.DEFAULT_OM3_TIMESERIES_REFERENCES[0]
+    assert calls == [name]
+    assert set(refs[name].data_vars) == {"masso"}
+
+
+def test_load_default_om3_reference_datasets_merges_split_keys(monkeypatch):
+    """OM3_GLOBAL_SCALARS variables can legitimately be split across more
+    than one intake-esm key for a given realm/frequency (e.g. because they
+    don't all share the same "extra" dims). The fix searches by
+    realm/frequency/variable rather than assuming one fixed key string, and
+    must merge whatever key(s) that search returns.
+    """
+    ds_masso = xr.Dataset({"masso": ("time", [1.0, 2.0])}, coords={"time": [0, 1]})
+    ds_tosga = xr.Dataset({"tosga": ("time", [3.0, 4.0])}, coords={"time": [0, 1]})
+
+    query = ("ocean", "1mon", tuple(diagnostics.OM3_GLOBAL_SCALARS))
+    fake_model = _FakeModel({query: ["key_a", "key_b"]})
+
+    monkeypatch.setattr(
+        diagnostics.data, "_load_access_nri_experiment", lambda name: fake_model
+    )
+    monkeypatch.setattr(
+        diagnostics.data,
+        "_build_data_object",
+        lambda model_cat, key: {"key_a": ds_masso, "key_b": ds_tosga}[key],
+    )
+
+    refs = diagnostics.load_default_om3_reference_datasets()
+
+    name = diagnostics.DEFAULT_OM3_TIMESERIES_REFERENCES[0]
+    assert set(refs[name].data_vars) == {"masso", "tosga"}
+
+
+def test_load_default_om3_reference_datasets_raises_informative_error_when_no_match(
+    monkeypatch,
+):
+    """No matching realm/frequency/variable combination should raise a clear
+    KeyError up front, rather than letting a stale/hardcoded key string fail
+    deep inside intake-esm with no indication of what was actually searched
+    for.
+    """
+    fake_model = _FakeModel({})
+    monkeypatch.setattr(
+        diagnostics.data, "_load_access_nri_experiment", lambda name: fake_model
+    )
+
+    with pytest.raises(KeyError, match="No catalog entries"):
+        diagnostics.load_default_om3_reference_datasets()

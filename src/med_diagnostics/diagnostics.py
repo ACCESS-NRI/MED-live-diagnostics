@@ -13,6 +13,7 @@ from importlib import resources
 import matplotlib.pyplot as plt
 import nc_time_axis  # noqa: F401 - registers matplotlib's cftime unit converter
 import numpy as np
+import xarray as xr
 import xclim.indicators
 import xclim.indices as xcl
 from xclim.core.indicator import Indicator
@@ -345,31 +346,30 @@ OM3_GLOBAL_SCALARS = ["masso", "thetaoga", "soga", "tosga", "sosga"]
 DEFAULT_OM3_TIMESERIES_REFERENCES = ["025deg_jra55_iaf_omip2_cycle1"]
 
 
-def load_default_om3_reference_datasets(dataset_key="ocean.1mon.nv:2.scalar_axis:1"):
-    """Load the 4 standard ACCESS-OM3-paper reference experiments (see
-    DEFAULT_OM3_TIMESERIES_REFERENCES) via data.load_reference_dataset, as a
-    ready-to-use {label: xarray.Dataset} dict for plot_ocean_global_scalars.
-
-    dataset_key: the catalog dataset/variable-group key to load within each
-    experiment (see data.load_reference_dataset) - defaults to the single
-    guess "ocean_scalar" for the group holding precomputed global scalars
-    (masso/thetaoga/soga/tosga/sosga). This couldn't be verified against a
-    live catalog, so confirm/override it for your actual catalog schema.
-    Pass a dict of {experiment_name: dataset_key} instead of a string if a
-    different key is needed per experiment (e.g. the CM3 reference using a
-    different naming convention to the OM3/OM2 ones).
-
-    An experiment that fails to load (e.g. its name doesn't resolve in your
-    catalog, or dataset_key is wrong for it) is skipped with a printed
-    warning rather than failing the whole load, since not every reference is
-    guaranteed reachable from every environment.
+def load_default_om3_reference_datasets(
+    variables=None, realm="ocean", frequency="1mon"
+):
+    """Load the ACCESS-OM2 reference experiment(s) overlaid by default in
+    plot_ocean_global_scalars.
     """
-    access_nri_cat = data._load_access_nri_catalog("OM2", filter=True)
+    variables = variables or OM3_GLOBAL_SCALARS
 
     references = {}
     for name in DEFAULT_OM3_TIMESERIES_REFERENCES:
-        model = access_nri_cat.search(name=name).to_source()
-        references[name] = data._build_data_object(model, dataset_key)
+        model = data._load_access_nri_experiment(name)
+        matched = model.search(realm=realm, frequency=frequency, variable=variables)
+        keys = matched.keys()
+        if not keys:
+            raise KeyError(
+                f"No catalog entries for experiment {name!r} matching "
+                f"realm={realm!r}, frequency={frequency!r}, variable in "
+                f"{list(variables)}. Available keys: {model.keys()}"
+            )
+
+        datasets = [data._build_data_object(model, key) for key in keys]
+        references[name] = (
+            xr.merge(datasets, compat="override") if len(datasets) > 1 else datasets[0]
+        )
 
     return references
 
