@@ -25,6 +25,7 @@ from xclim.core.utils import InputKind
 SUPPLEMENTARY_DIRECT_MAPPINGS = {
     "temp_global_ave": ("thetaoga", "degC"),
     "temp_surface_ave": ("tosga", "degC"),
+    "sst": ("thetaoga", "degC"),
 }
 
 
@@ -350,6 +351,14 @@ def sst_anomaly_nino34(
 
 OM3_GLOBAL_SCALARS = ["masso", "thetaoga", "soga", "tosga", "sosga"]
 
+# {"model name": "path to intake-esm datastore JSON"}
+DEFAULT_REFERENCE_CATALOGS = {
+    "MC_25km_jra_iaf-1.0-beta-5165c0f8": "/g/data/ol01/outputs/access-om3-25km/MC_25km_jra_iaf-1.0-beta-5165c0f8/datastore.json",
+    "MC_25km_jra_iaf+wombatlite-test3v2-00532b88": "/g/data/ol01/outputs/access-om3-25km/MC_25km_jra_iaf+wombatlite-test3v2-00532b88/datastore.json",
+    "cm3-datastore": "/g/data/zv30/non-cmip/ACCESS-CM3/cm3-run-03-06-2026/cm3-datastore/cm3-datastore.json",
+    "MC_25km_jra_iaf+wombatlite-test4-d28e0359": "/g/data/ol01/outputs/access-om3-25km/MC_25km_jra_iaf+wombatlite-test4-d28e0359/datastore.json",
+}
+
 
 def plot_ocean_global_scalars(
     datasets=None,
@@ -360,8 +369,14 @@ def plot_ocean_global_scalars(
     include_default_references=True,
     show_rolling_mean=True,
     rolling_target_days=365,
+    reference_catalogs=None,
 ):
     """Compare global ocean scalar diagnostics across one or more datasets.
+
+    reference_catalogs: optional {"model name": "datastore path"} dict of
+    intake-esm datastore JSONs to load as references. If given, it replaces
+    all default references (DEFAULT_REFERENCE_CATALOGS and the ACCESS-OM2
+    reference). Ignored if include_default_references is False.
 
     Returns the matplotlib Figure (one subplot per variable).
     """
@@ -369,8 +384,11 @@ def plot_ocean_global_scalars(
     variables = variables or list(OM3_GLOBAL_SCALARS)
 
     if include_default_references:
-        # 1. ACCESS-OM2 Reference
-        if "025deg_jra55_iaf_omip2_cycle1" not in datasets:
+        # 1. ACCESS-OM2 Reference (skipped when the user overrides references)
+        if (
+            reference_catalogs is None
+            and "025deg_jra55_iaf_omip2_cycle1" not in datasets
+        ):
             try:
                 datastore = intake.cat.access_nri["025deg_jra55_iaf_omip2_cycle1"]
                 datastore = datastore.search(file_id="ocean.1mon.nv:2.scalar_axis:1")
@@ -381,13 +399,9 @@ def plot_ocean_global_scalars(
             except (KeyError, ValueError, OSError) as e:
                 print(f"Warning: Could not load OM2 reference - {e}")
 
-        # 2. ACCESS-OM3 References from the notebook
-        om3_catalogs = {
-            "MC_25km_jra_iaf-1.0-beta-5165c0f8": "/g/data/ol01/outputs/access-om3-25km/MC_25km_jra_iaf-1.0-beta-5165c0f8/datastore.json",
-            "MC_25km_jra_iaf+wombatlite-test3v2-00532b88": "/g/data/ol01/outputs/access-om3-25km/MC_25km_jra_iaf+wombatlite-test3v2-00532b88/datastore.json",
-            "cm3-datastore": "/g/data/zv30/non-cmip/ACCESS-CM3/cm3-run-03-06-2026/cm3-datastore/cm3-datastore.json",
-            "MC_25km_jra_iaf+wombatlite-test4-d28e0359": "/g/data/ol01/outputs/access-om3-25km/MC_25km_jra_iaf+wombatlite-test4-d28e0359/datastore.json",
-        }
+        # 2. ACCESS-OM3/CM3 reference datastores (or the user's overrides)
+        if reference_catalogs is None:
+            reference_catalogs = DEFAULT_REFERENCE_CATALOGS
 
         xarray_kwargs = {
             "compat": "override",
@@ -395,7 +409,7 @@ def plot_ocean_global_scalars(
             "coords": "minimal",
         }
 
-        for name, path in om3_catalogs.items():
+        for name, path in reference_catalogs.items():
             if name in datasets:
                 continue
             try:
