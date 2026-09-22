@@ -353,22 +353,56 @@ def plot_ocean_global_scalars(
 
     Returns the matplotlib Figure (one subplot per variable).
     """
-    datastore = intake.cat.access_nri["025deg_jra55_iaf_omip2_cycle1"]
-    datastore = datastore.search(file_id="ocean.1mon.nv:2.scalar_axis:1")
-    dataset = datastore.to_dask()
-    dataset = clean_access_dataset(dataset)
-    # Add it to the dictionary
-    datasets["025deg_jra55_iaf_omip2_cycle1"] = dataset
-
+    datasets = datasets or {}
     variables = variables or list(OM3_GLOBAL_SCALARS)
+
+    if include_default_references:
+        # 1. ACCESS-OM2 Reference
+        if "025deg_jra55_iaf_omip2_cycle1" not in datasets:
+            try:
+                datastore = intake.cat.access_nri["025deg_jra55_iaf_omip2_cycle1"]
+                datastore = datastore.search(file_id="ocean.1mon.nv:2.scalar_axis:1")
+                dataset = datastore.to_dask()
+                datasets["025deg_jra55_iaf_omip2_cycle1"] = clean_access_dataset(
+                    dataset
+                )
+            except (KeyError, ValueError, OSError) as e:
+                print(f"Warning: Could not load OM2 reference - {e}")
+
+        # 2. ACCESS-OM3 References from the notebook
+        om3_catalogs = {
+            "MC_25km_jra_iaf-1.0-beta-5165c0f8": "/g/data/ol01/outputs/access-om3-25km/MC_25km_jra_iaf-1.0-beta-5165c0f8/datastore.json",
+            "MC_25km_jra_iaf+wombatlite-test3v2-00532b88": "/g/data/ol01/outputs/access-om3-25km/MC_25km_jra_iaf+wombatlite-test3v2-00532b88/datastore.json",
+            "cm3-datastore": "/g/data/zv30/non-cmip/ACCESS-CM3/cm3-run-03-06-2026/cm3-datastore/cm3-datastore.json",
+            "MC_25km_jra_iaf+wombatlite-test4-d28e0359": "/g/data/ol01/outputs/access-om3-25km/MC_25km_jra_iaf+wombatlite-test4-d28e0359/datastore.json",
+        }
+
+        xarray_kwargs = {
+            "compat": "override",
+            "data_vars": "minimal",
+            "coords": "minimal",
+        }
+
+        for name, path in om3_catalogs.items():
+            if name in datasets:
+                continue
+            try:
+                ds = intake.open_esm_datastore(
+                    path, columns_with_iterables=["variable"]
+                )
+                ds = ds.search(variable=variables)
+                dataset = ds.to_dask(xarray_combine_by_coords_kwargs=xarray_kwargs)
+                datasets[name] = clean_access_dataset(dataset)
+            except (KeyError, ValueError, OSError) as e:
+                print(f"Warning: Could not load {name} - {e}")
 
     fig, axes = plt.subplots(
         len(variables), 1, figsize=(10, 3 * len(variables)), sharex=True, squeeze=False
     )
     axes = axes[:, 0]
 
-    # Shared across subplots so the same dataset gets the same color on
-    # every variable's plot, not a fresh color cycle per subplot.
+    # Shared across subplots so the same dataset gets the same colour on
+    # every variable's plot, not a fresh colour cycle per subplot.
     color_cycle = itertools.cycle(plt.rcParams["axes.prop_cycle"].by_key()["color"])
     label_colors = {}
 
@@ -384,8 +418,6 @@ def plot_ocean_global_scalars(
             try:
                 real_spatial_dims = set(spatial_reduction_dims(dataset, x_dim, y_dim))
             except KeyError:
-                # x_dim/y_dim aren't coordinates on this dataset at all -
-                # e.g. an already-scalar diagnostic with no grid dims.
                 real_spatial_dims = {x_dim, y_dim}
 
             data = select_extra_dims(
