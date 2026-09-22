@@ -162,33 +162,3 @@ def _load_access_nri_catalog(model_type, filter=True):
     else:
         # Filter catalog by model type
         return catalog.search(model=f".*{model_type.upper()}.*")
-
-
-def _load_access_nri_experiment(name):
-    """
-    Load a single named experiment directly from the top-level ACCESS-NRI
-    metacatalog. Private.
-
-    Deliberately does NOT go through _load_access_nri_catalog's
-    model-type pre-filter (`catalog.search(model=...)`) first. That filter
-    is correct for _load_access_nri_catalog's own use case (narrowing down
-    to the user's own model type before they pick an experiment by hand),
-    but an experiment's metacatalog row(s) aren't guaranteed to all carry a
-    'model' tag matching the expected model-type regex - filtering by model
-    type before searching by experiment name can silently return a narrower
-    datastore for that name than a direct by-name lookup would, missing
-    sub-datasets (e.g. certain file_id groups) that a direct lookup finds.
-    Indexing by name directly, as this does, sidesteps that.
-
-    Parameters
-    ----------
-    name : str
-        Experiment name as it appears in the ACCESS-NRI catalog's 'name'
-        field.
-
-    Returns
-    ----------
-    Intake-ESM datastore (or AliasedESMCatalog) for the named experiment.
-    """
-
-    return intake.cat.access_nri[name]

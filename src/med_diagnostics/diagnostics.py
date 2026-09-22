@@ -18,7 +18,7 @@ import xclim.indices as xcl
 from xclim.core.indicator import Indicator
 from xclim.core.utils import InputKind
 
-from . import data
+from med_diagnostics import data
 
 
 def clean_access_dataset(dataset, master_map_path=None):
