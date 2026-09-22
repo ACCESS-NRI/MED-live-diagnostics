@@ -6,14 +6,12 @@
 import csv
 import inspect
 import types
-import warnings
 from contextlib import nullcontext
 from importlib import resources
 
 import matplotlib.pyplot as plt
 import nc_time_axis  # noqa: F401 - registers matplotlib's cftime unit converter
 import numpy as np
-import pandas as pd
 import xclim.indicators
 import xclim.indices as xcl
 from xclim.core.indicator import Indicator
@@ -592,56 +590,19 @@ def get_indicator_kwarg_options(realm, indicator_name):
     return kwarg_options
 
 
-_FREQ_BUCKET_THRESHOLDS_DAYS = (
-    (0.75, "h"),
-    (4, "D"),
-    (15, "7D"),
-    (200, "MS"),
-)
-
-
-def _freq_bucket_from_step_days(step_days):
-    """Classify a median timestep (in days) into a coarse frequency bucket:
-    'h' (sub-daily), 'D' (daily), '7D' (weekly), 'MS' (monthly), or 'YS'
-    (yearly+). Tolerant of the real-world irregularity `xr.infer_freq`
-    rejects outright - e.g. mid-month timestamps under a standard calendar,
-    where consecutive gaps vary between 28 and 31 days, still bucket
-    cleanly as monthly here.
-    """
-    for threshold, bucket in _FREQ_BUCKET_THRESHOLDS_DAYS:
-        if step_days < threshold:
-            return bucket
-    return "YS"
-
-
-def _freq_bucket_from_offset_str(freq_str):
-    """Classify an xclim `src_freq` string (e.g. 'D', 'MS', '7D', 'h') into
-    the same coarse buckets `_freq_bucket_from_step_days` produces, so a
-    dataset's inferred bucket and an indicator's expected bucket(s) can be
-    compared directly.
-    """
-    with warnings.catch_warnings():
-        # Some xclim indicators still report legacy aliases (e.g. 'M', 'H')
-        # that pandas accepts but warns are deprecated in favour of 'ME'/'h'.
-        warnings.simplefilter("ignore", FutureWarning)
-        offset = pd.tseries.frequencies.to_offset(freq_str)
-
-    if offset.name == "h":
-        return "h"
-    if offset.name == "D":
-        return "7D" if offset.n == 7 else "D"
-    if offset.name in ("MS", "ME"):
-        return "MS"
-    if offset.name in ("YS", "YE"):
-        return "YS"
-    return None
-
-
 def get_indicator_expected_freq(realm, ind_name):
     """
     Returns the input time-step frequency (or frequencies) an xclim
-    indicator's compute function expects, e.g. 'D' for a daily-threshold
-    indicator, or None if the indicator is frequency-agnostic.
+    indicator's compute function is designed for, e.g. 'D' for a
+    daily-threshold indicator, or None if the indicator is
+    frequency-agnostic. Purely informational (e.g. for a UI to show "this
+    indicator expects daily data") - xclim itself doesn't refuse to run an
+    indicator on a different frequency (with MED's `data_validation="log"`
+    setting, a mismatch is only ever logged, never raised), so this is
+    deliberately not used to filter `discover_indicators`'s results:
+    doing so previously excluded indicators (e.g. `tg_mean`, `tg_days_above`
+    on monthly data, `chill_units` on daily data) that ran and produced
+    real output despite the nominal frequency mismatch.
 
     Sourced directly from xclim's own `Indicator.src_freq` rather than a
     hand-maintained allowlist, so every indicator is covered correctly
@@ -660,10 +621,7 @@ def get_indicator_expected_freq(realm, ind_name):
 def discover_indicators(dataset, realm):
     """
     Scans a realm and separates indicators into those that can run automatically
-    and those that require manual variable mapping. Indicators whose expected
-    input frequency doesn't match the dataset's inferred time frequency are
-    excluded from both lists, since they fundamentally cannot run on this
-    dataset regardless of variable mapping.
+    and those that require manual variable mapping.
     """
     available_vars = set(dataset.data_vars)
     all_indicators = get_realm_indicators(realm)
@@ -671,40 +629,14 @@ def discover_indicators(dataset, realm):
     auto_ready = []
     needs_mapping = {}
 
-    # Bucket the dataset's time frequency ('h'/'D'/'7D'/'MS'/'YS') from its
-    # median timestep rather than `xr.infer_freq`, which demands an exactly
-    # regular index and returns None for perfectly ordinary climate data -
-    # e.g. monthly-mean output timestamped mid-month under a standard
-    # calendar has a 28-31 day gap depending on the month, so it never
-    # infers a plain 'MS'/'ME' frequency even though it plainly is monthly.
-    # Left as None - and so never used to reject an indicator below - when
-    # there's no time coordinate or too few steps to get a stable median from.
-    ds_freq_bucket = None
-    if "time" in dataset.coords and dataset.sizes.get("time", 0) >= 3:
-        step_days = median_timestep_days(dataset["time"])
-        if step_days > 0:
-            ds_freq_bucket = _freq_bucket_from_step_days(step_days)
-
     for ind_name in all_indicators:
         required_vars = get_indicator_data_requirements(realm, ind_name)
         missing_vars = [var for var in required_vars if var not in available_vars]
 
-        expected_freqs = get_indicator_expected_freq(realm, ind_name)
-        expected_buckets = {
-            _freq_bucket_from_offset_str(f) for f in (expected_freqs or [])
-        }
-        freq_is_valid = (
-            ds_freq_bucket is None
-            or not expected_buckets
-            or ds_freq_bucket in expected_buckets
-        )
-
         if missing_vars:
             needs_mapping[ind_name] = missing_vars
-        elif freq_is_valid:
+        else:
             auto_ready.append(ind_name)
-        # Else: variables are present but the frequency doesn't match, so
-        # it's intentionally excluded from both lists.
 
     return auto_ready, needs_mapping
 
