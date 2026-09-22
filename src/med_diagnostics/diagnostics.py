@@ -14,6 +14,7 @@ import numpy as np
 import xclim.indicators
 import xclim.indices as xcl
 from xclim.core.indicator import Indicator
+from xclim.core.utils import InputKind
 
 
 def clean_access_dataset(dataset, master_map_path=None):
@@ -397,22 +398,37 @@ def get_indicator_inputs(realm: str, indicator_name: str) -> dict:
 
 
 def run_xclim_indicator(
-    dataset, realm, indicator_name, var_mapping, xdim, ydim, spatial_mean=True, **kwargs
+    dataset,
+    realm,
+    indicator_name,
+    xdim,
+    ydim,
+    var_mapping=None,
+    spatial_mean=True,
+    **kwargs,
 ):
     """
     Universal wrapper to run any xclim.indicator on a spatially averaged dataset.
 
     Assumes `dataset` has already been passed through clean_access_dataset, so
-    every variable named in var_mapping already carries CMIP6-compliant units
-    in its attrs.
+    a variable's CMIP6 short name (e.g. 'tasmin') is also the xclim argument
+    name it's meant for, and it already carries CMIP6-compliant units in its
+    attrs.
 
     Parameters:
     - dataset: xarray.Dataset containing the data.
     - realm: String of the xclim realm (e.g., 'atmos', 'land', 'seaIce').
     - indicator_name: String of the xclim indicator to use (e.g., 'tg_days_above').
-    - var_mapping: Dictionary mapping the xclim argument name to your dataset's variable name
-                   (e.g., {'tasmin': 'my_tmin_data', 'tasmax': 'my_tmax_data'}).
-    - xdim, ydim: Strings of the spatial dimensions (e.g., 'lon', 'lat').
+    - xdim, ydim: Strings of the spatial dimensions (e.g., 'lon', 'lat'). Not
+      touched by clean_access_dataset - still model/grid-dependent (e.g.
+      atmos 'lon'/'lat' vs ocean 'xt_ocean'/'yt_ocean').
+    - var_mapping: Optional dictionary mapping an xclim argument name to a
+                   different dataset variable name (e.g.,
+                   {'tasmin': 'tasmin_fld_s30i206'}). Only needed to override
+                   the default identity mapping - e.g. when
+                   clean_access_dataset fell back to a collision-safe name,
+                   or the variable was never auto-renamed to its CMIP6 name
+                   (any stash code needing a multi-variable calculation).
     - **kwargs: Any extra arguments the specific xclim indicator requires (thresh, freq, etc.).
     """
 
@@ -425,6 +441,19 @@ def run_xclim_indicator(
     indicator = getattr(submodule, indicator_name, None)
     if not isinstance(indicator, Indicator):
         raise TypeError(f"'{indicator_name}' is not a valid Indicator in '{realm}'.")
+
+    # Default to an identity mapping (CMIP6 name == xclim arg name) for every
+    # climate-variable argument the indicator takes that's actually present
+    # in the dataset; explicit var_mapping entries override the default.
+    variable_args = {
+        name
+        for name, param in indicator.parameters.items()
+        if param.kind in (InputKind.VARIABLE, InputKind.OPTIONAL_VARIABLE)
+    }
+    default_var_mapping = {
+        arg: arg for arg in variable_args if arg in dataset.variables
+    }
+    var_mapping = {**default_var_mapping, **(var_mapping or {})}
 
     # Calculate spatial weights once
     if spatial_mean:
