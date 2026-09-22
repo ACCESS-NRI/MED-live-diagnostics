@@ -3,6 +3,7 @@
 
 """This is a placeholder for diagnostic recipes / scripting"""
 
+import csv
 import types
 
 import matplotlib.pyplot as plt
@@ -11,6 +12,59 @@ import numpy as np
 import xclim.indicators
 import xclim.indices as xcl
 from xclim.core.indicator import Indicator
+
+
+def clean_access_dataset(dataset, master_map_path="master_map.csv"):
+    """
+    Cleans an ACCESS/UM dataset into a CMIP6-standard format for xclim
+    by dynamically reading the ACCESS-NRI master_map.csv file.
+    https://github.com/ACCESS-Community-Hub/APP4/blob/master/input_files/master_map.csv
+    """
+
+    stash_to_cmip = {}
+    cmip_units = {}
+
+    # 1. Parse the master_map.csv to build translation dictionaries
+    with open(master_map_path, mode="r") as file:
+        # Skip commented header lines and read as CSV
+        reader = csv.reader(filter(lambda row: not row.startswith("#"), file))
+
+        for row in reader:
+            # Check if row has enough columns based on the master_map structure
+            if len(row) < 5:
+                continue
+
+            cmip_var = row[0].strip()
+            access_vars = row[2].strip()
+            calculation = row[3].strip()
+            units = row[4].strip()
+
+            # For lightweight UI sanitisation, we only automatically map
+            # variables that are direct 1-to-1 translations
+            # (i.e., no spaces indicating multiple vars, and no complex calculation strings)
+            if " " not in access_vars and not calculation:
+                stash_to_cmip[access_vars] = cmip_var
+                cmip_units[cmip_var] = units
+
+    # 2. Rename variables found in the dataset
+    # Only attempt to rename variables that actually exist in the current subset
+    rename_dict = {k: v for k, v in stash_to_cmip.items() if k in dataset.variables}
+    clean_ds = dataset.rename(rename_dict)
+
+    # 3. Assign CMIP6 compliant units
+    for var in clean_ds.data_vars:
+        if var in cmip_units:
+            # xclim requires units to be explicitly set in the attributes
+            clean_ds[var].attrs["units"] = cmip_units[var]
+
+    # 4. Safeguard spatial dimensions against being squeezed out later
+    # (Fixes the issue where bounding boxes reduce Tasmania to 1 longitude point)
+    for dim in ["lon", "lat"]:
+        if dim not in clean_ds.dims and dim in clean_ds.coords:
+            clean_ds = clean_ds.expand_dims(dim)
+
+    return clean_ds
+
 
 PREDEFINED_REGIONS = {
     "nino34": {"lat": (-5, 5), "lon": (-170, -120)},
@@ -206,19 +260,23 @@ def sst_anomaly_nino34(
 def tg_days_above_below_helper(
     dataset, var, xdim, ydim, thresh_kelvin, freq="YS", op=">"
 ):
+    """Assumes `dataset` has already been passed through clean_access_dataset,
+    so `var` already carries CMIP6-compliant units in its attrs."""
 
     weights = np.cos(np.deg2rad(dataset[ydim]))
-    spatial_mean = dataset[var].weighted(weights).mean(dim=[xdim, ydim])
+    spatial_mean = (
+        dataset[var].weighted(weights).mean(dim=[xdim, ydim], keep_attrs=True)
+    )
 
-    spatial_mean.attrs["units"] = "degK"
+    thresh = f"{thresh_kelvin} {spatial_mean.attrs['units']}"
 
     if op in ["<", "lt", "<=", "le"]:
         convective_periods_per_year = xcl.tg_days_below(
-            tas=spatial_mean, thresh=f"{thresh_kelvin} degK", freq=freq, op=op
+            tas=spatial_mean, thresh=thresh, freq=freq, op=op
         )
     else:
         convective_periods_per_year = xcl.tg_days_above(
-            tas=spatial_mean, thresh=f"{thresh_kelvin} degK", freq=freq, op=op
+            tas=spatial_mean, thresh=thresh, freq=freq, op=op
         )
 
     fig, ax = plt.subplots(figsize=(12, 6))
@@ -231,10 +289,13 @@ def tg_days_above_below_helper(
 
 
 def run_xclim_index(
-    dataset, var_name, index_name, units, xdim, ydim, xclim_arg="tas", **kwargs
+    dataset, var_name, index_name, xdim, ydim, xclim_arg="tas", **kwargs
 ):
     """
     Universal wrapper to run any xclim.indices function on a spatially averaged dataset.
+
+    Assumes `dataset` has already been passed through clean_access_dataset, so
+    `var_name` already carries CMIP6-compliant units in its attrs.
 
     Parameters:
     - index_name: String of the xclim function to use (e.g., 'tg_days_above').
@@ -242,12 +303,11 @@ def run_xclim_index(
     - **kwargs: Any extra arguments the specific xclim function requires (thresh, freq, etc.).
     """
 
-    # Apply spatial weighting and mean
+    # Apply spatial weighting and mean, preserving the cleaned units attrs
     weights = np.cos(np.deg2rad(dataset[ydim]))
-    spatial_mean = dataset[var_name].weighted(weights).mean(dim=[xdim, ydim])
-
-    # Apply units honestly
-    spatial_mean.attrs["units"] = units
+    spatial_mean = (
+        dataset[var_name].weighted(weights).mean(dim=[xdim, ydim], keep_attrs=True)
+    )
 
     # Retrieve the requested function dynamically from the xclim package
     try:
@@ -296,10 +356,14 @@ def get_indicator_inputs(realm: str, indicator_name: str) -> dict:
 
 
 def run_xclim_indicator(
-    dataset, realm, indicator_name, var_mapping, xdim, ydim, units=None, **kwargs
+    dataset, realm, indicator_name, var_mapping, xdim, ydim, spatial_mean=True, **kwargs
 ):
     """
     Universal wrapper to run any xclim.indicator on a spatially averaged dataset.
+
+    Assumes `dataset` has already been passed through clean_access_dataset, so
+    every variable named in var_mapping already carries CMIP6-compliant units
+    in its attrs.
 
     Parameters:
     - dataset: xarray.Dataset containing the data.
@@ -308,9 +372,6 @@ def run_xclim_indicator(
     - var_mapping: Dictionary mapping the xclim argument name to your dataset's variable name
                    (e.g., {'tasmin': 'my_tmin_data', 'tasmax': 'my_tmax_data'}).
     - xdim, ydim: Strings of the spatial dimensions (e.g., 'lon', 'lat').
-    - units: String or Dictionary. If a string, applies to all variables.
-             If a dict, maps units by xclim argument name (e.g., {'tasmin': 'degC', 'pr': 'mm/day'}).
-             If None, relies on existing dataset units.
     - **kwargs: Any extra arguments the specific xclim indicator requires (thresh, freq, etc.).
     """
 
@@ -325,18 +386,17 @@ def run_xclim_indicator(
         raise TypeError(f"'{indicator_name}' is not a valid Indicator in '{realm}'.")
 
     # Calculate spatial weights once
-    weights = np.cos(np.deg2rad(dataset[ydim]))
+    if spatial_mean:
+        weights = np.cos(np.deg2rad(dataset[ydim]))
 
     # Process each variable in the mapping
     for xclim_arg, dataset_var in var_mapping.items():
-        # Apply spatial weighting and mean
-        spatial_mean = dataset[dataset_var].weighted(weights).mean(dim=[xdim, ydim])
-
-        # Apply units honestly
-        if isinstance(units, dict) and xclim_arg in units:
-            spatial_mean.attrs["units"] = units[xclim_arg]
-        elif isinstance(units, str):
-            spatial_mean.attrs["units"] = units
+        # Apply spatial weighting and mean, preserving the cleaned units attrs
+        spatial_mean = (
+            dataset[dataset_var]
+            .weighted(weights)
+            .mean(dim=[xdim, ydim], keep_attrs=True)
+        )
 
         # Inject the processed spatial mean into the kwargs
         kwargs[xclim_arg] = spatial_mean
