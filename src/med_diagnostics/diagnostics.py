@@ -19,6 +19,14 @@ import xclim.indices as xcl
 from xclim.core.indicator import Indicator
 from xclim.core.utils import InputKind
 
+# Direct 1-to-1 renames (access_var -> (cmip_var, units)) that master_map.csv
+# doesn't provide because it only defines these CMIP6 variables as
+# calculations from 3D fields. MOM5 also outputs them precomputed as scalars.
+SUPPLEMENTARY_DIRECT_MAPPINGS = {
+    "temp_global_ave": ("thetaoga", "degC"),
+    "temp_surface_ave": ("tosga", "degC"),
+}
+
 
 def clean_access_dataset(dataset, master_map_path=None):
     """
@@ -68,6 +76,10 @@ def clean_access_dataset(dataset, master_map_path=None):
                 # letting a later row silently overwrite an earlier one.
                 stash_to_cmip[access_vars] = cmip_var
                 cmip_units[cmip_var] = units
+
+    for access_var, (cmip_var, units) in SUPPLEMENTARY_DIRECT_MAPPINGS.items():
+        stash_to_cmip.setdefault(access_var, cmip_var)
+        cmip_units.setdefault(cmip_var, units)
 
     # 2. Safely build the rename dictionary to prevent Xarray conflicts
     rename_dict = {}
