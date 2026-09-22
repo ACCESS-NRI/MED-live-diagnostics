@@ -364,11 +364,13 @@ def load_default_om3_reference_datasets(dataset_key="ocean.1mon.nv:2.scalar_axis
     warning rather than failing the whole load, since not every reference is
     guaranteed reachable from every environment.
     """
-    catalog = data._load_access_nri_catalog("OM2", filter=True)
+    access_nri_cat = data._load_access_nri_catalog("OM2", filter=True)
 
     references = {}
     for name in DEFAULT_OM3_TIMESERIES_REFERENCES:
-        references[name] = data._build_data_object(catalog, dataset_key)
+        model = access_nri_cat.search(name=name).to_source()
+        references[name] = data._build_data_object(model, dataset_key)
+
     return references
 
 
