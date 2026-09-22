@@ -488,3 +488,89 @@ def get_indicator_groups() -> list[str]:
         if isinstance(getattr(xclim.indicators, name), types.ModuleType)
         and not name.startswith("_")
     ]
+
+
+def get_indicator_data_requirements(realm, indicator_name):
+    """
+    Extracts the expected CF variable names (e.g., 'tas', 'pr') that an xclim indicator requires.
+    """
+    indicator = getattr(getattr(xclim.indicators, realm), indicator_name)
+    required_vars = []
+
+    for arg_name, meta in indicator.parameters.items():
+        # Identify data arguments: they either have 'DataArray' in their type,
+        # or their default value is flagged as MISSING by xclim.
+        is_data_array = "DataArray" in str(meta.get("type", ""))
+        is_missing_default = meta.get("default").__class__.__name__ == "MISSING"
+
+        if (is_data_array or is_missing_default) and arg_name != "ds":
+            required_vars.append(arg_name)
+
+    return required_vars
+
+
+def discover_indicators(dataset, realm):
+    """
+    Scans a realm and separates indicators into those that can run automatically
+    and those that require manual variable mapping.
+    """
+    available_vars = set(dataset.data_vars)
+    all_indicators = get_realm_indicators(realm)
+
+    auto_ready = []
+    needs_mapping = {}
+
+    for ind_name in all_indicators:
+        required_vars = get_indicator_data_requirements(realm, ind_name)
+
+        missing_vars = [var for var in required_vars if var not in available_vars]
+
+        if not missing_vars:
+            auto_ready.append(ind_name)
+        else:
+            needs_mapping[ind_name] = missing_vars
+
+    return auto_ready, needs_mapping
+
+
+def simulate_ui_run(
+    dataset, realm, indicator_name, manual_mapping=None, spatial_mean=True, **kwargs
+):
+    """
+    Simulates the UI execution step. It auto-matches available variables
+    and applies any manual mappings provided by the user.
+    """
+    manual_mapping = manual_mapping or {}
+    available_vars = set(dataset.data_vars)
+    required_vars = get_indicator_data_requirements(realm, indicator_name)
+
+    final_mapping = {}
+
+    for req_var in required_vars:
+        if req_var in manual_mapping:
+            # User manually mapped this input (e.g., they assigned 'tas_fld_s00i010' to 'tas')
+            final_mapping[req_var] = manual_mapping[req_var]
+        elif req_var in available_vars:
+            # Auto-matched from the cleaned dataset
+            final_mapping[req_var] = req_var
+        else:
+            raise ValueError(
+                f"Missing input: '{req_var}'. The dataset does not contain this variable, "
+                f"and it was not provided in the manual_mapping dictionary."
+            )
+
+    print(f"Executing {indicator_name} with mapping: {final_mapping}")
+
+    with xclim.set_options(data_validation="log", check_missing="skip"):
+        result = run_xclim_indicator(
+            dataset=dataset,
+            realm=realm,
+            indicator_name=indicator_name,
+            var_mapping=final_mapping,
+            xdim="lon",
+            ydim="lat",
+            spatial_mean=spatial_mean,
+            **kwargs,
+        )
+
+    return result
