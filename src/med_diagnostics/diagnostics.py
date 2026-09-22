@@ -356,6 +356,7 @@ def plot_ocean_global_scalars(
     datastore = intake.cat.access_nri["025deg_jra55_iaf_omip2_cycle1"]
     datastore = datastore.search(file_id="ocean.1mon.nv:2.scalar_axis:1")
     dataset = datastore.to_dask()
+    dataset = clean_access_dataset(dataset)
     # Add it to the dictionary
     datasets["025deg_jra55_iaf_omip2_cycle1"] = dataset
 
