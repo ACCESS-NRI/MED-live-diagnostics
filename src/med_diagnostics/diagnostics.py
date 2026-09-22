@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import nc_time_axis  # noqa: F401 - registers matplotlib's cftime unit converter
 import numpy as np
 import pandas as pd
-import xarray as xr
 import xclim.indicators
 import xclim.indices as xcl
 from xclim.core.indicator import Indicator
@@ -208,6 +207,21 @@ def calc_anomolies(dataset, lon_dim, lat_dim, var, extra_dim_selectors=None):
     return index_nino34
 
 
+def median_timestep_days(time_da):
+    """Median spacing between consecutive time steps, in days.
+
+    Cftime-safe: `numpy.diff` on an `object`-dtype cftime time axis (e.g.
+    360_day/noleap calendars) yields `datetime.timedelta` objects rather
+    than `numpy.timedelta64`, so the two dtypes need separate handling.
+    Shared by `rolling_window_size` (window sizing) and `discover_indicators`
+    (dataset frequency detection).
+    """
+    diffs = np.diff(time_da.values)
+    if diffs.dtype == object:
+        return np.median([d.days + d.seconds / 86400 for d in diffs])
+    return np.median(diffs / np.timedelta64(1, "D"))
+
+
 def rolling_window_size(time_da, target_days=150):
     """Approximate a 5-month (150 day) rolling window in native timesteps.
 
@@ -222,12 +236,7 @@ def rolling_window_size(time_da, target_days=150):
     n = time_da.size
     if n <= 1:
         return 1
-    diffs = np.diff(time_da.values)
-    if diffs.dtype == object:
-        # cftime diffs are datetime.timedelta objects
-        step_days = np.median([d.days + d.seconds / 86400 for d in diffs])
-    else:
-        step_days = np.median(diffs / np.timedelta64(1, "D"))
+    step_days = median_timestep_days(time_da)
     window = max(1, round(target_days / step_days)) if step_days > 0 else 5
     return min(window, n)
 
@@ -352,7 +361,15 @@ def run_xclim_index(
     # Apply spatial weighting and mean, preserving the cleaned units attrs
     weights = np.cos(np.deg2rad(dataset[ydim]))
     spatial_mean = (
-        dataset[var_name].weighted(weights).mean(dim=[xdim, ydim], keep_attrs=True)
+        dataset[var_name]
+        .weighted(weights)
+        .mean(dim=[xdim, ydim], keep_attrs=True)
+        # Load eagerly - see the matching comment in run_xclim_indicator:
+        # dask-backed input into a run-length-encoding-based xclim index
+        # can hit a dask-only ZeroDivisionError when a resample group has
+        # very few timesteps. `spatial_mean` is small by this point, so
+        # loading it is cheap.
+        .load()
     )
 
     # Retrieve the requested function dynamically from the xclim package
@@ -465,15 +482,27 @@ def run_xclim_indicator(
 
     # Process each variable in the mapping
     for xclim_arg, dataset_var in var_mapping.items():
-        # Apply spatial weighting and mean, preserving the cleaned units attrs
-        spatial_mean = (
-            dataset[dataset_var]
-            .weighted(weights)
-            .mean(dim=[xdim, ydim], keep_attrs=True)
-        )
+        data = dataset[dataset_var]
 
-        # Inject the processed spatial mean into the kwargs
-        kwargs[xclim_arg] = spatial_mean
+        if spatial_mean:
+            # Apply spatial weighting and mean, preserving the cleaned units attrs
+            data = data.weighted(weights).mean(dim=[xdim, ydim], keep_attrs=True)
+
+            # Load eagerly: by this point `data` is only a small
+            # per-timestep spatial mean, cheap to bring into memory. Many
+            # xclim indicators built on run-length encoding (spell
+            # duration, heat-wave, growing-season, etc.) resample-then-
+            # shift/pad along "time" internally, which hits a dask-only
+            # `ZeroDivisionError` deep in dask's array-padding code - a
+            # dask/xarray bug, not a data problem - whenever a resample
+            # group has very few timesteps (e.g. the still-accumulating
+            # current period of a live, still-running model). Loading
+            # sidesteps it entirely; rechunking does not (verified: it
+            # still reproduces on a single-chunk dask array).
+            data = data.load()
+
+        # Inject the processed variable into the kwargs
+        kwargs[xclim_arg] = data
 
     # Execute the xclim indicator with all provided arguments
     result = indicator(**kwargs)
@@ -563,18 +592,49 @@ def get_indicator_kwarg_options(realm, indicator_name):
     return kwarg_options
 
 
-def _normalize_freq(freq):
-    """Canonicalize a pandas/xarray frequency string so equivalent aliases
-    compare equal (e.g. 'M' and 'ME' both mean month-end; 'YS' and 'YS-JAN'
-    are the same year-start anchor written two ways). Returns None as-is.
+_FREQ_BUCKET_THRESHOLDS_DAYS = (
+    (0.75, "h"),
+    (4, "D"),
+    (15, "7D"),
+    (200, "MS"),
+)
+
+
+def _freq_bucket_from_step_days(step_days):
+    """Classify a median timestep (in days) into a coarse frequency bucket:
+    'h' (sub-daily), 'D' (daily), '7D' (weekly), 'MS' (monthly), or 'YS'
+    (yearly+). Tolerant of the real-world irregularity `xr.infer_freq`
+    rejects outright - e.g. mid-month timestamps under a standard calendar,
+    where consecutive gaps vary between 28 and 31 days, still bucket
+    cleanly as monthly here.
     """
-    if freq is None:
-        return None
+    for threshold, bucket in _FREQ_BUCKET_THRESHOLDS_DAYS:
+        if step_days < threshold:
+            return bucket
+    return "YS"
+
+
+def _freq_bucket_from_offset_str(freq_str):
+    """Classify an xclim `src_freq` string (e.g. 'D', 'MS', '7D', 'h') into
+    the same coarse buckets `_freq_bucket_from_step_days` produces, so a
+    dataset's inferred bucket and an indicator's expected bucket(s) can be
+    compared directly.
+    """
     with warnings.catch_warnings():
         # Some xclim indicators still report legacy aliases (e.g. 'M', 'H')
         # that pandas accepts but warns are deprecated in favour of 'ME'/'h'.
         warnings.simplefilter("ignore", FutureWarning)
-        return pd.tseries.frequencies.to_offset(freq).freqstr
+        offset = pd.tseries.frequencies.to_offset(freq_str)
+
+    if offset.name == "h":
+        return "h"
+    if offset.name == "D":
+        return "7D" if offset.n == 7 else "D"
+    if offset.name in ("MS", "ME"):
+        return "MS"
+    if offset.name in ("YS", "YE"):
+        return "YS"
+    return None
 
 
 def get_indicator_expected_freq(realm, ind_name):
@@ -611,23 +671,32 @@ def discover_indicators(dataset, realm):
     auto_ready = []
     needs_mapping = {}
 
-    # Infer the dataset's time frequency (e.g. 'D', 'MS', 'YS-JAN'). Left as
-    # None - and so never used to reject an indicator below - when there's
-    # no time coordinate or too few steps for xarray to infer a cadence from.
-    ds_freq = None
+    # Bucket the dataset's time frequency ('h'/'D'/'7D'/'MS'/'YS') from its
+    # median timestep rather than `xr.infer_freq`, which demands an exactly
+    # regular index and returns None for perfectly ordinary climate data -
+    # e.g. monthly-mean output timestamped mid-month under a standard
+    # calendar has a 28-31 day gap depending on the month, so it never
+    # infers a plain 'MS'/'ME' frequency even though it plainly is monthly.
+    # Left as None - and so never used to reject an indicator below - when
+    # there's no time coordinate or too few steps to get a stable median from.
+    ds_freq_bucket = None
     if "time" in dataset.coords and dataset.sizes.get("time", 0) >= 3:
-        ds_freq = xr.infer_freq(dataset["time"])
-    ds_freq_norm = _normalize_freq(ds_freq)
+        step_days = median_timestep_days(dataset["time"])
+        if step_days > 0:
+            ds_freq_bucket = _freq_bucket_from_step_days(step_days)
 
     for ind_name in all_indicators:
         required_vars = get_indicator_data_requirements(realm, ind_name)
         missing_vars = [var for var in required_vars if var not in available_vars]
 
         expected_freqs = get_indicator_expected_freq(realm, ind_name)
+        expected_buckets = {
+            _freq_bucket_from_offset_str(f) for f in (expected_freqs or [])
+        }
         freq_is_valid = (
-            ds_freq_norm is None
-            or not expected_freqs
-            or ds_freq_norm in {_normalize_freq(f) for f in expected_freqs}
+            ds_freq_bucket is None
+            or not expected_buckets
+            or ds_freq_bucket in expected_buckets
         )
 
         if missing_vars:
