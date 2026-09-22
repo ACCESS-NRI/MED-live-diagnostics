@@ -6,12 +6,15 @@
 import csv
 import inspect
 import types
+import warnings
 from contextlib import nullcontext
 from importlib import resources
 
 import matplotlib.pyplot as plt
 import nc_time_axis  # noqa: F401 - registers matplotlib's cftime unit converter
 import numpy as np
+import pandas as pd
+import xarray as xr
 import xclim.indicators
 import xclim.indices as xcl
 from xclim.core.indicator import Indicator
@@ -560,10 +563,47 @@ def get_indicator_kwarg_options(realm, indicator_name):
     return kwarg_options
 
 
+def _normalize_freq(freq):
+    """Canonicalize a pandas/xarray frequency string so equivalent aliases
+    compare equal (e.g. 'M' and 'ME' both mean month-end; 'YS' and 'YS-JAN'
+    are the same year-start anchor written two ways). Returns None as-is.
+    """
+    if freq is None:
+        return None
+    with warnings.catch_warnings():
+        # Some xclim indicators still report legacy aliases (e.g. 'M', 'H')
+        # that pandas accepts but warns are deprecated in favour of 'ME'/'h'.
+        warnings.simplefilter("ignore", FutureWarning)
+        return pd.tseries.frequencies.to_offset(freq).freqstr
+
+
+def get_indicator_expected_freq(realm, ind_name):
+    """
+    Returns the input time-step frequency (or frequencies) an xclim
+    indicator's compute function expects, e.g. 'D' for a daily-threshold
+    indicator, or None if the indicator is frequency-agnostic.
+
+    Sourced directly from xclim's own `Indicator.src_freq` rather than a
+    hand-maintained allowlist, so every indicator is covered correctly
+    (not just a handful of hardcoded names) and this stays correct as
+    xclim's indicator set changes.
+    """
+    indicator = getattr(getattr(xclim.indicators, realm), ind_name)
+    src_freq = indicator.src_freq
+
+    if src_freq is None:
+        return None
+
+    return [src_freq] if isinstance(src_freq, str) else list(src_freq)
+
+
 def discover_indicators(dataset, realm):
     """
     Scans a realm and separates indicators into those that can run automatically
-    and those that require manual variable mapping.
+    and those that require manual variable mapping. Indicators whose expected
+    input frequency doesn't match the dataset's inferred time frequency are
+    excluded from both lists, since they fundamentally cannot run on this
+    dataset regardless of variable mapping.
     """
     available_vars = set(dataset.data_vars)
     all_indicators = get_realm_indicators(realm)
@@ -571,15 +611,31 @@ def discover_indicators(dataset, realm):
     auto_ready = []
     needs_mapping = {}
 
+    # Infer the dataset's time frequency (e.g. 'D', 'MS', 'YS-JAN'). Left as
+    # None - and so never used to reject an indicator below - when there's
+    # no time coordinate or too few steps for xarray to infer a cadence from.
+    ds_freq = None
+    if "time" in dataset.coords and dataset.sizes.get("time", 0) >= 3:
+        ds_freq = xr.infer_freq(dataset["time"])
+    ds_freq_norm = _normalize_freq(ds_freq)
+
     for ind_name in all_indicators:
         required_vars = get_indicator_data_requirements(realm, ind_name)
-
         missing_vars = [var for var in required_vars if var not in available_vars]
 
-        if not missing_vars:
-            auto_ready.append(ind_name)
-        else:
+        expected_freqs = get_indicator_expected_freq(realm, ind_name)
+        freq_is_valid = (
+            ds_freq_norm is None
+            or not expected_freqs
+            or ds_freq_norm in {_normalize_freq(f) for f in expected_freqs}
+        )
+
+        if missing_vars:
             needs_mapping[ind_name] = missing_vars
+        elif freq_is_valid:
+            auto_ready.append(ind_name)
+        # Else: variables are present but the frequency doesn't match, so
+        # it's intentionally excluded from both lists.
 
     return auto_ready, needs_mapping
 
