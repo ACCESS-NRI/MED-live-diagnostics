@@ -169,3 +169,29 @@ def test_load_access_nri_catalog(monkeypatch, filter_arg, expected_regex):
     else:
         mock_access_nri_cat.search.assert_not_called()
         assert result == mock_access_nri_cat
+
+
+def test_load_access_nri_experiment_looks_up_name_directly_without_prefiltering(
+    monkeypatch,
+):
+    """Must index the metacatalog directly by experiment name
+    (intake.cat.access_nri[name]) and never go through a model-type
+    `.search(model=...)` pre-filter first - that pre-filter can silently
+    narrow the datastore returned for a given experiment name, since an
+    experiment's metacatalog row(s) aren't guaranteed to all carry a
+    'model' tag matching the expected regex.
+    """
+    mock_access_nri_cat = MagicMock()
+    mock_access_nri_cat.__getitem__.return_value = "experiment_datastore"
+
+    mock_cat = MagicMock()
+    mock_cat.access_nri = mock_access_nri_cat
+    monkeypatch.setattr(data.intake, "cat", mock_cat)
+
+    result = data._load_access_nri_experiment("025deg_jra55_iaf_omip2_cycle1")
+
+    mock_access_nri_cat.__getitem__.assert_called_once_with(
+        "025deg_jra55_iaf_omip2_cycle1"
+    )
+    mock_access_nri_cat.search.assert_not_called()
+    assert result == "experiment_datastore"
