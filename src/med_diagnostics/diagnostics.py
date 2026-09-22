@@ -172,7 +172,12 @@ def extract_region(dataset, region, lon_dim="lon", lat_dim="lat"):
             & (lat_coord >= lat_lo)
             & (lat_coord <= lat_hi)
         )
-        return dataset.where(in_region, drop=True)
+        # `where(..., drop=True)` uses the mask as a fancy indexer, which
+        # xarray refuses for a dask-backed boolean array (its shape after
+        # indexing would be unknown ahead of time). The mask is only
+        # grid-sized (no time dimension), so computing it eagerly is cheap
+        # regardless of how large the full dataset is.
+        return dataset.where(in_region.compute(), drop=True)
 
     return dataset.sel({lat_dim: slice(lat_lo, lat_hi), lon_dim: slice(lon_lo, lon_hi)})
 
