@@ -5,6 +5,8 @@
 
 import csv
 import types
+from contextlib import nullcontext
+from importlib import resources
 
 import matplotlib.pyplot as plt
 import nc_time_axis  # noqa: F401 - registers matplotlib's cftime unit converter
@@ -14,18 +16,31 @@ import xclim.indices as xcl
 from xclim.core.indicator import Indicator
 
 
-def clean_access_dataset(dataset, master_map_path="master_map.csv"):
+def clean_access_dataset(dataset, master_map_path=None):
     """
     Cleans an ACCESS/UM dataset into a CMIP6-standard format for xclim
     by dynamically reading the ACCESS-NRI master_map.csv file.
     https://github.com/ACCESS-Community-Hub/APP4/blob/master/input_files/master_map.csv
+
+    master_map_path: optional override to a custom master_map.csv. If omitted,
+    the copy bundled with the med_diagnostics package is used, located via
+    importlib.resources so it resolves correctly regardless of the caller's
+    working directory (e.g. a notebook started from an arbitrary directory)
+    or how the package was installed (wheel, editable install, zipped egg).
     """
 
     stash_to_cmip = {}
     cmip_units = {}
 
+    if master_map_path is None:
+        map_file_ctx = resources.as_file(
+            resources.files("med_diagnostics").joinpath("master_map.csv")
+        )
+    else:
+        map_file_ctx = nullcontext(master_map_path)
+
     # 1. Parse the master_map.csv to build translation dictionaries
-    with open(master_map_path, mode="r") as file:
+    with map_file_ctx as map_path, open(map_path, mode="r") as file:
         # Skip commented header lines and read as CSV
         reader = csv.reader(filter(lambda row: not row.startswith("#"), file))
 
