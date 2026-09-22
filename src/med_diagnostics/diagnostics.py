@@ -334,6 +334,104 @@ def sst_anomaly_nino34(
     return fig
 
 
+OM3_GLOBAL_SCALARS = ["masso", "thetaoga", "soga", "tosga", "sosga"]
+
+
+def plot_ocean_global_scalars(
+    datasets,
+    variables=None,
+    x_dim="xt_ocean",
+    y_dim="yt_ocean",
+    extra_dim_selectors=None,
+):
+    """Compare global ocean scalar diagnostics across one or more datasets.
+
+    Mirrors the ACCESS-OM3 timeseries-comparison notebook
+    (https://access-om3-paper-1.readthedocs.io/.../notebooks/timeseries/),
+    which overlays each experiment's global-mean ocean mass/temperature/
+    salinity scalars on one plot per variable. That notebook's variables
+    (masso, thetaoga, soga, tosga, sosga) are model-native precomputed
+    scalars with no remaining spatial dims, so this reimplements the
+    comparison natively rather than depending on the notebook's xgcm/intake
+    stack (ruled out for MED's live dashboard - see
+    MED-esmvaltool-integration-analysis.md for why heavy grid-metrics/batch
+    dependencies don't fit MED's in-memory, per-click use case).
+
+    datasets: dict mapping a label (e.g. experiment/model name) to an
+    xarray.Dataset. A variable missing from a given dataset is skipped for
+    that dataset only, since not every experiment reports every scalar.
+
+    variables: list of variable names to compare; defaults to
+    OM3_GLOBAL_SCALARS.
+
+    x_dim/y_dim: ocean grid's horizontal dimension/coordinate names (e.g.
+    'xt_ocean'/'yt_ocean' for MOM5, 'xh'/'yh' for MOM6, or a curvilinear
+    grid's 2D aux coordinates like 'TLON'/'TLAT'). Only used as a fallback
+    for variables that still carry spatial dims after select_extra_dims -
+    those get a cos-latitude-weighted global mean, consistent with the rest
+    of this module's spatial-reduction convention. True cell-area/volume
+    weighting (as the notebook's xgcm grid metrics provide) isn't available
+    here without that heavier dependency.
+
+    extra_dim_selectors: as in select_extra_dims - value(s) to use for any
+    other non-time, non-spatial dimension (e.g. a depth or scalar_axis dim)
+    a variable might still carry.
+
+    Returns the matplotlib Figure (one subplot per variable).
+    """
+    variables = variables or list(OM3_GLOBAL_SCALARS)
+
+    fig, axes = plt.subplots(
+        len(variables), 1, figsize=(10, 3 * len(variables)), sharex=True, squeeze=False
+    )
+    axes = axes[:, 0]
+
+    for ax, var in zip(axes, variables):
+        long_name = var
+        units = None
+        plotted_any = False
+
+        for label, dataset in datasets.items():
+            if var not in dataset.variables:
+                continue
+
+            try:
+                real_spatial_dims = set(spatial_reduction_dims(dataset, x_dim, y_dim))
+            except KeyError:
+                # x_dim/y_dim aren't coordinates on this dataset at all -
+                # e.g. an already-scalar diagnostic with no grid dims.
+                real_spatial_dims = {x_dim, y_dim}
+
+            data = select_extra_dims(
+                dataset[var],
+                exclude_dims={"time"} | real_spatial_dims,
+                extra_dim_selectors=extra_dim_selectors,
+            )
+
+            present_spatial_dims = [d for d in real_spatial_dims if d in data.dims]
+            if present_spatial_dims:
+                weights = np.cos(np.deg2rad(dataset[y_dim]))
+                data = data.weighted(weights).mean(
+                    dim=present_spatial_dims, keep_attrs=True
+                )
+
+            data = data.compute()
+            ax.plot(data["time"].values, data.values, label=label)
+            plotted_any = True
+            units = units or data.attrs.get("units")
+            long_name = data.attrs.get("long_name", long_name)
+
+        ax.set_title(long_name)
+        if units:
+            ax.set_ylabel(units)
+        if plotted_any:
+            ax.legend()
+
+    axes[-1].set_xlabel("Time")
+    fig.tight_layout()
+    return fig
+
+
 def tg_days_above_below_helper(
     dataset, var, xdim, ydim, thresh_kelvin, freq="YS", op=">"
 ):
