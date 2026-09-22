@@ -4,6 +4,7 @@
 """This is a placeholder for diagnostic recipes / scripting"""
 
 import csv
+import inspect
 import types
 from contextlib import nullcontext
 from importlib import resources
@@ -508,6 +509,55 @@ def get_indicator_data_requirements(realm, indicator_name):
         for arg_name, param in indicator.parameters.items()
         if param.kind == InputKind.VARIABLE
     ]
+
+
+def get_indicator_kwarg_options(realm, indicator_name):
+    """
+    Describes every parameter of an xclim indicator, for building a UI form:
+    its kind (e.g. 'VARIABLE', 'QUANTIFIED', 'FREQ_STR'), whether it's
+    required, its default (if any), the fixed set of valid choices (if
+    constrained, e.g. `op`'s {'>', '>=', ...}), units, and description.
+
+    A parameter is treated as required if it's a mandatory climate-variable
+    input (`InputKind.VARIABLE`, e.g. `tas`), or if xclim has no usable
+    default for it at all. `InputKind.KWARGS` params (e.g. `indexer`, an
+    open-ended **kwargs passthrough) are never required even though xclim
+    also represents "no default" for them with the same sentinel used for
+    genuinely mandatory args, so they need their own branch below.
+    Optional-variable params (`InputKind.OPTIONAL_VARIABLE`) default to None
+    and are likewise never required.
+    """
+    indicator = getattr(getattr(xclim.indicators, realm), indicator_name)
+
+    kwarg_options = []
+    for name, param in indicator.parameters.items():
+        if param.kind == InputKind.VARIABLE:
+            required = True
+        elif param.kind in (InputKind.OPTIONAL_VARIABLE, InputKind.KWARGS):
+            required = False
+        else:
+            # xclim's own sentinel for "no default was provided" -
+            # distinct from the sentinel it uses for unset units/choices.
+            required = param.default is inspect._empty
+
+        kwarg_options.append(
+            {
+                "name": name,
+                "kind": param.kind.name,
+                "required": required,
+                "default": None if param.default is inspect._empty else param.default,
+                # A choice set can itself include None as a valid option
+                # (e.g. "no season method"), so sort by string form rather
+                # than raw value to avoid comparing None to a str.
+                "choices": (
+                    sorted(param.choices, key=str) if "choices" in param else None
+                ),
+                "units": param.units if "units" in param else None,
+                "description": param.description or None,
+            }
+        )
+
+    return kwarg_options
 
 
 def discover_indicators(dataset, realm):
