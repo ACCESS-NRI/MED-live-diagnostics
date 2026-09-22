@@ -124,8 +124,15 @@ def extract_region(dataset, region, lon_dim="lon", lat_dim="lat"):
     Parameters:
     - dataset: xarray object
     - region: String (key from PREDEFINED_REGIONS) OR a dictionary mapping 'lat' and 'lon' to tuples.
-    - lon_dim: Name of longitude dimension (e.g., "xt_ocean" or "lon")
-    - lat_dim: Name of latitude dimension (e.g., "yt_ocean" or "lat")
+    - lon_dim: Name of longitude coordinate (e.g., "xt_ocean", "lon", or a
+      curvilinear/tripolar grid's 2D auxiliary coordinate like "TLON")
+    - lat_dim: Name of latitude coordinate (e.g., "yt_ocean", "lat", or "TLAT")
+
+    Handles both regular 1D lat/lon grids (fast slice-based `.sel()`) and
+    curvilinear/tripolar ocean grids (e.g. ACCESS-OM2/CICE's TLAT/TLON)
+    where lat_dim/lon_dim are 2D auxiliary coordinates that vary over the
+    underlying grid-index dimensions - `.sel()` can only build a slice
+    index from a 1D coordinate, so those are masked and dropped instead.
     """
     # check region that is passed in
     if isinstance(region, str):
@@ -145,17 +152,29 @@ def extract_region(dataset, region, lon_dim="lon", lat_dim="lat"):
     lon_min, lon_max = bounds["lon"]
     lat_min, lat_max = bounds["lat"]
 
+    lon_coord = dataset[lon_dim]
+    lat_coord = dataset[lat_dim]
+
     # 2. Dynamically handle 0-360 vs -180-180 longitude grids
-    if dataset[lon_dim].max() > 180:
+    if lon_coord.max() > 180:
         lon_min = lon_min % 360
         lon_max = lon_max % 360
 
-    # 3. Sort slices to ensure xarray returns data
-    # (Slicing max to min returns empty arrays in xarray)
-    lon_slice = slice(min(lon_min, lon_max), max(lon_min, lon_max))
-    lat_slice = slice(min(lat_min, lat_max), max(lat_min, lat_max))
+    # 3. Sort bounds to ensure xarray returns data
+    # (Slicing/masking max to min returns empty arrays in xarray)
+    lon_lo, lon_hi = min(lon_min, lon_max), max(lon_min, lon_max)
+    lat_lo, lat_hi = min(lat_min, lat_max), max(lat_min, lat_max)
 
-    return dataset.sel({lat_dim: lat_slice, lon_dim: lon_slice})
+    if lon_coord.ndim > 1 or lat_coord.ndim > 1:
+        in_region = (
+            (lon_coord >= lon_lo)
+            & (lon_coord <= lon_hi)
+            & (lat_coord >= lat_lo)
+            & (lat_coord <= lat_hi)
+        )
+        return dataset.where(in_region, drop=True)
+
+    return dataset.sel({lat_dim: slice(lat_lo, lat_hi), lon_dim: slice(lon_lo, lon_hi)})
 
 
 def select_extra_dims(data, exclude_dims, extra_dim_selectors=None):
@@ -341,6 +360,24 @@ def tg_days_above_below_helper(
     return fig
 
 
+def spatial_reduction_dims(dataset, *coord_names):
+    """The real xarray dimensions underlying one or more spatial coordinates.
+
+    For a regular 1D lat/lon grid, a coordinate's dim is itself (e.g. 'lat'
+    is indexed by dim 'lat'). For a curvilinear/tripolar ocean grid (e.g.
+    ACCESS-OM2/CICE's TLAT/TLON), lat/lon are 2D auxiliary coordinates
+    indexed by differently-named grid-index dims (e.g. 'nj'/'ni') - passing
+    the coordinate's own name to `.mean(dim=...)` in that case is a no-op
+    at best and a KeyError at worst, since "TLAT" isn't an actual dimension.
+    """
+    dims = []
+    for name in coord_names:
+        for dim in dataset[name].dims:
+            if dim not in dims:
+                dims.append(dim)
+    return dims
+
+
 def run_xclim_index(
     dataset, var_name, index_name, xdim, ydim, xclim_arg="tas", **kwargs
 ):
@@ -361,7 +398,7 @@ def run_xclim_index(
     spatial_mean = (
         dataset[var_name]
         .weighted(weights)
-        .mean(dim=[xdim, ydim], keep_attrs=True)
+        .mean(dim=spatial_reduction_dims(dataset, xdim, ydim), keep_attrs=True)
         # Load eagerly - see the matching comment in run_xclim_indicator:
         # dask-backed input into a run-length-encoding-based xclim index
         # can hit a dask-only ZeroDivisionError when a resample group has
@@ -474,9 +511,10 @@ def run_xclim_indicator(
     }
     var_mapping = {**default_var_mapping, **(var_mapping or {})}
 
-    # Calculate spatial weights once
+    # Calculate spatial weights and reduction dims once
     if spatial_mean:
         weights = np.cos(np.deg2rad(dataset[ydim]))
+        reduce_dims = spatial_reduction_dims(dataset, xdim, ydim)
 
     # Process each variable in the mapping
     for xclim_arg, dataset_var in var_mapping.items():
@@ -484,7 +522,7 @@ def run_xclim_indicator(
 
         if spatial_mean:
             # Apply spatial weighting and mean, preserving the cleaned units attrs
-            data = data.weighted(weights).mean(dim=[xdim, ydim], keep_attrs=True)
+            data = data.weighted(weights).mean(dim=reduce_dims, keep_attrs=True)
 
             # Load eagerly: by this point `data` is only a small
             # per-timestep spatial mean, cheap to bring into memory. Many
