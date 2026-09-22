@@ -13,7 +13,6 @@ from importlib import resources
 import matplotlib.pyplot as plt
 import nc_time_axis  # noqa: F401 - registers matplotlib's cftime unit converter
 import numpy as np
-import xarray as xr
 import xclim.indicators
 import xclim.indices as xcl
 from xclim.core.indicator import Indicator
@@ -340,39 +339,6 @@ def sst_anomaly_nino34(
 
 OM3_GLOBAL_SCALARS = ["masso", "thetaoga", "soga", "tosga", "sosga"]
 
-# The 4 standard comparison experiments overlaid in the ACCESS-OM3 paper's
-# timeseries notebook: the OM2 baseline, two OM3 test configurations, and
-# the CM3 reference. Names as they appear in that notebook's own legend.
-DEFAULT_OM3_TIMESERIES_REFERENCES = ["025deg_jra55_iaf_omip2_cycle1"]
-
-
-def load_default_om3_reference_datasets(
-    variables=None, realm="ocean", frequency="1mon"
-):
-    """Load the ACCESS-OM2 reference experiment(s) overlaid by default in
-    plot_ocean_global_scalars.
-    """
-    variables = variables or OM3_GLOBAL_SCALARS
-
-    references = {}
-    for name in DEFAULT_OM3_TIMESERIES_REFERENCES:
-        model = data._load_access_nri_experiment(name)
-        matched = model.search(realm=realm, frequency=frequency, variable=variables)
-        keys = matched.keys()
-        if not keys:
-            raise KeyError(
-                f"No catalog entries for experiment {name!r} matching "
-                f"realm={realm!r}, frequency={frequency!r}, variable in "
-                f"{list(variables)}. Available keys: {model.keys()}"
-            )
-
-        datasets = [data._build_data_object(model, key) for key in keys]
-        references[name] = (
-            xr.merge(datasets, compat="override") if len(datasets) > 1 else datasets[0]
-        )
-
-    return references
-
 
 def plot_ocean_global_scalars(
     datasets=None,
@@ -386,63 +352,13 @@ def plot_ocean_global_scalars(
 ):
     """Compare global ocean scalar diagnostics across one or more datasets.
 
-    Mirrors the ACCESS-OM3 timeseries-comparison notebook
-    (https://access-om3-paper-1.readthedocs.io/.../notebooks/timeseries/),
-    which overlays each experiment's global-mean ocean mass/temperature/
-    salinity scalars on one plot per variable, with a smoothed trend line
-    per dataset. That notebook's variables (masso, thetaoga, soga, tosga,
-    sosga) are model-native precomputed scalars with no remaining spatial
-    dims, so this reimplements the comparison natively rather than
-    depending on the notebook's xgcm/intake stack (ruled out for MED's live
-    dashboard - see MED-esmvaltool-integration-analysis.md for why heavy
-    grid-metrics/batch dependencies don't fit MED's in-memory, per-click use
-    case).
-
-    datasets: dict mapping a label (e.g. experiment/model name) to an
-    xarray.Dataset. Merged with the 4 standard reference experiments from
-    the ACCESS-OM3 paper (see load_default_om3_reference_datasets) unless
-    include_default_references=False; a label already present in datasets
-    takes priority over a same-named default. A variable missing from a
-    given dataset is skipped for that dataset only, since not every
-    experiment reports every scalar.
-
-    variables: list of variable names to compare; defaults to
-    OM3_GLOBAL_SCALARS.
-
-    x_dim/y_dim: ocean grid's horizontal dimension/coordinate names (e.g.
-    'xt_ocean'/'yt_ocean' for MOM5, 'xh'/'yh' for MOM6, or a curvilinear
-    grid's 2D aux coordinates like 'TLON'/'TLAT'). Only used as a fallback
-    for variables that still carry spatial dims after select_extra_dims -
-    those get a cos-latitude-weighted global mean, consistent with the rest
-    of this module's spatial-reduction convention. True cell-area/volume
-    weighting (as the notebook's xgcm grid metrics provide) isn't available
-    here without that heavier dependency.
-
-    extra_dim_selectors: as in select_extra_dims - value(s) to use for any
-    other non-time, non-spatial dimension (e.g. a depth or scalar_axis dim)
-    a variable might still carry.
-
-    include_default_references: if True (default), auto-loads and overlays
-    the 4 standard ACCESS-OM3-paper reference experiments alongside
-    whatever's in datasets, to match the paper's own comparison figure out
-    of the box. Set False to only plot exactly what's in datasets.
-
-    show_rolling_mean: if True (default), overlays each dataset's smoothed
-    rolling-mean trend line on top of its raw line (same color, thicker),
-    using the same rolling_window_size-based smoothing sst_anomaly_nino34
-    already uses elsewhere in this module - makes the underlying multi-year
-    trend legible under the seasonal cycle, matching the reference figure's
-    style. rolling_target_days sets the smoothing window (default ~365
-    days/1 year, longer than sst_anomaly_nino34's ~150-day/5-month default
-    since a multi-decade ocean-scalar record benefits from heavier
-    smoothing than an ENSO index does).
-
     Returns the matplotlib Figure (one subplot per variable).
     """
-    datasets = dict(datasets or {})
-    if include_default_references:
-        for label, dataset in load_default_om3_reference_datasets().items():
-            datasets.setdefault(label, dataset)
+    all_ref_cat = data._load_access_nri_catalog("OM2", filter=False)
+    ref_model_cat = all_ref_cat(name="025deg_jra55_iaf_omip2_cycle1").to_source()
+    dataset = data._build_data_object(ref_model_cat, "ocean.1mon.nv:2.scalar_axis:1")
+
+    datasets = {"025deg_jra55_iaf_omip2_cycle1": dataset}
 
     variables = variables or list(OM3_GLOBAL_SCALARS)
 
