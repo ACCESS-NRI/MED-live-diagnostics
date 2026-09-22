@@ -10,6 +10,7 @@ import types
 from contextlib import nullcontext
 from importlib import resources
 
+import intake
 import matplotlib.pyplot as plt
 import nc_time_axis  # noqa: F401 - registers matplotlib's cftime unit converter
 import numpy as np
@@ -17,8 +18,6 @@ import xclim.indicators
 import xclim.indices as xcl
 from xclim.core.indicator import Indicator
 from xclim.core.utils import InputKind
-
-from med_diagnostics import data as dt
 
 
 def clean_access_dataset(dataset, master_map_path=None):
@@ -354,14 +353,11 @@ def plot_ocean_global_scalars(
 
     Returns the matplotlib Figure (one subplot per variable).
     """
-    all_ref_cat = dt._load_access_nri_catalog("OM2", filter=False)
-    ref_model_cat = all_ref_cat.search(name="025deg_jra55_iaf_omip2_cycle1").to_source()
-
-    # Load the 1D global scalar output
-    ref_dataset = dt._build_data_object(ref_model_cat, "ocean.1mon.nv:2.scalar_axis:1")
-
+    datastore = intake.cat.access_nri["025deg_jra55_iaf_omip2_cycle1"]
+    datastore = datastore.search(file_id="ocean.1mon.nv:2.scalar_axis:1")
+    dataset = datastore.to_dask()
     # Add it to the dictionary
-    datasets["025deg_jra55_iaf_omip2_cycle1"] = ref_dataset
+    datasets["025deg_jra55_iaf_omip2_cycle1"] = dataset
 
     variables = variables or list(OM3_GLOBAL_SCALARS)
 
