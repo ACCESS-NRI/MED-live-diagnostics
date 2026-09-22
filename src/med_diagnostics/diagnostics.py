@@ -5,6 +5,7 @@
 
 import csv
 import inspect
+import itertools
 import types
 from contextlib import nullcontext
 from importlib import resources
@@ -16,6 +17,8 @@ import xclim.indicators
 import xclim.indices as xcl
 from xclim.core.indicator import Indicator
 from xclim.core.utils import InputKind
+
+from . import data
 
 
 def clean_access_dataset(dataset, master_map_path=None):
@@ -336,30 +339,73 @@ def sst_anomaly_nino34(
 
 OM3_GLOBAL_SCALARS = ["masso", "thetaoga", "soga", "tosga", "sosga"]
 
+# The 4 standard comparison experiments overlaid in the ACCESS-OM3 paper's
+# timeseries notebook: the OM2 baseline, two OM3 test configurations, and
+# the CM3 reference. Names as they appear in that notebook's own legend.
+DEFAULT_OM3_TIMESERIES_REFERENCES = ["025deg_jra55_iaf_omip2_cycle1"]
+
+
+def load_default_om3_reference_datasets(dataset_key="ocean.1mon.nv:2.scalar_axis:1"):
+    """Load the 4 standard ACCESS-OM3-paper reference experiments (see
+    DEFAULT_OM3_TIMESERIES_REFERENCES) via data.load_reference_dataset, as a
+    ready-to-use {label: xarray.Dataset} dict for plot_ocean_global_scalars.
+
+    dataset_key: the catalog dataset/variable-group key to load within each
+    experiment (see data.load_reference_dataset) - defaults to the single
+    guess "ocean_scalar" for the group holding precomputed global scalars
+    (masso/thetaoga/soga/tosga/sosga). This couldn't be verified against a
+    live catalog, so confirm/override it for your actual catalog schema.
+    Pass a dict of {experiment_name: dataset_key} instead of a string if a
+    different key is needed per experiment (e.g. the CM3 reference using a
+    different naming convention to the OM3/OM2 ones).
+
+    An experiment that fails to load (e.g. its name doesn't resolve in your
+    catalog, or dataset_key is wrong for it) is skipped with a printed
+    warning rather than failing the whole load, since not every reference is
+    guaranteed reachable from every environment.
+    """
+    if isinstance(dataset_key, dict):
+        keys = dataset_key
+    else:
+        keys = {name: dataset_key for name in DEFAULT_OM3_TIMESERIES_REFERENCES}
+
+    references = {}
+    for name in DEFAULT_OM3_TIMESERIES_REFERENCES:
+        references[name] = data.load_reference_dataset(name, keys[name])
+    return references
+
 
 def plot_ocean_global_scalars(
-    datasets,
+    datasets=None,
     variables=None,
     x_dim="xt_ocean",
     y_dim="yt_ocean",
     extra_dim_selectors=None,
+    include_default_references=True,
+    show_rolling_mean=True,
+    rolling_target_days=365,
 ):
     """Compare global ocean scalar diagnostics across one or more datasets.
 
     Mirrors the ACCESS-OM3 timeseries-comparison notebook
     (https://access-om3-paper-1.readthedocs.io/.../notebooks/timeseries/),
     which overlays each experiment's global-mean ocean mass/temperature/
-    salinity scalars on one plot per variable. That notebook's variables
-    (masso, thetaoga, soga, tosga, sosga) are model-native precomputed
-    scalars with no remaining spatial dims, so this reimplements the
-    comparison natively rather than depending on the notebook's xgcm/intake
-    stack (ruled out for MED's live dashboard - see
-    MED-esmvaltool-integration-analysis.md for why heavy grid-metrics/batch
-    dependencies don't fit MED's in-memory, per-click use case).
+    salinity scalars on one plot per variable, with a smoothed trend line
+    per dataset. That notebook's variables (masso, thetaoga, soga, tosga,
+    sosga) are model-native precomputed scalars with no remaining spatial
+    dims, so this reimplements the comparison natively rather than
+    depending on the notebook's xgcm/intake stack (ruled out for MED's live
+    dashboard - see MED-esmvaltool-integration-analysis.md for why heavy
+    grid-metrics/batch dependencies don't fit MED's in-memory, per-click use
+    case).
 
     datasets: dict mapping a label (e.g. experiment/model name) to an
-    xarray.Dataset. A variable missing from a given dataset is skipped for
-    that dataset only, since not every experiment reports every scalar.
+    xarray.Dataset. Merged with the 4 standard reference experiments from
+    the ACCESS-OM3 paper (see load_default_om3_reference_datasets) unless
+    include_default_references=False; a label already present in datasets
+    takes priority over a same-named default. A variable missing from a
+    given dataset is skipped for that dataset only, since not every
+    experiment reports every scalar.
 
     variables: list of variable names to compare; defaults to
     OM3_GLOBAL_SCALARS.
@@ -377,14 +423,39 @@ def plot_ocean_global_scalars(
     other non-time, non-spatial dimension (e.g. a depth or scalar_axis dim)
     a variable might still carry.
 
+    include_default_references: if True (default), auto-loads and overlays
+    the 4 standard ACCESS-OM3-paper reference experiments alongside
+    whatever's in datasets, to match the paper's own comparison figure out
+    of the box. Set False to only plot exactly what's in datasets.
+
+    show_rolling_mean: if True (default), overlays each dataset's smoothed
+    rolling-mean trend line on top of its raw line (same color, thicker),
+    using the same rolling_window_size-based smoothing sst_anomaly_nino34
+    already uses elsewhere in this module - makes the underlying multi-year
+    trend legible under the seasonal cycle, matching the reference figure's
+    style. rolling_target_days sets the smoothing window (default ~365
+    days/1 year, longer than sst_anomaly_nino34's ~150-day/5-month default
+    since a multi-decade ocean-scalar record benefits from heavier
+    smoothing than an ENSO index does).
+
     Returns the matplotlib Figure (one subplot per variable).
     """
+    datasets = dict(datasets or {})
+    if include_default_references:
+        for label, dataset in load_default_om3_reference_datasets().items():
+            datasets.setdefault(label, dataset)
+
     variables = variables or list(OM3_GLOBAL_SCALARS)
 
     fig, axes = plt.subplots(
         len(variables), 1, figsize=(10, 3 * len(variables)), sharex=True, squeeze=False
     )
     axes = axes[:, 0]
+
+    # Shared across subplots so the same dataset gets the same color on
+    # every variable's plot, not a fresh color cycle per subplot.
+    color_cycle = itertools.cycle(plt.rcParams["axes.prop_cycle"].by_key()["color"])
+    label_colors = {}
 
     for ax, var in zip(axes, variables):
         long_name = var
@@ -416,16 +487,47 @@ def plot_ocean_global_scalars(
                 )
 
             data = data.compute()
-            ax.plot(data["time"].values, data.values, label=label)
             plotted_any = True
             units = units or data.attrs.get("units")
             long_name = data.attrs.get("long_name", long_name)
+            color = label_colors.setdefault(label, next(color_cycle))
+
+            if show_rolling_mean:
+                window = rolling_window_size(
+                    data["time"], target_days=rolling_target_days
+                )
+                smoothed = data.rolling(time=window, center=True).mean()
+                ax.plot(
+                    data["time"].values,
+                    data.values,
+                    color=color,
+                    alpha=0.4,
+                    linewidth=1,
+                )
+                ax.plot(
+                    smoothed["time"].values,
+                    smoothed.values,
+                    color=color,
+                    linewidth=2,
+                    label=label,
+                )
+            else:
+                ax.plot(data["time"].values, data.values, color=color, label=label)
 
         ax.set_title(long_name)
         if units:
             ax.set_ylabel(units)
         if plotted_any:
             ax.legend()
+        else:
+            ax.text(
+                0.5,
+                0.5,
+                f"'{var}' not found in any dataset",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+            )
 
     axes[-1].set_xlabel("Time")
     fig.tight_layout()
