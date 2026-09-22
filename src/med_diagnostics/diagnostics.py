@@ -58,21 +58,47 @@ def clean_access_dataset(dataset, master_map_path=None):
             # variables that are direct 1-to-1 translations
             # (i.e., no spaces indicating multiple vars, and no complex calculation strings)
             if " " not in access_vars and not calculation:
+                # Multiple stash codes can map to the same cmip_var (e.g. a
+                # CM2-specific and an ESM-specific stash code for zg500) -
+                # keep every stash code -> cmip_var pairing rather than
+                # letting a later row silently overwrite an earlier one.
                 stash_to_cmip[access_vars] = cmip_var
                 cmip_units[cmip_var] = units
 
-    # 2. Rename variables found in the dataset
-    # Only attempt to rename variables that actually exist in the current subset
-    rename_dict = {k: v for k, v in stash_to_cmip.items() if k in dataset.variables}
+    # 2. Safely build the rename dictionary to prevent Xarray conflicts
+    rename_dict = {}
+
+    # Track existing names to prevent overwriting native variables
+    used_cmip_names = set(dataset.variables)
+
+    # Units keyed by the *final* renamed name, so a fallback-renamed
+    # variable (e.g. 'hus_fld_s00i010') still gets its units set, not just
+    # whichever stash code won the plain 'hus' name.
+    units_by_final_name = {}
+
+    for stash_var, cmip_var in stash_to_cmip.items():
+        if stash_var in dataset.variables:
+            if cmip_var not in used_cmip_names:
+                # Primary choice: clean CMIP6 name (e.g., 'hus')
+                final_name = cmip_var
+            else:
+                # Fallback: append STASH code to prevent collision (e.g., 'hus_fld_s00i010')
+                final_name = f"{cmip_var}_{stash_var}"
+
+            rename_dict[stash_var] = final_name
+            used_cmip_names.add(final_name)
+            units_by_final_name[final_name] = cmip_units[cmip_var]
+
+    # 3. Rename variables found in the dataset
     clean_ds = dataset.rename(rename_dict)
 
-    # 3. Assign CMIP6 compliant units
+    # 4. Assign CMIP6 compliant units
     for var in clean_ds.data_vars:
-        if var in cmip_units:
+        if var in units_by_final_name:
             # xclim requires units to be explicitly set in the attributes
-            clean_ds[var].attrs["units"] = cmip_units[var]
+            clean_ds[var].attrs["units"] = units_by_final_name[var]
 
-    # 4. Safeguard spatial dimensions against being squeezed out later
+    # 5. Safeguard spatial dimensions against being squeezed out later
     # (Fixes the issue where bounding boxes reduce Tasmania to 1 longitude point)
     for dim in ["lon", "lat"]:
         if dim not in clean_ds.dims and dim in clean_ds.coords:
