@@ -152,52 +152,6 @@ class Multiplot(Section):
     """
 
 
-class ScalarAnalysis:
-    """
-    Base marker class representing a global ocean scalar analysis tier.
-
-    Tiers differ in cost: some variables are precomputed global scalars,
-    others must be reduced from full gridded fields.
-
-    Attributes
-    ----------
-    value : str
-        The string representation of the analysis tier used by the UI dropdowns.
-    """
-
-    value: str
-
-
-@dataclass
-class FastScalarAnalysis(ScalarAnalysis):
-    """
-    Marker class indicating the fast, inexpensive tier: variables read
-    directly from the model's precomputed global-scalar output.
-
-    Attributes
-    ----------
-    value : str
-        The string representation, defaults to "Fast: global scalar variables".
-    """
-
-    value = "Fast: global scalar variables"
-
-
-@dataclass
-class GriddedExtremesAnalysis(ScalarAnalysis):
-    """
-    Marker class indicating the slow, expensive tier: global max/min time
-    series reduced from full gridded fields.
-
-    Attributes
-    ----------
-    value : str
-        The string representation, defaults to "Slow: gridded max/min variables".
-    """
-
-    value = "Slow: gridded max/min variables"
-
-
 @dataclass
 class ConstrainToRef:
     """
