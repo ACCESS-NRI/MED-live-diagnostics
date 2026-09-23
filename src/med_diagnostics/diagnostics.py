@@ -14,6 +14,7 @@ import intake
 import matplotlib.pyplot as plt
 import nc_time_axis  # noqa: F401 - registers matplotlib's cftime unit converter
 import numpy as np
+import xarray as xr
 import xclim.indicators
 import xclim.indices as xcl
 from xclim.core.indicator import Indicator
@@ -26,6 +27,8 @@ SUPPLEMENTARY_DIRECT_MAPPINGS = {
     "temp_global_ave": ("thetaoga", "degC"),
     "temp_surface_ave": ("tosga", "degC"),
     "sst": ("tosga", "degC"),
+    "salt_global_ave": ("soga", "psu"),
+    "salt_surface_ave": ("sosga", "psu"),
 }
 
 
@@ -372,12 +375,57 @@ OM3_GLOBAL_SCALARS = [
     "total_fsitherm",
     "total_precip",
     "total_prsn",
-    "total_Iprec",
+    "total_lprec",
     "total_ficeberg",
     "total_friver",
     "total_net_massout",
     "total_net_massin",
 ]
+
+EXTREME_SUFFIXES = ("_max", "_min")
+
+
+def reduce_extreme(data, var, dims):
+    """Global value of a *_max / *_min diagnostic over `dims`.
+
+    The global maximum of a per-cell maximum is its max over all cells - an
+    area-weighted mean (what the other scalars use) would give the average
+    extreme instead, which isn't what tos_max etc. are meant to show.
+    """
+    if var.endswith("_max"):
+        return data.max(dim=dims, keep_attrs=True)
+    return data.min(dim=dims, keep_attrs=True)
+
+
+def load_gridded_extremes(catalog, variables, xarray_kwargs=None):
+    """Global time series for *_max / *_min variables written as gridded fields.
+
+    ACCESS-OM3 writes these to separate per-cell time-max/min files (e.g.
+    ocean.1mon.nv:2.xh:1440.yh:1152 with temporal_label "max"/"min"), not
+    the scalar_axis file, so they have to be found and spatially reduced
+    separately. Returns None if the catalog has none of them.
+    """
+    extreme_vars = [v for v in variables if v.endswith(EXTREME_SUFFIXES)]
+    if not extreme_vars:
+        return None
+
+    subset = catalog.search(variable=extreme_vars, temporal_label=["max", "min"])
+    if subset.df.empty:
+        return None
+
+    series = []
+    gridded = subset.to_dataset_dict(
+        xarray_combine_by_coords_kwargs=xarray_kwargs, progressbar=False
+    )
+    for dataset in gridded.values():
+        for var in extreme_vars:
+            if var in dataset.data_vars:
+                data = dataset[var]
+                spatial_dims = [d for d in data.dims if d != "time"]
+                series.append(reduce_extreme(data, var, spatial_dims).rename(var))
+
+    return xr.merge(series) if series else None
+
 
 # {"model name": "path to intake-esm datastore JSON"}
 DEFAULT_REFERENCE_CATALOGS = {
@@ -441,12 +489,31 @@ def plot_ocean_global_scalars(
             if name in datasets:
                 continue
             try:
-                ds = intake.open_esm_datastore(
+                catalog = intake.open_esm_datastore(
                     path, columns_with_iterables=["variable"]
                 )
-                ds = ds.search(variable=variables)
-                dataset = ds.to_dask(xarray_combine_by_coords_kwargs=xarray_kwargs)
-                datasets[name] = clean_access_dataset(dataset)
+                # A list search matches files containing *any* of the
+                # variables, which also pulls in gridded max/min files that
+                # share names like tos_max; keep only the global-scalar file.
+                scalars = catalog.search(variable=variables, file_id=".*scalar_axis.*")
+                dataset = clean_access_dataset(
+                    scalars.to_dask(xarray_combine_by_coords_kwargs=xarray_kwargs)
+                )
+
+                # Extremes missing from the scalar file come from the
+                # gridded max/min files instead. Their (monthly) time axis
+                # differs from the (daily) scalars, so the outer-joined
+                # merge leaves NaN gaps that the plot loop drops per variable.
+                missing = [v for v in variables if v not in dataset.variables]
+                extremes = load_gridded_extremes(catalog, missing, xarray_kwargs)
+                if extremes is not None:
+                    dataset = xr.merge(
+                        [dataset, clean_access_dataset(extremes)],
+                        join="outer",
+                        compat="override",
+                        combine_attrs="override",
+                    )
+                datasets[name] = dataset
             except (KeyError, ValueError, OSError) as e:
                 print(f"Warning: Could not load {name} - {e}")
 
@@ -481,13 +548,18 @@ def plot_ocean_global_scalars(
             )
 
             present_spatial_dims = [d for d in real_spatial_dims if d in data.dims]
-            if present_spatial_dims:
+            if present_spatial_dims and var.endswith(EXTREME_SUFFIXES):
+                data = reduce_extreme(data, var, present_spatial_dims)
+            elif present_spatial_dims:
                 weights = np.cos(np.deg2rad(dataset[y_dim]))
                 data = data.weighted(weights).mean(
                     dim=present_spatial_dims, keep_attrs=True
                 )
 
-            data = data.compute()
+            # Drops the NaN padding from merging variables on different
+            # time axes (see load_gridded_extremes), so lines stay unbroken
+            # and the rolling window is sized from this variable's own steps.
+            data = data.compute().dropna("time")
             plotted_any = True
             units = units or data.attrs.get("units")
             long_name_attr = data.attrs.get("long_name", long_name)
