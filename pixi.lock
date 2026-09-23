@@ -24,6 +24,7 @@ environments:
     - https://pypi.org/simple
     packages:
       linux-64:
+      - conda: https://conda.anaconda.org/accessnri/noarch/access-moppy-1.2.6b-py_0.conda
       - conda: https://conda.anaconda.org/accessnri/noarch/access-nri-intake-1.7.0-py_0.conda
       - conda: https://conda.anaconda.org/accessnri/noarch/access-py-telemetry-0.3.0-py_0.tar.bz2
       - conda: https://conda.anaconda.org/accessnri/noarch/ecgtools-access-2025.10.7-py_0.tar.bz2
@@ -360,6 +361,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/be/2c/7a562f4504aee53e9405f0dcb9ff569ea728e905e048da5aebf4f04dd543/access_py_telemetry-0.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/db/d4/44fbf68f8043087f6dee8aa6f4a4e651515e34828a305decfc2bfcf56cd9/intake_esm_access-2026.4.15-py3-none-any.whl
       osx-arm64:
+      - conda: https://conda.anaconda.org/accessnri/noarch/access-moppy-1.2.6b-py_0.conda
       - conda: https://conda.anaconda.org/accessnri/noarch/access-nri-intake-1.7.0-py_0.conda
       - conda: https://conda.anaconda.org/accessnri/noarch/access-py-telemetry-0.3.0-py_0.tar.bz2
       - conda: https://conda.anaconda.org/accessnri/noarch/ecgtools-access-2025.10.7-py_0.tar.bz2
@@ -687,6 +689,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/be/2c/7a562f4504aee53e9405f0dcb9ff569ea728e905e048da5aebf4f04dd543/access_py_telemetry-0.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/db/d4/44fbf68f8043087f6dee8aa6f4a4e651515e34828a305decfc2bfcf56cd9/intake_esm_access-2026.4.15-py3-none-any.whl
       win-64:
+      - conda: https://conda.anaconda.org/accessnri/noarch/access-moppy-1.2.6b-py_0.conda
       - conda: https://conda.anaconda.org/accessnri/noarch/access-nri-intake-1.7.0-py_0.conda
       - conda: https://conda.anaconda.org/accessnri/noarch/access-py-telemetry-0.3.0-py_0.tar.bz2
       - conda: https://conda.anaconda.org/accessnri/noarch/ecgtools-access-2025.10.7-py_0.tar.bz2
@@ -1004,6 +1007,19 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/be/2c/7a562f4504aee53e9405f0dcb9ff569ea728e905e048da5aebf4f04dd543/access_py_telemetry-0.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/db/d4/44fbf68f8043087f6dee8aa6f4a4e651515e34828a305decfc2bfcf56cd9/intake_esm_access-2026.4.15-py3-none-any.whl
 packages:
+- conda: https://conda.anaconda.org/accessnri/noarch/access-moppy-1.2.6b-py_0.conda
+  sha256: 993830c5004e8eedc0cb3139a7eedb0770c7860fb0ac3c97dc70aee85c44bbb5
+  md5: 9774feb3ed845e4247b94fb4bfc9b8f4
+  depends:
+  - cftime
+  - dask
+  - numpy
+  - python >=3.11
+  - pyyaml
+  - xarray
+  license: Apache-2.0
+  size: 8037772
+  timestamp: 1777850617570
 - conda: https://conda.anaconda.org/accessnri/noarch/access-nri-intake-1.7.0-py_0.conda
   sha256: d4d65c16920a5d2329ff36dbc24358e276e6577d1f1c7f742a447eb1679dd0eb
   md5: d2529792c6fcdd66f1987253a3027340

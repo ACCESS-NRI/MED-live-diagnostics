@@ -60,6 +60,7 @@ ruff = ">=0.16.7,<0.17"
 datashader = ">=0.19.1,<0.20"
 cartopy = ">=0.26.0,<0.27"
 xclim = ">=0.62.0,<0.63"
+access-moppy = ">=1.2.6b,<2"
 
 [tool.mypy]
 exclude = [
