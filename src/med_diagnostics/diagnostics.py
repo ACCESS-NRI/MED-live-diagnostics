@@ -17,6 +17,7 @@ import intake
 import matplotlib.pyplot as plt
 import nc_time_axis  # noqa: F401 - registers matplotlib's cftime unit converter
 import numpy as np
+import xarray as xr
 import xclim.indicators
 from xclim.core.indicator import Indicator
 from xclim.core.utils import InputKind
@@ -568,8 +569,25 @@ def plot_ocean_global_scalars(
                     ) in SUPPLEMENTARY_DIRECT_MAPPINGS.items()
                     if cmip_var in variables
                 ]
-                ds = ds.search(variable=variables + raw_names)
-                dataset = ds.to_dask(xarray_combine_by_coords_kwargs=xarray_kwargs)
+                search_names = variables + raw_names
+                ds = ds.search(variable=search_names)
+                if len(ds) == 1:
+                    dataset = ds.to_dask(xarray_combine_by_coords_kwargs=xarray_kwargs)
+                else:
+                    # The variables can be split across files that differ in
+                    # e.g. temporal_label (max and min fields in separate
+                    # files), so load each group and keep only the wanted
+                    # variables - first group found wins for any duplicate
+                    pieces = {}
+                    groups = ds.to_dataset_dict(
+                        xarray_combine_by_coords_kwargs=xarray_kwargs,
+                        progressbar=False,
+                    )
+                    for group in groups.values():
+                        for var in search_names:
+                            if var in group.data_vars:
+                                pieces.setdefault(var, group[var])
+                    dataset = xr.merge(pieces.values(), join="outer", compat="override")
                 datasets[name] = clean_access_dataset(dataset)
             except (KeyError, ValueError, OSError) as e:
                 print(f"Warning: Could not load {name} - {e}")
@@ -584,6 +602,11 @@ def plot_ocean_global_scalars(
     # variable's plot, rather than a fresh colour cycle per subplot
     color_cycle = itertools.cycle(plt.rcParams["axes.prop_cycle"].by_key()["color"])
     label_colors = {}
+
+    # Runs mix numpy datetime64 and cftime axes in different calendars, but a
+    # shared matplotlib axis holds one time converter - so every series is
+    # converted to the calendar of the first one plotted
+    target_calendar = None
 
     for ax, var in zip(axes, variables):
         long_name = None
@@ -619,7 +642,14 @@ def plot_ocean_global_scalars(
                     dim=present_spatial_dims, keep_attrs=True
                 )
 
-            data = data.compute()
+            # Drop the NaN padding added when a reference merged variables
+            # from files with different time axes
+            data = data.dropna("time", how="all").compute()
+            target_calendar = target_calendar or data["time"].dt.calendar
+            # align_on is only used (and required) for 360_day conversions
+            data = data.convert_calendar(
+                target_calendar, use_cftime=True, align_on="date"
+            )
             plotted_any = True
             units = units or data.attrs.get("units")
             long_name = long_name or data.attrs.get("long_name")
