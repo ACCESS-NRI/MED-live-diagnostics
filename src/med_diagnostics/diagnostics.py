@@ -32,6 +32,12 @@ SUPPLEMENTARY_DIRECT_MAPPINGS = {
     "temp_global_ave": ("thetaoga", "degC"),
     "temp_surface_ave": ("tosga", "degC"),
     "sst": ("tosga", "degC"),
+    "tosmax": ("tos_max", "degC"),
+    "tosmin": ("tos_min", "degC"),
+    "zosmin": ("zos_min", "m"),
+    "zosmax": ("zos_max", "m"),
+    "sosmin": ("sos_min", "0.001"),
+    "sosmax": ("sos_max", "0.001"),
 }
 
 # Named lat/lon bounding boxes accepted by `extract_region`
@@ -44,6 +50,10 @@ PREDEFINED_REGIONS = {
 
 # Default variables for `plot_ocean_global_scalars`
 OM3_GLOBAL_SCALARS = ["masso", "thetaoga", "soga", "tosga", "sosga"]
+
+# Default variables for `plot_ocean_gridded_extremes`
+OM3_GRIDDED_MAX_PLOTS = ["tos_max", "zos_max", "sos_max"]
+OM3_GRIDDED_MIN_PLOTS = ["tos_min", "zos_min", "sos_min"]
 
 # {"model name": "path to intake-esm datastore JSON"}
 DEFAULT_REFERENCE_CATALOGS = {
@@ -483,6 +493,7 @@ def plot_ocean_global_scalars(
     show_rolling_mean=True,
     rolling_target_days=365,
     reference_catalogs=None,
+    spatial_reductions=None,
 ):
     """
     Compare global ocean scalar diagnostics across runs and reference models.
@@ -505,6 +516,9 @@ def plot_ocean_global_scalars(
         Rolling window length in days.
     reference_catalogs : dict of {str: str}, optional
         Datastore paths that replace all default references.
+    spatial_reductions : dict of {str: str}, optional
+        ``{var: "max" | "min"}`` for gridded variables; unlisted ones use the
+        area-weighted mean.
 
     Returns
     -------
@@ -513,6 +527,7 @@ def plot_ocean_global_scalars(
     """
     datasets = datasets or {}
     variables = variables or list(OM3_GLOBAL_SCALARS)
+    spatial_reductions = spatial_reductions or {}
 
     # --- Load reference models ---
     if include_default_references:
@@ -543,7 +558,17 @@ def plot_ocean_global_scalars(
                 ds = intake.open_esm_datastore(
                     path, columns_with_iterables=["variable"]
                 )
-                ds = ds.search(variable=variables)
+                # Datastores index the raw output names (e.g. "tosmax"), not
+                # the cleaned CMIP6 ones, so search for both
+                raw_names = [
+                    access_var
+                    for access_var, (
+                        cmip_var,
+                        _,
+                    ) in SUPPLEMENTARY_DIRECT_MAPPINGS.items()
+                    if cmip_var in variables
+                ]
+                ds = ds.search(variable=variables + raw_names)
                 dataset = ds.to_dask(xarray_combine_by_coords_kwargs=xarray_kwargs)
                 datasets[name] = clean_access_dataset(dataset)
             except (KeyError, ValueError, OSError) as e:
@@ -580,11 +605,17 @@ def plot_ocean_global_scalars(
                 extra_dim_selectors=extra_dim_selectors,
             )
 
-            # Area-weighted global mean if the variable is still gridded
+            # Reduce to a global value if the variable is still gridded
             present_spatial_dims = [d for d in real_spatial_dims if d in data.dims]
-            if present_spatial_dims:
+            reduction = spatial_reductions.get(var, "mean")
+            if present_spatial_dims and reduction == "mean":
                 weights = np.cos(np.deg2rad(dataset[y_dim]))
                 data = data.weighted(weights).mean(
+                    dim=present_spatial_dims, keep_attrs=True
+                )
+            elif present_spatial_dims:
+                # Land cells are NaN and skipped by max/min
+                data = getattr(data, reduction)(
                     dim=present_spatial_dims, keep_attrs=True
                 )
 
@@ -617,7 +648,10 @@ def plot_ocean_global_scalars(
             else:
                 ax.plot(data["time"].values, data.values, color=color, label=label)
 
-        ax.set_title(f"{var}: {long_name}" if long_name else var)
+        title = f"{var}: {long_name}" if long_name else var
+        if var in spatial_reductions:
+            title += f" (global {spatial_reductions[var]})"
+        ax.set_title(title)
         if units:
             ax.set_ylabel(units)
         if plotted_any:
@@ -635,6 +669,54 @@ def plot_ocean_global_scalars(
     axes[-1].set_xlabel("Time")
     fig.tight_layout()
     return fig
+
+
+def plot_ocean_gridded_extremes(
+    datasets=None,
+    max_variables=None,
+    min_variables=None,
+    x_dim="xh",
+    y_dim="yh",
+    **plot_kwargs,
+):
+    """
+    Compare global max/min of gridded extreme fields across runs and references.
+
+    Parameters
+    ----------
+    datasets : dict of {str: xarray.Dataset}, optional
+        Your own cleaned runs containing the ``*_max``/``*_min`` variables.
+    max_variables : list of str, optional
+        Variables reduced by spatial max. Defaults to ``OM3_GRIDDED_MAX_PLOTS``.
+    min_variables : list of str, optional
+        Variables reduced by spatial min. Defaults to ``OM3_GRIDDED_MIN_PLOTS``.
+    x_dim, y_dim : str, default "xh", "yh"
+        Longitude/latitude coordinate names.
+    **plot_kwargs
+        Passed to `plot_ocean_global_scalars` (e.g. ``show_rolling_mean``).
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        One subplot per variable.
+    """
+    max_variables = max_variables or list(OM3_GRIDDED_MAX_PLOTS)
+    min_variables = min_variables or list(OM3_GRIDDED_MIN_PLOTS)
+
+    # Each *_max field is reduced by its spatial max and each *_min by its
+    # spatial min - the most extreme cell each timestep. An area mean would
+    # smooth out the single-cell blow-ups these fields are useful for spotting.
+    spatial_reductions = {var: "max" for var in max_variables}
+    spatial_reductions.update({var: "min" for var in min_variables})
+
+    return plot_ocean_global_scalars(
+        datasets=datasets,
+        variables=max_variables + min_variables,
+        x_dim=x_dim,
+        y_dim=y_dim,
+        spatial_reductions=spatial_reductions,
+        **plot_kwargs,
+    )
 
 
 # --------------------------------------------------------------------------
