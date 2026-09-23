@@ -9,19 +9,6 @@
 # - MkDocs configuration guide: https://www.mkdocs.org/user-guide/configuration/
 # ============================================== #
 
-# Navigation 
-# MODIFY: Set the navigation structure as needed for your site
-nav:
-  - Example Section:
-    - pages/example-section/index.md
-    - Subsection1: pages/example-section/subsection1.md
-    - Subsection2: 
-      - pages/example-section/subsection2/index.md
-      - Example Page: pages/example-section/subsection2/example-page.md
-  - Example Section 2:
-    - pages/example-section2/index.md
-  # ...
-
 site_name: Model Live Diagnostics
 
 # Site URL
@@ -32,8 +19,23 @@ site_url: !ENV [READTHEDOCS_CANONICAL_URL, ""]
 repo_url: https://github.com/ACCESS-NRI/MED-live-diagnostics
 repo_name: MED-live-diagnostics
 
-edit_uri: edit/main/documentation/docs/pages
+edit_uri: edit/main/documentation/docs
 
+# Navigation
+nav:
+  - Home: pages/index.md
+  - Tutorials:
+    - Getting started: notebooks/getting_started_tutorial.ipynb
+    - Advanced usage: notebooks/advanced_usage.ipynb
+  - API reference: pages/api.md
+  - Contributing:
+    - pages/contributing/index.md
+    - Code: pages/contributing/code.md
+    - Documentation: pages/contributing/docs.md
+    - Issues and feature requests: pages/contributing/issues.md
+
+
+# Theme configuration
 theme:
   name: material
   custom_dir: overrides
@@ -125,6 +127,16 @@ plugins:
   # - optimize: # Optimizes all media files (https://squidfunk.github.io/mkdocs-material/plugins/optimize/#built-in-optimize-plugin)
   #     optimize_png_speed: 10
   # - privacy # Download any external asset locally to improve privacy (https://squidfunk.github.io/mkdocs-material/plugins/privacy/)
+  - mkdocs-jupyter: # Use Jupyter Notebooks in mkdocs (https://github.com/danielfrg/mkdocs-jupyter#mkdocs-jupyter-use-jupyter-notebooks-in-mkdocs)
+      include_source: true
+  - mkdocstrings: # Automatic documentation from docstrings (https://mkdocstrings.github.io/)
+      default_handler: python
+      handlers:
+        python:
+          paths: [../src]
+          options:
+            show_source: false
+            show_root_heading: true
   - git-revision-date-localized: # Adds creation and last update dates at the end of each page
       type: date
       enable_creation_date: true
@@ -136,7 +148,7 @@ plugins:
   - redirects: # Adds support for URL redirects using mkdocs-redirects (https://github.com/mkdocs/mkdocs-redirects#mkdocs-redirects)
       redirect_maps:
   - resolve-absolute-urls: # Resolves absolute URLs (https://github.com/ACCESS-NRI/mkdocs_resolve_absolute_urls_plugin#mkdocs-resolve-absolute-urls-plugin)
-      url_versioning_scheme: single_version_with_translations
+      url_versioning_scheme: multiple_versions_without_translations
   - macros # Enables jinja2 templating (https://mkdocs-macros-plugin.readthedocs.io/en/latest/)
   - include-markdown # Enables including external markdown files in a document (https://github.com/mondeja/mkdocs-include-markdown-plugin#mkdocs-include-markdown-plugin)
 
