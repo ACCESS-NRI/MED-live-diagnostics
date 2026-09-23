@@ -470,9 +470,13 @@ def plot_ocean_global_scalars(
     """Compare global ocean scalar diagnostics across one or more datasets.
 
     analysis: a ScalarAnalysis tier. FastScalarAnalysis (default) reads the
-    precomputed global-scalar file; GriddedExtremesAnalysis reduces the
-    gridded max/min files, which is much slower. Sets the default
-    `variables` and which reference files are loaded.
+    precomputed global-scalar file and plots all of OM3_GLOBAL_SCALARS unless
+    `variables` narrows it. GriddedExtremesAnalysis reduces the gridded
+    max/min files, which is much slower, so it takes exactly one variable
+    from OM3_GRIDDED_EXTREMES (e.g. variables="tos_max") to keep a plot
+    around a minute rather than one full-grid reduction per extreme.
+
+    variables: a variable name or list of names.
 
     reference_catalogs: optional {"model name": "datastore path"} dict of
     intake-esm datastore JSONs to load as references. If given, it replaces
@@ -484,7 +488,18 @@ def plot_ocean_global_scalars(
     datasets = datasets or {}
     analysis = analysis or FastScalarAnalysis()
     gridded = isinstance(analysis, GriddedExtremesAnalysis)
-    variables = variables or scalar_analysis_variables(analysis)
+    if isinstance(variables, str):
+        variables = [variables]
+
+    if gridded:
+        if not variables or len(variables) != 1:
+            raise ValueError(
+                "GriddedExtremesAnalysis reduces a full grid per variable, so "
+                "pass exactly one via `variables`, e.g. variables='tos_max'. "
+                f"Options: {OM3_GRIDDED_EXTREMES}"
+            )
+    else:
+        variables = variables or scalar_analysis_variables(analysis)
 
     if include_default_references:
         # 1. ACCESS-OM2 Reference (skipped when the user overrides references,
