@@ -20,6 +20,8 @@ import xclim.indices as xcl
 from xclim.core.indicator import Indicator
 from xclim.core.utils import InputKind
 
+from med_diagnostics.types import FastScalarAnalysis, GriddedExtremesAnalysis
+
 # Direct 1-to-1 renames (access_var -> (cmip_var, units)) that master_map.csv
 # doesn't provide because it only defines these CMIP6 variables as
 # calculations from 3D fields. MOM5 also outputs them precomputed as scalars.
@@ -358,14 +360,6 @@ OM3_GLOBAL_SCALARS = [
     "soga",
     "tosga",
     "sosga",
-    "speed_max",
-    "mlotst_max",
-    "tos_max",
-    "tos_min",
-    "sos_max",
-    "sos_min",
-    "zos_max",
-    "zos_min",
     "total_salt_Flux_Added",
     "total_salt_flux",
     "net_fresh_water_global_adjustment",
@@ -380,6 +374,19 @@ OM3_GLOBAL_SCALARS = [
     "total_friver",
     "total_net_massout",
     "total_net_massin",
+]
+
+# Only written as gridded per-cell max/min fields, so each needs a full
+# spatial reduction of the grid - far slower than OM3_GLOBAL_SCALARS.
+OM3_GRIDDED_EXTREMES = [
+    "speed_max",
+    "mlotst_max",
+    "tos_max",
+    "tos_min",
+    "sos_max",
+    "sos_min",
+    "zos_max",
+    "zos_min",
 ]
 
 EXTREME_SUFFIXES = ("_max", "_min")
@@ -432,6 +439,13 @@ def load_gridded_extremes(catalog, variables, xarray_kwargs=None):
     return xr.merge(series) if series else None
 
 
+def scalar_analysis_variables(analysis):
+    """Default variable list for a ScalarAnalysis tier (e.g. to fill a UI selector)."""
+    if isinstance(analysis, GriddedExtremesAnalysis):
+        return list(OM3_GRIDDED_EXTREMES)
+    return list(OM3_GLOBAL_SCALARS)
+
+
 # {"model name": "path to intake-esm datastore JSON"}
 DEFAULT_REFERENCE_CATALOGS = {
     "MC_25km_jra_iaf-1.0-beta-5165c0f8": "/g/data/ol01/outputs/access-om3-25km/MC_25km_jra_iaf-1.0-beta-5165c0f8/datastore.json",
@@ -451,8 +465,14 @@ def plot_ocean_global_scalars(
     show_rolling_mean=True,
     rolling_target_days=365,
     reference_catalogs=None,
+    analysis=None,
 ):
     """Compare global ocean scalar diagnostics across one or more datasets.
+
+    analysis: a ScalarAnalysis tier. FastScalarAnalysis (default) reads the
+    precomputed global-scalar file; GriddedExtremesAnalysis reduces the
+    gridded max/min files, which is much slower. Sets the default
+    `variables` and which reference files are loaded.
 
     reference_catalogs: optional {"model name": "datastore path"} dict of
     intake-esm datastore JSONs to load as references. If given, it replaces
@@ -462,12 +482,16 @@ def plot_ocean_global_scalars(
     Returns the matplotlib Figure (one subplot per variable).
     """
     datasets = datasets or {}
-    variables = variables or list(OM3_GLOBAL_SCALARS)
+    analysis = analysis or FastScalarAnalysis()
+    gridded = isinstance(analysis, GriddedExtremesAnalysis)
+    variables = variables or scalar_analysis_variables(analysis)
 
     if include_default_references:
-        # 1. ACCESS-OM2 Reference (skipped when the user overrides references)
+        # 1. ACCESS-OM2 Reference (skipped when the user overrides references,
+        # and for the gridded tier - only its scalar file is loaded here)
         if (
-            reference_catalogs is None
+            not gridded
+            and reference_catalogs is None
             and "025deg_jra55_iaf_omip2_cycle1" not in datasets
         ):
             try:
@@ -497,28 +521,23 @@ def plot_ocean_global_scalars(
                 catalog = intake.open_esm_datastore(
                     path, columns_with_iterables=["variable"]
                 )
-                # A list search matches files containing *any* of the
-                # variables, which also pulls in gridded max/min files that
-                # share names like tos_max; keep only the global-scalar file.
-                scalars = catalog.search(variable=variables, file_id=".*scalar_axis.*")
-                dataset = clean_access_dataset(
-                    scalars.to_dask(xarray_combine_by_coords_kwargs=xarray_kwargs)
-                )
-
-                # Extremes missing from the scalar file come from the
-                # gridded max/min files instead. Their (monthly) time axis
-                # differs from the (daily) scalars, so the outer-joined
-                # merge leaves NaN gaps that the plot loop drops per variable.
-                missing = [v for v in variables if v not in dataset.variables]
-                extremes = load_gridded_extremes(catalog, missing, xarray_kwargs)
-                if extremes is not None:
-                    dataset = xr.merge(
-                        [dataset, clean_access_dataset(extremes)],
-                        join="outer",
-                        compat="override",
-                        combine_attrs="override",
+                if gridded:
+                    dataset = load_gridded_extremes(catalog, variables, xarray_kwargs)
+                    if dataset is None:
+                        print(f"Warning: {name} has no gridded max/min files")
+                        continue
+                else:
+                    # A list search matches files containing *any* of the
+                    # variables, which also pulls in gridded max/min files
+                    # that share names like tos_max; keep only the
+                    # global-scalar file.
+                    scalars = catalog.search(
+                        variable=variables, file_id=".*scalar_axis.*"
                     )
-                datasets[name] = dataset
+                    dataset = scalars.to_dask(
+                        xarray_combine_by_coords_kwargs=xarray_kwargs
+                    )
+                datasets[name] = clean_access_dataset(dataset)
             except (KeyError, ValueError, OSError) as e:
                 print(f"Warning: Could not load {name} - {e}")
 
@@ -561,9 +580,10 @@ def plot_ocean_global_scalars(
                     dim=present_spatial_dims, keep_attrs=True
                 )
 
-            # Drops the NaN padding from merging variables on different
-            # time axes (see load_gridded_extremes), so lines stay unbroken
-            # and the rolling window is sized from this variable's own steps.
+            # Drops any NaN padding from merging variables on different
+            # time axes (e.g. separate max/min files in load_gridded_extremes),
+            # so lines stay unbroken and the rolling window is sized from
+            # this variable's own steps.
             data = data.compute().dropna("time")
             plotted_any = True
             units = units or data.attrs.get("units")
