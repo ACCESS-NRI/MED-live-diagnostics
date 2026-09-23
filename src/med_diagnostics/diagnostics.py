@@ -446,6 +446,62 @@ def scalar_analysis_variables(analysis):
     return list(OM3_GLOBAL_SCALARS)
 
 
+DATASTORE_COMBINE_KWARGS = {
+    "compat": "override",
+    "data_vars": "minimal",
+    "coords": "minimal",
+}
+
+
+def native_variable_names(variables):
+    """`variables` plus the native model names that clean_access_dataset
+    renames to them (e.g. MOM5's temp_global_ave -> thetaoga).
+
+    Datastores index the native names, so a search on CMIP names alone
+    misses ACCESS-OM2 output entirely.
+    """
+    aliases = [
+        access_var
+        for access_var, (cmip_var, _) in SUPPLEMENTARY_DIRECT_MAPPINGS.items()
+        if cmip_var in variables
+    ]
+    return list(variables) + aliases
+
+
+def load_scalar_analysis_dataset(catalog, variables, analysis):
+    """Load `variables` from an intake-esm datastore for a ScalarAnalysis tier.
+
+    catalog: a datastore JSON path, or an already-open esm_datastore (e.g.
+    from intake.cat.access_nri or a live session's catalog). The same run
+    keeps its scalar and gridded max/min output in different files, so
+    passing the catalog, not a loaded Dataset, lets each tier pick its own.
+
+    Returns the cleaned Dataset, or None if the catalog has no matching files.
+    """
+    if isinstance(catalog, str):
+        catalog = intake.open_esm_datastore(
+            catalog, columns_with_iterables=["variable"]
+        )
+
+    if isinstance(analysis, GriddedExtremesAnalysis):
+        dataset = load_gridded_extremes(catalog, variables, DATASTORE_COMBINE_KWARGS)
+        if dataset is None:
+            return None
+    else:
+        # A list search matches files containing *any* of the variables,
+        # which also pulls in gridded max/min files that share names like
+        # tos_max; keep only the global-scalar file.
+        scalars = catalog.search(
+            variable=native_variable_names(variables), file_id=".*scalar_axis.*"
+        )
+        if scalars.df.empty:
+            return None
+        dataset = scalars.to_dask(
+            xarray_combine_by_coords_kwargs=DATASTORE_COMBINE_KWARGS
+        )
+    return clean_access_dataset(dataset)
+
+
 # {"model name": "path to intake-esm datastore JSON"}
 DEFAULT_REFERENCE_CATALOGS = {
     "MC_25km_jra_iaf-1.0-beta-5165c0f8": "/g/data/ol01/outputs/access-om3-25km/MC_25km_jra_iaf-1.0-beta-5165c0f8/datastore.json",
@@ -466,8 +522,17 @@ def plot_ocean_global_scalars(
     rolling_target_days=365,
     reference_catalogs=None,
     analysis=None,
+    catalogs=None,
 ):
     """Compare global ocean scalar diagnostics across one or more datasets.
+
+    catalogs: optional {"run name": datastore path or esm_datastore} dict of
+    your own runs. Preferred over `datasets` for model output, since the
+    right files (scalar vs gridded max/min) are loaded for the chosen
+    `analysis`. Loaded even if include_default_references is False.
+
+    datasets: optional {"name": xr.Dataset} of already-loaded data, plotted
+    as-is - it must already contain the chosen tier's variables.
 
     analysis: a ScalarAnalysis tier. FastScalarAnalysis (default) reads the
     precomputed global-scalar file and plots all of OM3_GLOBAL_SCALARS unless
@@ -501,6 +566,14 @@ def plot_ocean_global_scalars(
     else:
         variables = variables or scalar_analysis_variables(analysis)
 
+    # Your own runs: errors propagate rather than warn, since a missing
+    # user run is a real problem, unlike an unavailable reference.
+    for name, catalog in (catalogs or {}).items():
+        dataset = load_scalar_analysis_dataset(catalog, variables, analysis)
+        if dataset is None:
+            raise ValueError(f"No files for {variables} found in catalog '{name}'")
+        datasets[name] = dataset
+
     if include_default_references:
         # 1. ACCESS-OM2 Reference (skipped when the user overrides references,
         # and for the gridded tier - only its scalar file is loaded here)
@@ -523,36 +596,15 @@ def plot_ocean_global_scalars(
         if reference_catalogs is None:
             reference_catalogs = DEFAULT_REFERENCE_CATALOGS
 
-        xarray_kwargs = {
-            "compat": "override",
-            "data_vars": "minimal",
-            "coords": "minimal",
-        }
-
         for name, path in reference_catalogs.items():
             if name in datasets:
                 continue
             try:
-                catalog = intake.open_esm_datastore(
-                    path, columns_with_iterables=["variable"]
-                )
-                if gridded:
-                    dataset = load_gridded_extremes(catalog, variables, xarray_kwargs)
-                    if dataset is None:
-                        print(f"Warning: {name} has no gridded max/min files")
-                        continue
-                else:
-                    # A list search matches files containing *any* of the
-                    # variables, which also pulls in gridded max/min files
-                    # that share names like tos_max; keep only the
-                    # global-scalar file.
-                    scalars = catalog.search(
-                        variable=variables, file_id=".*scalar_axis.*"
-                    )
-                    dataset = scalars.to_dask(
-                        xarray_combine_by_coords_kwargs=xarray_kwargs
-                    )
-                datasets[name] = clean_access_dataset(dataset)
+                dataset = load_scalar_analysis_dataset(path, variables, analysis)
+                if dataset is None:
+                    print(f"Warning: {name} has no files for {variables}")
+                    continue
+                datasets[name] = dataset
             except (KeyError, ValueError, OSError) as e:
                 print(f"Warning: Could not load {name} - {e}")
 
