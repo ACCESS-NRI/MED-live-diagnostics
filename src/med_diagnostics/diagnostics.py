@@ -526,7 +526,8 @@ def plot_ocean_global_scalars(
     matplotlib.figure.Figure
         One subplot per variable.
     """
-    datasets = datasets or {}
+    # Copy so the references added below don't leak into the caller's dict
+    datasets = dict(datasets or {})
     variables = variables or list(OM3_GLOBAL_SCALARS)
     spatial_reductions = spatial_reductions or {}
 
@@ -715,7 +716,7 @@ def plot_ocean_gridded_extremes(
     Parameters
     ----------
     datasets : dict of {str: xarray.Dataset}, optional
-        Your own cleaned runs containing the ``*_max``/``*_min`` variables.
+        Your own cleaned runs. Variables none of them contain are skipped.
     max_variables : list of str, optional
         Variables reduced by spatial max. Defaults to ``OM3_GRIDDED_MAX_PLOTS``.
     min_variables : list of str, optional
@@ -732,6 +733,24 @@ def plot_ocean_gridded_extremes(
     """
     max_variables = max_variables or list(OM3_GRIDDED_MAX_PLOTS)
     min_variables = min_variables or list(OM3_GRIDDED_MIN_PLOTS)
+
+    # Skip variables none of your runs have: a reference-only subplot compares
+    # nothing, and reducing the references' daily 2D fields is the slow part
+    if datasets:
+        missing = [
+            var
+            for var in max_variables + min_variables
+            if not any(var in ds.variables for ds in datasets.values())
+        ]
+        if missing:
+            print(f"Skipping {missing} - not found in any of your datasets")
+        max_variables = [var for var in max_variables if var not in missing]
+        min_variables = [var for var in min_variables if var not in missing]
+        if not max_variables + min_variables:
+            raise ValueError(
+                "None of the requested variables are in your datasets - "
+                "did you run clean_access_dataset first?"
+            )
 
     # Each *_max field is reduced by its spatial max and each *_min by its
     # spatial min - the most extreme cell each timestep. An area mean would
