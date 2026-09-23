@@ -18,7 +18,6 @@ import matplotlib.pyplot as plt
 import nc_time_axis  # noqa: F401 - registers matplotlib's cftime unit converter
 import numpy as np
 import xclim.indicators
-import xclim.indices as xcl
 from xclim.core.indicator import Indicator
 from xclim.core.utils import InputKind
 
@@ -669,77 +668,33 @@ def tg_days_above_below_helper(
     matplotlib.figure.Figure
         Count per period.
     """
-    weights = np.cos(np.deg2rad(dataset[ydim]))
-    spatial_mean = (
-        dataset[var].weighted(weights).mean(dim=[xdim, ydim], keep_attrs=True)
+    thresh = f"{thresh_kelvin} {dataset[var].attrs['units']}"
+    indicator_name = (
+        "tg_days_below" if op in ["<", "lt", "<=", "le"] else "tg_days_above"
     )
 
-    thresh = f"{thresh_kelvin} {spatial_mean.attrs['units']}"
-
-    if op in ["<", "lt", "<=", "le"]:
-        periods_per_freq = xcl.tg_days_below(
-            tas=spatial_mean, thresh=thresh, freq=freq, op=op
-        )
-    else:
-        periods_per_freq = xcl.tg_days_above(
-            tas=spatial_mean, thresh=thresh, freq=freq, op=op
+    # Same lenient options as simulate_ui_run, so monthly data or an
+    # incomplete final year (a still-running model) is logged, not rejected
+    with xclim.set_options(data_validation="log", check_missing="skip"):
+        periods_per_freq = run_xclim_indicator(
+            dataset,
+            "atmos",
+            indicator_name,
+            xdim,
+            ydim,
+            var_mapping={"tas": var},
+            thresh=thresh,
+            freq=freq,
+            op=op,
         )
 
     fig, ax = plt.subplots(figsize=(12, 6))
-    periods_per_freq.compute().plot(ax=ax, color="black")
+    periods_per_freq.plot(ax=ax, color="black")
 
     ax.set_title(f"Periods per {freq} {op} {thresh_kelvin}K")
     ax.set_ylabel("Count")
 
     return fig
-
-
-def run_xclim_index(
-    dataset, var_name, index_name, xdim, ydim, xclim_arg="tas", **kwargs
-):
-    """
-    Run any ``xclim.indices`` function on the spatial mean of a variable.
-
-    Parameters
-    ----------
-    dataset : xarray.Dataset
-        Output of `clean_access_dataset`, so ``var_name`` has CMIP6 units.
-    var_name : str
-        Dataset variable to use.
-    index_name : str
-        xclim.indices function name (e.g. "tg_days_above").
-    xdim, ydim : str
-        Longitude/latitude coordinate names.
-    xclim_arg : str, default "tas"
-        Argument name the index expects the data as (e.g. "tas", "pr").
-    **kwargs
-        Extra arguments for the index (e.g. ``thresh``, ``freq``).
-
-    Returns
-    -------
-    xarray.DataArray
-        The index result.
-    """
-    # Area-weighted spatial mean, keeping the cleaned units attrs
-    weights = np.cos(np.deg2rad(dataset[ydim]))
-    spatial_mean = (
-        dataset[var_name]
-        .weighted(weights)
-        .mean(dim=spatial_reduction_dims(dataset, xdim, ydim), keep_attrs=True)
-        # Load eagerly to avoid a dask-only ZeroDivisionError - see the
-        # matching comment in run_xclim_indicator
-        .load()
-    )
-
-    try:
-        xclim_function = getattr(xcl, index_name)
-    except AttributeError:
-        raise AttributeError(
-            f"'{index_name}' is not a valid xclim.indices function."
-        ) from None
-
-    kwargs[xclim_arg] = spatial_mean
-    return xclim_function(**kwargs)
 
 
 def get_indicator_groups() -> list[str]:
