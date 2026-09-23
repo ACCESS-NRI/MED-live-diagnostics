@@ -409,7 +409,12 @@ def load_gridded_extremes(catalog, variables, xarray_kwargs=None):
     if not extreme_vars:
         return None
 
-    subset = catalog.search(variable=extreme_vars, temporal_label=["max", "min"])
+    query = {"variable": extreme_vars}
+    # Older datastores (e.g. MC_25km_jra_iaf-1.0-beta) predate the
+    # temporal_label column, and intake-esm rejects queries on unknown columns.
+    if "temporal_label" in catalog.df.columns:
+        query["temporal_label"] = ["max", "min"]
+    subset = catalog.search(**query)
     if subset.df.empty:
         return None
 
