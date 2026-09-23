@@ -7,8 +7,10 @@ Niño 3.4 index, global ocean scalar comparisons and xclim indicator wrappers.
 """
 
 import csv
+import hashlib
 import inspect
 import itertools
+import os
 import types
 from contextlib import nullcontext
 from importlib import resources
@@ -66,6 +68,10 @@ DEFAULT_REFERENCE_CATALOGS = {
 
 # The ACCESS-OM2 run loaded from the ACCESS-NRI catalog as a scalar reference
 OM2_REFERENCE_NAME = "025deg_jra55_iaf_omip2_cycle1"
+
+# Folder for cached global series, created in the working directory alongside
+# data.py's live_diagnostics_tmp_catalog.json
+SCALAR_CACHE_DIRNAME = "live_diagnostics_cache"
 
 
 # --------------------------------------------------------------------------
@@ -484,6 +490,117 @@ def sst_anomaly_nino34(
 # --------------------------------------------------------------------------
 
 
+def _global_series(dataset, var, x_dim, y_dim, extra_dim_selectors, reduction):
+    """
+    Lazily reduce ``dataset[var]`` to a single global value per timestep.
+
+    Parameters
+    ----------
+    dataset : xarray.Dataset
+        Dataset containing ``var``.
+    var : str
+        Variable to reduce.
+    x_dim, y_dim : str
+        Spatial coordinate names.
+    extra_dim_selectors : dict or None
+        Passed to `select_extra_dims`.
+    reduction : {"mean", "max", "min"}
+        Area-weighted mean, or plain spatial max/min.
+
+    Returns
+    -------
+    xarray.DataArray
+        Lazy time series (unchanged if ``var`` is already scalar).
+    """
+    try:
+        real_spatial_dims = set(spatial_reduction_dims(dataset, x_dim, y_dim))
+    except KeyError:
+        real_spatial_dims = {x_dim, y_dim}
+
+    data = select_extra_dims(
+        dataset[var],
+        exclude_dims={"time"} | real_spatial_dims,
+        extra_dim_selectors=extra_dim_selectors,
+    )
+
+    present_spatial_dims = [d for d in real_spatial_dims if d in data.dims]
+    if present_spatial_dims and reduction == "mean":
+        weights = np.cos(np.deg2rad(dataset[y_dim]))
+        data = data.weighted(weights).mean(dim=present_spatial_dims, keep_attrs=True)
+    elif present_spatial_dims:
+        # Land cells are NaN and skipped by max/min
+        data = getattr(data, reduction)(dim=present_spatial_dims, keep_attrs=True)
+    return data
+
+
+def _cached_global_series(
+    cache_dir, label, dataset, var, x_dim, y_dim, extra_dim_selectors, reduction
+):
+    """
+    Return the computed global series, reusing and extending an on-disk cache.
+
+    Parameters
+    ----------
+    cache_dir : str
+        Folder holding one netCDF file per run/variable/reduction.
+    label : str
+        Run label - identifies the run in the cache, so keep it unique per run.
+    dataset, var, x_dim, y_dim, extra_dim_selectors, reduction
+        As for `_global_series`.
+
+    Returns
+    -------
+    xarray.DataArray
+        The in-memory global series.
+    """
+    # Hash everything that changes the result, so e.g. a different depth
+    # level or reduction never reuses the wrong file
+    key = f"{label}|{var}|{reduction}|{extra_dim_selectors!r}"
+    safe_label = "".join(c if c.isalnum() or c in "-_+" else "_" for c in label)
+    digest = hashlib.md5(key.encode()).hexdigest()[:8]
+    path = os.path.join(cache_dir, f"{safe_label}__{var}__{reduction}__{digest}.nc")
+
+    lazy = _global_series(dataset, var, x_dim, y_dim, extra_dim_selectors, reduction)
+    data = None
+
+    if os.path.exists(path):
+        # Decode the cached times the same way as the data (cftime vs
+        # datetime64), otherwise the comparisons below never match
+        coder = xr.coders.CFDatetimeCoder(use_cftime=lazy["time"].dtype == object)
+        with xr.open_dataarray(path, decode_times=coder) as cached:
+            cached = cached.load()
+        times = lazy["time"].values
+        try:
+            same_run = times[0] == cached["time"].values[0]
+            # Spatial reductions are independent per timestep, so a growing
+            # live run only needs its new timesteps computed and appended
+            new = np.flatnonzero(times > cached["time"].values[-1])
+        except TypeError:
+            # Time types differ (e.g. datetime64 vs cftime) - not the same run
+            same_run = False
+        if same_run and new.size == 0:
+            return cached
+        if same_run:
+            data = xr.concat([cached, lazy.isel(time=new).compute()], dim="time")
+        else:
+            print(f"Cache for {label}/{var} doesn't match this data - recomputing")
+
+    if data is None:
+        data = lazy.compute()
+
+    # Source-file encodings (chunk sizes, compression) don't fit the reduced
+    # 1D series; keep only what's needed to round-trip the time axis
+    data.encoding = {}
+    data["time"].encoding = {
+        k: v for k, v in data["time"].encoding.items() if k in ("units", "calendar")
+    }
+    # Write then rename, so an interrupted write never leaves a corrupt cache
+    os.makedirs(cache_dir, exist_ok=True)
+    data.to_netcdf(path + ".tmp", format="NETCDF4")
+    os.replace(path + ".tmp", path)
+    return data
+
+
 def plot_ocean_global_scalars(
     datasets=None,
     variables=None,
@@ -495,6 +612,7 @@ def plot_ocean_global_scalars(
     rolling_target_days=365,
     reference_catalogs=None,
     spatial_reductions=None,
+    cache=True,
 ):
     """
     Compare global ocean scalar diagnostics across runs and reference models.
@@ -520,6 +638,9 @@ def plot_ocean_global_scalars(
     spatial_reductions : dict of {str: str}, optional
         ``{var: "max" | "min"}`` for gridded variables; unlisted ones use the
         area-weighted mean.
+    cache : bool, default True
+        Save each computed series to ``./live_diagnostics_cache`` and reuse it,
+        computing only timesteps newer than the cache. Keep labels unique per run.
 
     Returns
     -------
@@ -618,34 +739,26 @@ def plot_ocean_global_scalars(
             if var not in dataset.variables:
                 continue
 
-            try:
-                real_spatial_dims = set(spatial_reduction_dims(dataset, x_dim, y_dim))
-            except KeyError:
-                real_spatial_dims = {x_dim, y_dim}
-
-            data = select_extra_dims(
-                dataset[var],
-                exclude_dims={"time"} | real_spatial_dims,
-                extra_dim_selectors=extra_dim_selectors,
-            )
-
-            # Reduce to a global value if the variable is still gridded
-            present_spatial_dims = [d for d in real_spatial_dims if d in data.dims]
             reduction = spatial_reductions.get(var, "mean")
-            if present_spatial_dims and reduction == "mean":
-                weights = np.cos(np.deg2rad(dataset[y_dim]))
-                data = data.weighted(weights).mean(
-                    dim=present_spatial_dims, keep_attrs=True
+            if cache:
+                data = _cached_global_series(
+                    os.path.join(os.getcwd(), SCALAR_CACHE_DIRNAME),
+                    label,
+                    dataset,
+                    var,
+                    x_dim,
+                    y_dim,
+                    extra_dim_selectors,
+                    reduction,
                 )
-            elif present_spatial_dims:
-                # Land cells are NaN and skipped by max/min
-                data = getattr(data, reduction)(
-                    dim=present_spatial_dims, keep_attrs=True
-                )
+            else:
+                data = _global_series(
+                    dataset, var, x_dim, y_dim, extra_dim_selectors, reduction
+                ).compute()
 
             # Drop the NaN padding added when a reference merged variables
             # from files with different time axes
-            data = data.dropna("time", how="all").compute()
+            data = data.dropna("time", how="all")
             target_calendar = target_calendar or data["time"].dt.calendar
             # align_on is only used (and required) for 360_day conversions
             data = data.convert_calendar(
