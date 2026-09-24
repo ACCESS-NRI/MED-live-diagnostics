@@ -1,3 +1,5 @@
+import warnings
+
 import esmvalcore.preprocessor
 import iris
 import matplotlib.pyplot as plt
@@ -127,13 +129,38 @@ def cmorise(
         ds = cmoriser.to_dataset()
 
     # moppy keeps the raw inputs; drop them so only CMIP names remain
-    return ds.drop_vars(
+    ds = ds.drop_vars(
         [
             var
             for var in ds.data_vars
             if var in dataset and var != cmor_name and not var.endswith("_bnds")
         ]
     )
+
+    # Area-weighted statistics on the curvilinear ocean grid need areacello
+    table = compound_name.split(".")[0]
+    is_gridded_ocean = (
+        table.startswith("O") and ds.get("latitude", xr.DataArray()).ndim == 2
+    )
+    if is_gridded_ocean and "areacello" not in ds:
+        try:
+            # moppy refuses fx variables from input with a time axis
+            area = cmorise(
+                dataset.isel(time=0, drop=True) if "time" in dataset.dims else dataset,
+                model_type,
+                "Ofx.areacello",
+                experiment_id=experiment_id,
+                variant_label=variant_label,
+                grid_label=grid_label,
+                activity_id=activity_id,
+                parent_info=parent_info,
+            )
+            ds["areacello"] = area["areacello"]
+        except Exception as err:  # noqa: BLE001 - moppy fails differently per model
+            # CM3 has no mapping, and OM3 needs areacello in the raw input
+            warnings.warn(f"No areacello for {model_type} {compound_name}: {err}")
+
+    return ds
 
 
 def to_cube(ds, var):
