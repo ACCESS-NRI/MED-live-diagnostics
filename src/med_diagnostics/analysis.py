@@ -2,9 +2,11 @@ import logging
 import warnings
 
 import cf_units
+import dask.array as da
 import esmvalcore.preprocessor
 import iris
 import matplotlib.pyplot as plt
+import numpy as np
 import xarray as xr
 from access_moppy import ACCESS_ESM_CMORiser
 from access_moppy.atmosphere import Atmosphere_CMORiser
@@ -232,7 +234,19 @@ def to_cube(ds, var):
             ds[coord].attrs["bounds"] = bounds
 
     # Convert
-    return cubes_from_xarray(ds).extract_cube(iris.NameConstraint(var_name=var))
+    cube = cubes_from_xarray(ds).extract_cube(iris.NameConstraint(var_name=var))
+    # xarray marks missing cells with NaN, iris with a mask; unmasked NaNs make
+    # ESMValCore's statistics NaN
+    cube.data = da.ma.masked_invalid(cube.lazy_data())
+    return cube
+
+
+def to_dataset(cube):
+    """Convert a cube back to an xarray dataset, with masked cells as NaN."""
+    if cube.dtype.kind == "f":
+        # cubes_to_xarray writes masked cells as the raw netCDF fill (9.97e36)
+        cube = cube.copy(da.ma.filled(cube.lazy_data(), np.nan))
+    return cubes_to_xarray(cube)
 
 
 def extract_dataset(
@@ -244,13 +258,13 @@ def extract_dataset(
     )
     # Unlike DataArray.from_iris, this keeps cell measures, which area_statistics
     # needs on curvilinear grids
-    return cubes_to_xarray(cube)
+    return to_dataset(cube)
 
 
 def area_statistics(ds, var, operator):
     """Collapse one variable over latitude/longitude with ESMValCore's ``area_statistics``."""
     cube = esmvalcore.preprocessor.area_statistics(to_cube(ds, var), operator)
-    return cubes_to_xarray(cube)
+    return to_dataset(cube)
 
 
 def analyse_and_plot(dataset: xr.Dataset, recipe_func, **recipe_kwargs) -> plt.Figure:
