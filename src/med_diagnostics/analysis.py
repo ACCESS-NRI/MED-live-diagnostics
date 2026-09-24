@@ -95,7 +95,8 @@ def analyse_and_plot(dataset: xr.Dataset, recipe_func, **recipe_kwargs) -> plt.F
     recipe_func : callable
         ``recipe_func(dataset, **recipe_kwargs)``, returning either a DataArray or
         ``(DataArray, plot_kwargs)`` to customise the plot. ``plot_kwargs`` may
-        include ``customise``, a ``func(ax, data)`` run after plotting.
+        include ``customise``, a ``func(ax, data)`` or list of them, run in
+        order after plotting.
     **recipe_kwargs
         Extra arguments for the recipe (e.g. variable or depth).
 
@@ -119,12 +120,15 @@ def analyse_and_plot(dataset: xr.Dataset, recipe_func, **recipe_kwargs) -> plt.F
 
     # Figure/axes-level keys aren't accepted by `DataArray.plot`, so pop them
     # first. `ax_kwargs` goes to `ax.set` (e.g. xlabel, ylim, yscale), and
-    # `customise(ax, data)` runs last for anything kwargs can't express
+    # `customise` funcs `(ax, data)` run last for anything kwargs can't express
     # (fills, reference lines, annotations).
     figsize = plot_kwargs.pop("figsize", (10, 5))
     title = plot_kwargs.pop("title", result_data.name or "Diagnostic Output")
     ax_kwargs = plot_kwargs.pop("ax_kwargs", {})
-    customise = plot_kwargs.pop("customise", None)
+    customise = plot_kwargs.pop("customise", [])
+    # Accept a single function as well as a list of them
+    if callable(customise):
+        customise = [customise]
 
     fig, ax = plt.subplots(figsize=figsize)
     # Everything else goes to xarray, then on to matplotlib (e.g. color, vmin)
@@ -132,7 +136,7 @@ def analyse_and_plot(dataset: xr.Dataset, recipe_func, **recipe_kwargs) -> plt.F
 
     ax.set_title(title)
     ax.set(**ax_kwargs)
-    if customise is not None:
-        customise(ax, result_data)
+    for func in customise:
+        func(ax, result_data)
     plt.tight_layout()
     return fig
