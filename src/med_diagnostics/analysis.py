@@ -1,3 +1,4 @@
+import logging
 import warnings
 
 import cf_units
@@ -9,6 +10,9 @@ from access_moppy import ACCESS_ESM_CMORiser
 from access_moppy.atmosphere import Atmosphere_CMORiser
 from access_moppy.utilities import load_model_mappings
 from ncdata.iris_xarray import cubes_from_xarray, cubes_to_xarray
+
+# In Jupyter, moppy logs every step at DEBUG; only show its errors
+logging.getLogger("access_moppy").setLevel(logging.ERROR)
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -122,45 +126,49 @@ def cmorise(
             {k: v for k, v in renames.items() if k in dataset.variables}
         ).load()
 
-    cmoriser = ACCESS_ESM_CMORiser(
-        input_data=dataset,
-        compound_name=compound_name,
-        experiment_id=experiment_id,
-        source_id=source_id,
-        variant_label=variant_label,
-        grid_label=grid_label,
-        activity_id=activity_id,
-        parent_info=parent_info,
-        model_id=model_id,
-        output_path=output_path,
-        **cmoriser_kwargs,
-    )
-
-    if is_scalar:
-        # A direct rename replaces moppy's gridded-mean mapping
-        mapping = {
-            cmor_name: {
-                "dimensions": {"time": "time"},
-                "units": cmoriser.vocab.variable["units"],
-                "positive": None,
-                "model_variables": [scalar_var],
-                "calculation": {"type": "direct"},
-            }
-        }
-        # Omon routes to the ocean CMORiser, which needs a horizontal grid; the
-        # atmosphere one handles time-only variables
-        cmoriser.cmoriser = Atmosphere_CMORiser(
-            input_data=cmoriser.input_dataset,
-            output_path=str(cmoriser.output_path),
-            compound_name=cmoriser.cmip6_compound_name,
-            vocab=cmoriser.vocab,
-            variable_mapping=mapping,
-            drs_root=cmoriser.drs_root,
+    # moppy warns about every guess it makes (parent_info, missing bounds...),
+    # which floods notebooks
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        cmoriser = ACCESS_ESM_CMORiser(
+            input_data=dataset,
+            compound_name=compound_name,
+            experiment_id=experiment_id,
+            source_id=source_id,
+            variant_label=variant_label,
+            grid_label=grid_label,
+            activity_id=activity_id,
+            parent_info=parent_info,
+            model_id=model_id,
+            output_path=output_path,
+            **cmoriser_kwargs,
         )
 
-    with cmoriser:
-        cmoriser.run(write_output=write_output)
-        ds = cmoriser.to_dataset()
+        if is_scalar:
+            # A direct rename replaces moppy's gridded-mean mapping
+            mapping = {
+                cmor_name: {
+                    "dimensions": {"time": "time"},
+                    "units": cmoriser.vocab.variable["units"],
+                    "positive": None,
+                    "model_variables": [scalar_var],
+                    "calculation": {"type": "direct"},
+                }
+            }
+            # Omon routes to the ocean CMORiser, which needs a horizontal grid; the
+            # atmosphere one handles time-only variables
+            cmoriser.cmoriser = Atmosphere_CMORiser(
+                input_data=cmoriser.input_dataset,
+                output_path=str(cmoriser.output_path),
+                compound_name=cmoriser.cmip6_compound_name,
+                vocab=cmoriser.vocab,
+                variable_mapping=mapping,
+                drs_root=cmoriser.drs_root,
+            )
+
+        with cmoriser:
+            cmoriser.run(write_output=write_output)
+            ds = cmoriser.to_dataset()
 
     # moppy keeps the raw inputs; drop them so only CMIP names remain
     ds = ds.drop_vars(
