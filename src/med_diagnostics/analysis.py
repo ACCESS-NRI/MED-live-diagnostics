@@ -79,6 +79,12 @@ class _ScalarOceanCMORiser(Ocean_CMORiser):
         if "time" in self.ds.dims:
             self._check_calendar("time")
 
+    def write(self):
+        # moppy's chunked writer hands dask datetime64 time_bnds to netCDF4
+        # unencoded ("cannot include dtype 'M'"); a timeseries is tiny, so load it
+        self.ds = self.ds.load()
+        super().write()
+
 
 def _mom5_scalar_mapping(cmor_name, units):
     """Build a moppy mapping entry that renames a MOM5 scalar onto ``cmor_name``."""
