@@ -177,10 +177,10 @@ def extract_dataset(
     ).to_dataset(name=var)
 
 
-def climate_statistics(ds, var, operator):
+def area_statistics(ds, var, operator):
     cube = to_cube(ds, var)
     return xr.DataArray.from_iris(
-        esmvalcore.preprocessor.climate_statistics(cube, operator)
+        esmvalcore.preprocessor.area_statistics(cube, operator)
     ).to_dataset(name=var)
 
 
