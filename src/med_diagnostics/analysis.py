@@ -1,6 +1,5 @@
-import numpy as np
 from access_moppy import ACCESS_ESM_CMORiser
-from access_moppy.ocean import Ocean_CMORiser
+from access_moppy.atmosphere import Atmosphere_CMORiser
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -32,50 +31,6 @@ MOM5_SCALARS = {
 # ---------------------------------------------------------------------------
 # CMORisation
 # ---------------------------------------------------------------------------
-
-
-class _ScalarOceanCMORiser(Ocean_CMORiser):
-    """``Ocean_CMORiser`` for global-mean timeseries, which have no horizontal grid."""
-
-    def infer_grid_type(self):
-        return None, None
-
-    def _get_dim_rename(self):
-        return {}
-
-    def select_and_process_variables(self):
-        super().select_and_process_variables()
-        if "scalar_axis" in self.ds.dims:
-            self.ds = self.ds.squeeze("scalar_axis", drop=True)
-
-    def update_attributes(self):
-        # Ocean_CMORiser.update_attributes minus the supergrid lat/lon/vertices
-        self.ds.attrs = {
-            k: v
-            for k, v in self.vocab.get_required_global_attributes().items()
-            if v not in (None, "")
-        }
-        if "nv" in self.ds.dims:
-            self.ds = self.ds.rename_dims({"nv": "bnds"}).rename_vars({"nv": "bnds"})
-            self.ds["bnds"].attrs.update(
-                {"long_name": "vertex number of the bounds", "units": "1"}
-            )
-        cmor_attrs = self.vocab.variable
-        self.ds[self.cmor_name].attrs.update(
-            {k: v for k, v in cmor_attrs.items() if v not in (None, "")}
-        )
-        var_type = cmor_attrs.get("type", "double")
-        self.ds[self.cmor_name] = self.ds[self.cmor_name].astype(
-            self.type_mapping.get(var_type, np.float64)
-        )
-        if "time" in self.ds.dims:
-            self._check_calendar("time")
-
-    def write(self):
-        # moppy's chunked writer hands dask datetime64 time_bnds to netCDF4
-        # unencoded ("cannot include dtype 'M'"); a timeseries is tiny, so load it
-        self.ds = self.ds.load()
-        super().write()
 
 
 def cmorise(
@@ -120,9 +75,16 @@ def cmorise(
     cmor_name = compound_name.split(".")[1]
     scalar_var = MOM5_SCALARS.get(cmor_name)
     is_scalar = scalar_var in dataset and "scalar_axis" in dataset[scalar_var].dims
-    if is_scalar and "time_bounds" in dataset.variables:
-        # moppy looks for <dim>_bnds; MOM5 writes time_bounds
-        dataset = dataset.rename({"time_bounds": "time_bnds"})
+    if is_scalar:
+        # moppy wants <dim>_bnds on a "bnds" dim; MOM5 writes time_bounds on nv
+        renames = {"time_bounds": "time_bnds", "nv": "bnds"}
+        bounds = [var for var in ("time_bounds", "time_bnds") if var in dataset]
+        dataset = dataset[[scalar_var, *bounds]].squeeze("scalar_axis", drop=True)
+        # Loaded because moppy recomputes lazy time_bnds (as NaT for these files);
+        # a global timeseries is only a few KB
+        dataset = dataset.rename(
+            {k: v for k, v in renames.items() if k in dataset.variables}
+        ).load()
 
     cmoriser = ACCESS_ESM_CMORiser(
         input_data=dataset,
@@ -149,7 +111,9 @@ def cmorise(
                 "calculation": {"type": "direct"},
             }
         }
-        cmoriser.cmoriser = _ScalarOceanCMORiser(
+        # Omon routes to the ocean CMORiser, which needs a horizontal grid; the
+        # atmosphere one handles time-only variables
+        cmoriser.cmoriser = Atmosphere_CMORiser(
             input_data=cmoriser.input_dataset,
             output_path=str(cmoriser.output_path),
             compound_name=cmoriser.cmip6_compound_name,
