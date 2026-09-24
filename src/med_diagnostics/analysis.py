@@ -1,6 +1,7 @@
 import numpy as np
 from access_moppy import ACCESS_ESM_CMORiser
 from access_moppy.ocean import Ocean_CMORiser, Ocean_CMORiser_OM3
+from access_moppy.utilities import _model_mapping_file_exists
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -106,6 +107,15 @@ def _normalise_model_type(model_type):
     return key
 
 
+def _mapping_model_id(model_id):
+    """Return the ``model_id`` spelling whose mapping file this moppy version ships."""
+    # moppy >1.2.6 renamed ACCESS-ESM1.6_mappings.json to ACCESS-ESM1-6_mappings.json
+    for candidate in (model_id, model_id.replace(".", "-")):
+        if _model_mapping_file_exists(candidate):
+            return candidate
+    return model_id
+
+
 def cmorise_data(
     dataset,
     compound_name,
@@ -146,6 +156,7 @@ def cmorise_data(
     """
     model_type = _normalise_model_type(model_type)
     model_id, source_id = ACCESS_MODEL_TYPES[model_type]
+    model_id = _mapping_model_id(model_id)
 
     cmor_name = compound_name.split(".")[-1]
     is_mom5_scalar = (
