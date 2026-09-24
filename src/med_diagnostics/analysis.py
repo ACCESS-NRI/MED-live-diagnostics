@@ -1,3 +1,5 @@
+from typing import Any
+
 import matplotlib.pyplot as plt
 import xarray as xr
 
@@ -6,6 +8,13 @@ PREDEFINED_REGIONS = {
     "nino3": {"lat": (-5, 5), "lon": (-150, -90)},
     "nino4": {"lat": (-5, 5), "lon": (160, -150)},
     "tasmania": {"lat": (-44, -39), "lon": (143, 149)},
+}
+
+# Default `DataArray.plot` kwargs by result dimensionality: 1D is a timeseries,
+# 2D a Hovmöller diagram or zonal mean over latitude.
+DEFAULT_PLOT_KWARGS: dict[int, dict[str, Any]] = {
+    1: {"linewidth": 2},
+    2: {"cmap": "viridis"},
 }
 
 
@@ -77,22 +86,53 @@ def extract_region(dataset, region, lon_dim="lon", lat_dim="lat"):
 
 def analyse_and_plot(dataset: xr.Dataset, recipe_func, **recipe_kwargs) -> plt.Figure:
     """
-    Executes a chosen recipe on the dataset and plots the result.
-    **recipe_kwargs allows the user to pass specific arguments (like variable or depth) to the recipe.
+    Run a recipe on the dataset and plot the result.
+
+    Parameters
+    ----------
+    dataset : xarray.Dataset
+        Data passed to the recipe.
+    recipe_func : callable
+        ``recipe_func(dataset, **recipe_kwargs)``, returning either a DataArray or
+        ``(DataArray, plot_kwargs)`` to customise the plot. ``plot_kwargs`` may
+        include ``customise``, a ``func(ax, data)`` run after plotting.
+    **recipe_kwargs
+        Extra arguments for the recipe (e.g. variable or depth).
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        The figure holding the plot.
     """
     # 1. Execute the chosen recipe function, unpacking any extra arguments
-    result_data = recipe_func(dataset, **recipe_kwargs)
+    result = recipe_func(dataset, **recipe_kwargs)
 
-    # 2. Plotting logic
-    fig, ax = plt.subplots(figsize=(10, 5))
+    # A recipe may return (data, plot_kwargs) to style its own plot
+    if isinstance(result, tuple):
+        result_data, recipe_plot_kwargs = result
+    else:
+        result_data, recipe_plot_kwargs = result, {}
 
-    # If it's a 1D timeseries
-    if len(result_data.dims) == 1:
-        result_data.plot(ax=ax, linewidth=2)
-    # If it's 2D (like a Hovmöller diagram or a Zonal Mean over Latitude)
-    elif len(result_data.dims) == 2:
-        result_data.plot(ax=ax, cmap="viridis")
+    # 2. Plotting logic. The recipe's kwargs override the defaults.
+    defaults = DEFAULT_PLOT_KWARGS.get(len(result_data.dims), {})
+    plot_kwargs = {**defaults, **(recipe_plot_kwargs or {})}
 
-    ax.set_title(result_data.name or "Diagnostic Output")
+    # Figure/axes-level keys aren't accepted by `DataArray.plot`, so pop them
+    # first. `ax_kwargs` goes to `ax.set` (e.g. xlabel, ylim, yscale), and
+    # `customise(ax, data)` runs last for anything kwargs can't express
+    # (fills, reference lines, annotations).
+    figsize = plot_kwargs.pop("figsize", (10, 5))
+    title = plot_kwargs.pop("title", result_data.name or "Diagnostic Output")
+    ax_kwargs = plot_kwargs.pop("ax_kwargs", {})
+    customise = plot_kwargs.pop("customise", None)
+
+    fig, ax = plt.subplots(figsize=figsize)
+    # Everything else goes to xarray, then on to matplotlib (e.g. color, vmin)
+    result_data.plot(ax=ax, **plot_kwargs)
+
+    ax.set_title(title)
+    ax.set(**ax_kwargs)
+    if customise is not None:
+        customise(ax, result_data)
     plt.tight_layout()
     return fig
