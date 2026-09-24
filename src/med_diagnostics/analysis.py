@@ -1,5 +1,7 @@
+import iris
 from access_moppy import ACCESS_ESM_CMORiser
 from access_moppy.atmosphere import Atmosphere_CMORiser
+from ncdata.iris_xarray import cubes_from_xarray
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -26,11 +28,6 @@ MOM5_SCALARS = {
     "masso": "total_mass_seawater",
     "volo": "total_volume_seawater",
 }
-
-
-# ---------------------------------------------------------------------------
-# CMORisation
-# ---------------------------------------------------------------------------
 
 
 def cmorise(
@@ -134,6 +131,36 @@ def cmorise(
             if var in dataset and var != cmor_name and not var.endswith("_bnds")
         ]
     )
+
+
+def to_cube(ds, var):
+    """Convert one variable of any CMORised dataset to an iris cube safely."""
+
+    # add latitude/longitude to coordinates ONLY if they exist
+    coords_to_set = [
+        c for c in ["latitude", "longitude", "lat", "lon"] if c in ds.data_vars
+    ]
+    if coords_to_set:
+        ds = ds.set_coords(coords_to_set)
+
+    # map bounds dynamically based on CMIP6 naming conventions
+    bounds_mapping = {
+        "latitude": "vertices_latitude",
+        "longitude": "vertices_longitude",
+        "lat": "lat_bnds",
+        "lon": "lon_bnds",
+        "time": "time_bnds",
+    }
+
+    # link bounds only if both the coordinate and bounds exist
+    for coord, bounds in bounds_mapping.items():
+        if (coord in ds and bounds in ds) and (
+            "bounds" not in ds[coord].attrs and "bounds" not in ds[coord].encoding
+        ):
+            ds[coord].attrs["bounds"] = bounds
+
+    # Convert
+    return cubes_from_xarray(ds).extract_cube(iris.NameConstraint(var_name=var))
 
 
 def add_function(func):

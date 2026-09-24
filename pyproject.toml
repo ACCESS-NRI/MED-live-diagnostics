@@ -62,6 +62,9 @@ cartopy = ">=0.26.0,<0.27"
 xclim = ">=0.62.0,<0.63"
 access-moppy = ">=1.8,<2"
 python = ">=3.11,<3.14"
+iris = ">=3.16.0,<4"
+ncdata = ">=0.3.2,<0.4"
+esmvalcore = ">=2.15.0,<3"
 
 [tool.mypy]
 exclude = [
