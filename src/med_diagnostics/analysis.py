@@ -24,6 +24,7 @@ logging.getLogger("access_moppy").setLevel(logging.ERROR)
 # moppy validates source_id against the CMIP6 CVs, which only list CM2, ESM1-5,
 # OM2 and OM2-025, so the nearest one is used; it only ends up in the metadata.
 ACCESS_MODEL_TYPES = {
+    "ESM1.5": ("ACCESS-ESM1-5", "ACCESS-ESM1-5"),
     "ESM1.6": ("ACCESS-ESM1-6", "ACCESS-ESM1-5"),
     "CM3": ("ACCESS-CM3", "ACCESS-CM2"),
     "OM3": ("ACCESS-OM3", "ACCESS-CM2"),
