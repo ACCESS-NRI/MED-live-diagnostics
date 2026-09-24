@@ -1,5 +1,6 @@
+import numpy as np
 from access_moppy import ACCESS_ESM_CMORiser
-from access_moppy.ocean import Ocean_CMORiser_OM3
+from access_moppy.ocean import Ocean_CMORiser, Ocean_CMORiser_OM3
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -14,17 +15,81 @@ ACCESS_MODEL_TYPES = {
     "ACCESS-CM3": ("ACCESS-CM3", "ACCESS-CM2"),
     "ACCESS-OM3": ("ACCESS-OM3", "ACCESS-CM2"),
     # No OM2 mapping file ships with moppy; ESM1.6's ocean is MOM5, as in OM2
-    "ACCESS-OM2": ("ACCESS-ESM1.6", "ACCESS-OM2"),
+    "ACCESS-OM2": ("ACCESS-OM2", "ACCESS-OM2"),
 }
+
 
 # Models whose ocean is MOM6 on a C-grid, needing moppy's OM3 ocean CMORiser
 MOM6_MODEL_TYPES = {"ACCESS-OM3", "ACCESS-CM3"}
 OCEAN_TABLES = {"Oyr", "Oday", "Omon", "Ofx"}
 
+# CMIP6 name -> MOM5 variable in the ``ocean_scalar`` output (dims time, scalar_axis).
+# moppy's own mappings for these derive the global mean from gridded 3D fields,
+# but MOM5 already writes it, in CMIP units, so a direct rename is enough.
+MOM5_SCALAR_VARIABLES = {
+    "thetaoga": "temp_global_ave",
+    "tosga": "temp_surface_ave",
+    "soga": "salt_global_ave",
+    "sosga": "salt_surface_ave",
+    "masso": "total_mass_seawater",
+    "volo": "total_volume_seawater",
+}
+
 
 # ---------------------------------------------------------------------------
 # CMORisation
 # ---------------------------------------------------------------------------
+
+
+class _ScalarOceanCMORiser(Ocean_CMORiser):
+    """``Ocean_CMORiser`` for global-mean timeseries, which have no horizontal grid."""
+
+    def infer_grid_type(self):
+        return None, None
+
+    def _get_dim_rename(self):
+        return {}
+
+    def select_and_process_variables(self):
+        super().select_and_process_variables()
+        if "scalar_axis" in self.ds.dims:
+            self.ds = self.ds.squeeze("scalar_axis", drop=True)
+
+    def update_attributes(self):
+        # Ocean_CMORiser.update_attributes minus the supergrid lat/lon/vertices
+        self.ds.attrs = {
+            k: v
+            for k, v in self.vocab.get_required_global_attributes().items()
+            if v not in (None, "")
+        }
+        if "nv" in self.ds.dims:
+            self.ds = self.ds.rename_dims({"nv": "bnds"}).rename_vars({"nv": "bnds"})
+            self.ds["bnds"].attrs.update(
+                {"long_name": "vertex number of the bounds", "units": "1"}
+            )
+        cmor_attrs = self.vocab.variable
+        self.ds[self.cmor_name].attrs.update(
+            {k: v for k, v in cmor_attrs.items() if v not in (None, "")}
+        )
+        var_type = cmor_attrs.get("type", "double")
+        self.ds[self.cmor_name] = self.ds[self.cmor_name].astype(
+            self.type_mapping.get(var_type, np.float64)
+        )
+        if "time" in self.ds.dims:
+            self._check_calendar("time")
+
+
+def _mom5_scalar_mapping(cmor_name, units):
+    """Build a moppy mapping entry that renames a MOM5 scalar onto ``cmor_name``."""
+    return {
+        cmor_name: {
+            "dimensions": {"time": "time"},
+            "units": units,
+            "positive": None,
+            "model_variables": [MOM5_SCALAR_VARIABLES[cmor_name]],
+            "calculation": {"type": "direct"},
+        }
+    }
 
 
 def _normalise_model_type(model_type):
@@ -82,6 +147,16 @@ def cmorise_data(
     model_type = _normalise_model_type(model_type)
     model_id, source_id = ACCESS_MODEL_TYPES[model_type]
 
+    cmor_name = compound_name.split(".")[-1]
+    is_mom5_scalar = (
+        model_type not in MOM6_MODEL_TYPES
+        and cmor_name in MOM5_SCALAR_VARIABLES
+        and "scalar_axis" in getattr(dataset, "dims", ())
+    )
+    if is_mom5_scalar and "time_bounds" in dataset.variables:
+        # moppy looks for <dim>_bnds; MOM5 writes time_bounds
+        dataset = dataset.rename({"time_bounds": "time_bnds"})
+
     cmoriser = ACCESS_ESM_CMORiser(
         input_data=dataset,
         compound_name=compound_name,
@@ -111,6 +186,17 @@ def cmorise_data(
             compound_name=cmoriser.cmip6_compound_name,
             vocab=cmoriser.vocab,
             variable_mapping=cmoriser.variable_mapping.to_dict(),
+            drs_root=cmoriser.drs_root,
+        )
+    elif is_mom5_scalar:
+        cmoriser.cmoriser = _ScalarOceanCMORiser(
+            input_data=cmoriser.input_dataset,
+            output_path=str(cmoriser.output_path),
+            compound_name=cmoriser.cmip6_compound_name,
+            vocab=cmoriser.vocab,
+            variable_mapping=_mom5_scalar_mapping(
+                cmor_name, cmoriser.vocab.variable["units"]
+            ),
             drs_root=cmoriser.drs_root,
         )
 
