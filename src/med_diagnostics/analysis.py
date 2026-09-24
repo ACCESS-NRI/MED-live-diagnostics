@@ -1,8 +1,4 @@
-import json
-from importlib.resources import files
-
 import numpy as np
-import xarray as xr
 from access_moppy import ACCESS_ESM_CMORiser
 from access_moppy.ocean import Ocean_CMORiser
 
@@ -21,27 +17,15 @@ ACCESS_MODEL_TYPES = {
     "OM2": ("ACCESS-ESM1-6", "ACCESS-OM2"),
 }
 
-# moppy mapping component -> {frequency: CMIP6 table}. moppy's mappings don't
-# say which table a variable belongs to, so this picks it.
-REALM_TABLES = {
-    "atmosphere": {"mon": "Amon", "day": "day"},
-    "aerosol": {"mon": "AERmon", "day": "AERday"},
-    "land": {"mon": "Lmon", "day": "Eday"},
-    "landIce": {"mon": "LImon"},
-    "ocean": {"mon": "Omon", "day": "Oday", "yr": "Oyr"},
-    "oceanBgchem": {"mon": "Omon", "day": "Oday", "yr": "Oyr"},
-    "sea_ice": {"mon": "SImon", "day": "SIday"},
-}
-
-# MOM5 ocean_scalar variable -> CMIP6 name. moppy's mappings derive these from
+# CMIP6 name -> MOM5 ocean_scalar variable. moppy's mappings derive these from
 # gridded 3D fields, but MOM5 already writes them, in CMIP units.
 MOM5_SCALARS = {
-    "temp_global_ave": "thetaoga",
-    "temp_surface_ave": "tosga",
-    "salt_global_ave": "soga",
-    "salt_surface_ave": "sosga",
-    "total_mass_seawater": "masso",
-    "total_volume_seawater": "volo",
+    "thetaoga": "temp_global_ave",
+    "tosga": "temp_surface_ave",
+    "soga": "salt_global_ave",
+    "sosga": "salt_surface_ave",
+    "masso": "total_mass_seawater",
+    "volo": "total_volume_seawater",
 }
 
 
@@ -94,50 +78,10 @@ class _ScalarOceanCMORiser(Ocean_CMORiser):
         super().write()
 
 
-def _compound_names(dataset, model_id, frequency):
-    """Map each buildable ``"table.variable"`` to its MOM5 scalar input (or None)."""
-    tables_dir = files("access_moppy") / "vocabularies/cmip6_cmor_tables/Tables"
-
-    def table_for(component, cmor_name):
-        table = REALM_TABLES.get(component, {}).get(frequency)
-        if table is None:
-            return None
-        entries = json.loads((tables_dir / f"CMIP6_{table}.json").read_text())
-        return table if cmor_name in entries["variable_entry"] else None
-
-    if "scalar_axis" in dataset.dims:
-        return {
-            f"{table_for('ocean', cmor_name)}.{cmor_name}": raw_var
-            for raw_var, cmor_name in MOM5_SCALARS.items()
-            if raw_var in dataset
-        }
-
-    mapping_file = files("access_moppy.mappings") / f"{model_id}_mappings.json"
-    mappings = json.loads(mapping_file.read_text())
-    compound_names = {}
-    for component, entries in mappings.items():
-        if component not in REALM_TABLES:
-            continue
-        for cmor_name, entry in entries.items():
-            table = table_for(component, cmor_name)
-            if (
-                table
-                # Entries without inputs are fixed fields built from files
-                # bundled with moppy, so they'd be added to every dataset
-                and entry["model_variables"]
-                and all(var in dataset for var in entry["model_variables"])
-                # calculate_monthly_* (tasmax/tasmin) needs sub-monthly input, so
-                # a monthly field would be relabelled as its own max/min
-                and "calculate_monthly_" not in json.dumps(entry["calculation"])
-            ):
-                compound_names[f"{table}.{cmor_name}"] = None
-    return compound_names
-
-
-def cmorise_data(
+def cmorise(
     dataset,
     model_type,
-    frequency="mon",
+    compound_name,
     experiment_id="historical",
     variant_label="r1i1p1f1",
     grid_label="gn",
@@ -148,102 +92,84 @@ def cmorise_data(
     **cmoriser_kwargs,
 ):
     """
-    CMORise every variable moppy can build from ``dataset`` and merge the results.
+    CMORise one variable of an ACCESS model dataset with ``ACCESS_ESM_CMORiser``.
 
     Parameters
     ----------
     dataset : xr.Dataset
-        Raw model output.
+        Raw model output containing the variable's inputs.
     model_type : str
         One of ``ACCESS_MODEL_TYPES``, e.g. ``"OM2"``.
-    frequency : str
-        ``"mon"``, ``"day"`` or ``"yr"``; picks each realm's CMIP6 table.
+    compound_name : str
+        CMIP6 ``table.variable`` to produce, e.g. ``"Omon.tos"``.
     experiment_id, variant_label, grid_label, activity_id : str
         CMIP metadata; must be valid CMIP6 CV entries.
     parent_info : dict, optional
         Parent experiment metadata. Defaults to moppy's piControl parent.
     write_output : bool
-        Also write one CMORised NetCDF per variable to ``output_path``.
+        Also write the CMORised NetCDF to ``output_path``.
     **cmoriser_kwargs
         Passed straight to ``ACCESS_ESM_CMORiser`` (e.g. ``enable_resampling``).
 
     Returns
     -------
     xr.Dataset
-        The CMORised variables, merged.
+        The CMORised variable and its bounds.
     """
-    if model_type not in ACCESS_MODEL_TYPES:
-        raise KeyError(
-            f"Unknown model_type {model_type!r}. Expected one of {list(ACCESS_MODEL_TYPES)}."
-        )
     model_id, source_id = ACCESS_MODEL_TYPES[model_type]
-    compound_names = _compound_names(dataset, model_id, frequency)
-    if not compound_names:
-        raise ValueError(
-            f"No {frequency} {model_type} mapping in moppy can be built from "
-            f"{sorted(dataset.data_vars)}."
-        )
+    cmor_name = compound_name.split(".")[1]
+    scalar_var = MOM5_SCALARS.get(cmor_name)
+    is_scalar = scalar_var in dataset and "scalar_axis" in dataset[scalar_var].dims
+    if is_scalar and "time_bounds" in dataset.variables:
+        # moppy looks for <dim>_bnds; MOM5 writes time_bounds
+        dataset = dataset.rename({"time_bounds": "time_bnds"})
 
-    if "scalar_axis" in dataset.dims:
-        # Every variable re-reads the source files otherwise; a timeseries is tiny
-        dataset = dataset.load()
-        if "time_bounds" in dataset.variables:
-            # moppy looks for <dim>_bnds; MOM5 writes time_bounds
-            dataset = dataset.rename({"time_bounds": "time_bnds"})
+    cmoriser = ACCESS_ESM_CMORiser(
+        input_data=dataset,
+        compound_name=compound_name,
+        experiment_id=experiment_id,
+        source_id=source_id,
+        variant_label=variant_label,
+        grid_label=grid_label,
+        activity_id=activity_id,
+        parent_info=parent_info,
+        model_id=model_id,
+        output_path=output_path,
+        **cmoriser_kwargs,
+    )
 
-    cmorised = []
-    for compound_name, scalar_var in compound_names.items():
-        cmoriser = ACCESS_ESM_CMORiser(
-            input_data=dataset,
-            compound_name=compound_name,
-            experiment_id=experiment_id,
-            source_id=source_id,
-            variant_label=variant_label,
-            grid_label=grid_label,
-            activity_id=activity_id,
-            parent_info=parent_info,
-            model_id=model_id,
-            output_path=output_path,
-            **cmoriser_kwargs,
-        )
-        cmor_name = compound_name.split(".")[1]
-
-        if scalar_var:
-            # A direct rename replaces moppy's gridded-mean mapping
-            mapping = {
-                cmor_name: {
-                    "dimensions": {"time": "time"},
-                    "units": cmoriser.vocab.variable["units"],
-                    "positive": None,
-                    "model_variables": [scalar_var],
-                    "calculation": {"type": "direct"},
-                }
+    if is_scalar:
+        # A direct rename replaces moppy's gridded-mean mapping
+        mapping = {
+            cmor_name: {
+                "dimensions": {"time": "time"},
+                "units": cmoriser.vocab.variable["units"],
+                "positive": None,
+                "model_variables": [scalar_var],
+                "calculation": {"type": "direct"},
             }
-            cmoriser.cmoriser = _ScalarOceanCMORiser(
-                input_data=cmoriser.input_dataset,
-                output_path=str(cmoriser.output_path),
-                compound_name=cmoriser.cmip6_compound_name,
-                vocab=cmoriser.vocab,
-                variable_mapping=mapping,
-                drs_root=cmoriser.drs_root,
-            )
-
-        with cmoriser:
-            cmoriser.run(write_output=write_output)
-            ds = cmoriser.to_dataset()
-        # moppy keeps the raw inputs; drop them so only CMIP names remain
-        cmorised.append(
-            ds.drop_vars(
-                [
-                    var
-                    for var in ds.data_vars
-                    if var in dataset and var != cmor_name and not var.endswith("_bnds")
-                ]
-            )
+        }
+        cmoriser.cmoriser = _ScalarOceanCMORiser(
+            input_data=cmoriser.input_dataset,
+            output_path=str(cmoriser.output_path),
+            compound_name=cmoriser.cmip6_compound_name,
+            vocab=cmoriser.vocab,
+            variable_mapping=mapping,
+            drs_root=cmoriser.drs_root,
         )
 
-    # Only per-variable attrs (variable_id, tracking_id) conflict; drop them
-    return xr.merge(cmorised, combine_attrs="drop_conflicts")
+    with cmoriser:
+        cmoriser.run(write_output=write_output)
+        ds = cmoriser.to_dataset()
+
+    # moppy keeps the raw inputs; drop them so only CMIP names remain
+    return ds.drop_vars(
+        [
+            var
+            for var in ds.data_vars
+            if var in dataset and var != cmor_name and not var.endswith("_bnds")
+        ]
+    )
 
 
 def add_function(func):
