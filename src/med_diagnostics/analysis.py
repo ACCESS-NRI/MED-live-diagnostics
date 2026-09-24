@@ -1,11 +1,13 @@
 import warnings
 
+import cf_units
 import esmvalcore.preprocessor
 import iris
 import matplotlib.pyplot as plt
 import xarray as xr
 from access_moppy import ACCESS_ESM_CMORiser
 from access_moppy.atmosphere import Atmosphere_CMORiser
+from access_moppy.utilities import load_model_mappings
 from ncdata.iris_xarray import cubes_from_xarray, cubes_to_xarray
 
 # ---------------------------------------------------------------------------
@@ -33,6 +35,36 @@ MOM5_SCALARS = {
     "masso": "total_mass_seawater",
     "volo": "total_volume_seawater",
 }
+
+# Seawater density moppy's WOMBAT formulas use to turn mol kg-1 into mol m-3
+WOMBAT_RHO0 = 1035.0
+
+
+def _to_mapping_units(dataset, compound_name, model_id):
+    """Convert raw inputs to the units moppy's mapping formula assumes."""
+    entry = load_model_mappings(compound_name, model_id).get(
+        compound_name.split(".")[1], {}
+    )
+    for var, expected in entry.get("model_variable_units", {}).items():
+        units = dataset[var].attrs.get("units") if var in dataset else None
+        if not units or units == expected:
+            continue
+        try:
+            source, target = cf_units.Unit(units), cf_units.Unit(expected)
+            density = 1.0
+            if not source.is_convertible(target):
+                # OM2's WOMBAT writes tracers per volume, ESM1.6's per mass
+                source, density = source / cf_units.Unit("kg m-3"), WOMBAT_RHO0
+            offset = source.convert(0.0, target)
+            scale = (source.convert(1.0, target) - offset) / density
+        except ValueError:
+            # Unparseable (e.g. "psu") or incompatible units: leave as is
+            continue
+        attrs = {**dataset[var].attrs, "units": expected}
+        dataset = dataset.assign(
+            {var: (dataset[var] * scale + offset).assign_attrs(attrs)}
+        )
+    return dataset
 
 
 def cmorise(
@@ -75,6 +107,8 @@ def cmorise(
     """
     model_id, source_id = ACCESS_MODEL_TYPES[model_type]
     cmor_name = compound_name.split(".")[1]
+    # e.g. OM2 reuses ESM1.6's mappings, but writes o2 in mmol m-3, not mol kg-1
+    dataset = _to_mapping_units(dataset, compound_name, model_id)
     scalar_var = MOM5_SCALARS.get(cmor_name)
     is_scalar = scalar_var in dataset and "scalar_axis" in dataset[scalar_var].dims
     if is_scalar:
