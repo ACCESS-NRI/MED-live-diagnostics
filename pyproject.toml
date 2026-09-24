@@ -65,6 +65,7 @@ python = ">=3.11,<3.14"
 iris = ">=3.16.0,<4"
 ncdata = ">=0.3.2,<0.4"
 esmvalcore = ">=2.15.0,<3"
+xcdat = ">=0.11.3,<0.12"
 
 [tool.mypy]
 exclude = [
