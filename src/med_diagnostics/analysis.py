@@ -43,15 +43,38 @@ MOM5_SCALARS = {
     "volo": "total_volume_seawater",
 }
 
+# CMIP name -> alternative moppy mapping entries, merged over moppy's own, for
+# raw data that doesn't have the inputs moppy expects. Used only when all of an
+# entry's model_variables are in the dataset and moppy's aren't. Same format as
+# moppy's mapping files (access_moppy/mappings/*.json).
+MAPPING_OVERRIDES = {
+    # moppy maps tos from surface_temp (K); some MOM5 runs only write sst (degC)
+    "tos": [
+        {
+            "model_variables": ["sst"],
+            "model_variable_units": {"sst": "degC"},
+            "calculation": {"type": "direct", "formula": "sst"},
+        }
+    ],
+}
+
 # Seawater density moppy's WOMBAT formulas use to turn mol kg-1 into mol m-3
 WOMBAT_RHO0 = 1035.0
 
 
-def _to_mapping_units(dataset, compound_name, model_id):
-    """Convert raw inputs to the units moppy's mapping formula assumes."""
-    entry = load_model_mappings(compound_name, model_id).get(
-        compound_name.split(".")[1], {}
-    )
+def _mapping_entry(dataset, cmor_name, model_id):
+    """Return the mapping entry to use, and whether it overrides moppy's."""
+    entry = load_model_mappings(f".{cmor_name}", model_id).get(cmor_name, {})
+    if all(v in dataset for v in entry.get("model_variables", [])):
+        return entry, False
+    for override in MAPPING_OVERRIDES.get(cmor_name, []):
+        if all(v in dataset for v in override["model_variables"]):
+            return {**entry, **override}, True
+    return entry, False
+
+
+def _to_mapping_units(dataset, entry):
+    """Convert raw inputs to the units the mapping formula assumes."""
     for var, expected in entry.get("model_variable_units", {}).items():
         units = dataset[var].attrs.get("units") if var in dataset else None
         if not units or units == expected:
@@ -114,10 +137,20 @@ def cmorise(
     """
     model_id, source_id = ACCESS_MODEL_TYPES[model_type]
     cmor_name = compound_name.split(".")[1]
+    entry, overridden = _mapping_entry(dataset, cmor_name, model_id)
     # e.g. OM2 reuses ESM1.6's mappings, but writes o2 in mmol m-3, not mol kg-1
-    dataset = _to_mapping_units(dataset, compound_name, model_id)
+    dataset = _to_mapping_units(dataset, entry)
     scalar_var = MOM5_SCALARS.get(cmor_name)
     is_scalar = scalar_var in dataset and "scalar_axis" in dataset[scalar_var].dims
+    if not is_scalar:
+        # moppy's own "not found" warning is silenced below, and it then fails
+        # with an unrelated "no time coordinate" error
+        missing = [v for v in entry.get("model_variables", []) if v not in dataset]
+        if missing:
+            raise KeyError(
+                f"{compound_name} for {model_type} needs {missing}, which the "
+                f"dataset doesn't contain. Available: {sorted(dataset.data_vars)}"
+            )
     if is_scalar:
         # moppy wants <dim>_bnds on a "bnds" dim; MOM5 writes time_bounds on nv
         renames = {"time_bounds": "time_bnds", "nv": "bnds"}
@@ -168,6 +201,9 @@ def cmorise(
                 variable_mapping=mapping,
                 drs_root=cmoriser.drs_root,
             )
+
+        if overridden:
+            cmoriser.cmoriser.mapping = {cmor_name: entry}
 
         with cmoriser:
             cmoriser.run(write_output=write_output)
