@@ -15,7 +15,7 @@ ACCESS_MODEL_TYPES = {
     "ACCESS-CM3": ("ACCESS-CM3", "ACCESS-CM2"),
     "ACCESS-OM3": ("ACCESS-OM3", "ACCESS-CM2"),
     # No OM2 mapping file ships with moppy; ESM1.6's ocean is MOM5, as in OM2
-    "ACCESS-OM2": ("ACCESS-OM2", "ACCESS-OM2"),
+    "ACCESS-OM2": ("ACCESS-ESM1.6", "ACCESS-OM2"),
 }
 
 
