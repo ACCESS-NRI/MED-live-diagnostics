@@ -1,4 +1,7 @@
+import esmvalcore.preprocessor
 import iris
+import matplotlib.pyplot as plt
+import xarray as xr
 from access_moppy import ACCESS_ESM_CMORiser
 from access_moppy.atmosphere import Atmosphere_CMORiser
 from ncdata.iris_xarray import cubes_from_xarray
@@ -163,5 +166,42 @@ def to_cube(ds, var):
     return cubes_from_xarray(ds).extract_cube(iris.NameConstraint(var_name=var))
 
 
-def add_function(func):
-    print("add function to UI dropdown options.")
+def extract_dataset(
+    ds, var, start_longitude=190, end_longitude=240, start_latitude=-5, end_latitude=5
+):
+    cube = to_cube(ds, var)
+    return xr.DataArray.from_iris(
+        esmvalcore.preprocessor.extract_region(
+            cube, start_longitude, end_longitude, start_latitude, end_latitude
+        )
+    )
+
+
+def climate_statistics(ds, var, operator):
+    cube = to_cube(ds, var)
+    return xr.DataArray.from_iris(
+        esmvalcore.preprocessor.climate_statistics(cube, operator)
+    )
+
+
+def analyse_and_plot(dataset: xr.Dataset, recipe_func, **recipe_kwargs) -> plt.Figure:
+    """
+    Executes a chosen recipe on the dataset and plots the result.
+    **recipe_kwargs allows the user to pass specific arguments (like variable or depth) to the recipe.
+    """
+    # 1. Execute the chosen recipe function, unpacking any extra arguments
+    result_data = recipe_func(dataset, **recipe_kwargs)
+
+    # 2. Plotting logic
+    fig, ax = plt.subplots(figsize=(10, 5))
+
+    # If it's a 1D timeseries
+    if len(result_data.dims) == 1:
+        result_data.plot(ax=ax, linewidth=2)
+    # If it's 2D (like a Hovmöller diagram or a Zonal Mean over Latitude)
+    elif len(result_data.dims) == 2:
+        result_data.plot(ax=ax, cmap="viridis")
+
+    ax.set_title(result_data.name or "Diagnostic Output")
+    plt.tight_layout()
+    return fig
