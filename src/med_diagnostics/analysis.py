@@ -174,14 +174,14 @@ def extract_dataset(
         esmvalcore.preprocessor.extract_region(
             cube, start_longitude, end_longitude, start_latitude, end_latitude
         )
-    )
+    ).to_dataset(name=var)
 
 
 def climate_statistics(ds, var, operator):
     cube = to_cube(ds, var)
     return xr.DataArray.from_iris(
         esmvalcore.preprocessor.climate_statistics(cube, operator)
-    )
+    ).to_dataset(name=var)
 
 
 def analyse_and_plot(dataset: xr.Dataset, recipe_func, **recipe_kwargs) -> plt.Figure:
