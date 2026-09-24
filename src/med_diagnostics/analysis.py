@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import xarray as xr
 from access_moppy import ACCESS_ESM_CMORiser
 from access_moppy.atmosphere import Atmosphere_CMORiser
-from ncdata.iris_xarray import cubes_from_xarray
+from ncdata.iris_xarray import cubes_from_xarray, cubes_to_xarray
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -169,19 +169,19 @@ def to_cube(ds, var):
 def extract_dataset(
     ds, var, start_longitude=190, end_longitude=240, start_latitude=-5, end_latitude=5
 ):
-    cube = to_cube(ds, var)
-    return xr.DataArray.from_iris(
-        esmvalcore.preprocessor.extract_region(
-            cube, start_longitude, end_longitude, start_latitude, end_latitude
-        )
-    ).to_dataset(name=var)
+    """Extract a lon/lat box of one variable with ESMValCore's ``extract_region``."""
+    cube = esmvalcore.preprocessor.extract_region(
+        to_cube(ds, var), start_longitude, end_longitude, start_latitude, end_latitude
+    )
+    # Unlike DataArray.from_iris, this keeps cell measures, which area_statistics
+    # needs on curvilinear grids
+    return cubes_to_xarray(cube)
 
 
 def area_statistics(ds, var, operator):
-    cube = to_cube(ds, var)
-    return xr.DataArray.from_iris(
-        esmvalcore.preprocessor.area_statistics(cube, operator)
-    ).to_dataset(name=var)
+    """Collapse one variable over latitude/longitude with ESMValCore's ``area_statistics``."""
+    cube = esmvalcore.preprocessor.area_statistics(to_cube(ds, var), operator)
+    return cubes_to_xarray(cube)
 
 
 def analyse_and_plot(dataset: xr.Dataset, recipe_func, **recipe_kwargs) -> plt.Figure:
