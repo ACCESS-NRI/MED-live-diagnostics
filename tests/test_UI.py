@@ -12,7 +12,7 @@ import pytest
 import xarray as xr
 
 import med_diagnostics.data as med_data
-from med_diagnostics import controller, recipes
+from med_diagnostics import analysis, controller, recipes
 from med_diagnostics.types import (
     AllAnalysis,
     Animation,
@@ -3173,3 +3173,84 @@ def test_analysis_plot_data_button_click_shows_recipe_errors(analysis_ui):
     assert "expects UM output" in ui.analysis_warning_textbox.value
     assert ui.analysis_status_textbox.value == "Analysis status >> Recipe failed"
     assert len(ui.analysis_widget_container) == container_length
+
+
+def custom_recipe(ds, variable="o2"):
+    """
+    Custom mean timeseries.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Dataset.
+    variable : data variable, default "o2"
+        Variable to average.
+    """
+    return ds[variable].mean(["st_ocean", "yt_ocean", "xt_ocean"])
+
+
+@pytest.fixture
+def empty_uploads(monkeypatch):
+    """Give the test its own empty upload registry."""
+    monkeypatch.setattr(analysis, "UPLOADED_ANALYSES", {})
+
+
+def test_refresh_button_adds_uploaded_analysis(analysis_ui, empty_uploads):
+    """Test that an upload only reaches an open UI when the user clicks refresh.
+
+    Users define and upload functions after the UI is on screen. The dropdown
+    must pick them up on refresh without the section being rebuilt, and keep
+    the user's current selection.
+    """
+    ui = analysis_ui
+    analysis.upload_analysis(custom_recipe)
+    assert custom_recipe not in ui.analysis_recipe_dropdown.options.values()
+
+    ui.analysis_refresh_button.clicks += 1
+
+    options = ui.analysis_recipe_dropdown.options
+    assert options["Custom: Custom mean timeseries."] is custom_recipe
+    assert ui.analysis_recipe_dropdown.value is recipes.recipe_nino34_timeseries_mom5
+    assert (
+        ui.analysis_status_textbox.value
+        == "Analysis status >> Recipes refreshed (1 custom)."
+    )
+
+
+def test_uploaded_analysis_runs_from_ui(analysis_ui, empty_uploads):
+    """Test that an uploaded function gets a form and plots like a prebuilt one."""
+    ui = analysis_ui
+    analysis.upload_analysis(custom_recipe)
+    ui._analysis_refresh_click()
+    ui.analysis_recipe_dropdown.value = custom_recipe
+    ui._display_analysis_recipe_options_ui()
+
+    assert list(ui.analysis_recipe_widgets) == ["variable"]
+    ui._analysis_plot_data_button_click()
+    assert isinstance(ui.analysis_widget_container[-1][0], pn.pane.Matplotlib)
+    assert ui.analysis_warning_textbox.value == ""
+    plt.close("all")
+
+
+def test_refresh_after_reupload_clears_stale_options(analysis_ui, empty_uploads):
+    """Test that refreshing after re-uploading the selected function drops its old form.
+
+    The options row was built from the old version's parameters, so plotting
+    with it could pass arguments the new version doesn't accept.
+    """
+    ui = analysis_ui
+    analysis.upload_analysis(custom_recipe)
+    ui._analysis_refresh_click()
+    ui.analysis_recipe_dropdown.value = custom_recipe
+    ui._display_analysis_recipe_options_ui()
+
+    def custom_recipe_v2(ds):
+        """Custom mean timeseries."""
+
+    custom_recipe_v2.__name__ = "custom_recipe"
+    analysis.upload_analysis(custom_recipe_v2)
+    ui._analysis_refresh_click()
+
+    assert ui.analysis_recipe_dropdown.value is custom_recipe_v2
+    assert not hasattr(ui, "analysis_recipe_options_row")
+    assert "Recipe updated" in ui.analysis_status_textbox.value

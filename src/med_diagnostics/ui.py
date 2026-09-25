@@ -8,7 +8,7 @@ from typing import ClassVar
 import panel as pn
 from IPython.display import display
 
-from med_diagnostics import controller, data, recipes
+from med_diagnostics import analysis, controller, data, recipes
 from med_diagnostics.types import (
     AllAnalysis,
     Animation,
@@ -250,8 +250,11 @@ class UserInterface:
         self.analysis_select_recipe_button = pn.widgets.Button(
             **self.STYLES.get("green_button")
         )
-        self.analysis_recipe_info = pn.widgets.StaticText(styles={"color": "white"})
+        self.analysis_recipe_info = pn.widgets.StaticText(styles={"color": "black"})
         self.analysis_plot_button = pn.widgets.Button(**self.STYLES.get("green_button"))
+        self.analysis_refresh_button = pn.widgets.Button(
+            **self.STYLES.get("primary_button")
+        )
 
         self.figure_exists, self.ref_figure_exists = False, False
         self.long_names, self.ref_long_names, self.multiplot_long_names = {}, {}, {}
@@ -302,6 +305,7 @@ class UserInterface:
             self._analysis_select_recipe_button_click
         )
         self.analysis_plot_button.on_click(self._analysis_plot_button_click)
+        self.analysis_refresh_button.on_click(self._analysis_refresh_button_click)
 
         # Variable button toggles
         self.variable_toggle.param.watch(self._variable_toggle_click, "value")
@@ -331,8 +335,6 @@ class UserInterface:
             ConstrainToUser.value: ConstrainToUser(),
             ConstrainToRef.value: ConstrainToRef(),
         }
-
-        self.analysis_recipe_mapping = recipes.list_recipes()
 
     def _keys_button_click(self, event):
         """Event wrapper for the primary keys dropdown click."""
@@ -439,6 +441,11 @@ class UserInterface:
         """Event wrapper for the analysis load dataset button click."""
 
         self._analysis_keys_dropdown_click()
+
+    def _analysis_refresh_button_click(self, event):
+        """Event wrapper for the analysis refresh button click."""
+
+        self._analysis_refresh_click()
 
     def _analysis_select_recipe_button_click(self, event):
         """Event wrapper for the analysis select recipe button click."""
@@ -635,16 +642,21 @@ class UserInterface:
 
         # Populate recipe selection widgets
         self.analysis_recipe_dropdown.name = "Select analysis recipe"
-        self.analysis_recipe_dropdown.options = self.analysis_recipe_mapping
+        self._refresh_analysis_recipes()
         self.analysis_recipe_dropdown.disabled = True
         self.analysis_select_recipe_button.name = "Select recipe"
         self.analysis_select_recipe_button.disabled = True
+
+        self.analysis_refresh_button.name = "Refresh analysis recipes"
+        self.analysis_refresh_button.disabled = True
 
         self.analysis_keys_selection_row = pn.Row(
             self.analysis_keys_dropdown, self.analysis_keys_button
         )
         self.analysis_recipe_selection_row = pn.Row(
-            self.analysis_recipe_dropdown, self.analysis_select_recipe_button
+            self.analysis_recipe_dropdown,
+            self.analysis_select_recipe_button,
+            self.analysis_refresh_button,
         )
 
         self.analysis_widget_container.extend(
@@ -1942,6 +1954,47 @@ class UserInterface:
                 plot_diff=plot_diff,
             )
 
+    def _refresh_analysis_recipes(self):
+        """
+        Update the recipe dropdown with the prebuilt and uploaded recipes.
+
+        Returns
+        -------
+        bool
+            True if the selected recipe was re-uploaded and its options row removed.
+        """
+        selected = self.analysis_recipe_dropdown.value
+        self.analysis_recipe_mapping = recipes.list_recipes()
+        self.analysis_recipe_dropdown.options = self.analysis_recipe_mapping
+
+        # Keep the current choice, following it to its new version if re-uploaded
+        selected_name = getattr(selected, "__name__", None)
+        replacement = next(
+            (
+                func
+                for func in self.analysis_recipe_mapping.values()
+                if func.__name__ == selected_name
+            ),
+            None,
+        )
+        if replacement is not None:
+            self.analysis_recipe_dropdown.value = replacement
+
+        # Its options row was built from the old version's parameters
+        if replacement is not selected and hasattr(self, "analysis_recipe_options_row"):
+            self._safe_remove_widget_object(
+                self.analysis_widget_container, "analysis_recipe_options_row"
+            )
+            self._safe_remove_widget_object(
+                self.analysis_widget_container, "analysis_recipe_widgets"
+            )
+            controller.update_textbox_text(
+                self.analysis_status_textbox,
+                "Analysis status >> Recipe updated. Select it again to continue.",
+            )
+            return True
+        return False
+
     def _analysis_keys_dropdown_click(self):
         """
         Load the dataset selected in analysis_keys_dropdown and enable recipe selection.
@@ -1965,6 +2018,7 @@ class UserInterface:
         self.analysis_keys_button.name = "Load different dataset"
         self.analysis_recipe_dropdown.disabled = False
         self.analysis_select_recipe_button.disabled = False
+        self.analysis_refresh_button.disabled = False
 
         # Recipe options are built from the dataset, so clear any from the old one
         self._safe_remove_widget_object(
@@ -1978,6 +2032,20 @@ class UserInterface:
             self.analysis_status_textbox,
             "Analysis status >> Data successfully loaded. Select a recipe.",
         )
+
+    def _analysis_refresh_click(self):
+        """
+        Refresh the list of available recipes in the analysis dropdown, for if the user has added a custom analysis.
+        """
+        controller.update_textbox_text(self.analysis_warning_textbox, "")
+
+        # If a stale options row was cleared, keep its "select it again" status
+        if not self._refresh_analysis_recipes():
+            controller.update_textbox_text(
+                self.analysis_status_textbox,
+                f"Analysis status >> Recipes refreshed "
+                f"({len(analysis.UPLOADED_ANALYSES)} custom).",
+            )
 
     def _display_analysis_recipe_options_ui(self):
         """
@@ -2010,7 +2078,7 @@ class UserInterface:
         }
         self.analysis_plot_button.name = "Plot data"
 
-        self.analysis_recipe_options_row = pn.Row(
+        self.analysis_recipe_options_row = pn.FlexBox(
             *self.analysis_recipe_widgets.values(), self.analysis_plot_button
         )
 

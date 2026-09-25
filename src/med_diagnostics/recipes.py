@@ -17,19 +17,26 @@ RECIPE_KINDS = {"data variable", "dimension", "choice", "float", "int", "str", "
 
 def list_recipes():
     """
-    Return every prebuilt recipe, keyed by its docstring summary for the UI.
+    Return every prebuilt and uploaded recipe, keyed by a label for the UI.
 
     Returns
     -------
     dict
-        ``{summary: recipe}`` for each ``recipe_*`` function in this module.
+        ``{label: recipe}``: each ``recipe_*`` function in this module under its
+        docstring summary, then each ``analysis.upload_analysis`` recipe as
+        ``"Custom: <summary>"``.
     """
     found = {}
+
+    def add(label, name, func):
+        # Dropdown labels must be unique, so fall back to the function name
+        found[label if label not in found else f"{label} ({name})"] = func
+
     for name, func in inspect.getmembers(sys.modules[__name__], inspect.isfunction):
         if name.startswith("recipe_"):
-            summary, _ = get_recipe_summary(func)
-            # Dropdown labels must be unique, so fall back to the function name
-            found[summary if summary not in found else f"{summary} ({name})"] = func
+            add(get_recipe_summary(func)[0], name, func)
+    for name, func in analysis.UPLOADED_ANALYSES.items():
+        add(f"Custom: {get_recipe_summary(func)[0]}", name, func)
     return found
 
 

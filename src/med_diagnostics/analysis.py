@@ -1,3 +1,5 @@
+import inspect
+from collections.abc import Callable
 from typing import Any
 
 import matplotlib.pyplot as plt
@@ -16,6 +18,9 @@ DEFAULT_PLOT_KWARGS: dict[int, dict[str, Any]] = {
     1: {"linewidth": 2},
     2: {"cmap": "viridis"},
 }
+
+# Custom recipes uploaded from a notebook with `upload_analysis`, by function name
+UPLOADED_ANALYSES: dict[str, Callable] = {}
 
 
 def extract_region(dataset, region, lon_dim="lon", lat_dim="lat"):
@@ -144,3 +149,42 @@ def analyse_and_plot(dataset: xr.Dataset, recipe_func, **recipe_kwargs) -> plt.F
         func(ax, result_data)
     plt.tight_layout()
     return fig
+
+
+def upload_analysis(recipe_func):
+    """
+    Register a custom recipe for the UI's analysis section.
+
+    It appears in the recipe dropdown after "Refresh analysis recipes" is clicked.
+
+    Parameters
+    ----------
+    recipe_func : callable
+        ``recipe_func(ds, ...)`` returning a DataArray or ``(DataArray, plot_kwargs)``,
+        with a docstring following the recipe convention in ``med_diagnostics.recipes``.
+
+    Returns
+    -------
+    callable
+        ``recipe_func`` unchanged, so this also works as a decorator.
+
+    Raises
+    ------
+    TypeError
+        If ``recipe_func`` can't take the dataset as its first argument.
+    ValueError
+        If its docstring doesn't describe its parameters correctly.
+    """
+    # Imported here because recipes imports this module
+    from med_diagnostics import recipes
+
+    if not callable(recipe_func) or not inspect.signature(recipe_func).parameters:
+        raise TypeError(
+            "An analysis must be a function taking the dataset as its first argument."
+        )
+    # Check the docstring now, so mistakes show at upload rather than in the UI
+    recipes.get_recipe_kwarg_options(recipe_func)
+
+    # Keyed by name, so re-uploading an edited function replaces the old one
+    UPLOADED_ANALYSES[recipe_func.__name__] = recipe_func
+    return recipe_func
