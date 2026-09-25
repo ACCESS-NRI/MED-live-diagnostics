@@ -799,6 +799,9 @@ class UserInterface:
             # Update existing plot
             self._update_dataset_plot_ui()
 
+        # The analysis section also reads self.dataset, whichever section loaded it
+        self._sync_analysis_section()
+
     def _ref_keys_dropdown_click(self):
         """
         Loads selected reference model from ref_keys_dropdown and display reference model dataset selection.
@@ -839,6 +842,23 @@ class UserInterface:
         if not hasattr(self, "multiplot_ref_dataset_dict"):
             self.multiplot_ref_dataset_dict = {}
 
+        # Reload a changed user dataset first, so the reference model is matched
+        # to it and not discarded by the clear that follows a reload
+        if self.multiplot_keys_dropdown.value != self.loaded_dataset_key:
+            controller.update_textbox_text(
+                self.multiplot_status_textbox,
+                "Overlay Plot Status >> User dataset selection changed, reloading user dataset...",
+            )
+            # Load through the user section so every section sharing self.dataset updates
+            self._keys_dropdown_click(key=self.multiplot_keys_dropdown.value)
+            self.multiplot_plot_variable_dropdown.options = sorted(self.dataset.keys())
+
+            controller.update_textbox_text(
+                self.multiplot_status_textbox,
+                "Overlay Plot Status >> New user dataset loaded, clearing loaded user models",
+            )
+            self._clear_multiplot_data()
+
         selected_ref_model_cat = self.access_nri_cat.search(
             name=self.multiplot_ref_keys_dropdown.value
         ).to_source()
@@ -874,24 +894,6 @@ class UserInterface:
                 self.multiplot_warning_textbox,
                 "Overlay Plot Status >> There is no dataset matching the user dataset in this model, please select another",
             )
-
-        if self.multiplot_keys_dropdown.value != self.loaded_dataset_key:
-            controller.update_textbox_text(
-                self.multiplot_status_textbox,
-                "Overlay Plot Status >> User dataset selection changed, reloading user dataset...",
-            )
-            # Load selected dataset
-            self.dataset = data._build_data_object(
-                self.model_cat, self.multiplot_keys_dropdown.value
-            )
-            self.loaded_dataset_key = self.multiplot_keys_dropdown.value
-            self.multiplot_plot_variable_dropdown.options = sorted(self.dataset.keys())
-
-            controller.update_textbox_text(
-                self.multiplot_status_textbox,
-                "Overlay Plot Status >> New user dataset loaded, clearing loaded user models",
-            )
-            self._clear_multiplot_data()
 
     def _ref_dataset_dropdown_click(self):
         """
@@ -999,18 +1001,15 @@ class UserInterface:
             self.keys_dropdown.value = self.loaded_dataset_key
 
         else:
-            sorted_keys = sorted(self.dataset.keys())
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
                 "Overlay Plot Status >> Loading new user dataset...",
             )
-            # Load selected dataset
-            self.dataset = data._build_data_object(
-                self.model_cat, self.multiplot_keys_dropdown.value
-            )
-            self.loaded_dataset_key = self.multiplot_keys_dropdown.value
+            # Load through the user section so every section sharing self.dataset
+            # updates. The variable lists must come from the new dataset, after loading.
+            self._keys_dropdown_click(key=self.multiplot_keys_dropdown.value)
+            sorted_keys = sorted(self.dataset.keys())
             self.multiplot_plot_variable_dropdown.options = sorted_keys
-            self.keys_dropdown.value = self.loaded_dataset_key
             self.plot_variable_dropdown.options = sorted_keys
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
@@ -2004,17 +2003,15 @@ class UserInterface:
         )
         controller.update_textbox_text(self.analysis_warning_textbox, "")
 
-        selected_key = self.analysis_keys_dropdown.value
-        # Reuse the user section's dataset rather than loading the same one twice
-        if hasattr(self, "dataset") and (
-            getattr(self, "loaded_dataset_key", None) == selected_key
-        ):
-            self.analysis_dataset = self.dataset
-        else:
-            self.analysis_dataset = data._build_data_object(
-                self.model_cat, selected_key
-            )
+        # Load through the user section so every section sharing self.dataset
+        # updates; this also syncs the analysis section via _sync_analysis_section
+        self._keys_dropdown_click(key=self.analysis_keys_dropdown.value)
 
+    def _sync_analysis_section(self):
+        """
+        Point the analysis section at the newly loaded user dataset and enable recipe selection.
+        """
+        self.analysis_keys_dropdown.value = self.loaded_dataset_key
         self.analysis_keys_button.name = "Load different dataset"
         self.analysis_recipe_dropdown.disabled = False
         self.analysis_select_recipe_button.disabled = False
@@ -2030,7 +2027,7 @@ class UserInterface:
 
         controller.update_textbox_text(
             self.analysis_status_textbox,
-            "Analysis status >> Data successfully loaded. Select a recipe.",
+            "Analysis status >> User data loaded. Select a recipe.",
         )
 
     def _analysis_refresh_click(self):
@@ -2062,9 +2059,7 @@ class UserInterface:
         self.analysis_recipe_info.value = details
 
         try:
-            kwarg_options = recipes.get_recipe_kwarg_options(
-                recipe, self.analysis_dataset
-            )
+            kwarg_options = recipes.get_recipe_kwarg_options(recipe, self.dataset)
         except ValueError as err:
             # A recipe with a malformed docstring can't have a form built for it
             controller.update_textbox_text(
@@ -2158,7 +2153,7 @@ class UserInterface:
         }
 
         try:
-            fig = controller.plot_recipe(self.analysis_dataset, recipe, recipe_kwargs)
+            fig = controller.plot_recipe(self.dataset, recipe, recipe_kwargs)
         except (KeyError, ValueError, TypeError, IndexError) as err:
             # Show the errors a mismatched dataset or option raises (e.g. a
             # MOM5 recipe run on UM output) rather than losing them in the callback

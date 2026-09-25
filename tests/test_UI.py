@@ -1399,9 +1399,11 @@ def test_multiplot_ref_keys_dropdown_click(
 
     # Verify that state cleanup and status updates occur correctly when user selection changes
     if user_selection_changed:
+        # The reload happens before the reference model is added, so the add's
+        # status is the last one shown
         assert (
             ui.multiplot_status_textbox.value
-            == "Overlay Plot Status >> New user dataset loaded, clearing loaded user models"
+            == "Overlay Plot Status >> Loaded reference model, add another or plot the overlay"
         )
         assert ui.loaded_dataset_key == ui.multiplot_keys_dropdown.value
         assert ui.multiplot_plot_variable_dropdown.options == sorted(ui.dataset.keys())
@@ -2986,7 +2988,7 @@ def mock_mom5_dataset():
 def analysis_ui(ui):
     """Return a UI with a MOM5 dataset loaded into the analysis section."""
     ui._enable_widgets_after_catalog_load({"ocean": None}, {"model": None})
-    ui.analysis_dataset = mock_mom5_dataset()
+    ui.dataset = mock_mom5_dataset()
     ui.analysis_recipe_dropdown.value = recipes.recipe_nino34_timeseries_mom5
     return ui
 
@@ -3030,34 +3032,98 @@ def test_enable_widgets_after_catalog_load_enables_analysis(ui):
     )
 
 
-@pytest.mark.parametrize("same_as_user_dataset", [True, False])
-def test_analysis_keys_dropdown_click(analysis_ui, monkeypatch, same_as_user_dataset):
-    """Test loading a dataset, reusing the user section's copy where possible.
+def test_analysis_keys_dropdown_click_loads_through_user_section(ui, monkeypatch):
+    """Test that the analysis section loads data through the shared user load path.
 
-    Loading the same catalog key twice would double the data read, and a
-    recipe options row built for the previous dataset must be cleared because
-    its dropdown choices came from that dataset.
+    Every section reads self.dataset, so loading anywhere else would leave
+    loaded_dataset_key unset (crashing multiplot's add-reference button) and
+    the user and multiplot sections showing the previous dataset's variables.
     """
-    ui = analysis_ui
-    mock_build = MagicMock(return_value="new dataset")
-    monkeypatch.setattr(med_data, "_build_data_object", mock_build)
-    ui.dataset = "user dataset"
-    ui.loaded_dataset_key = "ocean" if same_as_user_dataset else "other"
-    ui._display_analysis_recipe_options_ui()
-
+    ui._enable_widgets_after_catalog_load({"ocean": None}, {"model": None})
+    mock_keys_dropdown_click = MagicMock()
+    monkeypatch.setattr(ui, "_keys_dropdown_click", mock_keys_dropdown_click)
     ui.analysis_keys_dropdown.value = "ocean"
+
     ui._analysis_keys_dropdown_click()
 
-    if same_as_user_dataset:
-        mock_build.assert_not_called()
-        assert ui.analysis_dataset == "user dataset"
-    else:
-        mock_build.assert_called_once_with(ui.model_cat, "ocean")
-        assert ui.analysis_dataset == "new dataset"
+    mock_keys_dropdown_click.assert_called_once_with(key="ocean")
+
+
+def test_analysis_first_load_enables_every_section(ui, monkeypatch):
+    """Test that loading first through the analysis section sets up the others.
+
+    Guards the crash where multiplot's add-reference button raised
+    AttributeError because loaded_dataset_key was never set.
+    """
+    ui._enable_widgets_after_catalog_load({"ocean": None}, {"model": None})
+    monkeypatch.setattr(
+        med_data, "_build_data_object", MagicMock(return_value=mock_mom5_dataset())
+    )
+    ui.analysis_keys_dropdown.value = "ocean"
+
+    ui._analysis_keys_dropdown_click()
+
+    assert ui.loaded_dataset_key == "ocean"
+    assert ui.keys_dropdown.value == "ocean"
+    assert ui.figure_exists is True
+    assert ui.multiplot_ref_keys_button.disabled is False
+    assert ui.analysis_recipe_dropdown.disabled is False
+
+
+def test_user_load_syncs_analysis_section(analysis_ui, monkeypatch):
+    """Test that loading through the user section enables and resets analysis.
+
+    The analysis options row is built from the old dataset's variables and
+    dims, so it must be cleared, and recipe selection enabled, whichever
+    section did the loading.
+    """
+    ui = analysis_ui
+    ui._display_analysis_recipe_options_ui()
+    monkeypatch.setattr(
+        med_data, "_build_data_object", MagicMock(return_value=mock_mom5_dataset())
+    )
+    ui.analysis_recipe_dropdown.disabled = True
+    ui.keys_dropdown.value = "ocean"
+
+    ui._keys_dropdown_click()
+
+    assert ui.analysis_keys_dropdown.value == "ocean"
     assert ui.analysis_recipe_dropdown.disabled is False
     assert ui.analysis_select_recipe_button.disabled is False
+    assert ui.analysis_refresh_button.disabled is False
     assert not hasattr(ui, "analysis_recipe_options_row")
     assert not hasattr(ui, "analysis_recipe_widgets")
+    assert (
+        ui.analysis_status_textbox.value
+        == "Analysis status >> User data loaded. Select a recipe."
+    )
+
+
+def test_update_multiplot_dataset_uses_new_dataset_variables(ui, monkeypatch):
+    """Test that switching the multiplot user dataset lists the new variables.
+
+    The variable lists used to be read from the old dataset before reloading,
+    so the dropdowns offered variables the new dataset doesn't have.
+    """
+    ui._enable_widgets_after_catalog_load({"a": None, "b": None}, {"model": None})
+    datasets = {
+        "a": xr.Dataset({"tas": ("x", [1.0])}),
+        "b": xr.Dataset({"pr": ("x", [1.0])}),
+    }
+    monkeypatch.setattr(
+        med_data,
+        "_build_data_object",
+        MagicMock(side_effect=lambda cat, key: datasets[key]),
+    )
+    ui.keys_dropdown.value = "a"
+    ui._keys_dropdown_click()
+
+    ui.multiplot_keys_dropdown.value = "b"
+    ui._update_multiplot_dataset()
+
+    assert ui.multiplot_plot_variable_dropdown.options == ["pr"]
+    assert ui.plot_variable_dropdown.options == ["pr"]
+    assert ui.analysis_keys_dropdown.value == "b"
 
 
 def test_display_analysis_recipe_options_ui(analysis_ui):
@@ -3254,3 +3320,40 @@ def test_refresh_after_reupload_clears_stale_options(analysis_ui, empty_uploads)
     assert ui.analysis_recipe_dropdown.value is custom_recipe_v2
     assert not hasattr(ui, "analysis_recipe_options_row")
     assert "Recipe updated" in ui.analysis_status_textbox.value
+
+
+def test_multiplot_add_ref_after_dataset_change_keeps_new_ref(ui, monkeypatch):
+    """Test that adding a reference model after changing the user dataset keeps it.
+
+    The changed user dataset used to be reloaded after the reference model was
+    added, and the clear that follows a reload threw the new model away, so
+    the user had to add it twice. It must also be matched to the new dataset.
+    """
+    ui._enable_widgets_after_catalog_load({"a": None, "b": None}, {"ref": None})
+    datasets = {
+        "a": xr.Dataset({"tas": ("x", [1.0])}),
+        "b": xr.Dataset({"pr": ("x", [1.0])}),
+    }
+    monkeypatch.setattr(
+        med_data,
+        "_build_data_object",
+        MagicMock(side_effect=lambda cat, key: datasets[key]),
+    )
+    ui.keys_dropdown.value = "a"
+    ui._keys_dropdown_click()
+
+    mock_cat = MagicMock()
+    mock_cat.search.return_value.to_source.return_value = {"b": None}
+    monkeypatch.setattr(ui, "access_nri_cat", mock_cat)
+    mock_add = MagicMock(
+        side_effect=lambda refs, model, *args: {**refs, model: "ref data"}
+    )
+    monkeypatch.setattr(controller, "add_to_dataset_dict", mock_add)
+
+    ui.multiplot_ref_keys_dropdown.value = "ref"
+    ui.multiplot_keys_dropdown.value = "b"
+    ui._multiplot_ref_keys_dropdown_click()
+
+    assert ui.multiplot_ref_dataset_dict == {"ref": "ref data"}
+    # Matched against the newly loaded user dataset, not the old one
+    assert mock_add.call_args.args[-1] is datasets["b"]
