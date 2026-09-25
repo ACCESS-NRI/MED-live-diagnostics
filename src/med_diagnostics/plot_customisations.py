@@ -58,7 +58,7 @@ def timeseries_plot_kwargs(timeseries, variable, units):
     """
     return {
         "color": "tab:blue",
-        "figsize": (8, 6),
+        "figsize": (6, 4),
         "title": timeseries.name,
         "ax_kwargs": {"xlabel": "Time", "ylabel": f"{variable} ({units})"},
         "customise": [

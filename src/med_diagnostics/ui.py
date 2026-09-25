@@ -8,7 +8,7 @@ from typing import ClassVar
 import panel as pn
 from IPython.display import display
 
-from med_diagnostics import controller, data
+from med_diagnostics import analysis, controller, data, recipes
 from med_diagnostics.types import (
     AllAnalysis,
     Animation,
@@ -114,6 +114,10 @@ class UserInterface:
         self.multiplot_widget_container = pn.Card(
             **self.STYLES.get("widget_container"),
             title="Overlay user and reference models",
+        )
+        self.analysis_widget_container = pn.Card(
+            **self.STYLES.get("widget_container"),
+            title="Run analysis recipes",
         )
 
         # Build initial panel text widgets
@@ -229,6 +233,29 @@ class UserInterface:
             **self.STYLES.get("variable_toggle")
         )
 
+        # Build analysis status text
+        self.analysis_status_textbox = pn.widgets.StaticText(
+            **self.STYLES.get("status_text")
+        )
+        self.analysis_warning_textbox = pn.widgets.StaticText(
+            **self.STYLES.get("warning_text")
+        )
+
+        # Build analysis buttons
+        self.analysis_keys_dropdown = pn.widgets.Select()
+        self.analysis_keys_button = pn.widgets.Button(
+            **self.STYLES.get("primary_button")
+        )
+        self.analysis_recipe_dropdown = pn.widgets.Select()
+        self.analysis_select_recipe_button = pn.widgets.Button(
+            **self.STYLES.get("green_button")
+        )
+        self.analysis_recipe_info = pn.widgets.StaticText(styles={"color": "black"})
+        self.analysis_plot_button = pn.widgets.Button(**self.STYLES.get("green_button"))
+        self.analysis_refresh_button = pn.widgets.Button(
+            **self.STYLES.get("primary_button")
+        )
+
         self.figure_exists, self.ref_figure_exists = False, False
         self.long_names, self.ref_long_names, self.multiplot_long_names = {}, {}, {}
 
@@ -271,6 +298,14 @@ class UserInterface:
         )
 
         self.prompt_bounds_button.on_click(self._prompt_bounds_button_click)
+
+        # Analysis buttons
+        self.analysis_keys_button.on_click(self._analysis_keys_button_click)
+        self.analysis_select_recipe_button.on_click(
+            self._analysis_select_recipe_button_click
+        )
+        self.analysis_plot_button.on_click(self._analysis_plot_button_click)
+        self.analysis_refresh_button.on_click(self._analysis_refresh_button_click)
 
         # Variable button toggles
         self.variable_toggle.param.watch(self._variable_toggle_click, "value")
@@ -402,14 +437,36 @@ class UserInterface:
             self.dataset,
         )
 
+    def _analysis_keys_button_click(self, event):
+        """Event wrapper for the analysis load dataset button click."""
+
+        self._analysis_keys_dropdown_click()
+
+    def _analysis_refresh_button_click(self, event):
+        """Event wrapper for the analysis refresh button click."""
+
+        self._analysis_refresh_click()
+
+    def _analysis_select_recipe_button_click(self, event):
+        """Event wrapper for the analysis select recipe button click."""
+
+        self._display_analysis_recipe_options_ui()
+
+    def _analysis_plot_button_click(self, event):
+        """Event wrapper for the analysis plot data button click."""
+
+        self._analysis_plot_data_button_click()
+
     def _initialise_widgets(self):
         self._initialise_user_widgets()
         self._initialise_ref_widgets()
         self._initialise_multiplot_widgets()
+        self._initialise_analysis_widgets()
         main_ui = pn.Column(
             self.user_widget_container,
             self.ref_widget_container,
             self.multiplot_widget_container,
+            self.analysis_widget_container,
             styles={"gap": "15px"},
         )
         display(main_ui)
@@ -563,6 +620,54 @@ class UserInterface:
             pn.layout.Divider(styles={"color": "white"})
         )
 
+    def _initialise_analysis_widgets(self):
+        """
+        Add the analysis status text, dataset selection and recipe selection widgets.
+        """
+
+        # Add analysis status text boxes
+        self.analysis_widget_container.append(self.analysis_status_textbox)
+        self.analysis_widget_container.append(self.analysis_warning_textbox)
+        controller.update_textbox_text(
+            self.analysis_status_textbox,
+            "Waiting for user model catalog to be built...",
+        )
+
+        # Populate dataset selection widgets
+        self.analysis_keys_dropdown.name = "Select dataset to analyse"
+        self.analysis_keys_dropdown.options = ["Waiting for model to load"]
+        self.analysis_keys_dropdown.disabled = True
+        self.analysis_keys_button.name = "Load dataset"
+        self.analysis_keys_button.disabled = True
+
+        # Populate recipe selection widgets
+        self.analysis_recipe_dropdown.name = "Select analysis recipe"
+        self._refresh_analysis_recipes()
+        self.analysis_recipe_dropdown.disabled = True
+        self.analysis_select_recipe_button.name = "Select recipe"
+        self.analysis_select_recipe_button.disabled = True
+
+        self.analysis_refresh_button.name = "Refresh analysis recipes"
+        self.analysis_refresh_button.disabled = True
+
+        self.analysis_keys_selection_row = pn.Row(
+            self.analysis_keys_dropdown, self.analysis_keys_button
+        )
+        self.analysis_recipe_selection_row = pn.Row(
+            self.analysis_recipe_dropdown,
+            self.analysis_select_recipe_button,
+            self.analysis_refresh_button,
+        )
+
+        self.analysis_widget_container.extend(
+            [
+                self.analysis_keys_selection_row,
+                self.analysis_recipe_selection_row,
+                self.analysis_recipe_info,
+                pn.layout.Divider(styles={"color": "white"}),
+            ]
+        )
+
     def _enable_widgets_after_catalog_load(self, model_cat, access_nri_cat):
         # Assign argument to class-accessible variables
         self.model_cat = model_cat
@@ -585,6 +690,14 @@ class UserInterface:
         self.multiplot_keys_dropdown.options = sorted(self.model_cat.keys())
         self.multiplot_keys_update_button.disabled = False
         self.multiplot_keys_dropdown.disabled = False
+
+        controller.update_textbox_text(
+            self.analysis_status_textbox,
+            "Analysis status >> Load a dataset to analyse.",
+        )
+        self.analysis_keys_dropdown.options = sorted(self.model_cat.keys())
+        self.analysis_keys_dropdown.disabled = False
+        self.analysis_keys_button.disabled = False
 
     def _display_dataset_selection_ui(self):
         """
@@ -686,6 +799,9 @@ class UserInterface:
             # Update existing plot
             self._update_dataset_plot_ui()
 
+        # The analysis section also reads self.dataset, whichever section loaded it
+        self._sync_analysis_section()
+
     def _ref_keys_dropdown_click(self):
         """
         Loads selected reference model from ref_keys_dropdown and display reference model dataset selection.
@@ -726,6 +842,23 @@ class UserInterface:
         if not hasattr(self, "multiplot_ref_dataset_dict"):
             self.multiplot_ref_dataset_dict = {}
 
+        # Reload a changed user dataset first, so the reference model is matched
+        # to it and not discarded by the clear that follows a reload
+        if self.multiplot_keys_dropdown.value != self.loaded_dataset_key:
+            controller.update_textbox_text(
+                self.multiplot_status_textbox,
+                "Overlay Plot Status >> User dataset selection changed, reloading user dataset...",
+            )
+            # Load through the user section so every section sharing self.dataset updates
+            self._keys_dropdown_click(key=self.multiplot_keys_dropdown.value)
+            self.multiplot_plot_variable_dropdown.options = sorted(self.dataset.keys())
+
+            controller.update_textbox_text(
+                self.multiplot_status_textbox,
+                "Overlay Plot Status >> New user dataset loaded, clearing loaded user models",
+            )
+            self._clear_multiplot_data()
+
         selected_ref_model_cat = self.access_nri_cat.search(
             name=self.multiplot_ref_keys_dropdown.value
         ).to_source()
@@ -761,24 +894,6 @@ class UserInterface:
                 self.multiplot_warning_textbox,
                 "Overlay Plot Status >> There is no dataset matching the user dataset in this model, please select another",
             )
-
-        if self.multiplot_keys_dropdown.value != self.loaded_dataset_key:
-            controller.update_textbox_text(
-                self.multiplot_status_textbox,
-                "Overlay Plot Status >> User dataset selection changed, reloading user dataset...",
-            )
-            # Load selected dataset
-            self.dataset = data._build_data_object(
-                self.model_cat, self.multiplot_keys_dropdown.value
-            )
-            self.loaded_dataset_key = self.multiplot_keys_dropdown.value
-            self.multiplot_plot_variable_dropdown.options = sorted(self.dataset.keys())
-
-            controller.update_textbox_text(
-                self.multiplot_status_textbox,
-                "Overlay Plot Status >> New user dataset loaded, clearing loaded user models",
-            )
-            self._clear_multiplot_data()
 
     def _ref_dataset_dropdown_click(self):
         """
@@ -886,18 +1001,15 @@ class UserInterface:
             self.keys_dropdown.value = self.loaded_dataset_key
 
         else:
-            sorted_keys = sorted(self.dataset.keys())
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
                 "Overlay Plot Status >> Loading new user dataset...",
             )
-            # Load selected dataset
-            self.dataset = data._build_data_object(
-                self.model_cat, self.multiplot_keys_dropdown.value
-            )
-            self.loaded_dataset_key = self.multiplot_keys_dropdown.value
+            # Load through the user section so every section sharing self.dataset
+            # updates. The variable lists must come from the new dataset, after loading.
+            self._keys_dropdown_click(key=self.multiplot_keys_dropdown.value)
+            sorted_keys = sorted(self.dataset.keys())
             self.multiplot_plot_variable_dropdown.options = sorted_keys
-            self.keys_dropdown.value = self.loaded_dataset_key
             self.plot_variable_dropdown.options = sorted_keys
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
@@ -1840,6 +1952,241 @@ class UserInterface:
                 self.multiplot_y_axis_dropdown.value,
                 plot_diff=plot_diff,
             )
+
+    def _refresh_analysis_recipes(self):
+        """
+        Update the recipe dropdown with the prebuilt and uploaded recipes.
+
+        Returns
+        -------
+        bool
+            True if the selected recipe was re-uploaded and its options row removed.
+        """
+        selected = self.analysis_recipe_dropdown.value
+        self.analysis_recipe_mapping = recipes.list_recipes()
+        self.analysis_recipe_dropdown.options = self.analysis_recipe_mapping
+
+        # Keep the current choice, following it to its new version if re-uploaded
+        selected_name = getattr(selected, "__name__", None)
+        replacement = next(
+            (
+                func
+                for func in self.analysis_recipe_mapping.values()
+                if func.__name__ == selected_name
+            ),
+            None,
+        )
+        if replacement is not None:
+            self.analysis_recipe_dropdown.value = replacement
+
+        # Its options row was built from the old version's parameters
+        if replacement is not selected and hasattr(self, "analysis_recipe_options_row"):
+            self._safe_remove_widget_object(
+                self.analysis_widget_container, "analysis_recipe_options_row"
+            )
+            self._safe_remove_widget_object(
+                self.analysis_widget_container, "analysis_recipe_widgets"
+            )
+            controller.update_textbox_text(
+                self.analysis_status_textbox,
+                "Analysis status >> Recipe updated. Select it again to continue.",
+            )
+            return True
+        return False
+
+    def _analysis_keys_dropdown_click(self):
+        """
+        Load the dataset selected in analysis_keys_dropdown and enable recipe selection.
+        """
+        controller.update_textbox_text(
+            self.analysis_status_textbox, "Analysis status >> Loading data."
+        )
+        controller.update_textbox_text(self.analysis_warning_textbox, "")
+
+        # Load through the user section so every section sharing self.dataset
+        # updates; this also syncs the analysis section via _sync_analysis_section
+        self._keys_dropdown_click(key=self.analysis_keys_dropdown.value)
+
+    def _sync_analysis_section(self):
+        """
+        Point the analysis section at the newly loaded user dataset and enable recipe selection.
+        """
+        self.analysis_keys_dropdown.value = self.loaded_dataset_key
+        self.analysis_keys_button.name = "Load different dataset"
+        self.analysis_recipe_dropdown.disabled = False
+        self.analysis_select_recipe_button.disabled = False
+        self.analysis_refresh_button.disabled = False
+
+        # Recipe options are built from the dataset, so clear any from the old one
+        self._safe_remove_widget_object(
+            self.analysis_widget_container, "analysis_recipe_options_row"
+        )
+        self._safe_remove_widget_object(
+            self.analysis_widget_container, "analysis_recipe_widgets"
+        )
+
+        controller.update_textbox_text(
+            self.analysis_status_textbox,
+            "Analysis status >> User data loaded. Select a recipe.",
+        )
+
+    def _analysis_refresh_click(self):
+        """
+        Refresh the list of available recipes in the analysis dropdown, for if the user has added a custom analysis.
+        """
+        controller.update_textbox_text(self.analysis_warning_textbox, "")
+
+        # If a stale options row was cleared, keep its "select it again" status
+        if not self._refresh_analysis_recipes():
+            controller.update_textbox_text(
+                self.analysis_status_textbox,
+                f"Analysis status >> Recipes refreshed "
+                f"({len(analysis.UPLOADED_ANALYSES)} custom).",
+            )
+
+    def _display_analysis_recipe_options_ui(self):
+        """
+        Build the selected recipe's option widgets from its docstring and add them to the container.
+        """
+        # Remove preexisting recipe options UI
+        self._safe_remove_widget_object(
+            self.analysis_widget_container, "analysis_recipe_options_row"
+        )
+        controller.update_textbox_text(self.analysis_warning_textbox, "")
+
+        recipe = self.analysis_recipe_dropdown.value
+        _, details = recipes.get_recipe_summary(recipe)
+        self.analysis_recipe_info.value = details
+
+        try:
+            kwarg_options = recipes.get_recipe_kwarg_options(recipe, self.dataset)
+        except ValueError as err:
+            # A recipe with a malformed docstring can't have a form built for it
+            controller.update_textbox_text(
+                self.analysis_warning_textbox, f"Warning >> {err}"
+            )
+            return
+
+        self.analysis_recipe_widgets = {
+            option["name"]: self._build_recipe_option_widget(option)
+            for option in kwarg_options
+        }
+        self.analysis_plot_button.name = "Plot data"
+
+        self.analysis_recipe_options_row = pn.FlexBox(
+            *self.analysis_recipe_widgets.values(), self.analysis_plot_button
+        )
+
+        # Insert the options under the recipe details
+        self._safe_add_to_widget(
+            self.analysis_widget_container,
+            ["analysis_recipe_info", "analysis_recipe_selection_row"],
+            self.analysis_recipe_options_row,
+            append=True,
+        )
+
+        controller.update_textbox_text(
+            self.analysis_status_textbox,
+            "Analysis status >> Choose the recipe options, then plot.",
+        )
+
+    def _build_recipe_option_widget(self, option):
+        """
+        Create the widget for one recipe parameter.
+
+        Parameters
+        ----------
+        option : dict
+            One entry from ``recipes.get_recipe_kwarg_options``.
+
+        Returns
+        -------
+        panel.widgets.Widget
+            A widget whose ``value`` is passed to the recipe as that parameter.
+        """
+        label = option["name"]
+        if option["units"]:
+            label += f" ({option['units']})"
+        kind, default = option["kind"], option["default"]
+        widget_kwargs = {"name": label}
+
+        if kind in ("data variable", "dimension", "choice"):
+            choices = list(option["choices"] or [])
+            # Keep a recipe's default dim selectable even when this dataset lacks
+            # it (e.g. no depth on a surface field), so the recipe can skip it
+            # rather than the dropdown silently switching to an unrelated dim
+            if kind == "dimension" and default not in choices:
+                choices.insert(0, default)
+            widget_type = pn.widgets.Select
+            widget_kwargs["options"] = {str(choice): choice for choice in choices}
+            widget_kwargs["value"] = (
+                default if default in choices else next(iter(choices), None)
+            )
+        elif kind == "float":
+            widget_type, widget_kwargs["value"] = pn.widgets.FloatInput, default
+        elif kind == "int":
+            widget_type, widget_kwargs["value"] = pn.widgets.IntInput, default
+        elif kind == "bool":
+            widget_type, widget_kwargs["value"] = pn.widgets.Checkbox, bool(default)
+        else:
+            widget_type = pn.widgets.TextInput
+            widget_kwargs["value"] = "" if default is None else str(default)
+
+        # Show the docstring description as a tooltip where the widget has one
+        # (Checkbox doesn't)
+        if "description" in widget_type.param:
+            widget_kwargs["description"] = option["description"]
+        return widget_type(**widget_kwargs)
+
+    def _analysis_plot_data_button_click(self):
+        """
+        Run the selected recipe with the chosen options and add its plot to the container.
+        """
+        controller.update_textbox_text(
+            self.analysis_status_textbox, "Analysis status >> Running recipe..."
+        )
+        controller.update_textbox_text(self.analysis_warning_textbox, "")
+
+        recipe = self.analysis_recipe_dropdown.value
+        recipe_kwargs = {
+            name: widget.value for name, widget in self.analysis_recipe_widgets.items()
+        }
+
+        try:
+            fig = controller.plot_recipe(self.dataset, recipe, recipe_kwargs)
+        except Exception as err:  # noqa: BLE001
+            # Recipes can be user-written and raise anything (e.g. a NameError
+            # from a helper that isn't imported). Panel callbacks don't show
+            # exceptions in the notebook, so without this a failed plot is silent.
+            controller.update_textbox_text(
+                self.analysis_warning_textbox,
+                f"Warning >> {type(err).__name__}: {err}",
+            )
+            controller.update_textbox_text(
+                self.analysis_status_textbox, "Analysis status >> Recipe failed"
+            )
+            return
+
+        self.analysis_plot_button.name = "Add Plot"
+        plot_group = self._add_remove_btn(
+            pn.pane.Matplotlib(fig, tight=True), self.analysis_widget_container
+        )
+        self._safe_add_to_widget(
+            self.analysis_widget_container,
+            ["analysis_recipe_options_row"],
+            plot_group,
+            append=True,
+            above=False,
+        )
+
+        controller.update_textbox_text(
+            self.analysis_status_textbox, "Analysis status >> Plot created"
+        )
+
+        # Remove the options row
+        self._safe_remove_widget_object(
+            self.analysis_widget_container, self.analysis_recipe_options_row
+        )
 
     def _add_remove_btn(self, plot_pane, widget_container):
         """

@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import panel as pn
 import xarray as xr
 
-from med_diagnostics import data
+from med_diagnostics import analysis, data
 from med_diagnostics.types import (
     Animation,
     Heatmap,
@@ -838,3 +838,24 @@ def check_bounds(dataset, x_axis, ref_dict):
                     pass
 
     return bounds_widened, global_min, global_max, dataset_min, dataset_max
+
+
+def plot_recipe(dataset, recipe, recipe_kwargs):
+    """
+    Run an analysis recipe on a dataset and return its figure.
+
+    Parameters
+    ----------
+    dataset : xarray.Dataset
+        The dataset to analyse.
+    recipe : callable
+        A recipe from ``med_diagnostics.recipes``, or a user's own.
+    recipe_kwargs : dict
+        The options chosen in the UI, passed to the recipe.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        The figure produced by ``analysis.analyse_and_plot``.
+    """
+    return analysis.analyse_and_plot(dataset, recipe, **recipe_kwargs)

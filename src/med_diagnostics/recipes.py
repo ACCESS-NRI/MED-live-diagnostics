@@ -1,5 +1,6 @@
 import inspect
 import re
+import sys
 
 import numpy as np
 import xarray as xr
@@ -12,6 +13,54 @@ from med_diagnostics import analysis, plot_customisations
 
 # Parameter kinds the UI knows how to build a widget for
 RECIPE_KINDS = {"data variable", "dimension", "choice", "float", "int", "str", "bool"}
+
+
+def list_recipes():
+    """
+    Return every prebuilt and uploaded recipe, keyed by a label for the UI.
+
+    Returns
+    -------
+    dict
+        ``{label: recipe}``: each ``recipe_*`` function in this module under its
+        docstring summary, then each ``analysis.upload_analysis`` recipe as
+        ``"Custom: <summary>"``.
+    """
+    found = {}
+
+    def add(label, name, func):
+        # Dropdown labels must be unique, so fall back to the function name
+        found[label if label not in found else f"{label} ({name})"] = func
+
+    for name, func in inspect.getmembers(sys.modules[__name__], inspect.isfunction):
+        if name.startswith("recipe_"):
+            add(get_recipe_summary(func)[0], name, func)
+    for name, func in analysis.UPLOADED_ANALYSES.items():
+        add(f"Custom: {get_recipe_summary(func)[0]}", name, func)
+    return found
+
+
+def get_recipe_summary(recipe):
+    """
+    Return a recipe's docstring summary line and the paragraph after it.
+
+    Parameters
+    ----------
+    recipe : callable
+        A recipe with a numpy-format docstring.
+
+    Returns
+    -------
+    tuple of (str, str)
+        The summary, e.g. what it computes, and details, e.g. the grid it targets.
+    """
+    paragraphs = (inspect.getdoc(recipe) or "").split("\n\n")
+    summary = paragraphs[0].strip() or recipe.__name__
+    # The second paragraph is the grid line, unless it's the Parameters section
+    details = paragraphs[1].strip() if len(paragraphs) > 1 else ""
+    if details.startswith("Parameters"):
+        details = ""
+    return summary, details
 
 
 def get_recipe_kwarg_options(recipe, ds=None):
@@ -201,8 +250,28 @@ def nino34_timeseries(data, lat_dim, lon_dim, area=None):
     return data.weighted(weights).mean(dim=dims)
 
 
-def _require_coords(ds, variable, coords, grid):
-    """Raise a readable error if ``ds`` isn't the grid this recipe targets."""
+def require_coords(ds, variable, coords, grid):
+    """
+    Raise a readable error if ``ds`` isn't the grid a recipe targets.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Dataset passed to the recipe.
+    variable : str
+        Variable the recipe will use.
+    coords : list of str
+        Coordinates the recipe needs on ``variable``, e.g. ["yt_ocean", "xt_ocean"].
+    grid : str
+        Grid name for the error message, e.g. "MOM5".
+
+    Raises
+    ------
+    KeyError
+        If ``variable`` isn't in ``ds``.
+    ValueError
+        If ``variable`` is missing any of ``coords``.
+    """
     if variable not in ds:
         raise KeyError(f"Variable '{variable}' not found in the dataset.")
     missing = [c for c in coords if c not in ds[variable].coords]
@@ -252,7 +321,7 @@ def recipe_nino34_timeseries_mom5(
     tuple of (xarray.DataArray, dict)
         The timeseries and its plot kwargs.
     """
-    _require_coords(ds, variable, [lat_dim, lon_dim], "MOM5")
+    require_coords(ds, variable, [lat_dim, lon_dim], "MOM5")
     data = ds[variable]
     if lvl_dim in data.dims:
         data = data.sel({lvl_dim: depth}, method="nearest")
@@ -301,7 +370,7 @@ def recipe_nino34_timeseries_um(
     tuple of (xarray.DataArray, dict)
         The timeseries and its plot kwargs.
     """
-    _require_coords(ds, variable, [lat_dim, lon_dim], "UM")
+    require_coords(ds, variable, [lat_dim, lon_dim], "UM")
     data = ds[variable]
     # Surface fields (e.g. tas) have no vertical dim to select
     if lvl_dim is not None and lvl_dim in data.dims:
