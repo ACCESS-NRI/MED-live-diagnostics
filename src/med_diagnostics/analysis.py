@@ -3,6 +3,7 @@ from collections.abc import Callable
 from typing import Any
 
 import matplotlib.pyplot as plt
+import numpy as np
 import xarray as xr
 
 PREDEFINED_REGIONS = {
@@ -92,6 +93,87 @@ def extract_region(dataset, region, lon_dim="lon", lat_dim="lat"):
     return dataset.isel(
         {lat_coord.dims[0]: in_lat.values, lon_coord.dims[0]: in_lon.values}
     )
+
+
+def median_timestep_days(time_da):
+    """
+    Return the median spacing between consecutive time steps, in days.
+
+    Parameters
+    ----------
+    time_da : xarray.DataArray
+        Time coordinate (numpy datetime64 or cftime).
+
+    Returns
+    -------
+    float
+        Median timestep length in days.
+    """
+    diffs = np.diff(time_da.values)
+    # cftime axes (e.g. 360_day/noleap) diff to datetime.timedelta objects
+    # rather than numpy.timedelta64, so they need separate handling
+    if diffs.dtype == object:
+        return np.median([d.days + d.seconds / 86400 for d in diffs])
+    return np.median(diffs / np.timedelta64(1, "D"))
+
+
+def rolling_window_size(time_da, target_days=150):
+    """
+    Convert a target rolling window length in days to native timesteps.
+
+    Parameters
+    ----------
+    time_da : xarray.DataArray
+        Time coordinate of the data to smooth.
+    target_days : float, default 150
+        Desired window length (150 days is roughly 5 months).
+
+    Returns
+    -------
+    int
+        Window size in timesteps, clamped to ``[1, len(time_da)]``.
+    """
+    # A fixed window of 5 assumes monthly data: too short for daily data and
+    # can exceed short yearly records, where bottleneck's rolling mean raises
+    # ValueError. Sizing from the real timestep avoids both.
+    n = time_da.size
+    if n <= 1:
+        return 1
+    step_days = median_timestep_days(time_da)
+    window = max(1, round(target_days / step_days)) if step_days > 0 else 5
+    return min(window, n)
+
+
+def calc_anomolies(dataset, lon_dim, lat_dim, var):
+    """
+    Compute the area-weighted mean monthly anomaly of ``var``.
+
+    Parameters
+    ----------
+    dataset : xarray.Dataset
+        Data already subset to the region of interest.
+    lon_dim, lat_dim : str
+        Longitude/latitude coordinate names.
+    var : str
+        Variable to compute anomalies for.
+    extra_dim_selectors : dict, optional
+        Passed to `select_extra_dims` (e.g. to pick a depth level).
+
+    Returns
+    -------
+    xarray.DataArray
+        Time series of anomalies from the monthly climatology.
+    """
+
+    # Anomalies from the monthly climatology
+    gb = dataset.groupby("time.month")
+    anomalies = gb - gb.mean(dim="time")
+
+    # Weight by cos(latitude) to account for grid cell area
+    weights = np.cos(np.deg2rad(dataset[lat_dim]))
+    weights.name = "weights"
+
+    return anomalies.weighted(weights).mean(dim=[lat_dim, lon_dim])
 
 
 def analyse_and_plot(dataset: xr.Dataset, recipe_func, **recipe_kwargs) -> plt.Figure:

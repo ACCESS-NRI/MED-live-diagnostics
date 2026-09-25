@@ -2155,8 +2155,7 @@ class UserInterface:
         try:
             fig = controller.plot_recipe(self.dataset, recipe, recipe_kwargs)
         except Exception as err:  # noqa: BLE001
-            # Recipes can be user-written and raise anything (e.g. a NameError
-            # from a helper that isn't imported). Panel callbacks don't show
+            # Recipes can be user-written and raise any
             # exceptions in the notebook, so without this a failed plot is silent.
             controller.update_textbox_text(
                 self.analysis_warning_textbox,
