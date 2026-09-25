@@ -250,8 +250,28 @@ def nino34_timeseries(data, lat_dim, lon_dim, area=None):
     return data.weighted(weights).mean(dim=dims)
 
 
-def _require_coords(ds, variable, coords, grid):
-    """Raise a readable error if ``ds`` isn't the grid this recipe targets."""
+def require_coords(ds, variable, coords, grid):
+    """
+    Raise a readable error if ``ds`` isn't the grid a recipe targets.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Dataset passed to the recipe.
+    variable : str
+        Variable the recipe will use.
+    coords : list of str
+        Coordinates the recipe needs on ``variable``, e.g. ["yt_ocean", "xt_ocean"].
+    grid : str
+        Grid name for the error message, e.g. "MOM5".
+
+    Raises
+    ------
+    KeyError
+        If ``variable`` isn't in ``ds``.
+    ValueError
+        If ``variable`` is missing any of ``coords``.
+    """
     if variable not in ds:
         raise KeyError(f"Variable '{variable}' not found in the dataset.")
     missing = [c for c in coords if c not in ds[variable].coords]
@@ -301,7 +321,7 @@ def recipe_nino34_timeseries_mom5(
     tuple of (xarray.DataArray, dict)
         The timeseries and its plot kwargs.
     """
-    _require_coords(ds, variable, [lat_dim, lon_dim], "MOM5")
+    require_coords(ds, variable, [lat_dim, lon_dim], "MOM5")
     data = ds[variable]
     if lvl_dim in data.dims:
         data = data.sel({lvl_dim: depth}, method="nearest")
@@ -350,7 +370,7 @@ def recipe_nino34_timeseries_um(
     tuple of (xarray.DataArray, dict)
         The timeseries and its plot kwargs.
     """
-    _require_coords(ds, variable, [lat_dim, lon_dim], "UM")
+    require_coords(ds, variable, [lat_dim, lon_dim], "UM")
     data = ds[variable]
     # Surface fields (e.g. tas) have no vertical dim to select
     if lvl_dim is not None and lvl_dim in data.dims:

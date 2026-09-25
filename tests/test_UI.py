@@ -3357,3 +3357,27 @@ def test_multiplot_add_ref_after_dataset_change_keeps_new_ref(ui, monkeypatch):
     assert ui.multiplot_ref_dataset_dict == {"ref": "ref data"}
     # Matched against the newly loaded user dataset, not the old one
     assert mock_add.call_args.args[-1] is datasets["b"]
+
+
+def test_analysis_plot_shows_any_custom_recipe_error(analysis_ui, empty_uploads):
+    """Test that any exception from a custom recipe reaches the warning box.
+
+    Panel callbacks don't show exceptions in a notebook, so an error type the
+    UI didn't catch (here a NameError from a helper the user never imported)
+    used to make the plot button fail silently.
+    """
+
+    def broken_recipe(ds):
+        """Broken recipe."""
+        return undefined_helper(ds)  # noqa: F821
+
+    ui = analysis_ui
+    analysis.upload_analysis(broken_recipe)
+    ui._analysis_refresh_click()
+    ui.analysis_recipe_dropdown.value = broken_recipe
+    ui._display_analysis_recipe_options_ui()
+
+    ui.analysis_plot_button.clicks += 1
+
+    assert "NameError" in ui.analysis_warning_textbox.value
+    assert ui.analysis_status_textbox.value == "Analysis status >> Recipe failed"

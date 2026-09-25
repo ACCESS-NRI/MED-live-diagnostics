@@ -2154,9 +2154,10 @@ class UserInterface:
 
         try:
             fig = controller.plot_recipe(self.dataset, recipe, recipe_kwargs)
-        except (KeyError, ValueError, TypeError, IndexError) as err:
-            # Show the errors a mismatched dataset or option raises (e.g. a
-            # MOM5 recipe run on UM output) rather than losing them in the callback
+        except Exception as err:  # noqa: BLE001
+            # Recipes can be user-written and raise anything (e.g. a NameError
+            # from a helper that isn't imported). Panel callbacks don't show
+            # exceptions in the notebook, so without this a failed plot is silent.
             controller.update_textbox_text(
                 self.analysis_warning_textbox,
                 f"Warning >> {type(err).__name__}: {err}",
