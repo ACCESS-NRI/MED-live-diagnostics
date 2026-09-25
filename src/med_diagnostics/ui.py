@@ -2185,7 +2185,7 @@ class UserInterface:
 
         # Remove the options row
         self._safe_remove_widget_object(
-            self.analysis_widget_container, self.analysis_recipe_options_row
+            self.analysis_widget_container, "analysis_recipe_options_row"
         )
 
     def _add_remove_btn(self, plot_pane, widget_container):
