@@ -387,7 +387,7 @@ def recipe_nino34_timeseries_um(
     )
 
 
-def sst_anomaly_nino34(dataset, x_dim="xt_ocean", y_dim="yt_ocean", var="tos"):
+def recipe_sst_anomaly_nino34(dataset, x_dim="xt_ocean", y_dim="yt_ocean", var="tos"):
     """
     Niño 3.4 index for sea surface temperature
 
