@@ -1,5 +1,6 @@
 import inspect
 import re
+import sys
 
 import numpy as np
 import xarray as xr
@@ -12,6 +13,47 @@ from med_diagnostics import analysis, plot_customisations
 
 # Parameter kinds the UI knows how to build a widget for
 RECIPE_KINDS = {"data variable", "dimension", "choice", "float", "int", "str", "bool"}
+
+
+def list_recipes():
+    """
+    Return every prebuilt recipe, keyed by its docstring summary for the UI.
+
+    Returns
+    -------
+    dict
+        ``{summary: recipe}`` for each ``recipe_*`` function in this module.
+    """
+    found = {}
+    for name, func in inspect.getmembers(sys.modules[__name__], inspect.isfunction):
+        if name.startswith("recipe_"):
+            summary, _ = get_recipe_summary(func)
+            # Dropdown labels must be unique, so fall back to the function name
+            found[summary if summary not in found else f"{summary} ({name})"] = func
+    return found
+
+
+def get_recipe_summary(recipe):
+    """
+    Return a recipe's docstring summary line and the paragraph after it.
+
+    Parameters
+    ----------
+    recipe : callable
+        A recipe with a numpy-format docstring.
+
+    Returns
+    -------
+    tuple of (str, str)
+        The summary, e.g. what it computes, and details, e.g. the grid it targets.
+    """
+    paragraphs = (inspect.getdoc(recipe) or "").split("\n\n")
+    summary = paragraphs[0].strip() or recipe.__name__
+    # The second paragraph is the grid line, unless it's the Parameters section
+    details = paragraphs[1].strip() if len(paragraphs) > 1 else ""
+    if details.startswith("Parameters"):
+        details = ""
+    return summary, details
 
 
 def get_recipe_kwarg_options(recipe, ds=None):

@@ -12,7 +12,7 @@ import pytest
 import xarray as xr
 
 import med_diagnostics.data as med_data
-from med_diagnostics import controller
+from med_diagnostics import controller, recipes
 from med_diagnostics.types import (
     AllAnalysis,
     Animation,
@@ -2956,3 +2956,220 @@ def test_enable_widgets_after_catalog_load(ui):
     assert ui.multiplot_ref_keys_dropdown.options == sorted(ui.access_nri_cat.keys())
     assert ui.multiplot_keys_dropdown.options == sorted(ui.model_cat.keys())
     assert ui.multiplot_keys_update_button.disabled is False
+
+
+def mock_mom5_dataset():
+    """Build a small MOM5-style dataset covering the Niño 3.4 box."""
+    time = xr.date_range("2000-01-01", periods=12, freq="MS")
+    lat = np.arange(-4.5, 5)
+    lon = np.arange(-169.5, -119)
+    shape = (time.size, 3, lat.size, lon.size)
+    return xr.Dataset(
+        {
+            "o2": (
+                ("time", "st_ocean", "yt_ocean", "xt_ocean"),
+                np.random.rand(*shape),
+                {"units": "mmol/m^3"},
+            ),
+            "area_t": (("yt_ocean", "xt_ocean"), np.ones((lat.size, lon.size))),
+        },
+        coords={
+            "time": time,
+            "st_ocean": [5.0, 50.0, 100.0],
+            "yt_ocean": lat,
+            "xt_ocean": lon,
+        },
+    )
+
+
+@pytest.fixture(scope="function")
+def analysis_ui(ui):
+    """Return a UI with a MOM5 dataset loaded into the analysis section."""
+    ui._enable_widgets_after_catalog_load({"ocean": None}, {"model": None})
+    ui.analysis_dataset = mock_mom5_dataset()
+    ui.analysis_recipe_dropdown.value = recipes.recipe_nino34_timeseries_mom5
+    return ui
+
+
+def test_initialise_analysis_widgets(ui):
+    """Test that the analysis section starts disabled, below the multiplot section.
+
+    Recipes need a dataset, so dataset and recipe selection must stay disabled
+    until the catalog loads, and the section must be the last card in the UI.
+    """
+    container_items = list(ui.analysis_widget_container)
+    assert container_items[:5] == [
+        ui.analysis_status_textbox,
+        ui.analysis_warning_textbox,
+        ui.analysis_keys_selection_row,
+        ui.analysis_recipe_selection_row,
+        ui.analysis_recipe_info,
+    ]
+    assert isinstance(container_items[5], pn.layout.Divider)
+    assert ui.analysis_keys_button.disabled is True
+    assert ui.analysis_recipe_dropdown.disabled is True
+    assert ui.analysis_select_recipe_button.disabled is True
+    assert ui.analysis_recipe_dropdown.options == recipes.list_recipes()
+
+
+def test_enable_widgets_after_catalog_load_enables_analysis(ui):
+    """Test that the catalog load enables dataset selection but not recipes yet.
+
+    Recipe options are built from the loaded dataset, so recipe selection must
+    wait until a dataset has been loaded.
+    """
+    ui._enable_widgets_after_catalog_load({"b": None, "a": None}, {"model": None})
+
+    assert ui.analysis_keys_dropdown.options == ["a", "b"]
+    assert ui.analysis_keys_dropdown.disabled is False
+    assert ui.analysis_keys_button.disabled is False
+    assert ui.analysis_recipe_dropdown.disabled is True
+    assert (
+        ui.analysis_status_textbox.value
+        == "Analysis status >> Load a dataset to analyse."
+    )
+
+
+@pytest.mark.parametrize("same_as_user_dataset", [True, False])
+def test_analysis_keys_dropdown_click(analysis_ui, monkeypatch, same_as_user_dataset):
+    """Test loading a dataset, reusing the user section's copy where possible.
+
+    Loading the same catalog key twice would double the data read, and a
+    recipe options row built for the previous dataset must be cleared because
+    its dropdown choices came from that dataset.
+    """
+    ui = analysis_ui
+    mock_build = MagicMock(return_value="new dataset")
+    monkeypatch.setattr(med_data, "_build_data_object", mock_build)
+    ui.dataset = "user dataset"
+    ui.loaded_dataset_key = "ocean" if same_as_user_dataset else "other"
+    ui._display_analysis_recipe_options_ui()
+
+    ui.analysis_keys_dropdown.value = "ocean"
+    ui._analysis_keys_dropdown_click()
+
+    if same_as_user_dataset:
+        mock_build.assert_not_called()
+        assert ui.analysis_dataset == "user dataset"
+    else:
+        mock_build.assert_called_once_with(ui.model_cat, "ocean")
+        assert ui.analysis_dataset == "new dataset"
+    assert ui.analysis_recipe_dropdown.disabled is False
+    assert ui.analysis_select_recipe_button.disabled is False
+    assert not hasattr(ui, "analysis_recipe_options_row")
+    assert not hasattr(ui, "analysis_recipe_widgets")
+
+
+def test_display_analysis_recipe_options_ui(analysis_ui):
+    """Test that the recipe's docstring becomes one widget per parameter.
+
+    Also checks that selecting a recipe again replaces its options row rather
+    than stacking a second copy in the container.
+    """
+    ui = analysis_ui
+    ui._display_analysis_recipe_options_ui()
+    ui._display_analysis_recipe_options_ui()
+
+    widgets = ui.analysis_recipe_widgets
+    assert list(widgets) == ["variable", "lon_dim", "lat_dim", "lvl_dim", "depth"]
+    assert widgets["variable"].value == "o2"
+    assert widgets["lvl_dim"].value == "st_ocean"
+    assert isinstance(widgets["depth"], pn.widgets.FloatInput)
+    assert widgets["depth"].name == "depth (m)"
+    assert ui.analysis_recipe_info.value == (
+        "For MOM5 output (ACCESS-OM2, ACCESS-ESM1.6)."
+    )
+    container_items = list(ui.analysis_widget_container)
+    assert sum(item is ui.analysis_recipe_options_row for item in container_items) == 1
+    # Options sit directly under the recipe details
+    info_index = container_items.index(ui.analysis_recipe_info)
+    assert container_items[info_index + 1] is ui.analysis_recipe_options_row
+
+
+@pytest.mark.parametrize(
+    "option, widget_type, value",
+    [
+        (
+            {"kind": "data variable", "choices": ["a", "b"], "default": "b"},
+            pn.widgets.Select,
+            "b",
+        ),
+        (
+            {"kind": "choice", "choices": ["mean", "max"], "default": "max"},
+            pn.widgets.Select,
+            "max",
+        ),
+        (
+            {"kind": "dimension", "choices": [None, "lat"], "default": None},
+            pn.widgets.Select,
+            None,
+        ),
+        (
+            {"kind": "dimension", "choices": ["lat"], "default": "st_ocean"},
+            pn.widgets.Select,
+            "st_ocean",
+        ),
+        (
+            {"kind": "float", "choices": None, "default": 2.5},
+            pn.widgets.FloatInput,
+            2.5,
+        ),
+        ({"kind": "int", "choices": None, "default": 3}, pn.widgets.IntInput, 3),
+        ({"kind": "bool", "choices": None, "default": True}, pn.widgets.Checkbox, True),
+        ({"kind": "str", "choices": None, "default": "x"}, pn.widgets.TextInput, "x"),
+    ],
+)
+def test_build_recipe_option_widget(ui, option, widget_type, value):
+    """Test that each parameter kind gets the right widget and default value.
+
+    A dimension default the dataset lacks (e.g. no depth on a surface field)
+    must stay selected, so the recipe skips it rather than the dropdown
+    silently switching to an unrelated dimension.
+    """
+    option = {"name": "p", "units": None, "description": "tip", **option}
+    widget = ui._build_recipe_option_widget(option)
+
+    assert isinstance(widget, widget_type)
+    assert widget.value == value
+    if "description" in widget.param:
+        assert widget.description == "tip"
+
+
+def test_analysis_plot_data_button_click(analysis_ui):
+    """Test that plotting adds a removable plot and keeps the options row.
+
+    The options row stays so the recipe can be re-run with different choices,
+    each click adding another plot.
+    """
+    ui = analysis_ui
+    ui._display_analysis_recipe_options_ui()
+    ui.analysis_recipe_widgets["depth"].value = 50.0
+
+    ui._analysis_plot_data_button_click()
+
+    plot_group = ui.analysis_widget_container[-1]
+    assert isinstance(plot_group[0], pn.pane.Matplotlib)
+    assert plot_group[0].object.axes[0].get_title() == "Niño 3.4 o2 (~50m)"
+    assert ui.analysis_recipe_options_row in ui.analysis_widget_container
+    assert ui.analysis_status_textbox.value == "Analysis status >> Plot created"
+    assert ui.analysis_warning_textbox.value == ""
+    plt.close("all")
+
+
+def test_analysis_plot_data_button_click_shows_recipe_errors(analysis_ui):
+    """Test that a recipe failure is shown in the warning box, not raised.
+
+    A recipe run on the wrong grid (here the UM recipe on MOM5 data) raises
+    inside a Panel callback, where the error would otherwise be lost and the
+    user would see nothing happen.
+    """
+    ui = analysis_ui
+    ui.analysis_recipe_dropdown.value = recipes.recipe_nino34_timeseries_um
+    ui._display_analysis_recipe_options_ui()
+    container_length = len(ui.analysis_widget_container)
+
+    ui._analysis_plot_data_button_click()
+
+    assert "expects UM output" in ui.analysis_warning_textbox.value
+    assert ui.analysis_status_textbox.value == "Analysis status >> Recipe failed"
+    assert len(ui.analysis_widget_container) == container_length
