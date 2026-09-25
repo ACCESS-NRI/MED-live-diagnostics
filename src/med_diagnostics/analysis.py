@@ -156,17 +156,14 @@ def calc_anomolies(dataset, lon_dim, lat_dim, var):
         Longitude/latitude coordinate names.
     var : str
         Variable to compute anomalies for.
-    extra_dim_selectors : dict, optional
-        Passed to `select_extra_dims` (e.g. to pick a depth level).
-
     Returns
     -------
     xarray.DataArray
         Time series of anomalies from the monthly climatology.
     """
-
+    data = dataset[var]
     # Anomalies from the monthly climatology
-    gb = dataset.groupby("time.month")
+    gb = data.groupby("time.month")
     anomalies = gb - gb.mean(dim="time")
 
     # Weight by cos(latitude) to account for grid cell area
