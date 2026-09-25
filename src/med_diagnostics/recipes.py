@@ -61,18 +61,23 @@ def _require_coords(ds, variable, coords, grid):
 
 
 def recipe_nino34_timeseries_mom5(
-    ds: xr.Dataset, variable: str = "o2", depth: float = 0
+    ds: xr.Dataset,
+    variable: str = "o2",
+    lon_dim: str = "xt_ocean",
+    lat_dim: str = "yt_ocean",
+    lvl_dim: str = "st_ocean",
+    depth: float = 0,
 ):
     """Niño 3.4 mean timeseries of a MOM5 ocean variable (ACCESS-OM2, ESM1.6)."""
-    _require_coords(ds, variable, ["yt_ocean", "xt_ocean"], "MOM5")
+    _require_coords(ds, variable, [lat_dim, lon_dim], "MOM5")
     data = ds[variable]
     if "st_ocean" in data.dims:
-        data = data.sel(st_ocean=depth, method="nearest")
+        data = data.sel(lvl_dim=depth, method="nearest")
 
     # MOM5 cell areas, if the static fields were loaded; cos(lat) otherwise
     timeseries = nino34_timeseries(data, "yt_ocean", "xt_ocean", ds.get("area_t"))
     timeseries.name = f"Niño 3.4 {variable}"
-    if "st_ocean" in data.coords:
+    if lvl_dim in data.coords:
         timeseries.name += f" (~{float(data.st_ocean):.0f}m)"
 
     return timeseries, plot_customisations.timeseries_plot_kwargs(
@@ -83,21 +88,23 @@ def recipe_nino34_timeseries_mom5(
 def recipe_nino34_timeseries_um(
     ds: xr.Dataset,
     variable: str = "tas",
-    level_dim: str | None = None,
+    lon_dim: str = "lon",
+    lat_dim: str = "lat",
+    lvl_dim: str | None = None,
     level: float = 0,
 ):
     """Niño 3.4 mean timeseries of a UM atmosphere variable."""
-    _require_coords(ds, variable, ["lat", "lon"], "UM")
+    _require_coords(ds, variable, [lat_dim, lon_dim], "UM")
     data = ds[variable]
     # Surface fields (e.g. tas) have no vertical dim to select
-    if level_dim is not None and level_dim in data.dims:
-        data = data.sel({level_dim: level}, method="nearest")
+    if lvl_dim is not None and lvl_dim in data.dims:
+        data = data.sel({lvl_dim: level}, method="nearest")
 
     # Regular lat/lon grid, so cos(lat) weighting is exact
     timeseries = nino34_timeseries(data, "lat", "lon")
     timeseries.name = f"Niño 3.4 {variable}"
-    if level_dim is not None and level_dim in data.coords:
-        timeseries.name += f" ({level_dim}={float(data[level_dim]):g})"
+    if lvl_dim is not None and lvl_dim in data.coords:
+        timeseries.name += f" ({lvl_dim}={float(data[lvl_dim]):g})"
 
     return timeseries, plot_customisations.timeseries_plot_kwargs(
         timeseries, variable, data.attrs.get("units", "")
