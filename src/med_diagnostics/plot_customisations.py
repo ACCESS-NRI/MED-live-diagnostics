@@ -40,6 +40,24 @@ def shade_bottom_10pct(ax, data):
     ax.legend()
 
 
+def nino_fills(ax, data):
+    """Fill betwen +- 0.4 degrees indicating El Nino (red) or La Nina (blue)"""
+    t, y = data.time.values, data.values
+    ax.fill_between(
+        t, y, 0.4, where=(y >= 0.4), interpolate=True, color="red", alpha=0.3
+    )
+    ax.fill_between(
+        t, y, -0.4, where=(y <= -0.4), interpolate=True, color="blue", alpha=0.3
+    )
+
+
+def nino_reference_lines(ax, data):
+    """Add reference lines for El Nino and La Nina"""
+    ax.axhline(0, color="black", lw=0.5)
+    ax.axhline(0.4, color="black", linewidth=0.5, linestyle="dotted")
+    ax.axhline(-0.4, color="black", linewidth=0.5, linestyle="dotted")
+
+
 def timeseries_plot_kwargs(timeseries, variable, units):
     """
     Standard plot kwargs for a regional timeseries, with the extremes shaded.

@@ -385,3 +385,50 @@ def recipe_nino34_timeseries_um(
     return timeseries, plot_customisations.timeseries_plot_kwargs(
         timeseries, variable, data.attrs.get("units", "")
     )
+
+
+def sst_anomaly_nino34(dataset, x_dim="xt_ocean", y_dim="yt_ocean", var="tos"):
+    """
+    Niño 3.4 index for sea surface temperature
+
+    Parameters
+    ----------
+    dataset : xarray.Dataset
+        Model output containing ``var``.
+    x_dim : str, dimension
+        Native longitude name (e.g. "lon"/"lat" or "xt_ocean"/"yt_ocean"). Default "xt_ocean".
+    y_dim : str, dimension
+        Native latitude name (e.g. "lon"/"lat" or "xt_ocean"/"yt_ocean"). Default "yt_ocean".
+    var : str, data variable
+        Sea surface temperature variable to use, default "tos".
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        The Niño 3.4 index plot.
+    """
+    # Trim before any computation so spinup doesn't skew the climatology,
+    # anomaly or normalisation - not just the plotted window
+
+    nino34_ds = analysis.extract_region(dataset, "nino34", x_dim, y_dim)
+    anomalies = analysis.calc_anomolies(nino34_ds, x_dim, y_dim, var)
+
+    # Rolling needs the whole time axis in one chunk
+    anomalies = anomalies.chunk({"time": -1})
+    window = analysis.rolling_window_size(anomalies["time"])
+    rolling_mean = anomalies.rolling(time=window, center=True).mean()
+    index_plot = (rolling_mean / anomalies.std()).compute()
+
+    plot_kwargs = {
+        "figsize": (12, 6),
+        "title": "Niño 3.4 Index",
+        "color": "black",
+        "linewidth": 1.5,  # overrides the 1D default of 2 to match plain ax.plot
+        "ax_kwargs": {"xlabel": "Year", "ylabel": "Niño 3.4 SST Anomoly (°C)"},
+        "customise": [
+            plot_customisations._nino_fills,
+            plot_customisations._nino_reference_lines,
+        ],
+    }
+
+    return index_plot, plot_kwargs
