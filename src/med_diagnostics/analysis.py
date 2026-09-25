@@ -17,6 +17,7 @@ PREDEFINED_REGIONS = {
 DEFAULT_PLOT_KWARGS: dict[int, dict[str, Any]] = {
     1: {"linewidth": 2},
     2: {"cmap": "viridis"},
+    3: {"figsize": (6, 4)},
 }
 
 # Custom recipes uploaded from a notebook with `upload_analysis`, by function name
@@ -131,7 +132,7 @@ def analyse_and_plot(dataset: xr.Dataset, recipe_func, **recipe_kwargs) -> plt.F
     # first. `ax_kwargs` goes to `ax.set` (e.g. xlabel, ylim, yscale), and
     # `customise` funcs `(ax, data)` run last for anything kwargs can't express
     # (fills, reference lines, annotations).
-    figsize = plot_kwargs.pop("figsize", (10, 5))
+    figsize = plot_kwargs.pop("figsize", (6, 4))
     title = plot_kwargs.pop("title", result_data.name or "Diagnostic Output")
     ax_kwargs = plot_kwargs.pop("ax_kwargs", {})
     customise = plot_kwargs.pop("customise", [])
