@@ -27,7 +27,7 @@ def extract_region(dataset, region, lon_dim="lon", lat_dim="lat"):
     dataset : xarray.Dataset or xarray.DataArray
         Data to subset.
     region : str or dict
-        A key of ``PREDEFINED_REGIONS``, or ``{"lat": (min, max), "lon": (min, max)}``.
+        A key of ``PREDEFINED_REGIONS``, or ``{"lat": (min, max), "lon": (west, east)}``.
     lon_dim, lat_dim : str, default "lon", "lat"
         Longitude/latitude coordinate names (e.g. "xt_ocean" or 2D "TLON").
 
@@ -51,37 +51,41 @@ def extract_region(dataset, region, lon_dim="lon", lat_dim="lat"):
             "Region must be a valid string or a dictionary with 'lat' and 'lon' tuples."
         )
 
-    lon_min, lon_max = bounds["lon"]
-    lat_min, lat_max = bounds["lat"]
+    lon_west, lon_east = bounds["lon"]
+    lat_lo, lat_hi = sorted(bounds["lat"])
 
     lon_coord = dataset[lon_dim]
     lat_coord = dataset[lat_dim]
 
-    # 2. Handle 0-360 vs -180-180 longitude grids
-    if lon_coord.max() > 180:
-        lon_min = lon_min % 360
-        lon_max = lon_max % 360
+    # 2. Shift the region's longitudes into the grid's own 360° window. This
+    # covers 0-360, -180-180 and MOM5's -280-80 grids alike.
+    grid_lon_min = float(lon_coord.min())
+    lon_west = (lon_west - grid_lon_min) % 360 + grid_lon_min
+    lon_east = (lon_east - grid_lon_min) % 360 + grid_lon_min
 
-    # 3. Sort bounds - slicing/masking max to min returns empty arrays
-    lon_lo, lon_hi = min(lon_min, lon_max), max(lon_min, lon_max)
-    lat_lo, lat_hi = min(lat_min, lat_max), max(lat_min, lat_max)
+    # 3. Longitudes run west to east, so west > east means the box wraps past
+    # the grid's seam (e.g. Niño 4 across the dateline on a -180-180 grid).
+    # Sorting them would select the opposite side of the globe instead.
+    if lon_west <= lon_east:
+        in_lon = (lon_coord >= lon_west) & (lon_coord <= lon_east)
+    else:
+        in_lon = (lon_coord >= lon_west) | (lon_coord <= lon_east)
+    # Boolean masks, unlike `.sel(slice(...))`, don't care whether latitude
+    # is stored ascending or descending (e.g. ERA5 runs 90 to -90).
+    in_lat = (lat_coord >= lat_lo) & (lat_coord <= lat_hi)
 
     # 4a. Curvilinear/tripolar grids (e.g. ACCESS-OM2/CICE TLAT/TLON): `.sel()`
-    # can't slice a 2D coordinate, so mask and drop instead.
+    # can't index by a 2D coordinate, so mask and drop instead.
     if lon_coord.ndim > 1 or lat_coord.ndim > 1:
-        in_region = (
-            (lon_coord >= lon_lo)
-            & (lon_coord <= lon_hi)
-            & (lat_coord >= lat_lo)
-            & (lat_coord <= lat_hi)
-        )
         # `where(..., drop=True)` refuses a dask-backed boolean mask (the
         # result shape would be unknown). The mask is grid-sized with no time
         # dimension, so computing it eagerly is cheap.
-        return dataset.where(in_region.compute(), drop=True)
+        return dataset.where((in_lon & in_lat).compute(), drop=True)
 
-    # 4b. Regular 1D grids: fast slice-based selection
-    return dataset.sel({lat_dim: slice(lat_lo, lat_hi), lon_dim: slice(lon_lo, lon_hi)})
+    # 4b. Regular 1D grids: index each axis by its mask
+    return dataset.isel(
+        {lat_coord.dims[0]: in_lat.values, lon_coord.dims[0]: in_lon.values}
+    )
 
 
 def analyse_and_plot(dataset: xr.Dataset, recipe_func, **recipe_kwargs) -> plt.Figure:
