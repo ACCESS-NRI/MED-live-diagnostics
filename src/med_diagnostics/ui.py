@@ -2167,15 +2167,25 @@ class UserInterface:
             )
             return
 
-        # Keep the options row so the recipe can be re-run with new options
         self.analysis_plot_button.name = "Add Plot"
         plot_group = self._add_remove_btn(
             pn.pane.Matplotlib(fig, tight=True), self.analysis_widget_container
         )
-        self.analysis_widget_container.append(plot_group)
+        self._safe_add_to_widget(
+            self.analysis_widget_container,
+            ["analysis_recipe_options_row"],
+            plot_group,
+            append=True,
+            above=False,
+        )
 
         controller.update_textbox_text(
             self.analysis_status_textbox, "Analysis status >> Plot created"
+        )
+
+        # Remove the options row
+        self._safe_remove_widget_object(
+            self.analysis_widget_container, self.analysis_recipe_options_row
         )
 
     def _add_remove_btn(self, plot_pane, widget_container):
