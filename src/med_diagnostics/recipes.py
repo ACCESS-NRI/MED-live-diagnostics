@@ -1,7 +1,6 @@
 import inspect
-import re
 import sys
-from typing import Literal, get_args, get_type_hints
+from typing import Annotated, Literal, get_args, get_type_hints
 
 import numpy as np
 import xarray as xr
@@ -140,52 +139,9 @@ def _dataset_choices(ds, kind):
         return list(ds.data_vars)
     # Coords rather than dims alone, so 2D lat/lon (e.g. geolon_t) are
     # offered; dims without a coordinate variable are included too
-    return list(dict.fromkeys([*ds.coords, *ds.dims]))
-
-
-def _parse_parameters_section(docstring):
-    """Parse a numpy ``Parameters`` section into ``{name: fields}``."""
-    lines = docstring.splitlines()
-    try:
-        start = lines.index("Parameters") + 2  # skip the "----------" underline
-    except ValueError:
-        return {}
-
-    params: dict[str, dict] = {}
-    current = None
-    for line in lines[start:]:
-        if line and not line.startswith(" "):
-            if " : " not in line:
-                break  # the next section header, e.g. "Returns"
-            name, type_line = line.split(" : ", 1)
-            current = {"description": None, **_parse_type_line(type_line)}
-            params[name.strip()] = current
-        elif line.strip() and current is not None:
-            desc = current["description"]
-            current["description"] = f"{desc} {line.strip()}" if desc else line.strip()
-    return params
-
-
-def _parse_type_line(type_line):
-    """Split ``kind, units m, {"a", "b"}, default 0`` into its fields."""
-    fields = {"kind": None, "units": None, "choices": None}
-    # Commas inside {choices} aren't separators, so pull the set out first
-    choices = re.search(r"\{(.*?)\}", type_line)
-    if choices:
-        fields["choices"] = [
-            c.strip().strip("\"'") for c in choices.group(1).split(",")
-        ]
-        type_line = type_line.replace(choices.group(0), "")
-
-    for part in (p.strip() for p in type_line.split(",")):
-        if part.startswith("units "):
-            fields["units"] = part.removeprefix("units ").strip()
-        elif part and not part.startswith("default") and part != "optional":
-            fields["kind"] = part
-    # A bare {choices} set, e.g. ``{"mean", "max"}, default "mean"``
-    if fields["kind"] is None and fields["choices"]:
-        fields["kind"] = "choice"
-    return fields
+    return list(
+        dict.fromkeys([*ds.coords, *ds.dims])
+    )  # TODO make it skip things like nv and st_edges_ocean
 
 
 # --------------------------------------------------------------------------
@@ -267,11 +223,21 @@ def require_coords(ds, variable, coords, grid):
 
 def recipe_nino34_timeseries_mom5(
     ds: xr.Dataset,
-    variable: str = "o2",
-    lon_dim: str = "xt_ocean",
-    lat_dim: str = "yt_ocean",
-    lvl_dim: str = "st_ocean",
-    depth: float = 0,
+    variable: Annotated[
+        str, {"name": "Select Variable", "kind": "data variable"}
+    ] = "no2",
+    lon_dim: Annotated[
+        str, {"name": "Select Longitude Dim", "kind": "dimension"}
+    ] = "xt_ocean",
+    lat_dim: Annotated[
+        str, {"name": "Select Latitude Dim", "kind": "dimension"}
+    ] = "yt_ocean",
+    lvl_dim: Annotated[
+        str, {"name": "Select Depth Dim", "kind": "dimension"}
+    ] = "st_ocean",
+    depth: Annotated[
+        float, {"name": "Select Depth Slice", "kind": "number", "units": "m"}
+    ] = 0,
 ):
     """
     Niño 3.4 area-weighted mean timeseries of an ocean variable.
@@ -316,11 +282,21 @@ def recipe_nino34_timeseries_mom5(
 
 def recipe_nino34_timeseries_um(
     ds: xr.Dataset,
-    variable: str = "tas",
-    lon_dim: str = "lon",
-    lat_dim: str = "lat",
-    lvl_dim: str | None = None,
-    level: float = 0,
+    variable: Annotated[
+        str, {"name": "Select Variable", "kind": "data variable"}
+    ] = "tas",
+    lon_dim: Annotated[
+        str, {"name": "Select Longitude Dim", "kind": "dimension"}
+    ] = "lon",
+    lat_dim: Annotated[
+        str, {"name": "Select Latitude Dim", "kind": "dimension"}
+    ] = "lat",
+    lvl_dim: Annotated[
+        str | None, {"name": "Select Depth Dim", "kind": "dimension"}
+    ] = None,
+    level: Annotated[
+        float, {"name": "Select Level Slice", "kind": "number", "units": "m"}
+    ] = 0,
 ):
     """
     Niño 3.4 area-weighted mean timeseries of an atmosphere variable.
@@ -364,7 +340,16 @@ def recipe_nino34_timeseries_um(
     )
 
 
-def recipe_sst_anomaly_nino34(dataset, x_dim="xt_ocean", y_dim="yt_ocean", var="tos"):
+def recipe_sst_anomaly_nino34(
+    dataset: xr.Dataset,
+    var: Annotated[str, {"name": "Select Variable", "kind": "data variable"}] = "tos",
+    x_dim: Annotated[
+        str, {"name": "Select Longitude Dim", "kind": "dimension"}
+    ] = "xt_ocean",
+    y_dim: Annotated[
+        str, {"name": "Select Latitude Dim", "kind": "dimension"}
+    ] = "yt_ocean",
+):
     """
     Niño 3.4 index for sea surface temperature
 
