@@ -236,7 +236,13 @@ def recipe_nino34_timeseries_mom5(
         str, {"name": "Select Depth Dim", "kind": "dimension"}
     ] = "st_ocean",
     depth: Annotated[
-        float, {"name": "Select Depth Slice", "kind": "number", "units": "m"}
+        float,
+        {
+            "name": "Select Depth Slice",
+            "kind": "number",
+            "units": "m",
+            "description": "Level for the analysis to be sliced at, default 0m",
+        },
     ] = 0,
 ):
     """
@@ -283,7 +289,12 @@ def recipe_nino34_timeseries_mom5(
 def recipe_nino34_timeseries_um(
     ds: xr.Dataset,
     variable: Annotated[
-        str, {"name": "Select Variable", "kind": "data variable"}
+        str,
+        {
+            "name": "Select Variable",
+            "kind": "data variable",
+            "description": "Variable from your dataset you want to analyse",
+        },
     ] = "tas",
     lon_dim: Annotated[
         str, {"name": "Select Longitude Dim", "kind": "dimension"}
@@ -295,7 +306,13 @@ def recipe_nino34_timeseries_um(
         str | None, {"name": "Select Depth Dim", "kind": "dimension"}
     ] = None,
     level: Annotated[
-        float, {"name": "Select Level Slice", "kind": "number", "units": "m"}
+        float,
+        {
+            "name": "Select Level Slice",
+            "kind": "number",
+            "units": "m",
+            "description": "Level for the analysis to be sliced at, default 0m",
+        },
     ] = 0,
 ):
     """
@@ -342,12 +359,29 @@ def recipe_nino34_timeseries_um(
 
 def recipe_sst_anomaly_nino34(
     dataset: xr.Dataset,
-    var: Annotated[str, {"name": "Select Variable", "kind": "data variable"}] = "tos",
+    var: Annotated[
+        str,
+        {
+            "name": "Select Variable",
+            "kind": "data variable",
+            "description": "Sea surface temperature variable in this dataset (default tos)",
+        },
+    ] = "tos",
     x_dim: Annotated[
-        str, {"name": "Select Longitude Dim", "kind": "dimension"}
+        str,
+        {
+            "name": "Select Longitude Dim",
+            "kind": "dimension",
+            "description": "Longitude dimension",
+        },
     ] = "xt_ocean",
     y_dim: Annotated[
-        str, {"name": "Select Latitude Dim", "kind": "dimension"}
+        str,
+        {
+            "name": "Select Latitude Dim",
+            "kind": "dimension",
+            "description": "Latitude dimension",
+        },
     ] = "yt_ocean",
 ):
     """
