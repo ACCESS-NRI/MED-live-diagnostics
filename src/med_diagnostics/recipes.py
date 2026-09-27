@@ -139,9 +139,11 @@ def _dataset_choices(ds, kind):
         return list(ds.data_vars)
     # Coords rather than dims alone, so 2D lat/lon (e.g. geolon_t) are
     # offered; dims without a coordinate variable are included too
-    return list(
-        dict.fromkeys([*ds.coords, *ds.dims])
-    )  # TODO make it skip things like nv and st_edges_ocean
+    return [
+        dim
+        for dim in dict.fromkeys([*ds.coords, *ds.dims])
+        if ds.sizes.get(dim, 1) > 1 and dim not in ("nv", "st_edges_ocean")
+    ]
 
 
 # --------------------------------------------------------------------------
