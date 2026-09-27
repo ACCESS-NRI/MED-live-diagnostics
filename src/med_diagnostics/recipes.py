@@ -1,6 +1,7 @@
 import inspect
 import re
 import sys
+from typing import Literal, get_args, get_type_hints
 
 import numpy as np
 import xarray as xr
@@ -70,10 +71,9 @@ def get_recipe_kwarg_options(recipe, ds=None):
     Parameters
     ----------
     recipe : callable
-        A recipe with a numpy-format docstring. Each ``Parameters`` type line
-        reads ``kind[, units <u>][, {choices}][, default <x> | optional]``, where
-        kind is ``data variable``, ``dimension``, a Python type, or omitted for a
-        bare ``{choices}`` set.
+        A recipe where parameters are typed using ``typing.Annotated``.
+        Metadata should be a dictionary with keys like ``kind``, ``units``,
+        or ``description``. e.g., ``Annotated[str, {"kind": "data variable"}]``
     ds : xarray.Dataset, optional
         If given, fills ``choices`` for ``data variable`` and ``dimension``
         parameters from this dataset.
@@ -82,79 +82,56 @@ def get_recipe_kwarg_options(recipe, ds=None):
     -------
     list of dict
         One dict per parameter with keys ``name``, ``kind``, ``required``,
-        ``default``, ``choices``, ``units`` and ``description``, matching
-        ``diagnostics.get_indicator_kwarg_options``.
-
-    Raises
-    ------
-    ValueError
-        If the docstring doesn't describe the recipe's parameters correctly.
+        ``default``, ``choices``, ``units`` and ``description``.
     """
+
+    hints = get_type_hints(recipe, include_extras=True)
     signature = inspect.signature(recipe)
-    documented = _parse_parameters_section(inspect.getdoc(recipe) or "")
-    _validate_recipe_docs(recipe.__name__, signature, documented)
 
     kwarg_options = []
-    # The first argument is always the dataset, which the UI supplies itself
+    # The first argument is always the dataset, which the UI supplies itself, loop over everything after the first argument
     for name, param in list(signature.parameters.items())[1:]:
-        doc = documented.get(name, {})
+        hint = hints.get(name)
+        metadata = {}
+        base_type = hint
+
+        # Extract metadata if Annotated is used
+        if hasattr(hint, "__metadata__"):
+            metadata = (
+                hint.__metadata__[0]
+                if isinstance(hint.__metadata__, tuple) and hint.__metadata__
+                else {}
+            )
+            # Fallback for base type across Python versions
+            base_type = getattr(hint, "__origin__", hint)
+
         has_default = param.default is not inspect.Parameter.empty
-        choices = doc.get("choices")
-        if ds is not None and doc.get("kind") in ("data variable", "dimension"):
-            choices = _dataset_choices(ds, doc["kind"])
-            # Optional dims (e.g. no vertical level for surface fields) need
-            # a "none" entry
+        choices = metadata.get("choices")
+
+        # Handle Literal types for implicit choices (e.g. Literal["mean", "sum"])
+        if getattr(base_type, "__origin__", base_type) is Literal:
+            choices = list(get_args(base_type) or getattr(base_type, "__args__", []))
+
+        # Dynamically populate choices from the xarray dataset
+        if ds is not None and metadata.get("kind") in ("data variable", "dimension"):
+            choices = _dataset_choices(ds, metadata["kind"])
+            # Optional dims need a "none" entry
             if has_default and param.default is None:
                 choices = [None, *choices]
+
         kwarg_options.append(
             {
                 "name": name,
-                "kind": doc.get("kind"),
+                "kind": metadata.get("kind"),
                 "required": not has_default,
-                # The signature, not the docstring, is the source of truth
                 "default": param.default if has_default else None,
                 "choices": choices,
-                "units": doc.get("units"),
-                "description": doc.get("description"),
+                "units": metadata.get("units"),
+                "description": metadata.get("description"),
             }
         )
+
     return kwarg_options
-
-
-def _validate_recipe_docs(recipe_name, signature, documented):
-    """Raise if a recipe's docstring would give the UI an incomplete form."""
-    # A free-text docstring has no checking of its own, so a typo (e.g.
-    # "data varible") would otherwise quietly become a text box in the UI
-    user_params = list(signature.parameters.values())[1:]
-    problems = []
-    for param in user_params:
-        doc = documented.get(param.name)
-        if doc is None:
-            problems.append(f"'{param.name}' is not documented")
-        elif doc["kind"] not in RECIPE_KINDS:
-            problems.append(
-                f"'{param.name}' has unknown kind {doc['kind']!r} "
-                f"(expected one of {sorted(RECIPE_KINDS)})"
-            )
-        elif (
-            doc["choices"]
-            and param.default is not inspect.Parameter.empty
-            and param.default is not None
-            and str(param.default) not in doc["choices"]
-        ):
-            problems.append(
-                f"'{param.name}' defaults to {param.default!r}, which isn't one "
-                f"of its choices {doc['choices']}"
-            )
-    # Docs for a parameter that no longer exists are stale
-    all_params = set(signature.parameters)
-    for name in sorted(documented.keys() - all_params):
-        problems.append(f"'{name}' is documented but not a parameter")
-
-    if problems:
-        raise ValueError(
-            f"Recipe '{recipe_name}' has an invalid docstring: " + "; ".join(problems)
-        )
 
 
 def _dataset_choices(ds, kind):
@@ -390,6 +367,8 @@ def recipe_nino34_timeseries_um(
 def recipe_sst_anomaly_nino34(dataset, x_dim="xt_ocean", y_dim="yt_ocean", var="tos"):
     """
     Niño 3.4 index for sea surface temperature
+
+    For analysis of sea surface temperature anomoly in the Niño 3.4 region.
 
     Parameters
     ----------

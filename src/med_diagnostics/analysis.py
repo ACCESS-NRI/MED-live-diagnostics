@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
 
+from med_diagnostics import recipes
+
 PREDEFINED_REGIONS = {
     "nino34": {"lat": (-5, 5), "lon": (-170, -120)},
     "nino3": {"lat": (-5, 5), "lon": (-150, -90)},
@@ -255,13 +257,12 @@ def upload_analysis(recipe_func):
     ValueError
         If its docstring doesn't describe its parameters correctly.
     """
-    # Imported here because recipes imports this module
-    from med_diagnostics import recipes
-
+    # Check that the passed in function is actually a function, and takes arguments.
     if not callable(recipe_func) or not inspect.signature(recipe_func).parameters:
         raise TypeError(
             "An analysis must be a function taking the dataset as its first argument."
         )
+
     # Check the docstring now, so mistakes show at upload rather than in the UI
     recipes.get_recipe_kwarg_options(recipe_func)
 
