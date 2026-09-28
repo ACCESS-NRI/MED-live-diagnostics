@@ -2061,7 +2061,7 @@ class UserInterface:
         try:
             kwarg_options = analysis.get_recipe_kwarg_options(recipe, self.dataset)
         except ValueError as err:
-            # A recipe with a malformed docstring can't have a form built for it
+            # A recipe with an error in the annotated declaration that causes an error
             controller.update_textbox_text(
                 self.analysis_warning_textbox, f"Warning >> {err}"
             )

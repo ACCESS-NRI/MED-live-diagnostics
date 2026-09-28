@@ -76,19 +76,25 @@ def extract_region(dataset, region, lon_dim="lon", lat_dim="lat"):
     lon_coord = dataset[lon_dim]
     lat_coord = dataset[lat_dim]
 
-    # 2. Shift the region's longitudes into the grid's own 360° window. This
-    # covers 0-360, -180-180 and MOM5's -280-80 grids alike.
-    grid_lon_min = float(lon_coord.min())
-    lon_west = (lon_west - grid_lon_min) % 360 + grid_lon_min
-    lon_east = (lon_east - grid_lon_min) % 360 + grid_lon_min
-
-    # 3. Longitudes run west to east, so west > east means the box wraps past
-    # the grid's seam (e.g. Niño 4 across the dateline on a -180-180 grid).
-    # Sorting them would select the opposite side of the globe instead.
-    if lon_west <= lon_east:
-        in_lon = (lon_coord >= lon_west) & (lon_coord <= lon_east)
+    # 2. A box spanning the whole globe (e.g. -180 to 180) has edges exactly
+    # 360° apart, which the shift below would map onto the same longitude,
+    # selecting nothing. Keep every longitude instead.
+    if lon_east - lon_west >= 360:
+        in_lon = xr.ones_like(lon_coord, dtype=bool)
     else:
-        in_lon = (lon_coord >= lon_west) | (lon_coord <= lon_east)
+        # Shift the region's longitudes into the grid's own 360° window. This
+        # covers 0-360, -180-180 and MOM5's -280-80 grids alike.
+        grid_lon_min = float(lon_coord.min())
+        lon_west = (lon_west - grid_lon_min) % 360 + grid_lon_min
+        lon_east = (lon_east - grid_lon_min) % 360 + grid_lon_min
+
+        # 3. Longitudes run west to east, so west > east means the box wraps
+        # past the grid's seam (e.g. Niño 4 across the dateline on a -180-180
+        # grid). Sorting them would select the opposite side of the globe.
+        if lon_west <= lon_east:
+            in_lon = (lon_coord >= lon_west) & (lon_coord <= lon_east)
+        else:
+            in_lon = (lon_coord >= lon_west) | (lon_coord <= lon_east)
     # Boolean masks, unlike `.sel(slice(...))`, don't care whether latitude
     # is stored ascending or descending (e.g. ERA5 runs 90 to -90).
     in_lat = (lat_coord >= lat_lo) & (lat_coord <= lat_hi)

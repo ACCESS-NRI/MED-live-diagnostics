@@ -1,6 +1,7 @@
 import inspect
 from typing import Annotated, Literal
 
+import numpy as np
 import pytest
 import xarray as xr
 
@@ -112,3 +113,27 @@ def test_unannotated_parameters_are_accepted():
     assert options["depth"]["kind"] is None
     assert options["depth"]["default"] == 0
     assert options["method"]["kind"] == "mispelt"
+
+
+@pytest.mark.parametrize(
+    "lon_start", [0.5, -179.5, -279.5], ids=["0-360", "-180-180", "mom5"]
+)
+@pytest.mark.parametrize("region", list(recipes.PREDEFINED_REGIONS))
+def test_every_region_selects_cells(region, lon_start):
+    """Test that every predefined region selects cells on common grids.
+
+    Full-width regions (e.g. "tropics") used to select no longitudes, giving an
+    all-NaN mean that only surfaced later as a confusing error in add_trend.
+    """
+    ds = xr.Dataset(
+        {"temp": (("lat", "lon"), np.ones((180, 360)))},
+        coords={
+            "lat": np.arange(-89.5, 90),
+            "lon": np.arange(lon_start, lon_start + 360),
+        },
+    )
+    subset = recipes.extract_region(ds, region)
+    assert subset.sizes["lat"] > 0
+    assert subset.sizes["lon"] > 0
+    if region == "global":
+        assert subset.sizes["lon"] == 360
