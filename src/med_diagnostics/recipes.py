@@ -55,7 +55,7 @@ def extract_region(dataset, region, lon_dim="lon", lat_dim="lat"):
     xarray.Dataset or xarray.DataArray
         The subset within the bounding box.
     """
-    # 1. Resolve the region into lat/lon bounds
+    # Resolve the region into lat/lon bounds
     if isinstance(region, str):
         region_key = region.lower()
         if region_key not in PREDEFINED_REGIONS:
@@ -76,38 +76,24 @@ def extract_region(dataset, region, lon_dim="lon", lat_dim="lat"):
     lon_coord = dataset[lon_dim]
     lat_coord = dataset[lat_dim]
 
-    # 2. A box spanning the whole globe (e.g. -180 to 180) has edges exactly
-    # 360° apart, which the shift below would map onto the same longitude,
-    # selecting nothing. Keep every longitude instead.
     if lon_east - lon_west >= 360:
         in_lon = xr.ones_like(lon_coord, dtype=bool)
     else:
-        # Shift the region's longitudes into the grid's own 360° window. This
-        # covers 0-360, -180-180 and MOM5's -280-80 grids alike.
+        # Shift the region's longitudes into the grid's own 360° window.
         grid_lon_min = float(lon_coord.min())
         lon_west = (lon_west - grid_lon_min) % 360 + grid_lon_min
         lon_east = (lon_east - grid_lon_min) % 360 + grid_lon_min
 
-        # 3. Longitudes run west to east, so west > east means the box wraps
-        # past the grid's seam (e.g. Niño 4 across the dateline on a -180-180
-        # grid). Sorting them would select the opposite side of the globe.
         if lon_west <= lon_east:
             in_lon = (lon_coord >= lon_west) & (lon_coord <= lon_east)
         else:
             in_lon = (lon_coord >= lon_west) | (lon_coord <= lon_east)
-    # Boolean masks, unlike `.sel(slice(...))`, don't care whether latitude
-    # is stored ascending or descending (e.g. ERA5 runs 90 to -90).
+
     in_lat = (lat_coord >= lat_lo) & (lat_coord <= lat_hi)
 
-    # 4a. Curvilinear/tripolar grids (e.g. ACCESS-OM2/CICE TLAT/TLON): `.sel()`
-    # can't index by a 2D coordinate, so mask and drop instead.
     if lon_coord.ndim > 1 or lat_coord.ndim > 1:
-        # `where(..., drop=True)` refuses a dask-backed boolean mask (the
-        # result shape would be unknown). The mask is grid-sized with no time
-        # dimension, so computing it eagerly is cheap.
         return dataset.where((in_lon & in_lat).compute(), drop=True)
 
-    # 4b. Regular 1D grids: index each axis by its mask
     return dataset.isel(
         {lat_coord.dims[0]: in_lat.values, lon_coord.dims[0]: in_lon.values}
     )
@@ -259,91 +245,6 @@ def require_coords(ds, variable, coords, grid):
 # --------------------------------------------------------------------------
 # Recipes
 # --------------------------------------------------------------------------
-
-
-def recipe_nino34_timeseries_mom5(
-    ds: xr.Dataset,
-    variable: Annotated[
-        str,
-        {
-            "name": "Select Variable",
-            "kind": "data variable",
-            "description": "Variable to average over the region, e.g. o2 or temp",
-        },
-    ] = "no3",
-    lon_dim: Annotated[
-        str,
-        {
-            "name": "Select Longitude Dim",
-            "kind": "dimension",
-            "description": "Longitude coordinate",
-        },
-    ] = "xt_ocean",
-    lat_dim: Annotated[
-        str,
-        {
-            "name": "Select Latitude Dim",
-            "kind": "dimension",
-            "description": "Latitude coordinate",
-        },
-    ] = "yt_ocean",
-    lvl_dim: Annotated[
-        str,
-        {
-            "name": "Select Depth Dim",
-            "kind": "dimension",
-            "description": "Depth coordinate; ignored if the variable has no depth",
-        },
-    ] = "st_ocean",
-    depth: Annotated[
-        float,
-        {
-            "name": "Select Depth Slice",
-            "kind": "float",
-            "units": "m",
-            "description": "Level for the analysis to be sliced at, default 0m",
-        },
-    ] = 0,
-):
-    """
-    Niño 3.4 area-weighted mean timeseries of an ocean variable.
-
-    For MOM5 output (ACCESS-OM2, ACCESS-ESM1.6).
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        Dataset to analyse, supplied by the UI.
-    variable : data variable, default "no3"
-        Variable to average over the region, e.g. o2 or temp.
-    lon_dim : dimension, default "xt_ocean"
-        Longitude coordinate.
-    lat_dim : dimension, default "yt_ocean"
-        Latitude coordinate.
-    lvl_dim : dimension, default "st_ocean"
-        Depth coordinate; ignored if the variable has no depth.
-    depth : float, units m, default 0
-        Depth to plot; the nearest model level is used.
-
-    Returns
-    -------
-    tuple of (xarray.DataArray, dict)
-        The timeseries and its plot kwargs.
-    """
-    require_coords(ds, variable, [lat_dim, lon_dim], "MOM5")
-    data = ds[variable]
-    if lvl_dim in data.dims:
-        data = data.sel({lvl_dim: depth}, method="nearest")
-
-    # MOM5 cell areas, if the static fields were loaded; cos(lat) otherwise
-    timeseries = nino34_timeseries(data, lat_dim, lon_dim, ds.get("area_t"))
-    timeseries.name = f"Niño 3.4 {variable}"
-    if lvl_dim in data.coords:
-        timeseries.name += f" (~{float(data[lvl_dim]):.0f}m)"
-
-    return timeseries, plot_customisations.timeseries_plot_kwargs(
-        timeseries, variable, data.attrs.get("units", "")
-    )
 
 
 def recipe_nino34_timeseries_um(
@@ -551,7 +452,7 @@ def recipe_regional_mean_mom5(
     ] = "",
 ):
     """
-    Area-weighted mean timeseries of a variable over a chosen region.
+    Timeseries of a variable over a chosen region (Area-weighted mean).
 
     For MOM5 output (ACCESS-OM2, ACCESS-ESM1.6).
     """
