@@ -1,5 +1,5 @@
 ACCESS-NRI Model Live Diagnostics 
-============================
+=================================
 
 .. toctree::
    :maxdepth: 0
@@ -7,9 +7,11 @@ ACCESS-NRI Model Live Diagnostics
 
    self
    notebooks/getting_started_tutorial
+   notebooks/advanced_usage
    med_diagnostics
+   contributing/index
 
-Current version ``v1.0``
+Current version ``v2.0``
 
 Welcome to the documentation and reference guide for the `ACCESS-NRI <https://www.access-nri.org.au/>`_ Model Live Diagnostics package. 
 The Model Live Diagnostics framework is designed to provide useful and practical Jupyter-based tools for interactive monitoring and diagnostic 
@@ -20,7 +22,7 @@ This documentation aims to introduce these new tools, and support both new and e
 
 The ACCESS-NRI Model Live Diagnostics package, and the tools that support it, are still a work in progress. We value your constructive feedback, 
 especially in the form of reporting issues/bugs or suggesting ways to improve the framework. To do so, please feel free to open an 
-issue `here <https://github.com/ACCESS-NRI/MED-live-diagnostics/issues>`_.
+issue `here <https://github.com/ACCESS-NRI/MED-live-diagnostics/issues>`__.
 
 What does this package do?
 ==========================
@@ -29,8 +31,13 @@ modelling community to check, monitor, visualise and evaluate model behaviour an
 NCI supercomputer Gadi <https://nci.org.au/our-systems/hpc-systems>`_. In addition to monitoring a live model, the package provides the functionality to 
 load, visualise and compare legacy ACCESS model data with the selected live user model. 
 
-This package is currently in active development within the Model Evaluation Team at the `Australian Earth System Symulator (ACCESS-NRI) <https://www.access-nri.org.au/>`_
-so watch this space for version updates containing new features, model diagnostics tools and visualisation options!
+This package is currently in active development by the Model Evaluation Team at `Australia's climate simulator (ACCESS-NRI) <https://www.access-nri.org.au/>`_. 
+
+Version 2.0 introduces advanced visualisation capabilities to your live model analysis, including:
+
+* **Interactive animations** for visualising changes over time.
+* **Multidimensional data slicing** via dynamic interface sliders.
+* **Calculated difference overlays** (Reference vs. User data) for direct model comparisons.
 
 Quick-start guide
 ==================
@@ -49,22 +56,22 @@ and the `Australian Research Environment (ARE) <https://are.nci.org.au/>`_ to ru
 
 #. **Access to the project(s) that house the model data you are interested in**: the `ACCESS-NRI Intake Catalog <https://github.com/ACCESS-NRI/access-nri-intake-catalog/tree/main>`_ references data 
    products across multiple projects on Gadi. You can find the list of currently support projects 
-   `here <https://github.com/ACCESS-NRI/access-nri-intake-catalog/blob/main/docs/project_list.rst>`_.
+   `here <https://github.com/ACCESS-NRI/access-nri-intake-catalog/blob/main/docs/project_list.rst>`__.
 
    If you wish to be able to access **ALL** the data in the ACCESS-NRI Intake Catalog, you will need to be a member of **ALL** supported projects. If you are unsure how to join projects on Gadi, 
    please see the `NCI documentation <https://opus.nci.org.au/display/Help/How+to+connect+to+a+project>`_ for instructions.
 
-#. **RECOMMENDED** Join the ACCESS-NRI project ``xp65`` to gain access to the `ACCESS-NRI conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_ on Gadi.
+#. **Join the ACCESS-NRI project ``xp65``** to gain access to the `ACCESS-NRI conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_ on Gadi.
 
 Start an ARE JupyterLab session
-^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 #. Log into to `ARE <https://are.nci.org.au>`_ and start a ``JupyterLab`` instance with the following recommended settings:
 
-   As these datasets are fairly large / memory intensive, the following 'Custom' settings are recommended to minimise SU consumption:
+   Due to the large size of these datasets, we suggest using the 'XX-Large' compute settings:
 
    +-----------------------+----------------------------------------------+
-   | Compute Size          | Custom (2 cpus, 18G mem)                     |  
+   | Compute Size          | XX-Large (28 cpus, 126G mem)                 |  
    +-----------------------+----------------------------------------------+
    | Storage               | e.g. ``gdata/project1+gdata/project2``       |     
    +-----------------------+----------------------------------------------+
@@ -82,10 +89,10 @@ Start an ARE JupyterLab session
 
 #. You should now have an ARE ``JupyterLab`` instance running using the `ACCESS-NRI MED Conda environment <https://github.com/ACCESS-NRI/MED-condaenv>`_.
 
-#. Follow the 'Getting started' tutorial found `here <https://med-live-diagnostics.readthedocs.io/en/latest/notebooks/getting_started_tutorial.html>`_ to begin your first Model Live Diagnostics session.
+#. Follow the 'Getting started' tutorial found `here <https://med-live-diagnostics.readthedocs.io/en/latest/notebooks/getting_started_tutorial.html>`__ to begin your first Model Live Diagnostics session.
 
 Installing the package directly
-^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Alternatively, the Model Live Diagnostics package can be installed directly into your chosen conda environment on Gadi either from the 
 `access-nri conda channel <https://anaconda.org/accessnri/med-diagnostics>`_ or `PyPI <https://pypi.org/project/med-diagnostics/>`_.
