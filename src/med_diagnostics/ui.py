@@ -74,6 +74,13 @@ class UserInterface:
             "margin": (23, 0, 0, 0),
             "button_type": "success",
         },
+        "years_mode": {
+            "options": ["Most recent", "First", "All years"],
+            "value": "Most recent",
+            "margin": (23, 0, 0, 10),
+        },
+        "years_input": {"name": "Years to load", "start": 1, "value": 10, "width": 110},
+        "years_files_text": {"margin": (28, 0, 0, 10)},
         "remove_button": {
             "name": "Remove the above plot",
             "button_type": "danger",
@@ -130,6 +137,11 @@ class UserInterface:
         # Build initial user plot buttons and dropdowns
         self.keys_dropdown = pn.widgets.Select()
         self.keys_button = pn.widgets.Button(**self.STYLES.get("primary_button"))
+        self.years_mode = pn.widgets.RadioButtonGroup(**self.STYLES.get("years_mode"))
+        self.years_input = pn.widgets.IntInput(**self.STYLES.get("years_input"))
+        self.years_files_text = pn.widgets.StaticText(
+            **self.STYLES.get("years_files_text")
+        )
         self.plot_variable_dropdown = pn.widgets.Select()
         self.variable_toggle = pn.widgets.Toggle(**self.STYLES.get("variable_toggle"))
         self.plot_button = pn.widgets.Button(**self.STYLES.get("green_button"))
@@ -229,6 +241,15 @@ class UserInterface:
         )
         self.multiplot_plot_type_dropdown = pn.widgets.Select()
         self.multiplot_analysis_choice_dropdown = pn.widgets.Select()
+        self.multiplot_years_mode = pn.widgets.RadioButtonGroup(
+            **self.STYLES.get("years_mode")
+        )
+        self.multiplot_years_input = pn.widgets.IntInput(
+            **self.STYLES.get("years_input")
+        )
+        self.multiplot_years_files_text = pn.widgets.StaticText(
+            **self.STYLES.get("years_files_text")
+        )
         self.multiplot_variable_toggle = pn.widgets.Toggle(
             **self.STYLES.get("variable_toggle")
         )
@@ -246,6 +267,15 @@ class UserInterface:
         self.analysis_keys_button = pn.widgets.Button(
             **self.STYLES.get("primary_button")
         )
+        self.analysis_years_mode = pn.widgets.RadioButtonGroup(
+            **self.STYLES.get("years_mode")
+        )
+        self.analysis_years_input = pn.widgets.IntInput(
+            **self.STYLES.get("years_input")
+        )
+        self.analysis_years_files_text = pn.widgets.StaticText(
+            **self.STYLES.get("years_files_text")
+        )
         self.analysis_recipe_dropdown = pn.widgets.Select()
         self.analysis_select_recipe_button = pn.widgets.Button(
             **self.STYLES.get("green_button")
@@ -262,6 +292,31 @@ class UserInterface:
         self.figure_exists, self.ref_figure_exists = False, False
         self.long_names, self.ref_long_names, self.multiplot_long_names = {}, {}, {}
         self.analysis_long_names, self.analysis_variable_widgets = {}, []
+
+        # Each section that loads user data has its own year widgets, synced after a load
+        self.year_widget_sets = [
+            (
+                self.keys_dropdown,
+                self.years_mode,
+                self.years_input,
+                self.years_files_text,
+            ),
+            (
+                self.multiplot_keys_dropdown,
+                self.multiplot_years_mode,
+                self.multiplot_years_input,
+                self.multiplot_years_files_text,
+            ),
+            (
+                self.analysis_keys_dropdown,
+                self.analysis_years_mode,
+                self.analysis_years_input,
+                self.analysis_years_files_text,
+            ),
+        ]
+        self.loaded_year_selection = self._get_year_selection(
+            self.years_mode, self.years_input
+        )
 
         # Initialise button listener functions
         # Plot buttons
@@ -320,6 +375,11 @@ class UserInterface:
         self.analysis_variable_toggle.param.watch(
             self._analysis_variable_toggle_click, "value"
         )
+
+        # Year selection widgets update the file count shown before loading
+        for widgets in self.year_widget_sets:
+            for widget in widgets[:3]:
+                widget.param.watch(self._years_selection_change, "value")
 
         self.plot_type_mapping = {
             Line.value: Line(),
@@ -451,6 +511,10 @@ class UserInterface:
                 self.analysis_variable_toggle, widget, self.dataset
             )
 
+    def _years_selection_change(self, event):
+        """Event wrapper for the dataset and year selection widgets."""
+        self._update_years_files_texts()
+
     def _analysis_keys_button_click(self, event):
         """Event wrapper for the analysis load dataset button click."""
 
@@ -492,7 +556,12 @@ class UserInterface:
 
         self.div_1 = pn.layout.Divider(styles={"color": "white"}, visible=False)
         self.keys_selection_row = pn.Row(
-            self.keys_dropdown, self.keys_button, visible=False
+            self.keys_dropdown,
+            self.years_mode,
+            self.years_input,
+            self.keys_button,
+            self.years_files_text,
+            visible=False,
         )
         self.div_2 = pn.layout.Divider(styles={"color": "white"}, visible=False)
 
@@ -575,6 +644,8 @@ class UserInterface:
         self.multiplot_ref_keys_dropdown.options = ["Waiting for model to load"]
         self.multiplot_ref_keys_button.name = "Add reference model"
         self.multiplot_ref_keys_button.disabled = True
+        self.multiplot_years_mode.disabled = True
+        self.multiplot_years_input.disabled = True
 
         self.clear_multiplot_data_button.name = "Clear loaded data"
         self.clear_multiplot_data_button.disabled = True
@@ -607,7 +678,11 @@ class UserInterface:
         self.multiplot_plot_type_dropdown.options = self.multiplot_type_mapping
 
         self.multiplot_user_dataset_keys_selection_row = pn.Row(
-            self.multiplot_keys_dropdown, self.multiplot_keys_update_button
+            self.multiplot_keys_dropdown,
+            self.multiplot_years_mode,
+            self.multiplot_years_input,
+            self.multiplot_keys_update_button,
+            self.multiplot_years_files_text,
         )
 
         self.multiplot_ref_keys_selection_row = pn.Row(
@@ -653,6 +728,8 @@ class UserInterface:
         self.analysis_keys_dropdown.disabled = True
         self.analysis_keys_button.name = "Load dataset"
         self.analysis_keys_button.disabled = True
+        self.analysis_years_mode.disabled = True
+        self.analysis_years_input.disabled = True
 
         # Populate recipe selection widgets
         self.analysis_recipe_dropdown.name = "Select analysis recipe"
@@ -665,7 +742,11 @@ class UserInterface:
         self.analysis_refresh_button.disabled = True
 
         self.analysis_keys_selection_row = pn.Row(
-            self.analysis_keys_dropdown, self.analysis_keys_button
+            self.analysis_keys_dropdown,
+            self.analysis_years_mode,
+            self.analysis_years_input,
+            self.analysis_keys_button,
+            self.analysis_years_files_text,
         )
         self.analysis_recipe_selection_row = pn.Row(
             self.analysis_recipe_dropdown,
@@ -704,6 +785,8 @@ class UserInterface:
         self.multiplot_keys_dropdown.options = sorted(self.model_cat.keys())
         self.multiplot_keys_update_button.disabled = False
         self.multiplot_keys_dropdown.disabled = False
+        self.multiplot_years_mode.disabled = False
+        self.multiplot_years_input.disabled = False
 
         controller.update_textbox_text(
             self.analysis_status_textbox,
@@ -712,6 +795,8 @@ class UserInterface:
         self.analysis_keys_dropdown.options = sorted(self.model_cat.keys())
         self.analysis_keys_dropdown.disabled = False
         self.analysis_keys_button.disabled = False
+        self.analysis_years_mode.disabled = False
+        self.analysis_years_input.disabled = False
 
     def _display_dataset_selection_ui(self):
         """
@@ -763,9 +848,17 @@ class UserInterface:
             append=True,
         )
 
-    def _keys_dropdown_click(self, key=None):
+    def _keys_dropdown_click(self, key=None, year_selection=None):
         """
         Loads selected model dataset from keys_dropdown and creates new interactive plot.
+
+        Parameters
+        ----------
+        key : str, optional
+            Dataset key to load. Defaults to the keys_dropdown value.
+        year_selection : tuple, optional
+            ``(years, from_start)`` from the calling section's year widgets.
+            Defaults to the user section's.
         """
         # Update text box
         controller.update_textbox_text(
@@ -776,13 +869,22 @@ class UserInterface:
             self.keys_dropdown.value = key
         else:
             selected_key = self.keys_dropdown.value
+        if year_selection is None:
+            year_selection = self._get_year_selection(self.years_mode, self.years_input)
+        years, from_start = year_selection
         # Load selected dataset
-        self.dataset = data._build_data_object(self.model_cat, selected_key)
+        self.dataset = data._build_data_object(
+            self.model_cat, selected_key, years=years, from_start=from_start
+        )
         self.loaded_dataset_key = self.keys_dropdown.value
+        self.loaded_year_selection = year_selection
 
         # Update text box
+        files_text = self._years_files_summary(selected_key, years, from_start)
         controller.update_textbox_text(
-            self.status_textbox, "User model status >> Data successfully loaded."
+            self.status_textbox,
+            "User model status >> Data successfully loaded"
+            + (f" ({files_text})." if files_text else "."),
         )
         self.keys_button.name = "Load different dataset"
 
@@ -815,6 +917,7 @@ class UserInterface:
 
         # The analysis section also reads self.dataset, whichever section loaded it
         self._sync_analysis_section()
+        self._sync_year_widgets()
 
     def _ref_keys_dropdown_click(self):
         """
@@ -858,13 +961,22 @@ class UserInterface:
 
         # Reload a changed user dataset first, so the reference model is matched
         # to it and not discarded by the clear that follows a reload
-        if self.multiplot_keys_dropdown.value != self.loaded_dataset_key:
+        year_selection = self._get_year_selection(
+            self.multiplot_years_mode, self.multiplot_years_input
+        )
+        # A changed year selection needs a reload too, not just a changed dataset
+        if (
+            self.multiplot_keys_dropdown.value != self.loaded_dataset_key
+            or year_selection != self.loaded_year_selection
+        ):
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
                 "Overlay Plot Status >> User dataset selection changed, reloading user dataset...",
             )
             # Load through the user section so every section sharing self.dataset updates
-            self._keys_dropdown_click(key=self.multiplot_keys_dropdown.value)
+            self._keys_dropdown_click(
+                key=self.multiplot_keys_dropdown.value, year_selection=year_selection
+            )
             self.multiplot_plot_variable_dropdown.options = sorted(self.dataset.keys())
 
             controller.update_textbox_text(
@@ -1009,7 +1121,12 @@ class UserInterface:
                 self.multiplot_status_textbox,
                 "Overlay Plot Status >> Loading user dataset...",
             )
-            self._keys_dropdown_click(key=self.multiplot_keys_dropdown.value)
+            self._keys_dropdown_click(
+                key=self.multiplot_keys_dropdown.value,
+                year_selection=self._get_year_selection(
+                    self.multiplot_years_mode, self.multiplot_years_input
+                ),
+            )
             self.multiplot_keys_update_button.name = "Load different dataset"
             self.loaded_dataset_key = self.multiplot_keys_dropdown.value
             self.keys_dropdown.value = self.loaded_dataset_key
@@ -1021,7 +1138,12 @@ class UserInterface:
             )
             # Load through the user section so every section sharing self.dataset
             # updates. The variable lists must come from the new dataset, after loading.
-            self._keys_dropdown_click(key=self.multiplot_keys_dropdown.value)
+            self._keys_dropdown_click(
+                key=self.multiplot_keys_dropdown.value,
+                year_selection=self._get_year_selection(
+                    self.multiplot_years_mode, self.multiplot_years_input
+                ),
+            )
             sorted_keys = sorted(self.dataset.keys())
             self.multiplot_plot_variable_dropdown.options = sorted_keys
             self.plot_variable_dropdown.options = sorted_keys
@@ -2019,7 +2141,64 @@ class UserInterface:
 
         # Load through the user section so every section sharing self.dataset
         # updates; this also syncs the analysis section via _sync_analysis_section
-        self._keys_dropdown_click(key=self.analysis_keys_dropdown.value)
+        self._keys_dropdown_click(
+            key=self.analysis_keys_dropdown.value,
+            year_selection=self._get_year_selection(
+                self.analysis_years_mode, self.analysis_years_input
+            ),
+        )
+
+    def _get_year_selection(self, years_mode, years_input):
+        """
+        Read a section's year widgets as ``(years, from_start)``, with years None for all years.
+        """
+        if years_mode.value == "All years":
+            return None, False
+        return years_input.value, years_mode.value == "First"
+
+    def _years_files_summary(self, key, years, from_start):
+        """
+        Describe how many files and which years a selection would load, or "" if unknown.
+        """
+        # Keys that aren't catalog entries (e.g. "Waiting for model to load") have nothing to count, so check the type first
+        if (
+            not hasattr(self, "model_cat")
+            or not isinstance(key, str)
+            or key not in self.model_cat
+        ):
+            return ""
+        summary = data.summarise_year_selection(self.model_cat, key, years, from_start)
+        if summary is None:
+            return ""
+
+        text = f"{summary['n_files']} of {summary['total_files']} files"
+        if summary["first_year"] is not None:
+            text += f", {summary['first_year']}–{summary['last_year']}"
+        return text
+
+    def _update_years_files_texts(self):
+        """
+        Show each section's file count for its selected dataset and years.
+        """
+        for keys_dropdown, years_mode, years_input, files_text in self.year_widget_sets:
+            years_input.disabled = years_mode.value == "All years"
+            summary = self._years_files_summary(
+                keys_dropdown.value,
+                *self._get_year_selection(years_mode, years_input),
+            )
+            files_text.value = f"Loads {summary}" if summary else ""
+
+    def _sync_year_widgets(self):
+        """
+        Show the loaded year selection in every section that loads user data.
+        """
+        years, from_start = self.loaded_year_selection
+        for _, years_mode, years_input, _ in self.year_widget_sets:
+            if years is None:
+                years_mode.value = "All years"
+            else:
+                years_mode.value = "First" if from_start else "Most recent"
+                years_input.value = years
 
     def _sync_analysis_section(self):
         """
@@ -2101,7 +2280,10 @@ class UserInterface:
         )
 
         self.analysis_recipe_options_row = pn.FlexBox(
-            *self.analysis_recipe_widgets.values(), *toggle, self.analysis_plot_button
+            *self.analysis_recipe_widgets.values(),
+            *toggle,
+            self.analysis_plot_button,
+            align_items="flex-end",
         )
 
         # Insert the options under the recipe details

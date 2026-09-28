@@ -5,6 +5,7 @@
 from typing import Annotated
 from unittest.mock import MagicMock, call, patch
 
+import intake
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -1150,7 +1151,9 @@ def test_keys_dropdown_click(ui, monkeypatch, fig_exists):
     ui._keys_dropdown_click()
 
     # Verify that the dataset builder is called with correct arguments
-    mock_build_data_object.assert_called_once_with(ui.model_cat, ui.keys_dropdown.value)
+    mock_build_data_object.assert_called_once_with(
+        ui.model_cat, ui.keys_dropdown.value, years=10, from_start=False
+    )
 
     # Verify that loaded dataset tracking, status message, and button properties are updated correctly
     assert ui.loaded_dataset_key == ui.keys_dropdown.value
@@ -1205,7 +1208,7 @@ def test_update_multiplot_dataset(ui, monkeypatch, button_disabled):
 
     # Verify that the dataset builder is called with the correct multiplot catalog and key
     mock_build_data_object.assert_called_once_with(
-        ui.model_cat, ui.multiplot_keys_dropdown.value
+        ui.model_cat, ui.multiplot_keys_dropdown.value, years=10, from_start=False
     )
 
     # Verify that dataset tracking keys, variable dropdown options, primary dropdown synchronization, and status messages are correctly updated
@@ -1248,7 +1251,9 @@ def test_update_multiplot_dataset_no_dataset_loaded(ui, monkeypatch):
     ui._update_multiplot_dataset()
 
     # Verify that the dataset builder is called with the multiplot dropdown's selection
-    mock_build_data_object.assert_called_once_with(ui.model_cat, "multiplot option")
+    mock_build_data_object.assert_called_once_with(
+        ui.model_cat, "multiplot option", years=10, from_start=False
+    )
 
     # Verify the main dropdown and loaded dataset key are synchronised to the multiplot selection
     assert ui.loaded_dataset_key == "multiplot option"
@@ -2788,7 +2793,13 @@ def test_initialise_user_widgets(uninitialised_ui):
     assert ui.div_1.visible is False
     assert ui.div_2.visible is False
     assert ui.keys_selection_row.visible is False
-    assert list(ui.keys_selection_row) == [ui.keys_dropdown, ui.keys_button]
+    assert list(ui.keys_selection_row) == [
+        ui.keys_dropdown,
+        ui.years_mode,
+        ui.years_input,
+        ui.keys_button,
+        ui.years_files_text,
+    ]
 
     # Verify the status text is set and the container is expanded
     assert (
@@ -2906,7 +2917,10 @@ def test_initialise_multiplot_widgets(uninitialised_ui):
     # Verify the selection rows group the correct widgets together
     assert list(ui.multiplot_user_dataset_keys_selection_row) == [
         ui.multiplot_keys_dropdown,
+        ui.multiplot_years_mode,
+        ui.multiplot_years_input,
         ui.multiplot_keys_update_button,
+        ui.multiplot_years_files_text,
     ]
     assert list(ui.multiplot_ref_keys_selection_row) == [
         ui.multiplot_plot_variable_dropdown,
@@ -3047,7 +3061,9 @@ def test_analysis_keys_dropdown_click_loads_through_user_section(ui, monkeypatch
 
     ui._analysis_keys_dropdown_click()
 
-    mock_keys_dropdown_click.assert_called_once_with(key="ocean")
+    mock_keys_dropdown_click.assert_called_once_with(
+        key="ocean", year_selection=(10, False)
+    )
 
 
 def test_analysis_first_load_enables_every_section(ui, monkeypatch):
@@ -3114,7 +3130,7 @@ def test_update_multiplot_dataset_uses_new_dataset_variables(ui, monkeypatch):
     monkeypatch.setattr(
         med_data,
         "_build_data_object",
-        MagicMock(side_effect=lambda cat, key: datasets[key]),
+        MagicMock(side_effect=lambda cat, key, **kwargs: datasets[key]),
     )
     ui.keys_dropdown.value = "a"
     ui._keys_dropdown_click()
@@ -3422,7 +3438,7 @@ def test_multiplot_add_ref_after_dataset_change_keeps_new_ref(ui, monkeypatch):
     monkeypatch.setattr(
         med_data,
         "_build_data_object",
-        MagicMock(side_effect=lambda cat, key: datasets[key]),
+        MagicMock(side_effect=lambda cat, key, **kwargs: datasets[key]),
     )
     ui.keys_dropdown.value = "a"
     ui._keys_dropdown_click()
@@ -3466,3 +3482,137 @@ def test_analysis_plot_shows_any_custom_recipe_error(analysis_ui, empty_uploads)
 
     assert "NameError" in ui.analysis_warning_textbox.value
     assert ui.analysis_status_textbox.value == "Analysis status >> Recipe failed"
+
+
+def _year_catalog(start_year=2000, n_years=5):
+    """A dict catalog whose one entry has a file table of monthly files."""
+    dates = [
+        f"{year:04d}-{month:02d}-01, 00:00:00"
+        for year in range(start_year, start_year + n_years)
+        for month in range(1, 13)
+    ]
+    df = pd.DataFrame({"path": range(len(dates)), "start_date": dates})
+    return {"atmos": MagicMock(df=df)}
+
+
+def test_years_files_text_follows_selection(ui):
+    """Test that each dataset row shows how many files its year selection would load.
+
+    Loading is slow because every file is opened, so the count has to be
+    visible before the user clicks load, and follow the dataset, mode and years.
+    """
+    ui.model_cat = _year_catalog()
+    ui.keys_dropdown.options = ["atmos"]
+    ui.keys_dropdown.value = "atmos"
+
+    ui.years_input.value = 2
+    assert ui.years_files_text.value == "Loads 24 of 60 files, 2003–2004"
+
+    ui.years_mode.value = "First"
+    assert ui.years_files_text.value == "Loads 24 of 60 files, 2000–2001"
+
+    ui.years_mode.value = "All years"
+    assert ui.years_input.disabled is True
+    assert ui.years_files_text.value == "Loads 60 of 60 files, 2000–2004"
+    # Rows whose dropdown isn't on a catalog entry show nothing
+    assert ui.analysis_years_files_text.value == ""
+
+
+@pytest.mark.parametrize(
+    "mode, years, expected",
+    [
+        pytest.param("Most recent", 10, (10, False), id="default-recent"),
+        pytest.param("First", 3, (3, True), id="first"),
+        pytest.param("All years", 3, (None, False), id="all-years"),
+    ],
+)
+def test_analysis_load_passes_and_syncs_year_selection(
+    ui, monkeypatch, mode, years, expected
+):
+    """Test that a load uses the calling section's years and syncs them to every section.
+
+    All sections share one loaded dataset, so after a load from any of them
+    each row must show the years that are actually loaded.
+    """
+    mock_build_data_object = MagicMock(return_value=mock_mom5_dataset())
+    monkeypatch.setattr(med_data, "_build_data_object", mock_build_data_object)
+    ui._enable_widgets_after_catalog_load({"ocean": None}, {"model": None})
+    ui.analysis_keys_dropdown.value = "ocean"
+    ui.analysis_years_mode.value = mode
+    ui.analysis_years_input.value = years
+
+    ui._analysis_keys_dropdown_click()
+
+    mock_build_data_object.assert_called_once_with(
+        ui.model_cat, "ocean", years=expected[0], from_start=expected[1]
+    )
+    assert ui.loaded_year_selection == expected
+    for _, years_mode, years_input, _ in ui.year_widget_sets:
+        assert years_mode.value == mode
+        if expected[0] is not None:
+            assert years_input.value == years
+
+
+def test_multiplot_reloads_when_only_years_change(ui, monkeypatch):
+    """Test that adding a reference model reloads the user data if only the years changed.
+
+    The overlay would otherwise compare the reference against the previously
+    loaded years, not the ones shown in the overlay row.
+    """
+    mock_keys_dropdown_click = MagicMock()
+    monkeypatch.setattr(ui, "_keys_dropdown_click", mock_keys_dropdown_click)
+    monkeypatch.setattr(ui, "_clear_multiplot_data", MagicMock())
+    mock_cat = MagicMock()
+    mock_cat.search.return_value.to_source.return_value = {}
+    monkeypatch.setattr(ui, "access_nri_cat", mock_cat)
+    ui.dataset = xr.Dataset({"tas": ("x", [1.0])})
+    ui.multiplot_keys_dropdown.options = ["atmos"]
+    ui.multiplot_keys_dropdown.value = "atmos"
+    ui.loaded_dataset_key = "atmos"
+    ui.loaded_year_selection = (10, False)
+    ui.multiplot_years_input.value = 5
+
+    ui._multiplot_ref_keys_dropdown_click()
+
+    mock_keys_dropdown_click.assert_called_once_with(
+        key="atmos", year_selection=(5, False)
+    )
+
+
+def test_years_files_text_with_real_datastore(ui):
+    """Test that loading a real intake-esm catalog doesn't crash the file count.
+
+    Dropdown values are briefly None while their options are set, and a real
+    esm_datastore raises a pydantic ValidationError for a None key, where the
+    dict catalogs used in the other tests just return False.
+    """
+    rows = [
+        {
+            "path": f"/fake/tas_{year}.nc",
+            "realm": "atmos",
+            "frequency": "1mon",
+            "variable": "tas",
+            "start_date": f"{year}-01-01, 00:00:00",
+        }
+        for year in range(2000, 2020)
+    ]
+    esmcat = {
+        "esmcat_version": "0.1.0",
+        "id": "test",
+        "description": "test",
+        "attributes": [],
+        "assets": {"column_name": "path", "format": "netcdf"},
+        "aggregation_control": {
+            "variable_column_name": "variable",
+            "groupby_attrs": ["realm", "frequency"],
+            "aggregations": [],
+        },
+    }
+    model_cat = intake.open_esm_datastore({"esmcat": esmcat, "df": pd.DataFrame(rows)})
+
+    ui._enable_widgets_after_catalog_load(model_cat, {"model": None})
+
+    assert ui._years_files_summary(None, 10, False) == ""
+    # A rendered UI selects the first option itself; unrendered widgets don't
+    ui.multiplot_keys_dropdown.value = "atmos.1mon"
+    assert ui.multiplot_years_files_text.value == "Loads 10 of 20 files, 2010–2019"
