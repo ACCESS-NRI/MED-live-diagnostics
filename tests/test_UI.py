@@ -2990,7 +2990,7 @@ def analysis_ui(ui):
     """Return a UI with a MOM5 dataset loaded into the analysis section."""
     ui._enable_widgets_after_catalog_load({"ocean": None}, {"model": None})
     ui.dataset = mock_mom5_dataset()
-    ui.analysis_recipe_dropdown.value = recipes.recipe_nino34_timeseries_mom5
+    ui.analysis_recipe_dropdown.value = recipes.recipe_regional_mean_mom5
     return ui
 
 
@@ -3138,11 +3138,23 @@ def test_display_analysis_recipe_options_ui(analysis_ui):
     ui._display_analysis_recipe_options_ui()
 
     widgets = ui.analysis_recipe_widgets
-    assert list(widgets) == ["variable", "lon_dim", "lat_dim", "lvl_dim", "depth"]
+    assert list(widgets) == [
+        "variable",
+        "region",
+        "lon_dim",
+        "lat_dim",
+        "lvl_dim",
+        "depth",
+        "smooth_steps",
+        "show_trend",
+        "show_percentiles",
+        "threshold",
+    ]
+    # The default "temp" isn't in this dataset, so the first variable is used
     assert widgets["variable"].value == "o2"
     assert widgets["lvl_dim"].value == "st_ocean"
     assert isinstance(widgets["depth"], pn.widgets.FloatInput)
-    assert widgets["depth"].name == "Select Depth Slice (m)"
+    assert widgets["depth"].name == "depth (m)"
     assert ui.analysis_recipe_info.value == (
         "For MOM5 output (ACCESS-OM2, ACCESS-ESM1.6)."
     )
@@ -3151,6 +3163,48 @@ def test_display_analysis_recipe_options_ui(analysis_ui):
     # Options sit directly under the recipe details
     info_index = container_items.index(ui.analysis_recipe_info)
     assert container_items[info_index + 1] is ui.analysis_recipe_options_row
+
+
+def test_analysis_variable_toggle_shows_long_names(analysis_ui):
+    """Test that the analysis variable toggle shows long names but runs on short ones.
+
+    Raw names like UM STASH codes are unreadable, so the toggle lists long
+    names, but the recipe must still receive the dataset's short name.
+    """
+    ui = analysis_ui
+    ui.dataset["o2"].attrs["long_name"] = "Dissolved oxygen"
+    ui._display_analysis_recipe_options_ui()
+    assert ui.analysis_variable_toggle in list(ui.analysis_recipe_options_row)
+    variable_widget = ui.analysis_recipe_widgets["variable"]
+
+    ui.analysis_variable_toggle.value = True
+    variable_widget.value = "Dissolved oxygen"
+
+    assert "Dissolved oxygen" in variable_widget.options
+    assert ui.analysis_variable_toggle.label == "Display Variable Short Names"
+    # Dimension options are not variables and keep their names
+    assert "st_ocean" in ui.analysis_recipe_widgets["lvl_dim"].options
+    ui.analysis_recipe_widgets["region"].value = "nino34"
+    ui._analysis_plot_data_button_click()
+    assert ui.analysis_warning_textbox.value == ""
+    assert "o2" in _newest_analysis_plot(ui)[0].object.axes[0].get_title()
+    plt.close("all")
+
+    ui.analysis_variable_toggle.value = False
+
+    assert "o2" in variable_widget.options
+
+
+def test_analysis_variable_toggle_resets_for_new_recipe(analysis_ui):
+    """Test that a newly built options row starts on short names, like the other sections."""
+    ui = analysis_ui
+    ui._display_analysis_recipe_options_ui()
+    ui.analysis_variable_toggle.value = True
+
+    ui._display_analysis_recipe_options_ui()
+
+    assert ui.analysis_variable_toggle.value is False
+    assert "o2" in ui.analysis_recipe_widgets["variable"].options
 
 
 @pytest.mark.parametrize(
@@ -3242,13 +3296,15 @@ def test_analysis_plot_data_button_click(analysis_ui):
     """
     ui = analysis_ui
     ui._display_analysis_recipe_options_ui()
+    # The mock dataset only covers the tropical Pacific
+    ui.analysis_recipe_widgets["region"].value = "nino34"
     ui.analysis_recipe_widgets["depth"].value = 50.0
 
     ui._analysis_plot_data_button_click()
 
     plot_group = _newest_analysis_plot(ui)
     assert isinstance(plot_group[0], pn.pane.Matplotlib)
-    assert plot_group[0].object.axes[0].get_title() == "Niño 3.4 o2 (~50m)"
+    assert plot_group[0].object.axes[0].get_title() == "Nino34 mean o2 (~50 m)"
     assert not hasattr(ui, "analysis_recipe_options_row")
     assert ui.analysis_status_textbox.value == "Analysis status >> Plot created"
     assert ui.analysis_warning_textbox.value == ""
@@ -3305,7 +3361,7 @@ def test_refresh_button_adds_uploaded_analysis(analysis_ui, empty_uploads):
 
     options = ui.analysis_recipe_dropdown.options
     assert options["Custom: Custom mean timeseries."] is custom_recipe
-    assert ui.analysis_recipe_dropdown.value is recipes.recipe_nino34_timeseries_mom5
+    assert ui.analysis_recipe_dropdown.value is recipes.recipe_regional_mean_mom5
     assert (
         ui.analysis_status_textbox.value
         == "Analysis status >> Recipes refreshed (1 custom)."

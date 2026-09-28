@@ -255,9 +255,13 @@ class UserInterface:
         self.analysis_refresh_button = pn.widgets.Button(
             **self.STYLES.get("primary_button")
         )
+        self.analysis_variable_toggle = pn.widgets.Toggle(
+            **self.STYLES.get("variable_toggle")
+        )
 
         self.figure_exists, self.ref_figure_exists = False, False
         self.long_names, self.ref_long_names, self.multiplot_long_names = {}, {}, {}
+        self.analysis_long_names, self.analysis_variable_widgets = {}, []
 
         # Initialise button listener functions
         # Plot buttons
@@ -312,6 +316,9 @@ class UserInterface:
         self.ref_variable_toggle.param.watch(self._ref_variable_toggle_click, "value")
         self.multiplot_variable_toggle.param.watch(
             self._multiplot_variable_toggle_click, "value"
+        )
+        self.analysis_variable_toggle.param.watch(
+            self._analysis_variable_toggle_click, "value"
         )
 
         self.plot_type_mapping = {
@@ -436,6 +443,13 @@ class UserInterface:
             self.multiplot_plot_variable_dropdown,
             self.dataset,
         )
+
+    def _analysis_variable_toggle_click(self, event):
+        """Event wrapper for the analysis variable toggle."""
+        for widget in self.analysis_variable_widgets:
+            self.analysis_long_names = controller.variable_toggle_change(
+                self.analysis_variable_toggle, widget, self.dataset
+            )
 
     def _analysis_keys_button_click(self, event):
         """Event wrapper for the analysis load dataset button click."""
@@ -2054,6 +2068,9 @@ class UserInterface:
         )
         controller.update_textbox_text(self.analysis_warning_textbox, "")
 
+        # Start each options row on short names, as the other sections do
+        self.analysis_variable_toggle.value = False
+
         recipe = self.analysis_recipe_dropdown.value
         _, details = analysis.get_recipe_summary(recipe)
         self.analysis_recipe_info.value = details
@@ -2073,8 +2090,18 @@ class UserInterface:
         }
         self.analysis_plot_button.name = "Plot data"
 
+        # Only recipes that take a data variable need the long name toggle
+        self.analysis_variable_widgets = [
+            self.analysis_recipe_widgets[option["name"]]
+            for option in kwarg_options
+            if option["kind"] == "data variable"
+        ]
+        toggle = (
+            [self.analysis_variable_toggle] if self.analysis_variable_widgets else []
+        )
+
         self.analysis_recipe_options_row = pn.FlexBox(
-            *self.analysis_recipe_widgets.values(), self.analysis_plot_button
+            *self.analysis_recipe_widgets.values(), *toggle, self.analysis_plot_button
         )
 
         # Insert the options under the recipe details
@@ -2148,9 +2175,14 @@ class UserInterface:
         controller.update_textbox_text(self.analysis_warning_textbox, "")
 
         recipe = self.analysis_recipe_dropdown.value
-        recipe_kwargs = {
-            name: widget.value for name, widget in self.analysis_recipe_widgets.items()
-        }
+        recipe_kwargs = {}
+        for name, widget in self.analysis_recipe_widgets.items():
+            if any(widget is variable for variable in self.analysis_variable_widgets):
+                recipe_kwargs[name] = controller.get_selected_variable(
+                    self.analysis_variable_toggle, widget, self.analysis_long_names
+                )
+            else:
+                recipe_kwargs[name] = widget.value
 
         try:
             fig = controller.plot_recipe(self.dataset, recipe, recipe_kwargs)
