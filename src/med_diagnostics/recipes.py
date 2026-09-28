@@ -431,3 +431,93 @@ def recipe_sst_anomaly_nino34(
     }
 
     return index_plot, plot_kwargs
+
+
+def recipe_regional_mean_mom5(
+    ds: xr.Dataset,
+    variable: Annotated[
+        str, {"kind": "data variable", "description": "Variable to average"}
+    ] = "temp",
+    region: Annotated[
+        str,
+        {
+            "kind": "choice",
+            "choices": list(analysis.PREDEFINED_REGIONS),
+            "description": "Region to average over",
+        },
+    ] = "tasmania",
+    lon_dim: Annotated[
+        str, {"kind": "dimension", "description": "Longitude coordinate"}
+    ] = "xt_ocean",
+    lat_dim: Annotated[
+        str, {"kind": "dimension", "description": "Latitude coordinate"}
+    ] = "yt_ocean",
+    lvl_dim: Annotated[
+        str | None, {"kind": "dimension", "description": "Depth coordinate, if any"}
+    ] = "st_ocean",
+    depth: Annotated[
+        float, {"kind": "float", "units": "m", "description": "Nearest level is used"}
+    ] = 0.0,
+    smooth_steps: Annotated[
+        int,
+        {"kind": "int", "description": "Rolling-mean window in timesteps (1 = off)"},
+    ] = 1,
+    show_trend: Annotated[
+        bool, {"kind": "bool", "description": "Overlay a linear trend"}
+    ] = True,
+    show_percentiles: Annotated[
+        bool, {"name": "", "kind": "bool", "description": "Overlay a linear trend"}
+    ] = True,
+    threshold: Annotated[
+        str, {"kind": "str", "description": "Optional reference value, blank for none"}
+    ] = "",
+):
+    """
+    Area-weighted mean timeseries of a variable over a chosen region.
+
+    For MOM5 output (ACCESS-OM2, ACCESS-ESM1.6).
+    """
+    # Fail with a readable message if this isn't the grid we expect
+    require_coords(ds, variable, [lat_dim, lon_dim], "MOM5")
+
+    data = ds[variable]
+    # Surface fields have no depth to select
+    if lvl_dim is not None and lvl_dim in data.dims:
+        data = data.sel({lvl_dim: depth}, method="nearest")
+
+    data = analysis.extract_region(data, region, lon_dim=lon_dim, lat_dim=lat_dim)
+    weights = np.cos(np.deg2rad(data[lat_dim]))
+    timeseries = data.weighted(weights).mean(dim=[lat_dim, lon_dim])
+
+    if smooth_steps > 1:
+        timeseries = timeseries.rolling(time=smooth_steps, center=True).mean()
+
+    # Compute once here, so the plot and every customise function reuse it
+    timeseries = timeseries.compute()
+    timeseries.name = f"{region.title()} mean {variable}"
+
+    # Build the list of extra plot steps from the user's choices
+    customise = []
+    if show_percentiles:
+        customise.append(plot_customisations.shade_top_10pct)
+        customise.append(plot_customisations.shade_bottom_10pct)
+    if show_trend:
+        customise.append(plot_customisations.add_trend)
+    if threshold.strip():
+
+        def threshold_wrapper(ax, *args, **kwargs):
+            return plot_customisations.add_threshold(ax, value=float(threshold))
+
+        customise.append(threshold_wrapper)
+
+    plot_kwargs = {
+        "title": f"{timeseries.name} (~{depth:g} m)",
+        "color": "black",
+        "linewidth": 1,
+        "ax_kwargs": {
+            "xlabel": "Year",
+            "ylabel": f"{variable} ({data.attrs.get('units', '')})",
+        },
+        "customise": customise,
+    }
+    return timeseries, plot_kwargs

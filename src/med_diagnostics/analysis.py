@@ -9,10 +9,29 @@ import xarray as xr
 from med_diagnostics import recipes
 
 PREDEFINED_REGIONS = {
-    "nino34": {"lat": (-5, 5), "lon": (-170, -120)},
+    # ENSO Regions
+    "nino12": {"lat": (-10, 0), "lon": (-90, -80)},
     "nino3": {"lat": (-5, 5), "lon": (-150, -90)},
-    "nino4": {"lat": (-5, 5), "lon": (160, -150)},
+    "nino34": {"lat": (-5, 5), "lon": (-170, -120)},
+    "nino4": {"lat": (-5, 5), "lon": (160, -150)},  # Note: crosses the 180 dateline
+    # Indian Ocean Dipole (IOD)
+    "iod_west": {"lat": (-10, 10), "lon": (50, 70)},
+    "iod_east": {"lat": (-10, 0), "lon": (90, 110)},
+    # Atlantic Indices
+    "tna": {"lat": (5, 25), "lon": (-55, -15)},  # Tropical North Atlantic
+    "tsa": {"lat": (-20, 0), "lon": (-30, 10)},  # Tropical South Atlantic
+    # Hemispheres & Global Bounds
+    "global": {"lat": (-90, 90), "lon": (-180, 180)},
+    "nh": {"lat": (0, 90), "lon": (-180, 180)},  # Northern Hemisphere
+    "sh": {"lat": (-90, 0), "lon": (-180, 180)},  # Southern Hemisphere
+    "tropics": {"lat": (-20, 20), "lon": (-180, 180)},
+    # Continents & Specific Geographic Regions
     "tasmania": {"lat": (-44, -39), "lon": (143, 149)},
+    "australia": {"lat": (-44, -10), "lon": (112, 154)},
+    "maritime_continent": {"lat": (-10, 10), "lon": (90, 150)},
+    "southern_ocean": {"lat": (-90, -50), "lon": (-180, 180)},
+    "arctic": {"lat": (66.5, 90), "lon": (-180, 180)},
+    "antarctic": {"lat": (-90, -66.5), "lon": (-180, 180)},
 }
 
 # Default `DataArray.plot` kwargs by result dimensionality: 1D is a timeseries,

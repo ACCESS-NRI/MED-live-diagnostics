@@ -1,3 +1,6 @@
+import numpy as np
+
+
 def shade_top_10pct(ax, data):
     """Shade where the timeseries is above its 90th percentile."""
     threshold = float(data.quantile(0.9))
@@ -84,3 +87,24 @@ def timeseries_plot_kwargs(timeseries, variable, units):
             shade_bottom_10pct,
         ],
     }
+
+
+def add_trend(ax, data):
+    """Overlay a least-squares linear trend."""
+    # Smoothing leaves NaNs at the ends, which polyfit can't handle
+    valid = data.dropna("time")
+    x = np.arange(valid.sizes["time"])
+    slope, intercept = np.polyfit(x, valid.values, 1)
+    ax.plot(
+        valid["time"].values,
+        slope * x + intercept,
+        color="grey",
+        linestyle=":",
+        label="Trend",
+    )
+    ax.legend()
+
+
+def add_threshold(ax, value):
+    """Adds a horizontal threshold line to a matplotlib axis."""
+    ax.axhline(y=value, color="red", linestyle="--")
