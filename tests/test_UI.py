@@ -3141,7 +3141,7 @@ def test_display_analysis_recipe_options_ui(analysis_ui):
     assert widgets["variable"].value == "o2"
     assert widgets["lvl_dim"].value == "st_ocean"
     assert isinstance(widgets["depth"], pn.widgets.FloatInput)
-    assert widgets["depth"].name == "depth (m)"
+    assert widgets["depth"].name == "Select Depth Slice (m)"
     assert ui.analysis_recipe_info.value == (
         "For MOM5 output (ACCESS-OM2, ACCESS-ESM1.6)."
     )
@@ -3173,7 +3173,7 @@ def test_display_analysis_recipe_options_ui(analysis_ui):
         (
             {"kind": "dimension", "choices": ["lat"], "default": "st_ocean"},
             pn.widgets.Select,
-            "st_ocean",
+            None,
         ),
         (
             {"kind": "float", "choices": None, "default": 2.5},
@@ -3189,8 +3189,8 @@ def test_build_recipe_option_widget(ui, option, widget_type, value):
     """Test that each parameter kind gets the right widget and default value.
 
     A dimension default the dataset lacks (e.g. no depth on a surface field)
-    must stay selected, so the recipe skips it rather than the dropdown
-    silently switching to an unrelated dimension.
+    must fall back to None, so the recipe skips it rather than the dropdown
+    showing a dim that isn't there or silently selecting an unrelated one.
     """
     option = {"name": "p", "units": None, "description": "tip", **option}
     widget = ui._build_recipe_option_widget(option)
@@ -3199,6 +3199,31 @@ def test_build_recipe_option_widget(ui, option, widget_type, value):
     assert widget.value == value
     if "description" in widget.param:
         assert widget.description == "tip"
+
+
+@pytest.mark.parametrize(
+    "extra, expected",
+    [
+        pytest.param({"label": "Select Depth"}, "Select Depth (m)", id="label"),
+        pytest.param({}, "depth (m)", id="no-label-falls-back-to-name"),
+    ],
+)
+def test_recipe_option_widget_label(ui, extra, expected):
+    """Test that a recipe's ``"name"`` metadata becomes the widget label.
+
+    The parameter name is the fallback, so options without a label (e.g.
+    xclim's) still get a readable widget.
+    """
+    option = {
+        "name": "depth",
+        "kind": "float",
+        "default": 0.0,
+        "choices": None,
+        "units": "m",
+        "description": None,
+        **extra,
+    }
+    assert ui._build_recipe_option_widget(option).name == expected
 
 
 def test_analysis_plot_data_button_click(analysis_ui):

@@ -2104,7 +2104,8 @@ class UserInterface:
         panel.widgets.Widget
             A widget whose ``value`` is passed to the recipe as that parameter.
         """
-        label = option["name"]
+        # Options without a label fall back to the parameter name
+        label = option.get("label") or option["name"]
         if option["units"]:
             label += f" ({option['units']})"
         kind, default = option["kind"], option["default"]
@@ -2112,11 +2113,11 @@ class UserInterface:
 
         if kind in ("data variable", "dimension", "choice"):
             choices = list(option["choices"] or [])
-            # Keep a recipe's default dim selectable even when this dataset lacks
-            # it (e.g. no depth on a surface field), so the recipe can skip it
-            # rather than the dropdown silently switching to an unrelated dim
-            if kind == "dimension" and default not in choices:
-                choices.insert(0, default)
+            # A default dim this dataset lacks (e.g. no depth on a surface field)
+            # falls back to None so the recipe skips it, rather than selecting
+            # an unrelated dim such as time
+            if kind == "dimension" and default not in choices and None not in choices:
+                choices.insert(0, None)
             widget_type = pn.widgets.Select
             widget_kwargs["options"] = {str(choice): choice for choice in choices}
             widget_kwargs["value"] = (
@@ -2133,7 +2134,6 @@ class UserInterface:
             widget_kwargs["value"] = "" if default is None else str(default)
 
         # Show the docstring description as a tooltip where the widget has one
-        # (Checkbox doesn't)
         if "description" in widget_type.param:
             widget_kwargs["description"] = option["description"]
         return widget_type(**widget_kwargs)

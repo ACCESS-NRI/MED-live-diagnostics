@@ -80,8 +80,8 @@ def get_recipe_kwarg_options(recipe, ds=None):
     Returns
     -------
     list of dict
-        One dict per parameter with keys ``name``, ``kind``, ``required``,
-        ``default``, ``choices``, ``units`` and ``description``.
+        One dict per parameter with keys ``name``, ``label``, ``kind``,
+        ``required``, ``default``, ``choices``, ``units`` and ``description``.
     """
 
     hints = get_type_hints(recipe, include_extras=True)
@@ -121,6 +121,8 @@ def get_recipe_kwarg_options(recipe, ds=None):
         kwarg_options.append(
             {
                 "name": name,
+                # Display label for the UI; the value is still passed as ``name``
+                "label": metadata.get("name") or name,
                 "kind": metadata.get("kind"),
                 "required": not has_default,
                 "default": param.default if has_default else None,
@@ -146,9 +148,7 @@ def _dataset_choices(ds, kind):
     ]
 
 
-# --------------------------------------------------------------------------
 # General helpers - reusable in custom recipes for any grid
-# --------------------------------------------------------------------------
 
 
 def nino34_timeseries(data, lat_dim, lon_dim, area=None):
@@ -227,7 +227,7 @@ def recipe_nino34_timeseries_mom5(
     ds: xr.Dataset,
     variable: Annotated[
         str, {"name": "Select Variable", "kind": "data variable"}
-    ] = "no2",
+    ] = "no3",
     lon_dim: Annotated[
         str, {"name": "Select Longitude Dim", "kind": "dimension"}
     ] = "xt_ocean",
@@ -241,7 +241,7 @@ def recipe_nino34_timeseries_mom5(
         float,
         {
             "name": "Select Depth Slice",
-            "kind": "number",
+            "kind": "float",
             "units": "m",
             "description": "Level for the analysis to be sliced at, default 0m",
         },
@@ -311,7 +311,7 @@ def recipe_nino34_timeseries_um(
         float,
         {
             "name": "Select Level Slice",
-            "kind": "number",
+            "kind": "float",
             "units": "m",
             "description": "Level for the analysis to be sliced at, default 0m",
         },
@@ -420,7 +420,6 @@ def recipe_sst_anomaly_nino34(
     index_plot = (rolling_mean / anomalies.std()).compute()
 
     plot_kwargs = {
-        "figsize": (12, 6),
         "title": "Niño 3.4 Index",
         "color": "black",
         "linewidth": 1.5,  # overrides the 1D default of 2 to match plain ax.plot

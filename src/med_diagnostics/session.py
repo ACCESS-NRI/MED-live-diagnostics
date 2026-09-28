@@ -114,3 +114,14 @@ class CreateModelDiagnosticsSession:
         """
 
         return self.model_cat
+
+    def return_loaded_dataset(self):
+        """
+        Convenience function to return currently loaded dataset.
+
+        Returns
+        ----------
+        xr.Dataset
+        """
+
+        return self.ui.dataset

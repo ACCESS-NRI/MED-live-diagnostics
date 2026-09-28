@@ -196,7 +196,7 @@ def analyse_and_plot(dataset: xr.Dataset, recipe_func, **recipe_kwargs) -> plt.F
     matplotlib.figure.Figure
         The figure holding the plot.
     """
-    # 1. Execute the chosen recipe function, unpacking any extra arguments
+    # Execute the chosen recipe function, unpacking any extra arguments
     result = recipe_func(dataset, **recipe_kwargs)
 
     # A recipe may return (data, plot_kwargs) to style its own plot
