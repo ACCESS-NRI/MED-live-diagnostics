@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+from typing import Annotated
 from unittest.mock import MagicMock, call, patch
 
 import matplotlib.pyplot as plt
@@ -3011,7 +3012,7 @@ def test_initialise_analysis_widgets(ui):
     assert ui.analysis_keys_button.disabled is True
     assert ui.analysis_recipe_dropdown.disabled is True
     assert ui.analysis_select_recipe_button.disabled is True
-    assert ui.analysis_recipe_dropdown.options == recipes.list_recipes()
+    assert ui.analysis_recipe_dropdown.options == analysis.list_recipes()
 
 
 def test_enable_widgets_after_catalog_load_enables_analysis(ui):
@@ -3127,7 +3128,7 @@ def test_update_multiplot_dataset_uses_new_dataset_variables(ui, monkeypatch):
 
 
 def test_display_analysis_recipe_options_ui(analysis_ui):
-    """Test that the recipe's docstring becomes one widget per parameter.
+    """Test that the recipe's annotations become one widget per parameter.
 
     Also checks that selecting a recipe again replaces its options row rather
     than stacking a second copy in the container.
@@ -3226,11 +3227,18 @@ def test_recipe_option_widget_label(ui, extra, expected):
     assert ui._build_recipe_option_widget(option).name == expected
 
 
-def test_analysis_plot_data_button_click(analysis_ui):
-    """Test that plotting adds a removable plot and keeps the options row.
+def _newest_analysis_plot(ui):
+    """Return the plot group directly under the recipe details, the newest one."""
+    container_items = list(ui.analysis_widget_container)
+    return container_items[container_items.index(ui.analysis_recipe_info) + 1]
 
-    The options row stays so the recipe can be re-run with different choices,
-    each click adding another plot.
+
+def test_analysis_plot_data_button_click(analysis_ui):
+    """Test that plotting replaces the options row with a removable plot.
+
+    New plots go on top, directly under the recipe details, so the latest
+    result is the first thing the user sees. The options row is removed;
+    selecting the recipe again brings it back for another run.
     """
     ui = analysis_ui
     ui._display_analysis_recipe_options_ui()
@@ -3238,10 +3246,10 @@ def test_analysis_plot_data_button_click(analysis_ui):
 
     ui._analysis_plot_data_button_click()
 
-    plot_group = ui.analysis_widget_container[-1]
+    plot_group = _newest_analysis_plot(ui)
     assert isinstance(plot_group[0], pn.pane.Matplotlib)
     assert plot_group[0].object.axes[0].get_title() == "Niño 3.4 o2 (~50m)"
-    assert ui.analysis_recipe_options_row in ui.analysis_widget_container
+    assert not hasattr(ui, "analysis_recipe_options_row")
     assert ui.analysis_status_textbox.value == "Analysis status >> Plot created"
     assert ui.analysis_warning_textbox.value == ""
     plt.close("all")
@@ -3266,17 +3274,13 @@ def test_analysis_plot_data_button_click_shows_recipe_errors(analysis_ui):
     assert len(ui.analysis_widget_container) == container_length
 
 
-def custom_recipe(ds, variable="o2"):
-    """
-    Custom mean timeseries.
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        Dataset.
-    variable : data variable, default "o2"
-        Variable to average.
-    """
+def custom_recipe(
+    ds,
+    variable: Annotated[
+        str, {"kind": "data variable", "description": "Variable to average"}
+    ] = "o2",
+):
+    """Custom mean timeseries."""
     return ds[variable].mean(["st_ocean", "yt_ocean", "xt_ocean"])
 
 
@@ -3318,7 +3322,7 @@ def test_uploaded_analysis_runs_from_ui(analysis_ui, empty_uploads):
 
     assert list(ui.analysis_recipe_widgets) == ["variable"]
     ui._analysis_plot_data_button_click()
-    assert isinstance(ui.analysis_widget_container[-1][0], pn.pane.Matplotlib)
+    assert isinstance(_newest_analysis_plot(ui)[0], pn.pane.Matplotlib)
     assert ui.analysis_warning_textbox.value == ""
     plt.close("all")
 

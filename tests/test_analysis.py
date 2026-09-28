@@ -1,6 +1,8 @@
+from typing import Annotated
+
 import pytest
 
-from med_diagnostics import analysis, recipes
+from med_diagnostics import analysis
 
 
 @pytest.fixture(autouse=True)
@@ -9,17 +11,13 @@ def empty_uploads(monkeypatch):
     monkeypatch.setattr(analysis, "UPLOADED_ANALYSES", {})
 
 
-def my_mean(ds, variable="o2"):
-    """
-    Mean of a variable.
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        Dataset.
-    variable : data variable, default "o2"
-        Variable to average.
-    """
+def my_mean(
+    ds,
+    variable: Annotated[
+        str, {"kind": "data variable", "description": "Variable to average"}
+    ] = "o2",
+):
+    """Mean of a variable."""
     return ds[variable].mean()
 
 
@@ -31,7 +29,7 @@ def test_upload_analysis_registers_by_name():
     """
     assert analysis.upload_analysis(my_mean) is my_mean
     assert analysis.UPLOADED_ANALYSES == {"my_mean": my_mean}
-    assert recipes.list_recipes()["Custom: Mean of a variable."] is my_mean
+    assert analysis.list_recipes()["Custom: Mean of a variable."] is my_mean
 
 
 def test_reuploading_replaces_the_old_version():
@@ -48,7 +46,7 @@ def test_reuploading_replaces_the_old_version():
     edited.__name__ = "my_mean"  # as if the notebook cell were edited and re-run
     analysis.upload_analysis(edited)
     assert analysis.UPLOADED_ANALYSES == {"my_mean": edited}
-    assert list(recipes.list_recipes()).count("Custom: New version.") == 1
+    assert list(analysis.list_recipes()).count("Custom: New version.") == 1
 
 
 @pytest.mark.parametrize(
@@ -56,15 +54,28 @@ def test_reuploading_replaces_the_old_version():
     [
         pytest.param("not a function", TypeError, id="not-callable"),
         pytest.param(lambda: None, TypeError, id="no-dataset-argument"),
-        pytest.param(lambda ds, depth=0: None, ValueError, id="undocumented-parameter"),
     ],
 )
 def test_upload_analysis_rejects_bad_functions(bad_func, error):
     """Test that unusable functions fail at upload, not later in the UI.
 
-    A function that can't take the dataset, or whose docstring can't build a
-    form, would otherwise only fail once the user picks it in the UI.
+    A function that can't take the dataset would otherwise only fail once the
+    user picks it in the UI.
     """
     with pytest.raises(error):
         analysis.upload_analysis(bad_func)
     assert analysis.UPLOADED_ANALYSES == {}
+
+
+def test_upload_analysis_accepts_unannotated_parameters():
+    """Test that parameters without ``Annotated`` metadata don't block an upload.
+
+    Kind validation was dropped on purpose: an unannotated parameter becomes
+    a text box in the UI, and whether that suits the recipe is on the user.
+    """
+
+    def plain(ds, depth=0):
+        """Plain recipe."""
+
+    assert analysis.upload_analysis(plain) is plain
+    assert analysis.UPLOADED_ANALYSES == {"plain": plain}

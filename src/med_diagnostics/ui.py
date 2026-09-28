@@ -8,7 +8,7 @@ from typing import ClassVar
 import panel as pn
 from IPython.display import display
 
-from med_diagnostics import analysis, controller, data, recipes
+from med_diagnostics import analysis, controller, data
 from med_diagnostics.types import (
     AllAnalysis,
     Animation,
@@ -1963,7 +1963,7 @@ class UserInterface:
             True if the selected recipe was re-uploaded and its options row removed.
         """
         selected = self.analysis_recipe_dropdown.value
-        self.analysis_recipe_mapping = recipes.list_recipes()
+        self.analysis_recipe_mapping = analysis.list_recipes()
         self.analysis_recipe_dropdown.options = self.analysis_recipe_mapping
 
         # Keep the current choice, following it to its new version if re-uploaded
@@ -2055,11 +2055,11 @@ class UserInterface:
         controller.update_textbox_text(self.analysis_warning_textbox, "")
 
         recipe = self.analysis_recipe_dropdown.value
-        _, details = recipes.get_recipe_summary(recipe)
+        _, details = analysis.get_recipe_summary(recipe)
         self.analysis_recipe_info.value = details
 
         try:
-            kwarg_options = recipes.get_recipe_kwarg_options(recipe, self.dataset)
+            kwarg_options = analysis.get_recipe_kwarg_options(recipe, self.dataset)
         except ValueError as err:
             # A recipe with a malformed docstring can't have a form built for it
             controller.update_textbox_text(
@@ -2097,7 +2097,7 @@ class UserInterface:
         Parameters
         ----------
         option : dict
-            One entry from ``recipes.get_recipe_kwarg_options``.
+            One entry from ``analysis.get_recipe_kwarg_options``.
 
         Returns
         -------

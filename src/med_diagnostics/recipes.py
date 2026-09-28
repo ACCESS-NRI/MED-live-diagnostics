@@ -1,154 +1,188 @@
-import inspect
-import sys
-from typing import Annotated, Literal, get_args, get_type_hints
+from typing import Annotated
 
 import numpy as np
 import xarray as xr
 
-from med_diagnostics import analysis, plot_customisations
+from med_diagnostics import plot_customisations
+
+PREDEFINED_REGIONS = {
+    # ENSO Regions
+    "nino12": {"lat": (-10, 0), "lon": (-90, -80)},
+    "nino3": {"lat": (-5, 5), "lon": (-150, -90)},
+    "nino34": {"lat": (-5, 5), "lon": (-170, -120)},
+    "nino4": {"lat": (-5, 5), "lon": (160, -150)},  # Note: crosses the 180 dateline
+    # Indian Ocean Dipole (IOD)
+    "iod_west": {"lat": (-10, 10), "lon": (50, 70)},
+    "iod_east": {"lat": (-10, 0), "lon": (90, 110)},
+    # Atlantic Indices
+    "tna": {"lat": (5, 25), "lon": (-55, -15)},  # Tropical North Atlantic
+    "tsa": {"lat": (-20, 0), "lon": (-30, 10)},  # Tropical South Atlantic
+    # Hemispheres & Global Bounds
+    "global": {"lat": (-90, 90), "lon": (-180, 180)},
+    "nh": {"lat": (0, 90), "lon": (-180, 180)},  # Northern Hemisphere
+    "sh": {"lat": (-90, 0), "lon": (-180, 180)},  # Southern Hemisphere
+    "tropics": {"lat": (-20, 20), "lon": (-180, 180)},
+    # Continents & Specific Geographic Regions
+    "tasmania": {"lat": (-44, -39), "lon": (143, 149)},
+    "australia": {"lat": (-44, -10), "lon": (112, 154)},
+    "maritime_continent": {"lat": (-10, 10), "lon": (90, 150)},
+    "southern_ocean": {"lat": (-90, -50), "lon": (-180, 180)},
+    "arctic": {"lat": (66.5, 90), "lon": (-180, 180)},
+    "antarctic": {"lat": (-90, -66.5), "lon": (-180, 180)},
+}
+
 
 # --------------------------------------------------------------------------
-# Docstring parsing for the UI
+# General helpers - reusable in custom recipes for any grid
 # --------------------------------------------------------------------------
 
-# Parameter kinds the UI knows how to build a widget for
-RECIPE_KINDS = {"data variable", "dimension", "choice", "float", "int", "str", "bool"}
 
-
-def list_recipes():
+def extract_region(dataset, region, lon_dim="lon", lat_dim="lat"):
     """
-    Return every prebuilt and uploaded recipe, keyed by a label for the UI.
-
-    Returns
-    -------
-    dict
-        ``{label: recipe}``: each ``recipe_*`` function in this module under its
-        docstring summary, then each ``analysis.upload_analysis`` recipe as
-        ``"Custom: <summary>"``.
-    """
-    found = {}
-
-    def add(label, name, func):
-        # Dropdown labels must be unique, so fall back to the function name
-        found[label if label not in found else f"{label} ({name})"] = func
-
-    for name, func in inspect.getmembers(sys.modules[__name__], inspect.isfunction):
-        if name.startswith("recipe_"):
-            add(get_recipe_summary(func)[0], name, func)
-    for name, func in analysis.UPLOADED_ANALYSES.items():
-        add(f"Custom: {get_recipe_summary(func)[0]}", name, func)
-    return found
-
-
-def get_recipe_summary(recipe):
-    """
-    Return a recipe's docstring summary line and the paragraph after it.
+    Extract a lat/lon bounding box, on regular or curvilinear grids.
 
     Parameters
     ----------
-    recipe : callable
-        A recipe with a numpy-format docstring.
+    dataset : xarray.Dataset or xarray.DataArray
+        Data to subset.
+    region : str or dict
+        A key of ``PREDEFINED_REGIONS``, or ``{"lat": (min, max), "lon": (west, east)}``.
+    lon_dim, lat_dim : str, default "lon", "lat"
+        Longitude/latitude coordinate names (e.g. "xt_ocean" or 2D "TLON").
 
     Returns
     -------
-    tuple of (str, str)
-        The summary, e.g. what it computes, and details, e.g. the grid it targets.
+    xarray.Dataset or xarray.DataArray
+        The subset within the bounding box.
     """
-    paragraphs = (inspect.getdoc(recipe) or "").split("\n\n")
-    summary = paragraphs[0].strip() or recipe.__name__
-    # The second paragraph is the grid line, unless it's the Parameters section
-    details = paragraphs[1].strip() if len(paragraphs) > 1 else ""
-    if details.startswith("Parameters"):
-        details = ""
-    return summary, details
-
-
-def get_recipe_kwarg_options(recipe, ds=None):
-    """
-    Describe every user-facing parameter of a recipe, e.g. for a UI form.
-
-    Parameters
-    ----------
-    recipe : callable
-        A recipe where parameters are typed using ``typing.Annotated``.
-        Metadata should be a dictionary with keys like ``kind``, ``units``,
-        or ``description``. e.g., ``Annotated[str, {"kind": "data variable"}]``
-    ds : xarray.Dataset, optional
-        If given, fills ``choices`` for ``data variable`` and ``dimension``
-        parameters from this dataset.
-
-    Returns
-    -------
-    list of dict
-        One dict per parameter with keys ``name``, ``label``, ``kind``,
-        ``required``, ``default``, ``choices``, ``units`` and ``description``.
-    """
-
-    hints = get_type_hints(recipe, include_extras=True)
-    signature = inspect.signature(recipe)
-
-    kwarg_options = []
-    # The first argument is always the dataset, which the UI supplies itself, loop over everything after the first argument
-    for name, param in list(signature.parameters.items())[1:]:
-        hint = hints.get(name)
-        metadata = {}
-        base_type = hint
-
-        # Extract metadata if Annotated is used
-        if hasattr(hint, "__metadata__"):
-            metadata = (
-                hint.__metadata__[0]
-                if isinstance(hint.__metadata__, tuple) and hint.__metadata__
-                else {}
+    # 1. Resolve the region into lat/lon bounds
+    if isinstance(region, str):
+        region_key = region.lower()
+        if region_key not in PREDEFINED_REGIONS:
+            raise ValueError(
+                f"Region '{region}' not found. Available: {list(PREDEFINED_REGIONS.keys())}"
             )
-            # Fallback for base type across Python versions
-            base_type = getattr(hint, "__origin__", hint)
-
-        has_default = param.default is not inspect.Parameter.empty
-        choices = metadata.get("choices")
-
-        # Handle Literal types for implicit choices (e.g. Literal["mean", "sum"])
-        if getattr(base_type, "__origin__", base_type) is Literal:
-            choices = list(get_args(base_type) or getattr(base_type, "__args__", []))
-
-        # Dynamically populate choices from the xarray dataset
-        if ds is not None and metadata.get("kind") in ("data variable", "dimension"):
-            choices = _dataset_choices(ds, metadata["kind"])
-            # Optional dims need a "none" entry
-            if has_default and param.default is None:
-                choices = [None, *choices]
-
-        kwarg_options.append(
-            {
-                "name": name,
-                # Display label for the UI; the value is still passed as ``name``
-                "label": metadata.get("name") or name,
-                "kind": metadata.get("kind"),
-                "required": not has_default,
-                "default": param.default if has_default else None,
-                "choices": choices,
-                "units": metadata.get("units"),
-                "description": metadata.get("description"),
-            }
+        bounds = PREDEFINED_REGIONS[region_key]
+    elif isinstance(region, dict) and "lat" in region and "lon" in region:
+        bounds = region
+    else:
+        raise TypeError(
+            "Region must be a valid string or a dictionary with 'lat' and 'lon' tuples."
         )
 
-    return kwarg_options
+    lon_west, lon_east = bounds["lon"]
+    lat_lo, lat_hi = sorted(bounds["lat"])
+
+    lon_coord = dataset[lon_dim]
+    lat_coord = dataset[lat_dim]
+
+    # 2. Shift the region's longitudes into the grid's own 360° window. This
+    # covers 0-360, -180-180 and MOM5's -280-80 grids alike.
+    grid_lon_min = float(lon_coord.min())
+    lon_west = (lon_west - grid_lon_min) % 360 + grid_lon_min
+    lon_east = (lon_east - grid_lon_min) % 360 + grid_lon_min
+
+    # 3. Longitudes run west to east, so west > east means the box wraps past
+    # the grid's seam (e.g. Niño 4 across the dateline on a -180-180 grid).
+    # Sorting them would select the opposite side of the globe instead.
+    if lon_west <= lon_east:
+        in_lon = (lon_coord >= lon_west) & (lon_coord <= lon_east)
+    else:
+        in_lon = (lon_coord >= lon_west) | (lon_coord <= lon_east)
+    # Boolean masks, unlike `.sel(slice(...))`, don't care whether latitude
+    # is stored ascending or descending (e.g. ERA5 runs 90 to -90).
+    in_lat = (lat_coord >= lat_lo) & (lat_coord <= lat_hi)
+
+    # 4a. Curvilinear/tripolar grids (e.g. ACCESS-OM2/CICE TLAT/TLON): `.sel()`
+    # can't index by a 2D coordinate, so mask and drop instead.
+    if lon_coord.ndim > 1 or lat_coord.ndim > 1:
+        # `where(..., drop=True)` refuses a dask-backed boolean mask (the
+        # result shape would be unknown). The mask is grid-sized with no time
+        # dimension, so computing it eagerly is cheap.
+        return dataset.where((in_lon & in_lat).compute(), drop=True)
+
+    # 4b. Regular 1D grids: index each axis by its mask
+    return dataset.isel(
+        {lat_coord.dims[0]: in_lat.values, lon_coord.dims[0]: in_lon.values}
+    )
 
 
-def _dataset_choices(ds, kind):
-    """List the variables or coordinates of ``ds`` a parameter can take."""
-    if kind == "data variable":
-        return list(ds.data_vars)
-    # Coords rather than dims alone, so 2D lat/lon (e.g. geolon_t) are
-    # offered; dims without a coordinate variable are included too
-    return [
-        dim
-        for dim in dict.fromkeys([*ds.coords, *ds.dims])
-        if ds.sizes.get(dim, 1) > 1 and dim not in ("nv", "st_edges_ocean")
-    ]
+def median_timestep_days(time_da):
+    """
+    Return the median spacing between consecutive time steps, in days.
+
+    Parameters
+    ----------
+    time_da : xarray.DataArray
+        Time coordinate (numpy datetime64 or cftime).
+
+    Returns
+    -------
+    float
+        Median timestep length in days.
+    """
+    diffs = np.diff(time_da.values)
+    # cftime axes (e.g. 360_day/noleap) diff to datetime.timedelta objects
+    # rather than numpy.timedelta64, so they need separate handling
+    if diffs.dtype == object:
+        return np.median([d.days + d.seconds / 86400 for d in diffs])
+    return np.median(diffs / np.timedelta64(1, "D"))
 
 
-# General helpers - reusable in custom recipes for any grid
+def rolling_window_size(time_da, target_days=150):
+    """
+    Convert a target rolling window length in days to native timesteps.
+
+    Parameters
+    ----------
+    time_da : xarray.DataArray
+        Time coordinate of the data to smooth.
+    target_days : float, default 150
+        Desired window length (150 days is roughly 5 months).
+
+    Returns
+    -------
+    int
+        Window size in timesteps, clamped to ``[1, len(time_da)]``.
+    """
+    # A fixed window of 5 assumes monthly data: too short for daily data and
+    # can exceed short yearly records, where bottleneck's rolling mean raises
+    # ValueError. Sizing from the real timestep avoids both.
+    n = time_da.size
+    if n <= 1:
+        return 1
+    step_days = median_timestep_days(time_da)
+    window = max(1, round(target_days / step_days)) if step_days > 0 else 5
+    return min(window, n)
+
+
+def calc_anomolies(dataset, lon_dim, lat_dim, var):
+    """
+    Compute the area-weighted mean monthly anomaly of ``var``.
+
+    Parameters
+    ----------
+    dataset : xarray.Dataset
+        Data already subset to the region of interest.
+    lon_dim, lat_dim : str
+        Longitude/latitude coordinate names.
+    var : str
+        Variable to compute anomalies for.
+    Returns
+    -------
+    xarray.DataArray
+        Time series of anomalies from the monthly climatology.
+    """
+    data = dataset[var]
+    # Anomalies from the monthly climatology
+    gb = data.groupby("time.month")
+    anomalies = gb - gb.mean(dim="time")
+
+    # Weight by cos(latitude) to account for grid cell area
+    weights = np.cos(np.deg2rad(dataset[lat_dim]))
+    weights.name = "weights"
+
+    return anomalies.weighted(weights).mean(dim=[lat_dim, lon_dim])
 
 
 def nino34_timeseries(data, lat_dim, lon_dim, area=None):
@@ -169,12 +203,10 @@ def nino34_timeseries(data, lat_dim, lon_dim, area=None):
     xarray.DataArray
         The regional mean timeseries.
     """
-    data = analysis.extract_region(
-        data, region="nino34", lon_dim=lon_dim, lat_dim=lat_dim
-    )
+    data = extract_region(data, region="nino34", lon_dim=lon_dim, lat_dim=lat_dim)
     if area is not None:
         # Model cell areas; land cells are NaN and are skipped automatically
-        weights = analysis.extract_region(
+        weights = extract_region(
             area, region="nino34", lon_dim=lon_dim, lat_dim=lat_dim
         ).fillna(0)
     else:
@@ -226,16 +258,36 @@ def require_coords(ds, variable, coords, grid):
 def recipe_nino34_timeseries_mom5(
     ds: xr.Dataset,
     variable: Annotated[
-        str, {"name": "Select Variable", "kind": "data variable"}
+        str,
+        {
+            "name": "Select Variable",
+            "kind": "data variable",
+            "description": "Variable to average over the region, e.g. o2 or temp",
+        },
     ] = "no3",
     lon_dim: Annotated[
-        str, {"name": "Select Longitude Dim", "kind": "dimension"}
+        str,
+        {
+            "name": "Select Longitude Dim",
+            "kind": "dimension",
+            "description": "Longitude coordinate",
+        },
     ] = "xt_ocean",
     lat_dim: Annotated[
-        str, {"name": "Select Latitude Dim", "kind": "dimension"}
+        str,
+        {
+            "name": "Select Latitude Dim",
+            "kind": "dimension",
+            "description": "Latitude coordinate",
+        },
     ] = "yt_ocean",
     lvl_dim: Annotated[
-        str, {"name": "Select Depth Dim", "kind": "dimension"}
+        str,
+        {
+            "name": "Select Depth Dim",
+            "kind": "dimension",
+            "description": "Depth coordinate; ignored if the variable has no depth",
+        },
     ] = "st_ocean",
     depth: Annotated[
         float,
@@ -256,7 +308,7 @@ def recipe_nino34_timeseries_mom5(
     ----------
     ds : xarray.Dataset
         Dataset to analyse, supplied by the UI.
-    variable : data variable, default "o2"
+    variable : data variable, default "no3"
         Variable to average over the region, e.g. o2 or temp.
     lon_dim : dimension, default "xt_ocean"
         Longitude coordinate.
@@ -299,13 +351,28 @@ def recipe_nino34_timeseries_um(
         },
     ] = "tas",
     lon_dim: Annotated[
-        str, {"name": "Select Longitude Dim", "kind": "dimension"}
+        str,
+        {
+            "name": "Select Longitude Dim",
+            "kind": "dimension",
+            "description": "Longitude coordinate",
+        },
     ] = "lon",
     lat_dim: Annotated[
-        str, {"name": "Select Latitude Dim", "kind": "dimension"}
+        str,
+        {
+            "name": "Select Latitude Dim",
+            "kind": "dimension",
+            "description": "Latitude coordinate",
+        },
     ] = "lat",
     lvl_dim: Annotated[
-        str | None, {"name": "Select Depth Dim", "kind": "dimension"}
+        str | None,
+        {
+            "name": "Select Depth Dim",
+            "kind": "dimension",
+            "description": "Vertical coordinate, e.g. pressure; leave unset for surface fields",
+        },
     ] = None,
     level: Annotated[
         float,
@@ -410,12 +477,12 @@ def recipe_sst_anomaly_nino34(
     # Trim before any computation so spinup doesn't skew the climatology,
     # anomaly or normalisation - not just the plotted window
 
-    nino34_ds = analysis.extract_region(dataset, "nino34", x_dim, y_dim)
-    anomalies = analysis.calc_anomolies(nino34_ds, x_dim, y_dim, var)
+    nino34_ds = extract_region(dataset, "nino34", x_dim, y_dim)
+    anomalies = calc_anomolies(nino34_ds, x_dim, y_dim, var)
 
     # Rolling needs the whole time axis in one chunk
     anomalies = anomalies.chunk({"time": -1})
-    window = analysis.rolling_window_size(anomalies["time"])
+    window = rolling_window_size(anomalies["time"])
     rolling_mean = anomalies.rolling(time=window, center=True).mean()
     index_plot = (rolling_mean / anomalies.std()).compute()
 
@@ -442,7 +509,7 @@ def recipe_regional_mean_mom5(
         str,
         {
             "kind": "choice",
-            "choices": list(analysis.PREDEFINED_REGIONS),
+            "choices": list(PREDEFINED_REGIONS),
             "description": "Region to average over",
         },
     ] = "tasmania",
@@ -466,7 +533,12 @@ def recipe_regional_mean_mom5(
         bool, {"kind": "bool", "description": "Overlay a linear trend"}
     ] = True,
     show_percentiles: Annotated[
-        bool, {"name": "", "kind": "bool", "description": "Overlay a linear trend"}
+        bool,
+        {
+            "name": "",
+            "kind": "bool",
+            "description": "Overlay top and bottom 10 percentiles",
+        },
     ] = True,
     threshold: Annotated[
         str, {"kind": "str", "description": "Optional reference value, blank for none"}
@@ -485,7 +557,7 @@ def recipe_regional_mean_mom5(
     if lvl_dim is not None and lvl_dim in data.dims:
         data = data.sel({lvl_dim: depth}, method="nearest")
 
-    data = analysis.extract_region(data, region, lon_dim=lon_dim, lat_dim=lat_dim)
+    data = extract_region(data, region, lon_dim=lon_dim, lat_dim=lat_dim)
     weights = np.cos(np.deg2rad(data[lat_dim]))
     timeseries = data.weighted(weights).mean(dim=[lat_dim, lon_dim])
 
