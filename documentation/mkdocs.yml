@@ -34,6 +34,7 @@ nav:
     - Code: pages/contributing/code.md
     - Documentation: pages/contributing/docs.md
     - Issues and feature requests: pages/contributing/issues.md
+    - Contributing recipes: pages/contributing/recipes.md
 
 
 # Theme configuration
@@ -154,6 +155,7 @@ plugins:
       enable_creation_date: true
   - bibtex: # Add citation syntax support (https://github.com/shyamd/mkdocs-bibtex#usage)
       bib_file: references.bib
+      enable_inline_citations: false # Bare @key citations clash with Python decorators like @analysis.upload_analysis
   - redirects: # Adds support for URL redirects using mkdocs-redirects (https://github.com/mkdocs/mkdocs-redirects#mkdocs-redirects)
       redirect_maps:
   - resolve-absolute-urls: # Resolves absolute URLs (https://github.com/ACCESS-NRI/mkdocs_resolve_absolute_urls_plugin#mkdocs-resolve-absolute-urls-plugin)
