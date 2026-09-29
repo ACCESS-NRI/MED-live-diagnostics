@@ -126,9 +126,13 @@ plugins:
   - search # Adds the search bar to the header
   # - optimize: # Optimizes all media files (https://squidfunk.github.io/mkdocs-material/plugins/optimize/#built-in-optimize-plugin)
   #     optimize_png_speed: 10
+  #     enabled: !env [READTHEDOCS, false]
   # - privacy # Download any external asset locally to improve privacy (https://squidfunk.github.io/mkdocs-material/plugins/privacy/)
+  #     enabled: !env [READTHEDOCS, false]
   - mkdocs-jupyter: # Use Jupyter Notebooks in mkdocs (https://github.com/danielfrg/mkdocs-jupyter#mkdocs-jupyter-use-jupyter-notebooks-in-mkdocs)
       include_source: true
+      no_prompt: True
+      highlight_extra_classes: "jupyter-code"
   - mkdocstrings: # Automatic documentation from docstrings (https://mkdocstrings.github.io/)
       default_handler: python
       handlers:
@@ -140,9 +144,6 @@ plugins:
   - git-revision-date-localized: # Adds creation and last update dates at the end of each page
       type: date
       enable_creation_date: true
-  - git-committers: # Adds the GitHub avatars of all contributors at the end of each page
-      repository: ACCESS-NRI/MED-live-diagnostics
-      branch: main
   - bibtex: # Add citation syntax support (https://github.com/shyamd/mkdocs-bibtex#usage)
       bib_file: references.bib
   - redirects: # Adds support for URL redirects using mkdocs-redirects (https://github.com/mkdocs/mkdocs-redirects#mkdocs-redirects)
