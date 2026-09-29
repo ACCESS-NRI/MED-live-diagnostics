@@ -1,0 +1,28 @@
+# =========== IMPORTANT!! READ THIS!! ============ #
+# This file is used to add a PR preview link at the bottom of
+# the PR body.
+
+# When you copy this file, make sure to check and modify the fields
+# that here are marked with `MODIFY`.
+# ============================================== #
+
+name: Pr-preview comment
+on:
+  pull_request_target:
+    types: opened
+
+permissions:
+  pull-requests: write
+
+jobs:
+  documentation-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: readthedocs/actions/preview@b8bba1484329bda1a3abe986df7ebc80a8950333 # v1.5
+        with:
+          project-slug: '<RTD_PROJECT_SLUG>'  # MODIFY: change this to the Read the Docs project
+          single-version: true # MODIFY: change this to false if the RTD project has multiple versions
+          single-language: true
+          message-template: |
+            ---
+            :books: PR Preview :link: --> {docs-pr-index-url}

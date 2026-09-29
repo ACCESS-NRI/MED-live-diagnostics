@@ -74,6 +74,7 @@ sphinx-design = ">=0.7.0,<0.8"
 myst-nb = ">=1.4.0,<2"
 sphinx-book-theme = ">=1.4.0,<2"
 sphinx-autobuild = ">=2025.8.25,<2026"
+mkdocs = ">=1.6.1,<2"
 
 [tool.mypy]
 exclude = [
