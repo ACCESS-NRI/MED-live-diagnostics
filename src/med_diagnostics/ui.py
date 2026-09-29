@@ -1089,7 +1089,67 @@ class UserInterface:
 
     def _ref_display_dataset_plot_ui(self):
         """
-        Create interactive panel plot for reference model dataset and add to widget_container. Private.
+        Create interactive panel plot for user to choose plot options and add to widget_container. Private.
+        """
+        #Remove preexisting plot choices UI
+        if hasattr(self, 'plot_choices_row') and self.plot_choices_row in self.widget_container:
+            self.widget_container.remove(self.plot_choices_row)
+
+        #Find viable dimensions for axis selection
+        dim_sizes = self.dataset[self._get_selected_variable()].sizes
+        viable_dims = [dim for dim, size in dim_sizes.items() if size > 1 and dim != 'nv']
+
+        self.x_axis_dropdown.name = 'Select X-Axis dimension'
+        self.x_axis_dropdown.options = sorted(viable_dims)
+        show_plot_choices = True
+
+        #If the user chooses to plot a heatmap, allow them to choose the Y-axis
+        if self.plot_type_dropdown.value == "Heatmap":
+            #Check if enough dimensions to make heatmap, if not, throw error and don't let the user do it. 
+            if len(viable_dims) < 2:
+                self._update_warning_text("Warning >> Not enough dimensions available for this variable to plot a Heatmap.")
+                self.plot_type_dropdown.value = "Line"
+                show_plot_choices = False
+            else:
+                self.y_axis_dropdown.name = 'Select Y-Axis dimension'
+                self.y_axis_dropdown.options = sorted(viable_dims)
+                self.plot_choices_row = pn.Row(self.x_axis_dropdown, self.y_axis_dropdown, self.plot_button)
+        elif self.plot_type_dropdown.value == "Line":
+            #If there is only 1 viable x-axis, plot automatically without user prompt to select x-axis. 
+            if len(viable_dims) == 1:
+                self._update_warning_text("Only one valid x-axis dimension, plotting automatically.")
+                self.x_axis_dropdown.value = viable_dims[0]
+                show_plot_choices = False
+                self._plot_data_button_click()
+            else:
+                self.plot_choices_row = pn.Row(self.x_axis_dropdown, self.plot_button)
+        elif self.plot_type_dropdown.value == "Animation":
+            #Check if enough dimensions to make animation, if not, throw error and don't let the user do it. 
+            if len(viable_dims) < 2:
+                self._update_warning_text("Warning >> Not enough dimensions available for this variable to plot an animation.")
+                self.plot_type_dropdown.value = "Line"
+                show_plot_choices = False
+            else:
+                self.y_axis_dropdown.name = 'Select Y-Axis dimension'
+                self.y_axis_dropdown.options = sorted(viable_dims)
+                self.animation_axis_dropdown.name = 'Select Z-Axis dimension'
+                self.animation_axis_dropdown.options = sorted(viable_dims)
+                self.plot_choices_row = pn.Row(self.x_axis_dropdown, self.y_axis_dropdown, self.animation_axis_dropdown, self.plot_button)
+
+        #If plotting hasn't automatically occurred (in the case of the line graph with only 1 plottable dimension)
+        if show_plot_choices:    
+            #Insert the UI row under the variable selection even if there are plots already
+            if hasattr(self, 'plot_ui_row') and self.plot_ui_row in self.widget_container:
+                insert_index = self.widget_container.index(self.plot_ui_row) + 1
+                self.widget_container.insert(insert_index, self.plot_choices_row)
+            else:
+                self.widget_container.append(self.plot_choices_row)
+            #self.widget_container.append(self.plot_pane)
+
+    def _ref_display_plot_choices_ui(self):
+                
+        """
+        Create interactive panel for user to choose plot options and add to widget_container. Private.
         """
 
         self.ref_plot_variable_dropdown.name = "Available variables"
