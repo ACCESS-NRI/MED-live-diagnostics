@@ -8,6 +8,7 @@ ACCESS-NRI Model Live Diagnostics
    self
    notebooks/getting_started_tutorial
    notebooks/advanced_usage
+   notebooks/adding_custom_analyses
    med_diagnostics
    contributing/index
 

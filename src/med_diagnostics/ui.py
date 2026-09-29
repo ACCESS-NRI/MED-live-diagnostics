@@ -31,7 +31,7 @@ class UserInterface:
     """
 
     # Set up styles used for text boxes and buttons
-    STYLES: ClassVar[dict] = {
+    _STYLES: ClassVar[dict] = {
         "status_text": {
             "styles": {
                 "background": "lightblue",
@@ -112,39 +112,39 @@ class UserInterface:
         pn.extension()
 
         self.user_widget_container = pn.Card(
-            **self.STYLES.get("widget_container"), title="Load and plot user data"
+            **self._STYLES.get("widget_container"), title="Load and plot user data"
         )
         self.ref_widget_container = pn.Card(
-            **self.STYLES.get("widget_container"),
+            **self._STYLES.get("widget_container"),
             title="Load and plot reference models",
         )
         self.multiplot_widget_container = pn.Card(
-            **self.STYLES.get("widget_container"),
+            **self._STYLES.get("widget_container"),
             title="Overlay user and reference models",
         )
         self.analysis_widget_container = pn.Card(
-            **self.STYLES.get("widget_container"),
+            **self._STYLES.get("widget_container"),
             title="Run analysis recipes",
         )
 
         # Build initial panel text widgets
         self.last_data_load_textbox = pn.widgets.StaticText(
-            **self.STYLES.get("last_data_load_text")
+            **self._STYLES.get("last_data_load_text")
         )
-        self.status_textbox = pn.widgets.StaticText(**self.STYLES.get("status_text"))
-        self.warning_textbox = pn.widgets.StaticText(**self.STYLES.get("warning_text"))
+        self.status_textbox = pn.widgets.StaticText(**self._STYLES.get("status_text"))
+        self.warning_textbox = pn.widgets.StaticText(**self._STYLES.get("warning_text"))
 
         # Build initial user plot buttons and dropdowns
         self.keys_dropdown = pn.widgets.Select()
-        self.keys_button = pn.widgets.Button(**self.STYLES.get("primary_button"))
-        self.years_mode = pn.widgets.RadioButtonGroup(**self.STYLES.get("years_mode"))
-        self.years_input = pn.widgets.IntInput(**self.STYLES.get("years_input"))
+        self.keys_button = pn.widgets.Button(**self._STYLES.get("primary_button"))
+        self.years_mode = pn.widgets.RadioButtonGroup(**self._STYLES.get("years_mode"))
+        self.years_input = pn.widgets.IntInput(**self._STYLES.get("years_input"))
         self.years_files_text = pn.widgets.StaticText(
-            **self.STYLES.get("years_files_text")
+            **self._STYLES.get("years_files_text")
         )
         self.plot_variable_dropdown = pn.widgets.Select()
-        self.variable_toggle = pn.widgets.Toggle(**self.STYLES.get("variable_toggle"))
-        self.plot_button = pn.widgets.Button(**self.STYLES.get("green_button"))
+        self.variable_toggle = pn.widgets.Toggle(**self._STYLES.get("variable_toggle"))
+        self.plot_button = pn.widgets.Button(**self._STYLES.get("green_button"))
         self.plot_pane = pn.pane.Matplotlib(tight=True)
         self.plot_type_dropdown = pn.widgets.Select()
         self.x_axis_dropdown, self.y_axis_dropdown, self.animation_axis_dropdown = (
@@ -153,36 +153,36 @@ class UserInterface:
             pn.widgets.Select(),
         )
         self.select_variable_button = pn.widgets.Button(
-            **self.STYLES.get("green_button")
+            **self._STYLES.get("green_button")
         )
 
         # Build reference panel status text
         self.ref_status_textbox = pn.widgets.StaticText(
-            **self.STYLES.get("status_text")
+            **self._STYLES.get("status_text")
         )
         self.ref_warning_textbox = pn.widgets.StaticText(
-            **self.STYLES.get("warning_text")
+            **self._STYLES.get("warning_text")
         )
 
         # Build reference panel buttons
         self.ref_keys_dropdown = pn.widgets.Select()
-        self.ref_keys_button = pn.widgets.Button(**self.STYLES.get("primary_button"))
+        self.ref_keys_button = pn.widgets.Button(**self._STYLES.get("primary_button"))
         self.ref_data_keys_dropdown = pn.widgets.Select()
         self.ref_data_keys_button = pn.widgets.Button(
-            **self.STYLES.get("primary_button")
+            **self._STYLES.get("primary_button")
         )
         self.ref_plot_variable_dropdown = pn.widgets.Select()
         self.ref_variable_toggle = pn.widgets.Toggle(
-            **self.STYLES.get("variable_toggle")
+            **self._STYLES.get("variable_toggle")
         )
         self.clear_ref_model_data_button = pn.widgets.Button(
-            **self.STYLES.get("danger_button")
+            **self._STYLES.get("danger_button")
         )
         self.ref_model_info_button = pn.widgets.Button(
-            **self.STYLES.get("primary_button")
+            **self._STYLES.get("primary_button")
         )
         self.ref_model_metadata = pn.widgets.StaticText(styles={"color": "white"})
-        self.ref_plot_button = pn.widgets.Button(**self.STYLES.get("green_button"))
+        self.ref_plot_button = pn.widgets.Button(**self._STYLES.get("green_button"))
         self.ref_plot_pane = pn.pane.Matplotlib(tight=True)
         self.ref_plot_type_dropdown = pn.widgets.Select()
         (
@@ -196,33 +196,33 @@ class UserInterface:
         )
 
         self.ref_select_variable_button = pn.widgets.Button(
-            **self.STYLES.get("green_button")
+            **self._STYLES.get("green_button")
         )
 
         # Build plot overlay status text
         self.multiplot_status_textbox = pn.widgets.StaticText(
-            **self.STYLES.get("status_text")
+            **self._STYLES.get("status_text")
         )
         self.multiplot_warning_textbox = pn.widgets.StaticText(
-            **self.STYLES.get("warning_text")
+            **self._STYLES.get("warning_text")
         )
 
         # Build plot overlay buttons
         self.multiplot_ref_keys_dropdown = pn.widgets.Select()
         self.multiplot_ref_keys_button = pn.widgets.Button(
-            **self.STYLES.get("primary_button")
+            **self._STYLES.get("primary_button")
         )
         self.multiplot_plot_button = pn.widgets.Button(
-            **self.STYLES.get("green_button")
+            **self._STYLES.get("green_button")
         )
         self.multiplot_plot_pane = pn.pane.Matplotlib(tight=True)
         self.clear_multiplot_data_button = pn.widgets.Button(
-            **self.STYLES.get("danger_button")
+            **self._STYLES.get("danger_button")
         )
 
         self.multiplot_keys_dropdown = pn.widgets.Select()
         self.multiplot_keys_button = pn.widgets.Button(
-            **self.STYLES.get("primary_button")
+            **self._STYLES.get("primary_button")
         )
         self.multiplot_plot_variable_dropdown = pn.widgets.Select()
         self.multiplot_x_axis_dropdown, self.multiplot_y_axis_dropdown = (
@@ -230,63 +230,65 @@ class UserInterface:
             pn.widgets.Select(),
         )
         self.multiplot_select_variable_button = pn.widgets.Button(
-            **self.STYLES.get("green_button")
+            **self._STYLES.get("green_button")
         )
         self.multiplot_keys_update_button = pn.widgets.Button(
-            **self.STYLES.get("primary_button")
+            **self._STYLES.get("primary_button")
         )
         self.prompt_bounds_dropdown = pn.widgets.Select()
         self.prompt_bounds_button = pn.widgets.Button(
-            **self.STYLES.get("primary_button")
+            **self._STYLES.get("primary_button")
         )
         self.multiplot_plot_type_dropdown = pn.widgets.Select()
         self.multiplot_analysis_choice_dropdown = pn.widgets.Select()
         self.multiplot_years_mode = pn.widgets.RadioButtonGroup(
-            **self.STYLES.get("years_mode")
+            **self._STYLES.get("years_mode")
         )
         self.multiplot_years_input = pn.widgets.IntInput(
-            **self.STYLES.get("years_input")
+            **self._STYLES.get("years_input")
         )
         self.multiplot_years_files_text = pn.widgets.StaticText(
-            **self.STYLES.get("years_files_text")
+            **self._STYLES.get("years_files_text")
         )
         self.multiplot_variable_toggle = pn.widgets.Toggle(
-            **self.STYLES.get("variable_toggle")
+            **self._STYLES.get("variable_toggle")
         )
 
         # Build analysis status text
         self.analysis_status_textbox = pn.widgets.StaticText(
-            **self.STYLES.get("status_text")
+            **self._STYLES.get("status_text")
         )
         self.analysis_warning_textbox = pn.widgets.StaticText(
-            **self.STYLES.get("warning_text")
+            **self._STYLES.get("warning_text")
         )
 
         # Build analysis buttons
         self.analysis_keys_dropdown = pn.widgets.Select()
         self.analysis_keys_button = pn.widgets.Button(
-            **self.STYLES.get("primary_button")
+            **self._STYLES.get("primary_button")
         )
         self.analysis_years_mode = pn.widgets.RadioButtonGroup(
-            **self.STYLES.get("years_mode")
+            **self._STYLES.get("years_mode")
         )
         self.analysis_years_input = pn.widgets.IntInput(
-            **self.STYLES.get("years_input")
+            **self._STYLES.get("years_input")
         )
         self.analysis_years_files_text = pn.widgets.StaticText(
-            **self.STYLES.get("years_files_text")
+            **self._STYLES.get("years_files_text")
         )
         self.analysis_recipe_dropdown = pn.widgets.Select()
         self.analysis_select_recipe_button = pn.widgets.Button(
-            **self.STYLES.get("green_button")
+            **self._STYLES.get("green_button")
         )
         self.analysis_recipe_info = pn.widgets.StaticText(styles={"color": "black"})
-        self.analysis_plot_button = pn.widgets.Button(**self.STYLES.get("green_button"))
+        self.analysis_plot_button = pn.widgets.Button(
+            **self._STYLES.get("green_button")
+        )
         self.analysis_refresh_button = pn.widgets.Button(
-            **self.STYLES.get("primary_button")
+            **self._STYLES.get("primary_button")
         )
         self.analysis_variable_toggle = pn.widgets.Toggle(
-            **self.STYLES.get("variable_toggle")
+            **self._STYLES.get("variable_toggle")
         )
 
         self.figure_exists, self.ref_figure_exists = False, False
@@ -2099,7 +2101,7 @@ class UserInterface:
             True if the selected recipe was re-uploaded and its options row removed.
         """
         selected = self.analysis_recipe_dropdown.value
-        self.analysis_recipe_mapping = analysis.list_recipes()
+        self.analysis_recipe_mapping = analysis._list_recipes()
         self.analysis_recipe_dropdown.options = self.analysis_recipe_mapping
 
         # Keep the current choice, following it to its new version if re-uploaded
@@ -2167,7 +2169,7 @@ class UserInterface:
             or key not in self.model_cat
         ):
             return ""
-        summary = data.summarise_year_selection(self.model_cat, key, years, from_start)
+        summary = data._summarise_year_selection(self.model_cat, key, years, from_start)
         if summary is None:
             return ""
 
@@ -2251,11 +2253,11 @@ class UserInterface:
         self.analysis_variable_toggle.value = False
 
         recipe = self.analysis_recipe_dropdown.value
-        _, details = analysis.get_recipe_summary(recipe)
+        _, details = analysis._get_recipe_summary(recipe)
         self.analysis_recipe_info.value = details
 
         try:
-            kwarg_options = analysis.get_recipe_kwarg_options(recipe, self.dataset)
+            kwarg_options = analysis._get_recipe_kwarg_options(recipe, self.dataset)
         except ValueError as err:
             # A recipe with an error in the annotated declaration that causes an error
             controller.update_textbox_text(
@@ -2406,7 +2408,7 @@ class UserInterface:
         Wrap a plot pane in a Column alongside a functional 'Remove Plot' button. Private.
         """
         # Create a remove button for each plot that is added
-        remove_btn = pn.widgets.Button(**self.STYLES.get("remove_button"))
+        remove_btn = pn.widgets.Button(**self._STYLES.get("remove_button"))
         remove_btn.name = "Remove Plot"
         # Group the plot and the button together
         plot_group = pn.Column(plot_pane, remove_btn, margin=(0, 0, 25, 0))

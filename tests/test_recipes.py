@@ -22,7 +22,7 @@ def test_every_recipe_annotation_parses_for_the_ui(recipe):
     would only show up as a wrong widget at runtime. Every parameter must get
     a known kind and a description for its tooltip.
     """
-    options = analysis.get_recipe_kwarg_options(recipe)
+    options = analysis._get_recipe_kwarg_options(recipe)
     names = [p for p in inspect.signature(recipe).parameters][1:]
     assert [o["name"] for o in options] == names
     for option in options:
@@ -57,7 +57,7 @@ def test_annotations_parse_every_field():
     The metadata ``name`` is only the display label: the option's ``name``
     must stay the parameter name, because the UI passes values back by it.
     """
-    options = {o["name"]: o for o in analysis.get_recipe_kwarg_options(recipe_example)}
+    options = {o["name"]: o for o in analysis._get_recipe_kwarg_options(recipe_example)}
 
     assert list(options) == [
         "variable",
@@ -92,7 +92,7 @@ def test_dataset_fills_variable_and_dimension_choices():
         coords={"time": [0, 1, 2], "lat": [0, 1], "st_ocean": ("st_ocean", [5.0])},
     )
     options = {
-        o["name"]: o for o in analysis.get_recipe_kwarg_options(recipe_example, ds)
+        o["name"]: o for o in analysis._get_recipe_kwarg_options(recipe_example, ds)
     }
 
     assert options["variable"]["choices"] == ["temp"]
@@ -109,7 +109,7 @@ def test_unannotated_parameters_are_accepted():
     def recipe_plain(ds, depth=0, method: Annotated[str, {"kind": "mispelt"}] = "x"):
         """Plain recipe."""
 
-    options = {o["name"]: o for o in analysis.get_recipe_kwarg_options(recipe_plain)}
+    options = {o["name"]: o for o in analysis._get_recipe_kwarg_options(recipe_plain)}
     assert options["depth"]["kind"] is None
     assert options["depth"]["default"] == 0
     assert options["method"]["kind"] == "mispelt"

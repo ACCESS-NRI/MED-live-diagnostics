@@ -148,7 +148,7 @@ def _select_year_files(df, years=None, from_start=False):
     return df[in_range | start_years.isna()]
 
 
-def summarise_year_selection(model_cat, key, years=None, from_start=False):
+def _summarise_year_selection(model_cat, key, years=None, from_start=False):
     """
     Count the files and years a year selection would load, without opening any files.
 

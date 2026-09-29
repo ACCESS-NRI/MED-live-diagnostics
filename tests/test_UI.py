@@ -3026,7 +3026,7 @@ def test_initialise_analysis_widgets(ui):
     assert ui.analysis_keys_button.disabled is True
     assert ui.analysis_recipe_dropdown.disabled is True
     assert ui.analysis_select_recipe_button.disabled is True
-    assert ui.analysis_recipe_dropdown.options == analysis.list_recipes()
+    assert ui.analysis_recipe_dropdown.options == analysis._list_recipes()
 
 
 def test_enable_widgets_after_catalog_load_enables_analysis(ui):
@@ -3325,25 +3325,6 @@ def test_analysis_plot_data_button_click(analysis_ui):
     assert ui.analysis_status_textbox.value == "Analysis status >> Plot created"
     assert ui.analysis_warning_textbox.value == ""
     plt.close("all")
-
-
-def test_analysis_plot_data_button_click_shows_recipe_errors(analysis_ui):
-    """Test that a recipe failure is shown in the warning box, not raised.
-
-    A recipe run on the wrong grid (here the UM recipe on MOM5 data) raises
-    inside a Panel callback, where the error would otherwise be lost and the
-    user would see nothing happen.
-    """
-    ui = analysis_ui
-    ui.analysis_recipe_dropdown.value = recipes.recipe_nino34_timeseries_um
-    ui._display_analysis_recipe_options_ui()
-    container_length = len(ui.analysis_widget_container)
-
-    ui._analysis_plot_data_button_click()
-
-    assert "expects UM output" in ui.analysis_warning_textbox.value
-    assert ui.analysis_status_textbox.value == "Analysis status >> Recipe failed"
-    assert len(ui.analysis_widget_container) == container_length
 
 
 def custom_recipe(

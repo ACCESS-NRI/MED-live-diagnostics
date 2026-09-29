@@ -75,7 +75,7 @@ def timeseries_plot_kwargs(timeseries, variable, units):
     Returns
     -------
     dict
-        Plot kwargs for ``analysis.analyse_and_plot``.
+        Plot kwargs for ``analysis._analyse_and_plot``.
     """
     return {
         "color": "tab:blue",

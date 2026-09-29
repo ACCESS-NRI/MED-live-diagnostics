@@ -10,10 +10,26 @@ med_diagnostics.data
    :undoc-members:
    :show-inheritance:
 
-med_diagnostics.diagnostics
+med_diagnostics.analysis
 -----------------------------------
 
-.. automodule:: med_diagnostics.diagnostics
+.. automodule:: med_diagnostics.analysis
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+med_diagnostics.recipes
+-----------------------------------
+
+.. automodule:: med_diagnostics.recipes
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+med_diagnostics.plot_customisations
+-----------------------------------
+
+.. automodule:: med_diagnostics.plot_customisations
    :members:
    :undoc-members:
    :show-inheritance:

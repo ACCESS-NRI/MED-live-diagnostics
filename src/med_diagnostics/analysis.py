@@ -27,7 +27,7 @@ UPLOADED_ANALYSES: dict[str, Callable] = {}
 RECIPE_KINDS = {"data variable", "dimension", "choice", "float", "int", "str", "bool"}
 
 
-def list_recipes():
+def _list_recipes():
     """
     Return every prebuilt and uploaded recipe, keyed by a label for the UI.
 
@@ -46,13 +46,13 @@ def list_recipes():
 
     for name, func in inspect.getmembers(recipes, inspect.isfunction):
         if name.startswith("recipe_"):
-            add(get_recipe_summary(func)[0], name, func)
+            add(_get_recipe_summary(func)[0], name, func)
     for name, func in UPLOADED_ANALYSES.items():
-        add(f"Custom: {get_recipe_summary(func)[0]}", name, func)
+        add(f"Custom: {_get_recipe_summary(func)[0]}", name, func)
     return found
 
 
-def get_recipe_summary(recipe):
+def _get_recipe_summary(recipe):
     """
     Return a recipe's docstring summary line and the paragraph after it.
 
@@ -75,7 +75,7 @@ def get_recipe_summary(recipe):
     return summary, details
 
 
-def get_recipe_kwarg_options(recipe, ds=None):
+def _get_recipe_kwarg_options(recipe, ds=None):
     """
     Describe every user-facing parameter of a recipe, e.g. for a UI form.
 
@@ -165,7 +165,7 @@ def _dataset_choices(ds, kind):
 # --------------------------------------------------------------------------
 
 
-def analyse_and_plot(dataset: xr.Dataset, recipe_func, **recipe_kwargs) -> plt.Figure:
+def _analyse_and_plot(dataset: xr.Dataset, recipe_func, **recipe_kwargs) -> plt.Figure:
     """
     Run a recipe on the dataset and plot the result.
 
@@ -253,7 +253,7 @@ def upload_analysis(recipe_func):
         )
 
     # Read the annotations now, so mistakes show at upload rather than in the UI
-    get_recipe_kwarg_options(recipe_func)
+    _get_recipe_kwarg_options(recipe_func)
 
     # Keyed by name, so re-uploading an edited function replaces the old one
     UPLOADED_ANALYSES[recipe_func.__name__] = recipe_func

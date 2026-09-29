@@ -29,7 +29,7 @@ def test_upload_analysis_registers_by_name():
     """
     assert analysis.upload_analysis(my_mean) is my_mean
     assert analysis.UPLOADED_ANALYSES == {"my_mean": my_mean}
-    assert analysis.list_recipes()["Custom: Mean of a variable."] is my_mean
+    assert analysis._list_recipes()["Custom: Mean of a variable."] is my_mean
 
 
 def test_reuploading_replaces_the_old_version():
@@ -46,7 +46,7 @@ def test_reuploading_replaces_the_old_version():
     edited.__name__ = "my_mean"  # as if the notebook cell were edited and re-run
     analysis.upload_analysis(edited)
     assert analysis.UPLOADED_ANALYSES == {"my_mean": edited}
-    assert list(analysis.list_recipes()).count("Custom: New version.") == 1
+    assert list(analysis._list_recipes()).count("Custom: New version.") == 1
 
 
 @pytest.mark.parametrize(

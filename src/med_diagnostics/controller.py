@@ -856,6 +856,6 @@ def plot_recipe(dataset, recipe, recipe_kwargs):
     Returns
     -------
     matplotlib.figure.Figure
-        The figure produced by ``analysis.analyse_and_plot``.
+        The figure produced by ``analysis._analyse_and_plot``.
     """
-    return analysis.analyse_and_plot(dataset, recipe, **recipe_kwargs)
+    return analysis._analyse_and_plot(dataset, recipe, **recipe_kwargs)

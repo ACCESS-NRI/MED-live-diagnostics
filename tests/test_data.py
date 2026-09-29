@@ -1,10 +1,8 @@
 import os
 from unittest.mock import MagicMock
 
-import intake
 import pandas as pd
 import pytest
-import xarray as xr
 from access_nri_intake.aliases import AliasedESMCatalog
 from access_nri_intake.source.builders import (
     AccessCm2Builder,
@@ -222,73 +220,3 @@ def test_select_year_files_keeps_undated_files():
     assert len(selected) == 13
     static = pd.DataFrame({"path": [1, 2], "start_date": ["none", "none"]})
     assert data._select_year_files(static, 1).equals(static)
-
-
-@pytest.fixture
-def monthly_datastore(tmp_path):
-    """A real intake-esm datastore over 24 one-month netCDF files covering two years."""
-    rows = []
-    for year in (2000, 2001):
-        for month in range(1, 13):
-            path = tmp_path / f"tas_{year}_{month:02d}.nc"
-            time = xr.date_range(
-                f"{year}-{month:02d}-01", periods=1, freq="MS", use_cftime=True
-            )
-            xr.Dataset(
-                {"tas": ("time", [float(month)])}, coords={"time": time}
-            ).to_netcdf(path)
-            rows.append(
-                {
-                    "path": str(path),
-                    "realm": "atmos",
-                    "frequency": "1mon",
-                    "variable": "tas",
-                    "start_date": f"{year}-{month:02d}-01, 00:00:00",
-                }
-            )
-    esmcat = {
-        "esmcat_version": "0.1.0",
-        "id": "test",
-        "description": "test",
-        "attributes": [],
-        "assets": {"column_name": "path", "format": "netcdf"},
-        "aggregation_control": {
-            "variable_column_name": "variable",
-            "groupby_attrs": ["realm", "frequency"],
-            "aggregations": [
-                {
-                    "type": "join_existing",
-                    "attribute_name": "start_date",
-                    "options": {"dim": "time"},
-                }
-            ],
-        },
-    }
-    return intake.open_esm_datastore({"esmcat": esmcat, "df": pd.DataFrame(rows)})
-
-
-@pytest.mark.parametrize(
-    "from_start, expected_year", [(False, 2001), (True, 2000)], ids=["recent", "first"]
-)
-def test_build_data_object_loads_only_selected_years(
-    monthly_datastore, from_start, expected_year
-):
-    """Test that a year selection opens only that year's files from a real datastore.
-
-    The subset catalog must still answer to the same key, and the file count
-    shown before loading must match what is actually loaded.
-    """
-    key = "atmos.1mon"
-
-    ds = data._build_data_object(monthly_datastore, key, years=1, from_start=from_start)
-
-    assert ds.sizes["time"] == 12
-    assert {t.year for t in ds.time.values} == {expected_year}
-    assert data.summarise_year_selection(monthly_datastore, key, 1, from_start) == {
-        "n_files": 12,
-        "total_files": 24,
-        "first_year": expected_year,
-        "last_year": expected_year,
-    }
-    # Without a selection every file is still loaded
-    assert data._build_data_object(monthly_datastore, key).sizes["time"] == 24

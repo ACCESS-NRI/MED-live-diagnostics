@@ -39,7 +39,7 @@ PREDEFINED_REGIONS = {
 
 def extract_region(dataset, region, lon_dim="lon", lat_dim="lat"):
     """
-    Extract a lat/lon bounding box, on regular or curvilinear grids.
+    Helper to extract a lat/lon bounding box, on regular or curvilinear grids.
 
     Parameters
     ----------
@@ -101,7 +101,7 @@ def extract_region(dataset, region, lon_dim="lon", lat_dim="lat"):
 
 def median_timestep_days(time_da):
     """
-    Return the median spacing between consecutive time steps, in days.
+    Helper to return the median spacing between consecutive time steps, in days.
 
     Parameters
     ----------
@@ -121,9 +121,9 @@ def median_timestep_days(time_da):
     return np.median(diffs / np.timedelta64(1, "D"))
 
 
-def rolling_window_size(time_da, target_days=150):
+def _rolling_window_size(time_da, target_days=150):
     """
-    Convert a target rolling window length in days to native timesteps.
+    Helper to convert a target rolling window length in days to native timesteps.
 
     Parameters
     ----------
@@ -150,7 +150,7 @@ def rolling_window_size(time_da, target_days=150):
 
 def calc_anomolies(dataset, lon_dim, lat_dim, var):
     """
-    Compute the area-weighted mean monthly anomaly of ``var``.
+    Helper to compute the area-weighted mean monthly anomaly of ``var``.
 
     Parameters
     ----------
@@ -177,39 +177,7 @@ def calc_anomolies(dataset, lon_dim, lat_dim, var):
     return anomalies.weighted(weights).mean(dim=[lat_dim, lon_dim])
 
 
-def nino34_timeseries(data, lat_dim, lon_dim, area=None):
-    """
-    Area-weighted mean of ``data`` over the Niño 3.4 region.
-
-    Parameters
-    ----------
-    data : xarray.DataArray
-        Variable with a time dim and lat/lon coords (1D or 2D).
-    lat_dim, lon_dim : str
-        Latitude/longitude coordinate names.
-    area : xarray.DataArray, optional
-        Cell areas to weight by. Defaults to cos(lat).
-
-    Returns
-    -------
-    xarray.DataArray
-        The regional mean timeseries.
-    """
-    data = extract_region(data, region="nino34", lon_dim=lon_dim, lat_dim=lat_dim)
-    if area is not None:
-        # Model cell areas; land cells are NaN and are skipped automatically
-        weights = extract_region(
-            area, region="nino34", lon_dim=lon_dim, lat_dim=lat_dim
-        ).fillna(0)
-    else:
-        # cos(lat) is exact on regular lat/lon grids
-        weights = np.cos(np.deg2rad(data[lat_dim]))
-    # On curvilinear grids lat/lon are 2D coords, so average over their dims
-    dims = list(dict.fromkeys(data[lat_dim].dims + data[lon_dim].dims))
-    return data.weighted(weights).mean(dim=dims)
-
-
-def require_coords(ds, variable, coords, grid):
+def _require_coords(ds, variable, coords, grid):
     """
     Raise a readable error if ``ds`` isn't the grid a recipe targets.
 
@@ -245,92 +213,6 @@ def require_coords(ds, variable, coords, grid):
 # --------------------------------------------------------------------------
 # Recipes
 # --------------------------------------------------------------------------
-
-
-def recipe_nino34_timeseries_um(
-    ds: xr.Dataset,
-    variable: Annotated[
-        str,
-        {
-            "name": "Select Variable",
-            "kind": "data variable",
-            "description": "Variable from your dataset you want to analyse",
-        },
-    ] = "tas",
-    lon_dim: Annotated[
-        str,
-        {
-            "name": "Select Longitude Dim",
-            "kind": "dimension",
-            "description": "Longitude coordinate",
-        },
-    ] = "lon",
-    lat_dim: Annotated[
-        str,
-        {
-            "name": "Select Latitude Dim",
-            "kind": "dimension",
-            "description": "Latitude coordinate",
-        },
-    ] = "lat",
-    lvl_dim: Annotated[
-        str | None,
-        {
-            "name": "Select Depth Dim",
-            "kind": "dimension",
-            "description": "Vertical coordinate, e.g. pressure; leave unset for surface fields",
-        },
-    ] = None,
-    level: Annotated[
-        float,
-        {
-            "name": "Select Level Slice",
-            "kind": "float",
-            "units": "m",
-            "description": "Level for the analysis to be sliced at, default 0m",
-        },
-    ] = 0,
-):
-    """
-    Niño 3.4 area-weighted mean timeseries of an atmosphere variable.
-
-    For UM output on a regular lat/lon grid.
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        Dataset to analyse, supplied by the UI.
-    variable : data variable, default "tas"
-        Variable to average over the region, e.g. tas or pr.
-    lon_dim : dimension, default "lon"
-        Longitude coordinate.
-    lat_dim : dimension, default "lat"
-        Latitude coordinate.
-    lvl_dim : dimension, optional
-        Vertical coordinate, e.g. pressure; leave unset for surface fields.
-    level : float, default 0
-        Level to plot, in lvl_dim's units; the nearest level is used.
-
-    Returns
-    -------
-    tuple of (xarray.DataArray, dict)
-        The timeseries and its plot kwargs.
-    """
-    require_coords(ds, variable, [lat_dim, lon_dim], "UM")
-    data = ds[variable]
-    # Surface fields (e.g. tas) have no vertical dim to select
-    if lvl_dim is not None and lvl_dim in data.dims:
-        data = data.sel({lvl_dim: level}, method="nearest")
-
-    # Regular lat/lon grid, so cos(lat) weighting is exact
-    timeseries = nino34_timeseries(data, lat_dim, lon_dim)
-    timeseries.name = f"Niño 3.4 {variable}"
-    if lvl_dim is not None and lvl_dim in data.coords:
-        timeseries.name += f" ({lvl_dim}={float(data[lvl_dim]):g})"
-
-    return timeseries, plot_customisations.timeseries_plot_kwargs(
-        timeseries, variable, data.attrs.get("units", "")
-    )
 
 
 def recipe_sst_anomaly_nino34(
@@ -389,7 +271,7 @@ def recipe_sst_anomaly_nino34(
 
     # Rolling needs the whole time axis in one chunk
     anomalies = anomalies.chunk({"time": -1})
-    window = rolling_window_size(anomalies["time"])
+    window = _rolling_window_size(anomalies["time"])
     rolling_mean = anomalies.rolling(time=window, center=True).mean()
     index_plot = (rolling_mean / anomalies.std()).compute()
 
@@ -457,7 +339,7 @@ def recipe_regional_mean_mom5(
     For MOM5 output (ACCESS-OM2, ACCESS-ESM1.6).
     """
     # Fail with a readable message if this isn't the grid we expect
-    require_coords(ds, variable, [lat_dim, lon_dim], "MOM5")
+    _require_coords(ds, variable, [lat_dim, lon_dim], "MOM5")
 
     data = ds[variable]
     # Surface fields have no depth to select
