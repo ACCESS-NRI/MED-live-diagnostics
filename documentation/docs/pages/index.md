@@ -1,6 +1,6 @@
 # ACCESS-NRI Model Live Diagnostics
 
-Welcome to the documentation and reference guide for the [ACCESS-NRI](https://www.access-nri.org.au/) Model Live Diagnostics package. Model Live Diagnostics provides practical Jupyter-based tools for interactive monitoring and diagnostic analysis of currently running, or "live", ACCESS climate models on the Australian NCI supercomputer Gadi.
+Welcome to the documentation and reference guide for the [ACCESS-NRI](https://www.access-nri.org.au/) Model Live Diagnostics (MLD) package, developed by the Model Evaluation and Diagnostics (MED) team. The package is installed as `med-diagnostics` and imported in Python as `med_diagnostics`. Model Live Diagnostics provides practical Jupyter-based tools for interactive monitoring and diagnostic analysis of currently running, or "live", ACCESS climate models on the Australian NCI supercomputer Gadi.
 
 The framework is intended for use in the [Australian Research Environment (ARE)](https://are.nci.org.au/) and is still under active development. Please report bugs and suggestions through the [GitHub issue tracker](https://github.com/ACCESS-NRI/MED-live-diagnostics/issues).
 

@@ -50,9 +50,9 @@ Getting started
 To use the med-diagnostics package use: ``import med_diagnostics``        
 
 
-An example Jupyter notebook describing usage options can be found in the `docs/notebooks <https://github.com/ACCESS-NRI/MED-live-diagnostics/tree/main/docs/notebooks>`_ directory.
+Tutorial notebooks describing usage options can be found in the `documentation/docs/notebooks <https://github.com/ACCESS-NRI/MED-live-diagnostics/tree/main/documentation/docs/notebooks>`_ directory.
 
-The full documentation is available from `readthedocs <https://med-live-diagnostics.readthedocs.io/en/latest/index.html>`_. 
+The full documentation is available from `readthedocs <https://med-live-diagnostics.readthedocs.io/en/latest/>`_.
 
 ------------
 

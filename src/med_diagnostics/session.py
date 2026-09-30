@@ -20,11 +20,11 @@ class CreateModelDiagnosticsSession:
         Parameters
         ----------
         model_type : str
-            Type of ACCESS model in capitals (e.g. CM2, OM2).
+            Type of ACCESS model, case-insensitive (e.g. CM2, OM2).
         model_path : str
             Path to model output directory/files on Gadi.
         timezone : str, optional, default 'Australia/Canberra'
-            Timezone required for scheduler in tinfo 'Region/Location' format.
+            Timezone in tzinfo 'Region/Location' format. Currently unused.
 
         """
 
@@ -65,7 +65,7 @@ class CreateModelDiagnosticsSession:
 
     def end_session(self):
         """
-        Stop background scheduler and close dask client to end current CreateModelDiagnosticsSession instance.
+        Close the dask client and clear the UI to end the current CreateModelDiagnosticsSession instance.
         """
 
         self.client.close()

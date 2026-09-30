@@ -23,7 +23,7 @@ Recipes are contributed through the same git workflow as any other code, which i
 Built-in recipes live in `src/med_diagnostics/recipes.py`. To turn a custom recipe into a built-in one:
 
 1. Add your function under the `# Recipes` section of `recipes.py`.
-2. Name it with a `recipe_` prefix (e.g. `recipe_mixed_layer_depth`). MLD finds built-in recipes by this prefix.
+2. Name it with a `recipe_` prefix (e.g. `recipe_ocean_heat_content`). MLD finds built-in recipes by this prefix.
 3. Remove the `@analysis.upload_analysis` decorator. It is only needed for recipes defined in a notebook.
 
 The first line of the docstring becomes the dropdown label (without the `Custom:` prefix), and the second paragraph is shown as the recipe's details.
@@ -34,7 +34,7 @@ On top of the [checklist](../../notebooks/adding_custom_analyses.ipynb#checklist
 
 - Give every argument a `"kind"` and a `"description"`. This is checked by `tests/test_recipes.py`.
 - State in the docstring's second paragraph which model or grid it targets (e.g. `For MOM5 output (ACCESS-OM2, ACCESS-ESM1.6).`).
-- Fail with a readable error on the wrong grid. You can write your own check, or use the `_require_coords` helper.
+- Fail with a readable error on the wrong grid. You can write your own check, or use the `require_coords` helper.
 - Reuse the existing helpers where possible, such as `extract_region`, `PREDEFINED_REGIONS`, and the functions in `plot_customisations`. If you write a helper that other recipes could use, add it to the helpers section of `recipes.py` with a numpy-style docstring.
 - Put any `customise` functions your recipe uses in `src/med_diagnostics/plot_customisations.py`, rather than defining them inside `recipes.py`. Where possible they should take `(ax, data)` like the existing functions there. If one needs extra settings (like `add_threshold`), wrap it in a `lambda` inside the recipe. Give each one a short docstring so it appears in the [API reference](../api.md).
 - Call `.compute()` on the result before returning it if any `customise` function reads the data.

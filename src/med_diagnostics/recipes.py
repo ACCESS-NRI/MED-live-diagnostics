@@ -148,7 +148,7 @@ def _rolling_window_size(time_da, target_days=150):
     return min(window, n)
 
 
-def calc_anomolies(dataset, lon_dim, lat_dim, var):
+def calc_anomalies(dataset, lon_dim, lat_dim, var):
     """
     Helper to compute the area-weighted mean monthly anomaly of ``var``.
 
@@ -177,7 +177,7 @@ def calc_anomolies(dataset, lon_dim, lat_dim, var):
     return anomalies.weighted(weights).mean(dim=[lat_dim, lon_dim])
 
 
-def _require_coords(ds, variable, coords, grid):
+def require_coords(ds, variable, coords, grid):
     """
     Raise a readable error if ``ds`` isn't the grid a recipe targets.
 
@@ -267,7 +267,7 @@ def recipe_sst_anomaly_nino34(
     # anomaly or normalisation - not just the plotted window
 
     nino34_ds = extract_region(dataset, "nino34", x_dim, y_dim)
-    anomalies = calc_anomolies(nino34_ds, x_dim, y_dim, var)
+    anomalies = calc_anomalies(nino34_ds, x_dim, y_dim, var)
 
     # Rolling needs the whole time axis in one chunk
     anomalies = anomalies.chunk({"time": -1})
@@ -339,7 +339,7 @@ def recipe_regional_mean_mom5(
     For MOM5 output (ACCESS-OM2, ACCESS-ESM1.6).
     """
     # Fail with a readable message if this isn't the grid we expect
-    _require_coords(ds, variable, [lat_dim, lon_dim], "MOM5")
+    require_coords(ds, variable, [lat_dim, lon_dim], "MOM5")
 
     data = ds[variable]
     # Surface fields have no depth to select

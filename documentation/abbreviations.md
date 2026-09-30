@@ -24,3 +24,5 @@ Add, delete or edit the list below to add known abbreviations to the site.
 *[PBS]: Portable Batch System
 *[VDI]: Virtual Desktop Interface
 *[NIWA]: New Zealand National Institute of Water and Atmospheric Research
+*[MLD]: Model Live Diagnostics
+*[MED]: Model Evaluation and Diagnostics
