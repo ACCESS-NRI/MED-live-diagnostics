@@ -7,3 +7,4 @@ See the relevant guide:
 - [Contributing code](code.md)
 - [Contributing documentation](docs.md)
 - [Feature requests and bug reports](issues.md)
+- [Contributing recipes](recipes.md)
