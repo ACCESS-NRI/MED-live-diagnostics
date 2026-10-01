@@ -4,8 +4,11 @@ Learn how to create and integrate custom analyses into the Model Live Diagnostic
 
 ### Prerequisites
 Before starting, ensure you have:
+
 * Started an MLD session in your current notebook or kernel (your custom recipes must be written in this same environment)
+
 * Loaded a catalogue and dataset.
+
 * Add the following imports to the top of a cell in your notebook:
 
 ```python
