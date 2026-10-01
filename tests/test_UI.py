@@ -3340,7 +3340,7 @@ def custom_recipe(
 @pytest.fixture
 def empty_uploads(monkeypatch):
     """Give the test its own empty upload registry."""
-    monkeypatch.setattr(analysis, "UPLOADED_ANALYSES", {})
+    monkeypatch.setattr(analysis, "REGISTERED_ANALYSES", {})
 
 
 def test_refresh_button_adds_uploaded_analysis(analysis_ui, empty_uploads):
@@ -3351,7 +3351,7 @@ def test_refresh_button_adds_uploaded_analysis(analysis_ui, empty_uploads):
     the user's current selection.
     """
     ui = analysis_ui
-    analysis.upload_analysis(custom_recipe)
+    analysis.register_analysis(custom_recipe)
     assert custom_recipe not in ui.analysis_recipe_dropdown.options.values()
 
     ui.analysis_refresh_button.clicks += 1
@@ -3368,7 +3368,7 @@ def test_refresh_button_adds_uploaded_analysis(analysis_ui, empty_uploads):
 def test_uploaded_analysis_runs_from_ui(analysis_ui, empty_uploads):
     """Test that an uploaded function gets a form and plots like a prebuilt one."""
     ui = analysis_ui
-    analysis.upload_analysis(custom_recipe)
+    analysis.register_analysis(custom_recipe)
     ui._analysis_refresh_click()
     ui.analysis_recipe_dropdown.value = custom_recipe
     ui._display_analysis_recipe_options_ui()
@@ -3387,7 +3387,7 @@ def test_refresh_after_reupload_clears_stale_options(analysis_ui, empty_uploads)
     with it could pass arguments the new version doesn't accept.
     """
     ui = analysis_ui
-    analysis.upload_analysis(custom_recipe)
+    analysis.register_analysis(custom_recipe)
     ui._analysis_refresh_click()
     ui.analysis_recipe_dropdown.value = custom_recipe
     ui._display_analysis_recipe_options_ui()
@@ -3396,7 +3396,7 @@ def test_refresh_after_reupload_clears_stale_options(analysis_ui, empty_uploads)
         """Custom mean timeseries."""
 
     custom_recipe_v2.__name__ = "custom_recipe"
-    analysis.upload_analysis(custom_recipe_v2)
+    analysis.register_analysis(custom_recipe_v2)
     ui._analysis_refresh_click()
 
     assert ui.analysis_recipe_dropdown.value is custom_recipe_v2
@@ -3454,7 +3454,7 @@ def test_analysis_plot_shows_any_custom_recipe_error(analysis_ui, empty_uploads)
         return undefined_helper(ds)  # noqa: F821
 
     ui = analysis_ui
-    analysis.upload_analysis(broken_recipe)
+    analysis.register_analysis(broken_recipe)
     ui._analysis_refresh_click()
     ui.analysis_recipe_dropdown.value = broken_recipe
     ui._display_analysis_recipe_options_ui()

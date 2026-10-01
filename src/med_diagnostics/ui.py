@@ -2236,7 +2236,7 @@ class UserInterface:
             controller.update_textbox_text(
                 self.analysis_status_textbox,
                 f"Analysis status >> Recipes refreshed "
-                f"({len(analysis.UPLOADED_ANALYSES)} custom).",
+                f"({len(analysis.REGISTERED_ANALYSES)} custom).",
             )
 
     def _display_analysis_recipe_options_ui(self):

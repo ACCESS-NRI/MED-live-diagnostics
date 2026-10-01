@@ -1,6 +1,6 @@
 # Contributing recipes
 
-If you have written a custom analysis that would be useful to others, you can contribute it as a built-in recipe. Built-in recipes appear in the analysis dropdown for every user, without needing to be uploaded.
+If you have written a custom analysis that would be useful to others, you can contribute it as a built-in recipe. Built-in recipes appear in the analysis dropdown for every user, without needing to be registered.
 
 Before starting, read the [Adding custom analyses](../../notebooks/adding_custom_analyses.ipynb) tutorial. A built-in recipe follows exactly the same rules as a custom one.
 
@@ -24,7 +24,7 @@ Built-in recipes live in `src/med_diagnostics/recipes.py`. To turn a custom reci
 
 1. Add your function under the `# Recipes` section of `recipes.py`.
 2. Name it with a `recipe_` prefix (e.g. `recipe_ocean_heat_content`). MLD finds built-in recipes by this prefix.
-3. Remove the `@analysis.upload_analysis` decorator. It is only needed for recipes defined in a notebook.
+3. Remove the `analysis.register_analysis()` call or `@analysis.register_analysis` decorator. These are only needed for recipes defined in a notebook.
 
 The first line of the docstring becomes the dropdown label (without the `Custom:` prefix), and the second paragraph is shown as the recipe's details.
 

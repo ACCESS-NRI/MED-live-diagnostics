@@ -15,8 +15,8 @@ DEFAULT_PLOT_KWARGS: dict[int, dict[str, Any]] = {
     3: {"figsize": (6, 4)},
 }
 
-# Custom recipes uploaded from a notebook with `upload_analysis`, by function name
-UPLOADED_ANALYSES: dict[str, Callable] = {}
+# Custom recipes registered from a notebook with `register_analysis`, by function name
+REGISTERED_ANALYSES: dict[str, Callable] = {}
 
 
 # --------------------------------------------------------------------------
@@ -29,13 +29,13 @@ RECIPE_KINDS = {"data variable", "dimension", "choice", "float", "int", "str", "
 
 def _list_recipes():
     """
-    Return every prebuilt and uploaded recipe, keyed by a label for the UI.
+    Return every prebuilt and registered recipe, keyed by a label for the UI.
 
     Returns
     -------
     dict
         ``{label: recipe}``: each ``recipe_*`` function in ``recipes`` under its
-        docstring summary, then each ``upload_analysis`` recipe as
+        docstring summary, then each ``register_analysis`` recipe as
         ``"Custom: <summary>"``.
     """
     found = {}
@@ -47,7 +47,7 @@ def _list_recipes():
     for name, func in inspect.getmembers(recipes, inspect.isfunction):
         if name.startswith("recipe_"):
             add(_get_recipe_summary(func)[0], name, func)
-    for name, func in UPLOADED_ANALYSES.items():
+    for name, func in REGISTERED_ANALYSES.items():
         add(f"Custom: {_get_recipe_summary(func)[0]}", name, func)
     return found
 
@@ -223,7 +223,7 @@ def _analyse_and_plot(dataset: xr.Dataset, recipe_func, **recipe_kwargs) -> plt.
     return fig
 
 
-def upload_analysis(recipe_func):
+def register_analysis(recipe_func):
     """
     Register a custom recipe for the UI's analysis section.
 
@@ -252,9 +252,9 @@ def upload_analysis(recipe_func):
             "An analysis must be a function taking the dataset as its first argument."
         )
 
-    # Read the annotations now, so mistakes show at upload rather than in the UI
+    # Read the annotations now, so mistakes show at register rather than in the UI
     _get_recipe_kwarg_options(recipe_func)
 
-    # Keyed by name, so re-uploading an edited function replaces the old one
-    UPLOADED_ANALYSES[recipe_func.__name__] = recipe_func
+    # Keyed by name, so re-register an edited function replaces the old one
+    REGISTERED_ANALYSES[recipe_func.__name__] = recipe_func
     return recipe_func

@@ -378,8 +378,16 @@ h6 {
 .admonition > p {
   margin: 0 !important;
 }
-/* Hide title of non expandable admonitions if present */
+/* Show the title of non expandable admonitions as a bold first line */
 .admonition > p.admonition-title {
+  margin: 0 0 0.2em 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background-color: transparent !important;
+  font-weight: 700;
+}
+/* The admonition's own ::before already draws the icon */
+.admonition > p.admonition-title::before {
   display: none;
 }
 .admonition::before {
