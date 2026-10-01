@@ -165,37 +165,59 @@ def _dataset_choices(ds, kind):
 # --------------------------------------------------------------------------
 
 
-def _analyse_and_plot(dataset: xr.Dataset, recipe_func, **recipe_kwargs) -> plt.Figure:
+def _analyse_and_plot(
+    dataset: xr.Dataset, recipe_func, **recipe_kwargs
+) -> list[plt.Figure]:
     """
-    Run a recipe on the dataset and plot the result.
+    Run a recipe on the dataset and plot each result.
 
     Parameters
     ----------
     dataset : xarray.Dataset
         Data passed to the recipe.
     recipe_func : callable
-        ``recipe_func(dataset, **recipe_kwargs)``, returning either a DataArray or
-        ``(DataArray, plot_kwargs)`` to customise the plot. ``plot_kwargs`` may
-        include ``customise``, a ``func(ax, data)`` or list of them, run in
-        order after plotting.
+        ``recipe_func(dataset, **recipe_kwargs)``, returning a DataArray,
+        ``(DataArray, plot_kwargs)`` to customise the plot, or a list of either
+        for one plot each (e.g. a suite recipe calling other recipes).
+        ``plot_kwargs`` may include ``customise``, a ``func(ax, data)`` or list
+        of them, run in order after plotting.
     **recipe_kwargs
         Extra arguments for the recipe (e.g. variable or depth).
+
+    Returns
+    -------
+    list of matplotlib.figure.Figure
+        One figure per result, in the order the recipe returned them.
+    """
+    # Execute the chosen recipe function, unpacking any extra arguments
+    result = recipe_func(dataset, **recipe_kwargs)
+
+    # A suite recipe returns a list of results, one plot each
+    results = result if isinstance(result, list) else [result]
+    return [_plot_result(item) for item in results]
+
+
+def _plot_result(result) -> plt.Figure:
+    """
+    Plot one recipe result.
+
+    Parameters
+    ----------
+    result : xarray.DataArray or tuple of (xarray.DataArray, dict)
+        The data, or the data and its ``plot_kwargs``.
 
     Returns
     -------
     matplotlib.figure.Figure
         The figure holding the plot.
     """
-    # Execute the chosen recipe function, unpacking any extra arguments
-    result = recipe_func(dataset, **recipe_kwargs)
-
     # A recipe may return (data, plot_kwargs) to style its own plot
     if isinstance(result, tuple):
         result_data, recipe_plot_kwargs = result
     else:
         result_data, recipe_plot_kwargs = result, {}
 
-    # 2. Plotting logic. The recipe's kwargs override the defaults.
+    # The recipe's kwargs override the defaults.
     defaults = DEFAULT_PLOT_KWARGS.get(len(result_data.dims), {})
     plot_kwargs = {**defaults, **(recipe_plot_kwargs or {})}
 
@@ -232,8 +254,8 @@ def register_analysis(recipe_func):
     Parameters
     ----------
     recipe_func : callable
-        ``recipe_func(ds, ...)`` returning a DataArray or ``(DataArray, plot_kwargs)``,
-        with its arguments declared using ``typing.Annotated`` like the recipes in
+        ``recipe_func(ds, ...)`` returning a DataArray, ``(DataArray, plot_kwargs)``
+        or a list of either, with its arguments declared using ``typing.Annotated`` like the recipes in
         ``med_diagnostics.recipes``.
 
     Returns

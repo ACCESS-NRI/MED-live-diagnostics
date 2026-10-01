@@ -3381,6 +3381,38 @@ def test_uploaded_analysis_runs_from_ui(analysis_ui, empty_uploads):
     plt.close("all")
 
 
+def test_suite_recipe_adds_one_plot_per_result(analysis_ui, empty_uploads):
+    """Test that a recipe returning a list adds a separate plot for each result.
+
+    A suite recipe can call other recipes and return their results together.
+    Each should get its own removable plot, in the order the suite returned them.
+    """
+
+    def suite_recipe(ds):
+        """Suite of two timeseries."""
+        return [
+            (custom_recipe(ds), {"title": "First"}),
+            (custom_recipe(ds), {"title": "Second"}),
+        ]
+
+    ui = analysis_ui
+    analysis.register_analysis(suite_recipe)
+    ui._analysis_refresh_click()
+    ui.analysis_recipe_dropdown.value = suite_recipe
+    ui._display_analysis_recipe_options_ui()
+    ui._analysis_plot_data_button_click()
+
+    container_items = list(ui.analysis_widget_container)
+    start = container_items.index(ui.analysis_recipe_info) + 1
+    titles = [
+        group[0].object.axes[0].get_title()
+        for group in container_items[start : start + 2]
+    ]
+    assert titles == ["First", "Second"]
+    assert ui.analysis_status_textbox.value == "Analysis status >> Plots created"
+    plt.close("all")
+
+
 def test_refresh_after_reupload_clears_stale_options(analysis_ui, empty_uploads):
     """Test that refreshing after re-uploading the selected function drops its old form.
 

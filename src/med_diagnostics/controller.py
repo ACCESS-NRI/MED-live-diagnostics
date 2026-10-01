@@ -842,7 +842,7 @@ def check_bounds(dataset, x_axis, ref_dict):
 
 def plot_recipe(dataset, recipe, recipe_kwargs):
     """
-    Run an analysis recipe on a dataset and return its figure.
+    Run an analysis recipe on a dataset and return its figures.
 
     Parameters
     ----------
@@ -855,7 +855,7 @@ def plot_recipe(dataset, recipe, recipe_kwargs):
 
     Returns
     -------
-    matplotlib.figure.Figure
-        The figure produced by ``analysis._analyse_and_plot``.
+    list of matplotlib.figure.Figure
+        One figure per recipe result, from ``analysis._analyse_and_plot``.
     """
     return analysis._analyse_and_plot(dataset, recipe, **recipe_kwargs)

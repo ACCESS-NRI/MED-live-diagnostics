@@ -38,6 +38,7 @@ On top of the [checklist](../../notebooks/adding_custom_analyses.md#checklist) i
 - Reuse the existing helpers where possible, such as `extract_region`, `PREDEFINED_REGIONS`, and the functions in `plot_customisations`. If you write a helper that other recipes could use, add it to the helpers section of `recipes.py` with a numpy-style docstring.
 - Put any `customise` functions your recipe uses in `src/med_diagnostics/plot_customisations.py`, rather than defining them inside `recipes.py`. Where possible they should take `(ax, data)` like the existing functions there. If one needs extra settings (like `add_threshold`), wrap it in a `lambda` inside the recipe. Give each one a short docstring so it appears in the [API reference](../api.md).
 - Call `.compute()` on the result before returning it if any `customise` function reads the data.
+- Draw extra lines in `customise` functions with `ax.plot`, not `DataArray.plot`, which would overwrite the recipe's `title` and `ax_kwargs`.
 
 ## Testing
 

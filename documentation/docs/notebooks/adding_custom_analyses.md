@@ -284,6 +284,10 @@ They run in list order, after `ax_kwargs`, so they can override anything.
 
     The loaded dataset is lazy (backed by Dask), so your recipe's result is only calculated when it is used. If your `customise` functions also read `data` (e.g., to fit a trend line), call `.compute()` on the result before returning it. The calculation then runs once, rather than once for the plot and again for every customise function.
 
+!!! tip "Draw extra lines with `ax.plot`, not `DataArray.plot`"
+
+    To add another line inside a `customise` function (e.g., a rolling mean), use Matplotlib's `ax.plot(data[dim], data)` rather than `data.plot(ax=ax)`. `xarray`'s `.plot()` resets the axes title and labels, so it overwrites the `title` and `ax_kwargs` MLD has already applied. `ax.plot` leaves them alone.
+
 The following example defines a custom function that draws a bounding box with an annotated arrow, and appends it to the base heatmap:
 
 ```python

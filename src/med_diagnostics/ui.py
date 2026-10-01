@@ -2370,7 +2370,7 @@ class UserInterface:
                 recipe_kwargs[name] = widget.value
 
         try:
-            fig = controller.plot_recipe(self.dataset, recipe, recipe_kwargs)
+            figs = controller.plot_recipe(self.dataset, recipe, recipe_kwargs)
         except Exception as err:  # noqa: BLE001
             # Recipes can be user-written and raise any
             # exceptions in the notebook, so without this a failed plot is silent.
@@ -2384,19 +2384,23 @@ class UserInterface:
             return
 
         self.analysis_plot_button.name = "Add Plot"
-        plot_group = self._add_remove_btn(
-            pn.pane.Matplotlib(fig, tight=True), self.analysis_widget_container
-        )
-        self._safe_add_to_widget(
-            self.analysis_widget_container,
-            ["analysis_recipe_options_row"],
-            plot_group,
-            append=True,
-            above=False,
-        )
+        # Each plot goes directly below the options row, so add them in reverse
+        # to keep a suite recipe's plots in the order it returned them
+        for fig in reversed(figs):
+            plot_group = self._add_remove_btn(
+                pn.pane.Matplotlib(fig, tight=True), self.analysis_widget_container
+            )
+            self._safe_add_to_widget(
+                self.analysis_widget_container,
+                ["analysis_recipe_options_row"],
+                plot_group,
+                append=True,
+                above=False,
+            )
 
         controller.update_textbox_text(
-            self.analysis_status_textbox, "Analysis status >> Plot created"
+            self.analysis_status_textbox,
+            f"Analysis status >> Plot{'s' * (len(figs) > 1)} created",
         )
 
         # Remove the options row
