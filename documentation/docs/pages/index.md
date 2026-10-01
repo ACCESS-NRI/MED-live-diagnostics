@@ -43,7 +43,7 @@ Before starting, make sure you:
    | Modules | `conda/access-med` |
 
 2. Start the session with the [ACCESS-NRI MED conda environment](https://github.com/ACCESS-NRI/MED-condaenv).
-3. Follow the [Getting started tutorial](../notebooks/getting_started_tutorial.ipynb) to begin a Model Live Diagnostics session.
+3. Follow the [Getting started tutorial](../notebooks/getting_started_tutorial.md) to begin a Model Live Diagnostics session.
 
 ### Install the package directly
 

@@ -1095,6 +1095,7 @@ def test_prompt_bounds_ui(ui, ui_row):
 
     # Verify that the bounds dropdown name, options, and container row are correctly configured
     assert ui.prompt_bounds_dropdown.name == "Choose how to constrain the x-axis bounds"
+    assert ui.prompt_bounds_button.name == "Plot data"
     assert ui.prompt_bounds_dropdown.options == ui.prompt_bounds_mapping
     assert hasattr(ui, "prompt_bounds_row")
 

@@ -2,7 +2,7 @@
 
 If you have written a custom analysis that would be useful to others, you can contribute it as a built-in recipe. Built-in recipes appear in the analysis dropdown for every user, without needing to be registered.
 
-Before starting, read the [Adding custom analyses](../../notebooks/adding_custom_analyses.ipynb) tutorial. A built-in recipe follows exactly the same rules as a custom one.
+Before starting, read the [Adding custom analyses](../../notebooks/adding_custom_analyses.md) tutorial. A built-in recipe follows exactly the same rules as a custom one.
 
 ## Before you start
 
@@ -30,7 +30,7 @@ The first line of the docstring becomes the dropdown label (without the `Custom:
 
 ## Requirements
 
-On top of the [checklist](../../notebooks/adding_custom_analyses.ipynb#checklist) in the tutorial, a built-in recipe must:
+On top of the [checklist](../../notebooks/adding_custom_analyses.md#checklist) in the tutorial, a built-in recipe must:
 
 - Give every argument a `"kind"` and a `"description"`. This is checked by `tests/test_recipes.py`.
 - State in the docstring's second paragraph which model or grid it targets (e.g. `For MOM5 output (ACCESS-OM2, ACCESS-ESM1.6).`).

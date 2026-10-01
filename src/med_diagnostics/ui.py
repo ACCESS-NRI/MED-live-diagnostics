@@ -1465,6 +1465,7 @@ class UserInterface:
         )
 
         self.prompt_bounds_dropdown.name = "Choose how to constrain the x-axis bounds"
+        self.prompt_bounds_button.name = "Plot data"
         self.prompt_bounds_dropdown.options = self.prompt_bounds_mapping
 
         self.prompt_bounds_row = pn.Row(

@@ -73,6 +73,7 @@ class CreateModelDiagnosticsSession:
         self.ui.user_widget_container.clear()
         self.ui.ref_widget_container.clear()
         self.ui.multiplot_widget_container.clear()
+        self.ui.analysis_widget_container.clear()
 
         print(
             "------------------------ Live diagnostics session ended ------------------------"
