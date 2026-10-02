@@ -20,11 +20,11 @@ class CreateModelDiagnosticsSession:
         Parameters
         ----------
         model_type : str
-            Type of ACCESS model in capitals (e.g. CM2, OM2).
+            Type of ACCESS model, case-insensitive (e.g. CM2, OM2).
         model_path : str
             Path to model output directory/files on Gadi.
         timezone : str, optional, default 'Australia/Canberra'
-            Timezone required for scheduler in tinfo 'Region/Location' format.
+            Timezone in tzinfo 'Region/Location' format. Currently unused.
 
         """
 
@@ -59,13 +59,14 @@ class CreateModelDiagnosticsSession:
         # Start UserUI instance and display initial status text
         self.ui = ui.UserInterface()
         self.ui._initialise_widgets()
+        self.ui.refresh_catalog_button.on_click(self._refresh_catalog)
 
         # Get initial model data
         self._get_data()
 
     def end_session(self):
         """
-        Stop background scheduler and close dask client to end current CreateModelDiagnosticsSession instance.
+        Close the dask client and clear the UI to end the current CreateModelDiagnosticsSession instance.
         """
 
         self.client.close()
@@ -73,6 +74,7 @@ class CreateModelDiagnosticsSession:
         self.ui.user_widget_container.clear()
         self.ui.ref_widget_container.clear()
         self.ui.multiplot_widget_container.clear()
+        self.ui.analysis_widget_container.clear()
 
         print(
             "------------------------ Live diagnostics session ended ------------------------"
@@ -81,6 +83,19 @@ class CreateModelDiagnosticsSession:
     def _get_data(self):
         """
         Check nominated model data path for new data. Private.
+        """
+        self._build_model_catalog()
+
+        # Load access_nri catalog for model comparison filtered by model type
+        self.access_nri_cat = data._load_access_nri_catalog(self.model_type)
+
+        self.ui._enable_widgets_after_catalog_load(self.model_cat, self.access_nri_cat)
+        # Generate UI
+        self.ui._display_dataset_selection_ui()
+
+    def _build_model_catalog(self):
+        """
+        Build and load the user model catalog. Private.
         """
         data._build_new_catalog(self.model_path, self.model_type)
 
@@ -96,12 +111,18 @@ class CreateModelDiagnosticsSession:
         # Load new catalog
         self.model_cat = data._load_new_catalog()
 
-        # Load access_nri catalog for model comparison filtered by model type
-        self.access_nri_cat = data._load_access_nri_catalog(self.model_type)
+    def _refresh_catalog(self, event):
+        """
+        Rebuild the user model catalog when the refresh button is clicked. Private.
 
-        self.ui._enable_widgets_after_catalog_load(self.model_cat, self.access_nri_cat)
-        # Generate UI
-        self.ui._display_dataset_selection_ui()
+        The ACCESS-NRI catalog is not reloaded.
+        """
+        self.ui._refresh_catalog()
+        try:
+            self._build_model_catalog()
+            self.ui._update_widgets_after_catalog_refresh(self.model_cat)
+        finally:
+            self.ui.refresh_catalog_button.disabled = False
 
     def return_model_data_catalog(self):
         """
@@ -114,3 +135,14 @@ class CreateModelDiagnosticsSession:
         """
 
         return self.model_cat
+
+    def return_loaded_dataset(self):
+        """
+        Convenience function to return currently loaded dataset.
+
+        Returns
+        ----------
+        xr.Dataset
+        """
+
+        return self.ui.dataset

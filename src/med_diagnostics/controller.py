@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import panel as pn
 import xarray as xr
 
-from med_diagnostics import data
+from med_diagnostics import analysis, data
 from med_diagnostics.types import (
     Animation,
     Heatmap,
@@ -231,12 +231,21 @@ def variable_toggle_change(variable_toggle, variable_dropdown, dataset):
     for var in dataset:
         long_names[(dataset[var].attrs.get("long_name", var))] = var
 
+    # Optional recipe variables offer None, which must survive the toggle
+    options = variable_dropdown.options
+    has_none = None in (options.values() if isinstance(options, dict) else options)
+
     if variable_toggle.value:
-        variable_dropdown.options = list(long_names.keys())
+        names = list(long_names.keys())
         variable_toggle.label = "Display Variable Short Names"
     else:
-        variable_dropdown.options = list(dataset.keys())
+        names = list(dataset.keys())
         variable_toggle.label = "Display Variable Long Names"
+
+    if has_none:
+        variable_dropdown.options = {"None": None, **{name: name for name in names}}
+    else:
+        variable_dropdown.options = names
 
     return long_names
 
@@ -262,7 +271,7 @@ def get_selected_variable(variable_toggle, variable_dropdown, long_names=None):
 
     if long_names is None:
         long_names = {}
-    if variable_toggle.value and long_names:
+    if variable_toggle.value and long_names and variable_dropdown.value is not None:
         return long_names[variable_dropdown.value]
     return variable_dropdown.value
 
@@ -838,3 +847,24 @@ def check_bounds(dataset, x_axis, ref_dict):
                     pass
 
     return bounds_widened, global_min, global_max, dataset_min, dataset_max
+
+
+def plot_recipe(dataset, recipe, recipe_kwargs):
+    """
+    Run an analysis recipe on a dataset and return its figures.
+
+    Parameters
+    ----------
+    dataset : xarray.Dataset
+        The dataset to analyse.
+    recipe : callable
+        A recipe from ``med_diagnostics.recipes``, or a user's own.
+    recipe_kwargs : dict
+        The options chosen in the UI, passed to the recipe.
+
+    Returns
+    -------
+    list of matplotlib.figure.Figure
+        One figure per recipe result, from ``analysis._analyse_and_plot``.
+    """
+    return analysis._analyse_and_plot(dataset, recipe, **recipe_kwargs)

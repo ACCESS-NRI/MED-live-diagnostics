@@ -1,0 +1,76 @@
+<!--
+  Copyright (c) 2016-2022 Martin Donath <martin.donath@squidfunk.com>
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to
+  deal in the Software without restriction, including without limitation the
+  rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+  sell copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+  IN THE SOFTWARE.
+-->
+
+<footer class="md-footer">
+  <div class="md-footer-meta md-typeset md-grid">
+    <div class="funding">
+      <div>Funded by</div>
+      <div>
+        <a href="https://www.education.gov.au/ncris" target="_blank" rel="noopener" title="NCRIS">
+          <img src="{{ base_url }}/assets/logos/ncris_logo.png" alt="logo">
+        </a>
+      </div>
+    </div>
+    <div class="separation"></div>
+    <div class="partners">
+      <div>Partner Organisations</div>
+      <div>
+        <a href="https://www.anu.edu.au" target="_blank" rel="noopener" title="The Australian National University">
+          <img src="{{ base_url }}/assets/logos/anu_logo.svg" alt="logo">
+        </a>
+        <a href="https://www.bom.gov.au/" target="_blank" rel="noopener" title="Australian Bureau of Meteorology">
+          <img src="{{ base_url }}/assets/logos/bom_logo.png" alt="logo">
+        </a>
+        <a href="https://www.csiro.au/" target="_blank" rel="noopener" title="CSIRO">
+          <img src="{{ base_url }}/assets/logos/csiro_logo.svg" alt="logo">
+        </a>
+        <a href="https://www.monash.edu" target="_blank" rel="noopener" title="Monash University">
+          <img src="{{ base_url }}/assets/logos/monash_uni_logo.svg" alt="logo">
+        </a>
+        <a href="https://www.unimelb.edu.au" target="_blank" rel="noopener" title="The University of Melbourne">
+          <img src="{{ base_url }}/assets/logos/unimelb_logo.png" alt="logo">
+        </a>
+        <a href="https://www.unsw.edu.au" target="_blank" rel="noopener" title="The University of New South Wales">
+          <img src="{{ base_url }}/assets/logos/unsw_logo.png" alt="logo">
+        </a>
+        <a href="https://www.utas.edu.au" target="_blank" rel="noopener" title="The University of Tasmania">
+          <img src="{{ base_url }}/assets/logos/utas_logo.svg" alt="logos">
+        </a>
+        <a href="https://www.antarctica.gov.au" target="_blank" rel="noopener" title="Australian Antarctic Program">
+          <img src="{{ base_url }}/assets/logos/aad_logo.png" alt="logos">
+        </a>
+      </div>
+    </div>
+  </div>
+  <hr>
+  <div class="md-footer-meta__inner md-grid">
+    <div class="footer-left-components">
+      {% include "partials/copyright.html" %}
+
+      <div class="md-copyright">
+        <a class="md-copyright__highlight underline" href="https://reporting.access-nri-store.cloud.edu.au/privacy">
+          Privacy notice
+        </a>
+      </div>
+    </div>
+    {% if config.extra.social %}
+      {% include "partials/social.html" %}
+    {% endif %}    
+  </div>
+</footer>

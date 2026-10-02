@@ -13,7 +13,7 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
-dependencies = ["apscheduler", "access-nri-intake", "panel", "matplotlib", "nc-time-axis", "hvplot", "datashader"]
+dependencies = ["apscheduler", "access-nri-intake", "panel", "matplotlib", "nc-time-axis", "hvplot", "datashader", "mkdocs-git-revision-date-localized-plugin==1.6.0", "mkdocs-bibtex==4.4.0", "mkdocs-include-markdown-plugin==7.3.0", "mkdocs-macros-plugin==1.3.7", "mkdocs-redirects==1.2.2", "mkdocstrings-python>=2.0.9,<3", "mkdocs-resolve-absolute-urls-plugin @ git+https://github.com/ACCESS-NRI/mkdocs_resolve_absolute_urls_plugin.git@2.0.0"]
 dynamic = ["version"]
 
 [build-system]
@@ -26,6 +26,9 @@ requires = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+med_diagnostics = ["master_map.csv"]
 
 [tool.versioneer]
 VCS = "git"
@@ -43,7 +46,10 @@ platforms = ["osx-arm64", "linux-64", "win-64"]
 med-diagnostics = { path = ".", editable = true }
 
 [tool.pixi.tasks]
-test-cov = "pytest --cov=med_diagnostics --cov-report=xml"
+test-cov = "pytest --cov=med_diagnostics --cov-report=xml -W ignore"
+
+[tool.coverage.run]
+core = "sysmon"
 
 [tool.pixi.dependencies]
 pytest = ">=9.1.1,<10"
@@ -55,6 +61,23 @@ versioneer = ">=0.29,<0.30"
 pre-commit = ">=4.6.2,<5"
 ruff = ">=0.16.7,<0.17"
 datashader = ">=0.19.1,<0.20"
+cartopy = ">=0.26.0,<0.27"
+xclim = ">=0.62.0,<0.63"
+access-moppy = ">=1.8,<2"
+python = ">=3.11,<3.14"
+iris = ">=3.16.0,<4"
+ncdata = ">=0.3.2,<0.4"
+esmvalcore = ">=2.15.0,<3"
+xcdat = ">=0.11.3,<0.12"
+sphinx = ">=9.1.0,<10"
+sphinx-design = ">=0.7.0,<0.8"
+myst-nb = ">=1.4.0,<2"
+sphinx-book-theme = ">=1.4.0,<2"
+sphinx-autobuild = ">=2025.8.25,<2026"
+mkdocs = ">=1.6.1,<2"
+mkdocs-material = ">=9.7.7,<10"
+mkdocs-jupyter = ">=0.26.3,<0.27"
+mkdocstrings = ">=1.0.6,<2"
 
 [tool.mypy]
 exclude = [

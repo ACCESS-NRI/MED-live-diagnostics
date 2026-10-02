@@ -1,6 +1,7 @@
 import os
 from unittest.mock import MagicMock
 
+import pandas as pd
 import pytest
 from access_nri_intake.aliases import AliasedESMCatalog
 from access_nri_intake.source.builders import (
@@ -169,3 +170,53 @@ def test_load_access_nri_catalog(monkeypatch, filter_arg, expected_regex):
     else:
         mock_access_nri_cat.search.assert_not_called()
         assert result == mock_access_nri_cat
+
+
+def _monthly_df(start_year, n_years):
+    """Catalog rows for one file per month, dated like access-nri-intake's builders."""
+    dates = [
+        f"{year:04d}-{month:02d}-01, 00:00:00"
+        for year in range(start_year, start_year + n_years)
+        for month in range(1, 13)
+    ]
+    return pd.DataFrame({"path": range(len(dates)), "start_date": dates})
+
+
+@pytest.mark.parametrize(
+    "years, from_start, expected_years",
+    [
+        pytest.param(2, False, [2003, 2004], id="most-recent"),
+        pytest.param(2, True, [2000, 2001], id="first"),
+        pytest.param(50, False, [2000, 2001, 2002, 2003, 2004], id="more-than-run"),
+        pytest.param(None, False, [2000, 2001, 2002, 2003, 2004], id="all-years"),
+    ],
+)
+def test_select_year_files(years, from_start, expected_years):
+    """Test that only the files starting in the chosen years are kept.
+
+    Loading is slow because every file is opened, so the filter must drop
+    whole files by their start year rather than trimming after loading.
+    """
+    selected = data._select_year_files(_monthly_df(2000, 5), years, from_start)
+
+    selected_years = sorted({int(date[:4]) for date in selected["start_date"]})
+    assert selected_years == expected_years
+    assert len(selected) == 12 * len(expected_years)
+
+
+def test_select_year_files_keeps_undated_files():
+    """Test that files without a time axis are kept, and all-undated data is unchanged.
+
+    access-nri-intake dates static files (e.g. grid data) as "none", so they
+    have no year to filter on and must not be silently dropped.
+    """
+    df = pd.concat(
+        [_monthly_df(2000, 3), pd.DataFrame({"path": [99], "start_date": ["none"]})]
+    )
+
+    selected = data._select_year_files(df, 1)
+
+    assert "none" in list(selected["start_date"])
+    assert len(selected) == 13
+    static = pd.DataFrame({"path": [1, 2], "start_date": ["none", "none"]})
+    assert data._select_year_files(static, 1).equals(static)
