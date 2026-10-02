@@ -134,6 +134,10 @@ class UserInterface:
         self.status_textbox = pn.widgets.StaticText(**self._STYLES.get("status_text"))
         self.warning_textbox = pn.widgets.StaticText(**self._STYLES.get("warning_text"))
 
+        self.refresh_catalog_button = pn.widgets.Button(
+            **self._STYLES.get("primary_button")
+        )
+
         # Build initial user plot buttons and dropdowns
         self.keys_dropdown = pn.widgets.Select()
         self.keys_button = pn.widgets.Button(**self._STYLES.get("primary_button"))
@@ -571,11 +575,15 @@ class UserInterface:
             self.last_data_load_textbox,
             self.status_textbox,
             self.warning_textbox,
+            self.refresh_catalog_button,
             self.div_1,
             self.keys_selection_row,
             self.div_2,
         )
         self.user_widget_container.append(widgets_to_add)
+
+        self.refresh_catalog_button.name = "Refresh model data catalog"
+        self.refresh_catalog_button.disabled = True
 
         controller.update_textbox_text(
             self.status_textbox,
@@ -799,6 +807,54 @@ class UserInterface:
         self.analysis_keys_button.disabled = False
         self.analysis_years_mode.disabled = False
         self.analysis_years_input.disabled = False
+
+        self.refresh_catalog_button.disabled = False
+
+    def _refresh_catalog(self):
+        """
+        Show refreshing status text while the session rebuilds the user model catalog.
+        """
+        self.refresh_catalog_button.disabled = True
+        controller.update_textbox_text(
+            self.status_textbox,
+            "User model status >> Refreshing data catalog. This can take a few minutes.",
+        )
+        controller.update_textbox_text(
+            self.multiplot_status_textbox,
+            "Overlay Plot >> Refreshing data catalog. This can take a few minutes.",
+        )
+        controller.update_textbox_text(
+            self.analysis_status_textbox,
+            "Analysis status >> Refreshing data catalog. This can take a few minutes.",
+        )
+
+    def _update_widgets_after_catalog_refresh(self, model_cat):
+        """
+        Repopulate user dataset dropdowns from the refreshed catalog and prompt a reload.
+
+        Parameters
+        ----------
+        model_cat : Intake-ESM datastore object
+            Refreshed intake catalog of user model data.
+        """
+        self.model_cat = model_cat
+        keys = sorted(self.model_cat.keys())
+        self.keys_dropdown.options = keys
+        self.multiplot_keys_dropdown.options = keys
+        self.analysis_keys_dropdown.options = keys
+
+        controller.update_textbox_text(
+            self.status_textbox,
+            "User model status >> Data catalog refreshed. Reload a dataset to see the latest data.",
+        )
+        controller.update_textbox_text(
+            self.multiplot_status_textbox,
+            "Overlay Plot >> Data catalog refreshed. Reload user datasets to see the latest data.",
+        )
+        controller.update_textbox_text(
+            self.analysis_status_textbox,
+            "Analysis status >> Data catalog refreshed. Reload a dataset to see the latest data.",
+        )
 
     def _display_dataset_selection_ui(self):
         """

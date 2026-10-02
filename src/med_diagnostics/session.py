@@ -59,6 +59,7 @@ class CreateModelDiagnosticsSession:
         # Start UserUI instance and display initial status text
         self.ui = ui.UserInterface()
         self.ui._initialise_widgets()
+        self.ui.refresh_catalog_button.on_click(self._refresh_catalog)
 
         # Get initial model data
         self._get_data()
@@ -83,6 +84,19 @@ class CreateModelDiagnosticsSession:
         """
         Check nominated model data path for new data. Private.
         """
+        self._build_model_catalog()
+
+        # Load access_nri catalog for model comparison filtered by model type
+        self.access_nri_cat = data._load_access_nri_catalog(self.model_type)
+
+        self.ui._enable_widgets_after_catalog_load(self.model_cat, self.access_nri_cat)
+        # Generate UI
+        self.ui._display_dataset_selection_ui()
+
+    def _build_model_catalog(self):
+        """
+        Build and load the user model catalog. Private.
+        """
         data._build_new_catalog(self.model_path, self.model_type)
 
         # Update status text
@@ -97,12 +111,18 @@ class CreateModelDiagnosticsSession:
         # Load new catalog
         self.model_cat = data._load_new_catalog()
 
-        # Load access_nri catalog for model comparison filtered by model type
-        self.access_nri_cat = data._load_access_nri_catalog(self.model_type)
+    def _refresh_catalog(self, event):
+        """
+        Rebuild the user model catalog when the refresh button is clicked. Private.
 
-        self.ui._enable_widgets_after_catalog_load(self.model_cat, self.access_nri_cat)
-        # Generate UI
-        self.ui._display_dataset_selection_ui()
+        The ACCESS-NRI catalog is not reloaded.
+        """
+        self.ui._refresh_catalog()
+        try:
+            self._build_model_catalog()
+            self.ui._update_widgets_after_catalog_refresh(self.model_cat)
+        finally:
+            self.ui.refresh_catalog_button.disabled = False
 
     def return_model_data_catalog(self):
         """

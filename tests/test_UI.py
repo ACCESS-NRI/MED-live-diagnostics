@@ -2815,6 +2815,7 @@ def test_initialise_user_widgets(uninitialised_ui):
         ui.last_data_load_textbox,
         ui.status_textbox,
         ui.warning_textbox,
+        ui.refresh_catalog_button,
         ui.div_1,
         ui.keys_selection_row,
         ui.div_2,
