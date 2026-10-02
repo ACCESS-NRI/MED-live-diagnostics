@@ -108,3 +108,18 @@ def add_trend(ax, data):
 def add_threshold(ax, value):
     """Adds a horizontal threshold line to a matplotlib axis."""
     ax.axhline(y=value, color="red", linestyle="--")
+
+
+def add_rolling_mean(ax, data, window, dim="time"):
+    """Overlay a centred rolling mean of ``window`` timesteps, in the colour of the last line drawn."""
+    smoothed = data.rolling({dim: window}, center=True).mean().dropna(dim)
+    color = ax.get_lines()[-1].get_color()
+    ax.plot(smoothed[dim].values, smoothed.values, color=color, linewidth=2)
+
+
+def add_reference_timeseries(ax, references):
+    """Overlay reference timeseries ``{label: (data, window)}``, each with its rolling mean."""
+    for label, (ref, window) in references.items():
+        ax.plot(ref["time"].values, ref.values, alpha=0.6, linewidth=1, label=label)
+        add_rolling_mean(ax, ref, window)
+    ax.legend(loc="center left", bbox_to_anchor=(1.05, 0.5))

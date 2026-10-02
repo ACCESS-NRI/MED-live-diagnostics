@@ -137,3 +137,136 @@ def test_every_region_selects_cells(region, lon_start):
     assert subset.sizes["lon"] > 0
     if region == "global":
         assert subset.sizes["lon"] == 360
+
+
+def _mom5_style_dataset():
+    """Small MOM5-style dataset: Kelvin temp, land NaNs and ``st_edges_ocean``."""
+    time = xr.date_range("2000-01-01", periods=24, freq="MS", use_cftime=True)
+    temp = np.full((24, 3, 2, 2), 273.15 + 2.0)
+    temp[:, 0] = 273.15 + 20.0  # thin, warm surface layer
+    salt = np.full((24, 3, 2, 2), 34.0)
+    salt[:, 2] = 35.0  # thick, salty deep layer
+    salt[:, :, 1, :] = np.nan  # some land
+    dims = ("time", "st_ocean", "yt_ocean", "xt_ocean")
+    return xr.Dataset(
+        {
+            "temp": (dims, temp, {"units": "K"}),
+            "salt": (dims, salt, {"units": "psu"}),
+            "sst": (dims[:1] + dims[2:], temp[:, 0], {"units": "K"}),
+        },
+        coords={
+            "time": time,
+            "st_ocean": (
+                "st_ocean",
+                [5.0, 15.0, 100.0],
+                {"cartesian_axis": "Z", "edges": "st_edges_ocean", "positive": "down"},
+            ),
+            "st_edges_ocean": ("st_edges_ocean", [0.0, 10.0, 20.0, 180.0]),
+            "yt_ocean": ("yt_ocean", [0.0, 60.0], {"cartesian_axis": "Y"}),
+            "xt_ocean": ("xt_ocean", [0.0, 1.0], {"cartesian_axis": "X"}),
+        },
+    )
+
+
+def test_global_mean_weights_by_layer_thickness_and_converts_kelvin():
+    """Test that an unweighted mean would be wrong.
+
+    A plain mean counts the thin surface layer as much as the thick deep one,
+    and leaves temperature in Kelvin, so OM2/ESM output can't be compared with
+    the OM3 references.
+    """
+    ds = _mom5_style_dataset()
+    temp = recipes.global_mean(ds, "temp", "time")
+    salt = recipes.global_mean(ds, "salt", "time")
+
+    # Layers are 10, 10 and 160 m thick
+    np.testing.assert_allclose(temp, (20 * 10 + 2 * 170) / 180)
+    np.testing.assert_allclose(salt, (34 * 20 + 35 * 160) / 180)
+    assert temp.attrs["units"] == "degC"
+
+
+def test_global_mean_uses_cf_bounds_and_cell_measures():
+    """Test the MOM6/CF route: ``bounds`` on depth and ``cell_measures`` for area."""
+    ds = _mom5_style_dataset()
+    salt = ds["salt"].values
+    ds = xr.Dataset(
+        {
+            "so": (
+                ("time", "zl", "yh", "xh"),
+                salt,
+                {"cell_measures": "area: areacello"},
+            ),
+            "areacello": (("yh", "xh"), np.ones((2, 2))),
+            "zl_bnds": (("zl", "nv"), [[0.0, 10.0], [10.0, 20.0], [20.0, 180.0]]),
+        },
+        coords={
+            "time": ds["time"],
+            "zl": ("zl", [5.0, 15.0, 100.0], {"axis": "Z", "bounds": "zl_bnds"}),
+            "yh": ("yh", [0.0, 60.0], {"axis": "Y"}),
+            "xh": ("xh", [0.0, 1.0], {"axis": "X"}),
+        },
+    )
+    np.testing.assert_allclose(
+        recipes.global_mean(ds, "so", "time"), (34 * 20 + 35 * 160) / 180
+    )
+
+
+def test_global_mean_max_and_scalar_passthrough():
+    """Test that ``*_max`` fields take the global maximum, and scalars pass through."""
+    ds = _mom5_style_dataset()
+    np.testing.assert_allclose(recipes.global_mean(ds, "sst", "time", "max"), 20.0)
+    assert recipes._om3_timeseries_reduction("tos_max") == "max"
+    assert recipes._om3_timeseries_reduction("soga") == "mean"
+
+    scalar = xr.Dataset({"soga": ("time", [34.7, 34.71])}, coords={"time": [0, 1]})
+    np.testing.assert_allclose(
+        recipes.global_mean(scalar, "soga", "time"), [34.7, 34.71]
+    )
+
+
+@pytest.fixture
+def fake_om3_references(monkeypatch):
+    """Replace the /g/data reference loader with a flat 34.7 timeseries."""
+    time = xr.date_range("2000-01-01", periods=24, freq="MS", use_cftime=True)
+    loaded = []
+
+    def fake(var):
+        loaded.append(var)
+        return {"refA": xr.DataArray(np.full(24, 34.7), coords={"time": time})}
+
+    monkeypatch.setattr(recipes, "_load_om3_timeseries_reference", fake)
+    return loaded
+
+
+def test_om3_timeseries_plots_each_found_variable(fake_om3_references):
+    """Test that the OM3-names recipe plots every known variable, with references."""
+    ds = xr.Dataset(
+        {"soga": ("time", np.full(24, 34.6)), "other": ("time", np.zeros(24))},
+        coords={
+            "time": xr.date_range("2000-01-01", periods=24, freq="MS", use_cftime=True)
+        },
+    )
+    figs = analysis._analyse_and_plot(ds, recipes.recipe_om3_timeseries)
+
+    assert [f.axes[0].get_title() for f in figs] == ["soga: Global Mean Ocean Salinity"]
+    labels = [line.get_label() for line in figs[0].axes[0].get_lines()]
+    assert "User data" in labels and "refA" in labels
+    # Only the plotted variable's references are loaded
+    assert fake_om3_references == ["soga"]
+
+
+def test_om3_timeseries_without_om3_names_points_to_mapped_recipe():
+    """Test the readable error on a dataset with none of the OM3 names."""
+    with pytest.raises(ValueError, match="custom variable mapping"):
+        recipes.recipe_om3_timeseries(_mom5_style_dataset())
+
+
+def test_om3_timeseries_mapped_reduces_gridded_data(fake_om3_references):
+    """Test that a mapped gridded variable is plotted as its global mean."""
+    figs = analysis._analyse_and_plot(
+        _mom5_style_dataset(), recipes.recipe_om3_timeseries_mapped, soga_var="salt"
+    )
+
+    user_line = figs[0].axes[0].get_lines()[0]
+    np.testing.assert_allclose(user_line.get_ydata(), (34 * 20 + 35 * 160) / 180)
+    assert fake_om3_references == ["soga"]
