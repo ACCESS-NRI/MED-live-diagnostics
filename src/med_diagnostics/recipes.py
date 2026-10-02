@@ -571,7 +571,7 @@ def recipe_sst_anomaly_nino34(
         "title": "Niño 3.4 Index",
         "color": "black",
         "linewidth": 1.5,  # overrides the 1D default of 2 to match plain ax.plot
-        "ax_kwargs": {"xlabel": "Year", "ylabel": "Niño 3.4 SST Anomoly (°C)"},
+        "ax_kwargs": {"xlabel": "Year", "ylabel": "Niño 3.4 SST Anomoly"},
         "customise": [
             plot_customisations.nino_fills,
             plot_customisations.nino_reference_lines,

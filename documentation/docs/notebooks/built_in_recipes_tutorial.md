@@ -138,8 +138,9 @@ The suites cover 28 fields: global means of temperature and salinity (`thetaoga`
 
 Notes:
 
+- These analyses can be quite slow to run, as they load a number of other reference datasets.
 - The rolling mean is taken over the same number of days for your data and every reference run, whatever their output frequency.
-- Data already reduced to a timeseries (e.g. OM3's `*ga` scalar outputs) plots quickly. Gridded data also works, but the global mean (or max/min) must be calculated first, which takes much longer. Temperatures in Kelvin are converted to °C.
+- The analyses are primarily intended for scalar datasets. Gridded data also works, but the global mean (or max/min) must be calculated first, which takes much longer. Temperatures in Kelvin are converted to °C.
 - The reference runs are read from `/g/data/ol01`, so your ARE session needs access to the `ol01` project (add `gdata/ol01` to its storage). If a reference field can't be found, a message such as `soga failed` is printed and the plot is drawn without it.
 
 !!! tip "Writing your own recipes"

@@ -49,7 +49,6 @@ Every built-in recipe must be documented on the [Built-in analysis recipes](../.
     - what it calculates and what the plot shows (including any shading, reference lines or overlays),
     - a table of its options, with each option's default and a short description,
     - any requirements or limitations, such as the grid it expects, a required dimension name, project access needed for reference data, or how long it takes to run.
-3. If your recipe was adapted from someone else's analysis, credit them and link the original.
 
 If you change an existing recipe's options or behaviour, update its section to match. See [Contributing documentation](docs.md) for how to build and preview the docs locally.
 
