@@ -231,12 +231,21 @@ def variable_toggle_change(variable_toggle, variable_dropdown, dataset):
     for var in dataset:
         long_names[(dataset[var].attrs.get("long_name", var))] = var
 
+    # Optional recipe variables offer None, which must survive the toggle
+    options = variable_dropdown.options
+    has_none = None in (options.values() if isinstance(options, dict) else options)
+
     if variable_toggle.value:
-        variable_dropdown.options = list(long_names.keys())
+        names = list(long_names.keys())
         variable_toggle.label = "Display Variable Short Names"
     else:
-        variable_dropdown.options = list(dataset.keys())
+        names = list(dataset.keys())
         variable_toggle.label = "Display Variable Long Names"
+
+    if has_none:
+        variable_dropdown.options = {"None": None, **{name: name for name in names}}
+    else:
+        variable_dropdown.options = names
 
     return long_names
 
@@ -262,7 +271,7 @@ def get_selected_variable(variable_toggle, variable_dropdown, long_names=None):
 
     if long_names is None:
         long_names = {}
-    if variable_toggle.value and long_names:
+    if variable_toggle.value and long_names and variable_dropdown.value is not None:
         return long_names[variable_dropdown.value]
     return variable_dropdown.value
 
