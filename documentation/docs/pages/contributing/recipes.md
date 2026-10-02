@@ -40,6 +40,19 @@ On top of the [checklist](../../notebooks/adding_custom_analyses.md#checklist) i
 - Call `.compute()` on the result before returning it if any `customise` function reads the data.
 - Draw extra lines in `customise` functions with `ax.plot`, not `DataArray.plot`, which would overwrite the recipe's `title` and `ax_kwargs`.
 
+## Documenting your recipe
+
+Every built-in recipe must be documented on the [Built-in analysis recipes](../../notebooks/built_in_recipes_tutorial.md) page, in `documentation/docs/notebooks/built_in_recipes_tutorial.md`. When you add a recipe:
+
+1. Add a row for it to the summary table at the top of the page, giving its dropdown label, function name, number of plots and the model or grid it targets.
+2. Add a section for it below the existing recipes, covering:
+    - what it calculates and what the plot shows (including any shading, reference lines or overlays),
+    - a table of its options, with each option's default and a short description,
+    - any requirements or limitations, such as the grid it expects, a required dimension name, project access needed for reference data, or how long it takes to run.
+3. If your recipe was adapted from someone else's analysis, credit them and link the original.
+
+If you change an existing recipe's options or behaviour, update its section to match. See [Contributing documentation](docs.md) for how to build and preview the docs locally.
+
 ## Testing
 
 `tests/test_recipes.py` automatically checks the annotations of every `recipe_*` function, so you do not need to register your recipe there. If your recipe or helper has logic that could break (e.g. region selection or time handling), add a test using a small synthetic `xarray.Dataset`.
@@ -55,10 +68,10 @@ pixi run pre-commit run --all-files
 
 Once your recipe and any tests pass:
 
-1. Commit your changes and push the branch to your fork:
+1. Commit your changes (including the documentation) and push the branch to your fork:
 
     ```bash
-    git add src/med_diagnostics/recipes.py tests/test_recipes.py
+    git add src/med_diagnostics/recipes.py tests/test_recipes.py documentation/docs/notebooks/built_in_recipes_tutorial.md
     git commit -m "Add <recipe name> recipe"
     git push origin <issue#_recipe_name>
     ```

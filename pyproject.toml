@@ -13,7 +13,7 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
-dependencies = ["apscheduler", "access-nri-intake", "panel", "matplotlib", "nc-time-axis", "hvplot", "datashader"]
+dependencies = ["apscheduler", "access-nri-intake", "panel", "matplotlib", "nc-time-axis", "hvplot", "datashader", "mkdocs-git-revision-date-localized-plugin==1.6.0", "mkdocs-bibtex==4.4.0", "mkdocs-include-markdown-plugin==7.3.0", "mkdocs-macros-plugin==1.3.7", "mkdocs-redirects==1.2.2", "mkdocstrings-python>=2.0.9,<3", "mkdocs-resolve-absolute-urls-plugin @ git+https://github.com/ACCESS-NRI/mkdocs_resolve_absolute_urls_plugin.git@2.0.0"]
 dynamic = ["version"]
 
 [build-system]
@@ -75,6 +75,9 @@ myst-nb = ">=1.4.0,<2"
 sphinx-book-theme = ">=1.4.0,<2"
 sphinx-autobuild = ">=2025.8.25,<2026"
 mkdocs = ">=1.6.1,<2"
+mkdocs-material = ">=9.7.7,<10"
+mkdocs-jupyter = ">=0.26.3,<0.27"
+mkdocstrings = ">=1.0.6,<2"
 
 [tool.mypy]
 exclude = [

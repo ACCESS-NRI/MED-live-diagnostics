@@ -1,4 +1,3 @@
-import functools
 from pathlib import Path
 from typing import Annotated
 
@@ -396,7 +395,6 @@ def _om3_timeseries_reduction(name):
     return name.rsplit("_", 1)[-1] if name.endswith(("_max", "_min")) else "mean"
 
 
-@functools.cache
 def _om3_timeseries_datastores():
     """Open the OM3 timeseries reference catalogs once."""
     datastores = {
@@ -428,8 +426,6 @@ def _load_om3_timeseries_var(datastores, var):
     return {}
 
 
-# Each variable is loaded and reduced once, only when first plotted
-@functools.cache
 def _load_om3_timeseries_reference(var):
     """Reference timeseries for one OM3 variable, as {experiment: DataArray over time}."""
     datastores, om2cat = _om3_timeseries_datastores()
@@ -703,7 +699,7 @@ def recipe_om3_timeseries(
     """
     OM3 timeseries suite (OM3 variable names)
 
-    For ACCESS-OM3 output that uses OM3 variable names (e.g. soga, thetaoga). Plots every variable in ``OM3_TIMESERIES_FIELDS`` found in the dataset, overlaid with select reference runs not currently available in the intake catalogue. Gridded datasets can also be plotted but takes significantly longer as global mean must be calculated. Part of the suite of analysis based on the timeseries plots generated for access-om3-paper-1-figures (https://access-om3-paper-1.readthedocs.io/). Analysis adapted from analysis created by Andrew Kiss, Christopher Bull, ezhilsabareesh8.
+    For ACCESS-OM3 output that uses OM3 variable names (e.g. soga, thetaoga). Automatically plots every variable in ``OM3_TIMESERIES_FIELDS`` found in the dataset, overlaid with select reference runs not currently available in the intake catalogue. Gridded datasets can also be plotted but takes significantly longer as global mean must be calculated. Part of the suite of analysis based on the timeseries plots generated for access-om3-paper-1-figures (https://access-om3-paper-1.readthedocs.io/). Analysis adapted from analysis created by Andrew Kiss, Christopher Bull, ezhilsabareesh8.
     """
     names = [name for name in OM3_TIMESERIES_FIELDS if name in ds]
     if not names:
@@ -721,7 +717,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'masso' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Mass of liquid ocean' in this dataset",
         },
     ] = None,
@@ -730,7 +725,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'soga' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Global Mean Ocean Salinity' in this dataset",
         },
     ] = None,
@@ -739,7 +733,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'thetaoga' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Global Mean Ocean Potential Temperature' in this dataset",
         },
     ] = None,
@@ -748,7 +741,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'tosga' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Sea Surface Temperature' in this dataset",
         },
     ] = None,
@@ -757,7 +749,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'sosga' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Global Mean Sea Surface Salinity' in this dataset",
         },
     ] = None,
@@ -766,7 +757,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'speed_max' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Maximum Ocean Current Speed' in this dataset",
         },
     ] = None,
@@ -775,7 +765,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'mlotst_max' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Maximum Ocean Mixed Layer Thickness' in this dataset",
         },
     ] = None,
@@ -784,7 +773,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'tos_max' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Maximum Sea Surface Temperature' in this dataset",
         },
     ] = None,
@@ -793,7 +781,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'tos_min' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Minimum Sea Surface Temperature' in this dataset",
         },
     ] = None,
@@ -802,7 +789,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'sos_max' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Maximum Sea Surface Salinity' in this dataset",
         },
     ] = None,
@@ -811,7 +797,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'sos_min' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Minimum Sea Surface Salinity' in this dataset",
         },
     ] = None,
@@ -820,7 +805,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'zos_max' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Maximum Sea Surface Height' in this dataset",
         },
     ] = None,
@@ -829,7 +813,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'zos_min' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Minimum Sea Surface Height' in this dataset",
         },
     ] = None,
@@ -838,7 +821,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'total_salt_Flux_Added' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Total Salt Flux Added' in this dataset",
         },
     ] = None,
@@ -847,7 +829,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'total_salt_Flux_In' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Total Salt Flux In' in this dataset",
         },
     ] = None,
@@ -856,7 +837,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'total_salt_flux' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Total Salt Flux' in this dataset",
         },
     ] = None,
@@ -865,7 +845,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'net_fresh_water_global_adjustment' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Net Fresh Water Global Adjustment' in this dataset",
         },
     ] = None,
@@ -874,7 +853,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'salt_flux_global_restoring_adjustment' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Salt Flux Global Restoring Adjustment' in this dataset",
         },
     ] = None,
@@ -883,7 +861,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'total_wfo' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Total Water Flux Into Ocean' in this dataset",
         },
     ] = None,
@@ -892,7 +869,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'total_evs' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Total Evaporation' in this dataset",
         },
     ] = None,
@@ -901,7 +877,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'total_fsitherm' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Total Thermodynamic Sea Ice Flux' in this dataset",
         },
     ] = None,
@@ -910,7 +885,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'total_precip' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Total Precipitation' in this dataset",
         },
     ] = None,
@@ -919,7 +893,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'total_prsn' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Total Snowfall' in this dataset",
         },
     ] = None,
@@ -928,7 +901,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'total_lprec' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Total Liquid Precipitation' in this dataset",
         },
     ] = None,
@@ -937,7 +909,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'total_ficeberg' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Total Iceberg Melt' in this dataset",
         },
     ] = None,
@@ -946,7 +917,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'total_friver' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Total River Runoff' in this dataset",
         },
     ] = None,
@@ -955,7 +925,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'total_net_massout' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Total Net Mass Out' in this dataset",
         },
     ] = None,
@@ -964,7 +933,6 @@ def recipe_om3_timeseries_mapped(
         {
             "name": "'total_net_massin' Variable",
             "kind": "data variable",
-            "units": "var",
             "description": "the variable associated with 'Total Net Mass In' in this dataset",
         },
     ] = None,
@@ -989,7 +957,7 @@ def recipe_om3_timeseries_mapped(
     """
     OM3 timeseries suite (custom variable mapping)
 
-    For ACCESS ocean output of any grid, choosing which variable stands in for each OM3 name. OM3 timeseries suite overlaid with select reference runs not currently available in the intake catalogue. Gridded datasets can also be plotted but takes significantly longer as global mean must be calculated. Part of the suite of analysis based on the timeseries plots generated for access-om3-paper-1-figures (https://access-om3-paper-1.readthedocs.io/). Analysis adapted from analysis created by Andrew Kiss, Christopher Bull, ezhilsabareesh8.
+    For ACCESS ocean output of any grid, choosing which variable stands in for each OM3 name. Empty variable dropdowns will not be plotted. OM3 timeseries suite overlaid with select reference runs not currently available in the intake catalogue. Gridded datasets can also be plotted but takes significantly longer as global mean must be calculated. Part of the suite of analysis based on the timeseries plots generated for access-om3-paper-1-figures (https://access-om3-paper-1.readthedocs.io/).
     """
     chosen = {
         "masso": masso_var,

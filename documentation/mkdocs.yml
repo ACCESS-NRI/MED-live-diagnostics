@@ -28,6 +28,7 @@ nav:
     - Getting started: notebooks/getting_started_tutorial.md
     - Advanced usage: notebooks/advanced_usage.md
     - Adding custom analyses: notebooks/adding_custom_analyses.md
+    - Built-in analysis recipes: notebooks/built_in_recipes_tutorial.md
   - API reference: pages/api.md
   - Contributing:
     - pages/contributing/index.md

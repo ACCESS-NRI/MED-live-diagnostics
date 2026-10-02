@@ -442,6 +442,33 @@ analysis.register_analysis(recipe_timeseries_threshold)
     ```
     
 
+### Running a suite of analyses
+
+A recipe can also return a **list** of results to make a suite of plots in one go. Each item can be a `DataArray` or a `(DataArray, plot_kwargs)` tuple, and MLD draws one plot per item, in list order, each with its own **Remove Plot** button. This is a quick way to bundle the checks you run on every new experiment into one dropdown entry, and suites can simply call other recipes:
+
+```python
+def recipe_ocean_health_check(
+    ds: xr.Dataset,
+    temp_var: Annotated[str, {"kind": "data variable"}] = "temp",
+    salt_var: Annotated[str, {"kind": "data variable"}] = "salt",
+) -> list:
+    """Global mean temperature and salinity timeseries."""
+    return [
+        recipe_timeseries_threshold(ds, variable=temp_var, threshold=20.0),
+        recipe_global_mean_dynamic(ds, variable=salt_var, dim="time"),
+    ]
+
+
+analysis.register_analysis(recipe_ocean_health_check)
+```
+
+The UI only shows widgets for the suite's own arguments, so pass the other recipes anything that shouldn't be left at its default.
+
+The built-in [OM3 timeseries suites](built_in_recipes_tutorial.md#om3-timeseries-suites) (`recipe_om3_timeseries` and `recipe_om3_timeseries_mapped` in `med_diagnostics.recipes`) are a larger example: they build one `(DataArray, plot_kwargs)` per variable found and return them all as a list.
+
+!!! tip "Optional variables in a suite"
+    To let users skip parts of a suite, type an argument `str | None` with a default of `None`, as you would for an optional dimension. The dropdown then includes a `None` entry, and the recipe can leave out the plots whose variable is `None`.
+
 ## Checklist
 
 Use the checklist below to help register a new recipe to MLD:
@@ -452,7 +479,7 @@ Use the checklist below to help register a new recipe to MLD:
 - <input type="checkbox"> `"choice"` arguments include a `"choices"` list in the metadata dictionary (or use a `Literal[...]` type).
 - <input type="checkbox"> Optional dimensions are typed `str | None` with a default of `None`.
 - <input type="checkbox"> The docstring's first line states what the recipe computes, and its second paragraph details which grid or models it targets.
-- <input type="checkbox"> The function returns either a `DataArray`, or a tuple of `(DataArray, plot_kwargs)`.
+- <input type="checkbox"> The function returns either a `DataArray`, a tuple of `(DataArray, plot_kwargs)`, or a list of these for a suite of plots.
 - <input type="checkbox"> You have clicked **Refresh analysis recipes** in the UI after registering or updating your function.
 
 ## Contributing a recipe

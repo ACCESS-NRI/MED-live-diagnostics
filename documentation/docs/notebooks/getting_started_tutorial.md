@@ -138,7 +138,7 @@ vi) Once configured, click the 'Confirm Slices & Plot' button. The selected plot
 ![Comparison difference heatmap](/assets/notebooks/2026tutorial_image_15.png)
 
 #### 3.4. Running Analysis Recipes (Optional)
-The **Run analysis recipes** section runs predefined analyses ("recipes") on the loaded user dataset, such as the Niño 3.4 sea surface temperature anomaly (`recipe_sst_anomaly_nino34`) or a regional mean on the MOM5 grid (`recipe_regional_mean_mom5`).
+The **Run analysis recipes** section runs predefined analyses ("recipes") on the loaded user dataset, such as the Niño 3.4 sea surface temperature anomaly (`recipe_sst_anomaly_nino34`), a regional mean on the MOM5 grid (`recipe_regional_mean_mom5`), or the OM3 timeseries suites (`recipe_om3_timeseries` and `recipe_om3_timeseries_mapped`). See [Built-in analysis recipes](built_in_recipes_tutorial.md) for what each one does and the options it takes.
 
 i) Select the dataset in "Select dataset to analyse", set the years to load, and click "Load dataset". If a user dataset is already loaded, it is selected here automatically.
 
@@ -148,8 +148,8 @@ ii) Choose a recipe from "Select analysis recipe" and click "Select recipe". A d
 
 iii) Fill in the options and click "Plot data". As with the other sections, each plot has a "Remove Plot" button, and the button changes to "Add Plot" so you can run the recipe again with different options. If a recipe fails, the error is shown in the <span style="color:darkred">red</span> warning box.
 
-!!! tip "Writing your own recipes"
-    You can add your own analyses to this section. See the [Adding custom analyses](adding_custom_analyses.md) tutorial. After registering a new recipe, click "Refresh analysis recipes" to add it to the dropdown.
+!!! tip "Running a suite of analyses"
+    Some recipes are **suites**: one click of "Plot data" runs several analyses and adds one plot for each, in order. The status box then reads "Plots created". Each plot gets its own "Remove Plot" button, so you can remove the ones you don't need. Any recipe can be a suite, including your own (see [Running a suite of analyses](adding_custom_analyses.md#running-a-suite-of-analyses)).
 
 ### 4. End live model session
 
