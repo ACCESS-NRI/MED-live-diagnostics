@@ -1959,12 +1959,14 @@ class UserInterface:
             options_dict = {
                 controller.round_slice_val(val): val for val in coord_values
             }
-            dropdown = pn.widgets.DiscreteSlider(
+            slider = pn.widgets.DiscreteSlider(
                 name=f"Slice {dimension} at:", options=options_dict
             )
+            text = pn.widgets.TextInput()
+            pn.widgets.link((slider, "value"), (text, "value"))
 
-            slice_widgets[dimension] = dropdown
-            ui_components.append(dropdown)
+            slice_widgets[dimension] = slider
+            ui_components.append(slider, text)
 
         # Group them into a row
         slice_ui_row = pn.Row(*ui_components)
