@@ -715,9 +715,8 @@ class UserInterface:
         self.multiplot_widget_container.append(self.multiplot_type_selection_row)
 
         # Add horizontal line divider to widget_container
-        self.multiplot_widget_container.append(
-            pn.layout.Divider(styles={"color": "white"})
-        )
+        self.multiplot_divider = pn.layout.Divider(styles={"color": "white"})
+        self.multiplot_widget_container.append(self.multiplot_divider)
 
     def _initialise_analysis_widgets(self):
         """
@@ -1624,7 +1623,14 @@ class UserInterface:
             self.multiplot_widget_container, "multiplot_slice_widgets"
         )
 
-        self.multiplot_widget_container.append(plot_group)
+        # Add the newest plot directly below the divider, above older plots
+        self._safe_add_to_widget(
+            self.multiplot_widget_container,
+            ["multiplot_divider"],
+            plot_group,
+            append=True,
+            above=False,
+        )
 
         controller.update_textbox_text(
             self.multiplot_status_textbox, "Overlay plot status >> Plot created"
