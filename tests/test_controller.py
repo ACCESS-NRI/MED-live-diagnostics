@@ -18,8 +18,7 @@ from med_diagnostics.ui import UserInterface
 def ui():
     """Return a session-scoped UserInterface instance for testing"""
 
-    ui = UserInterface()
-    return ui
+    return UserInterface()
 
 
 @pytest.mark.parametrize(

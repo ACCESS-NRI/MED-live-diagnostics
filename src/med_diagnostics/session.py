@@ -13,9 +13,9 @@ class CreateModelDiagnosticsSession:
     Primary class for starting a model diagnostics session
     """
 
-    def __init__(self, model_type, model_path, timezone=None):
+    def __init__(self, model_type, model_path):
         """
-        Initialise a CreateLiveSession instance to start a model diagnostics session.
+        Initialise a CreateModelDiagnosticsSession instance to start a model diagnostics session.
 
         Parameters
         ----------
@@ -23,20 +23,12 @@ class CreateModelDiagnosticsSession:
             Type of ACCESS model, case-insensitive (e.g. CM2, OM2).
         model_path : str
             Path to model output directory/files on Gadi.
-        timezone : str, optional, default 'Australia/Canberra'
-            Timezone in tzinfo 'Region/Location' format. Currently unused.
 
         """
 
         # Set local variables
         self.model_type = str(model_type).lower()
-        # self.model_realm = str(model_realm)
         self.model_path = str(model_path)
-        self.model_data = []
-
-        self.timezone = str(timezone) if timezone is not None else "Australia/Canberra"
-
-        self.data_update = False
 
         # Start dask client
         self.client = Client(threads_per_worker=1)

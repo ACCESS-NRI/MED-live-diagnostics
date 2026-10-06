@@ -40,27 +40,16 @@ def mock_session_deps(monkeypatch):
     return mock_client_instance, mock_ui_instance, mock_data, mock_controller
 
 
-@pytest.mark.parametrize(
-    "timezone, expected_tz",
-    [
-        (None, "Australia/Canberra"),
-        ("Australia/Hobart", "Australia/Hobart"),
-    ],
-)
-def test_init_and_get_data(mock_session_deps, timezone, expected_tz):
+def test_init_and_get_data(mock_session_deps):
     """Tests session initialisation and the automatic _get_data execution."""
     _mock_client, mock_ui, mock_data, mock_controller = mock_session_deps
 
     # Initialise the session
-    session = CreateModelDiagnosticsSession(
-        model_type="CM2", model_path="/mock/path", timezone=timezone
-    )
+    session = CreateModelDiagnosticsSession(model_type="CM2", model_path="/mock/path")
 
     # Verify __init__ assignments
     assert session.model_type == "cm2"
     assert session.model_path == "/mock/path"
-    assert session.timezone == expected_tz
-    assert session.data_update is False
 
     # Verify UI was initialised and status text was displayed
     mock_ui._initialise_widgets.assert_called_once()

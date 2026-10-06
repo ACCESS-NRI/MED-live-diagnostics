@@ -632,10 +632,7 @@ def plot_multiplot_dataset(
         sliced_ref_data = ref_dataset.sel(**valid_slices, method="nearest")
 
         # Determine the data to plot based on the diff flag
-        if plot_diff:
-            plot_data = sliced_ref_data - sliced_user_data
-        else:
-            plot_data = sliced_ref_data
+        plot_data = sliced_ref_data - sliced_user_data if plot_diff else sliced_ref_data
 
         # Plot all model variants if multiple exist
         if "member" in plot_data.dims:
@@ -670,6 +667,29 @@ def plot_multiplot_dataset(
 def plot_multiplot_heatmap_dataset(
     dataset, variable, ref_dict, chosen_slices, x_axis, y_axis, plot_diff=False
 ):
+    """
+    Plot heatmaps of the user model and each reference model on a shared colour scale.
+
+    Parameters
+    ----------
+    dataset : xarray.Dataset
+        User model data.
+    variable : str
+        Variable to plot.
+    ref_dict : dict
+        Reference datasets, as {model name: xarray.Dataset}.
+    chosen_slices : dict
+        Values to slice each dataset at, as {dimension: value}.
+    x_axis, y_axis : str
+        Dimensions for the heatmap axes.
+    plot_diff : bool, optional
+        Plot each reference minus the user data instead of the raw data.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        A grid of heatmaps, two per row.
+    """
     num_refs = len(ref_dict)
 
     # If not plotting the difference, add 1 to total_plots to accommodate the user dataset
@@ -711,7 +731,7 @@ def plot_multiplot_heatmap_dataset(
         global_vmax = float(first_plot_data[variable].max())
 
     # Calculate min and max across all reference datasets to keep colour scales consistent
-    for model_key, ref_ds in ref_dict.items():
+    for ref_ds in ref_dict.values():
         valid_slices = {
             dim: val for dim, val in chosen_slices.items() if dim in ref_ds.dims
         }
@@ -763,10 +783,7 @@ def plot_multiplot_heatmap_dataset(
         plot_data = (sliced_ref - sliced_user_data) if plot_diff else sliced_ref
         title_prefix = "Ref. - User data: " if plot_diff else ""
 
-        if plot_diff:
-            chosen_heatmap = "RdBu_r"
-        else:
-            chosen_heatmap = "viridis"
+        chosen_heatmap = "RdBu_r" if plot_diff else "viridis"
         plot_data[variable].plot(
             x=x_axis,
             y=y_axis,
@@ -807,8 +824,8 @@ def check_bounds(dataset, x_axis, ref_dict):
     """
     Calculate the absolute minimum and maximum x-axis bounds across all datasets.
     """
-    # Safely extract pure Python scalars from Xarray DataArrays using .item()
-    # This prevents 0D NumPy arrays from crashing Matplotlib's set_xlim
+    # Index the 0D arrays with [()] to get scalars, as 0D NumPy arrays crash
+    # Matplotlib's set_xlim
     dataset_min = dataset[x_axis].min().values[()]
     dataset_max = dataset[x_axis].max().values[()]
 

@@ -1051,8 +1051,8 @@ class UserInterface:
 
         if (
             self.multiplot_keys_dropdown.value in list(selected_ref_model_cat.keys())
-            and not self.multiplot_ref_keys_dropdown.value
-            in self.multiplot_ref_dataset_dict
+            and self.multiplot_ref_keys_dropdown.value
+            not in self.multiplot_ref_dataset_dict
         ):
             model_value = self.multiplot_ref_keys_dropdown.value
             controller.update_textbox_text(
@@ -1700,11 +1700,8 @@ class UserInterface:
         elif isinstance(plot_type_dropdown.value, Animation):
             fig_animated = self._plot_dataset_helper(is_ref=ref, plot_type=Animation())
 
-        if fig_animated:
-            new_plot_pane = fig_animated
-        else:
-            # Create a new pane for the figure
-            new_plot_pane = pn.pane.Matplotlib(fig, tight=True)
+        # Animations are already a pane, static figures need wrapping in one
+        new_plot_pane = fig_animated or pn.pane.Matplotlib(fig, tight=True)
 
         plot_group = self._add_remove_btn(new_plot_pane, widget_container)
 
@@ -2165,16 +2162,15 @@ class UserInterface:
                 x_max,
                 plot_diff=plot_diff,
             )
-        else:
-            return controller.plot_multiplot_heatmap_dataset(
-                self.dataset,
-                variable,
-                self.multiplot_ref_dataset_dict,
-                self.multiplot_chosen_slices,
-                x_axis,
-                self.multiplot_y_axis_dropdown.value,
-                plot_diff=plot_diff,
-            )
+        return controller.plot_multiplot_heatmap_dataset(
+            self.dataset,
+            variable,
+            self.multiplot_ref_dataset_dict,
+            self.multiplot_chosen_slices,
+            x_axis,
+            self.multiplot_y_axis_dropdown.value,
+            plot_diff=plot_diff,
+        )
 
     def _refresh_analysis_recipes(self):
         """
@@ -2532,16 +2528,15 @@ class UserInterface:
                 self.ref_plot_variable_dropdown,
                 self.ref_long_names,
             )
-        elif isinstance(section, Multiplot):
+        if isinstance(section, Multiplot):
             return controller.get_selected_variable(
                 self.multiplot_variable_toggle,
                 self.multiplot_plot_variable_dropdown,
                 self.multiplot_long_names,
             )
-        else:
-            return controller.get_selected_variable(
-                self.variable_toggle, self.plot_variable_dropdown, self.long_names
-            )
+        return controller.get_selected_variable(
+            self.variable_toggle, self.plot_variable_dropdown, self.long_names
+        )
 
     def _safe_remove_widget_object(self, widget_container, item_to_remove):
         """
@@ -2610,10 +2605,9 @@ class UserInterface:
 
             # If the attribute exists and is currently rendered on screen
             if target is not None and target in widget_container:
+                # Inserting at the target's index puts the item directly above it
                 insert_index = widget_container.index(target)
-                if above:
-                    insert_index = max(0, insert_index - 1)
-                else:
+                if not above:
                     insert_index += 1
                 widget_container.insert(insert_index, item_to_add)
                 return False  # Item was successfully inserted

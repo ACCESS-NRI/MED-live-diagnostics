@@ -67,8 +67,7 @@ def ui():
 @pytest.fixture(scope="function")
 def uninitialised_ui():
     """Return a UserInterface instance before `_initialise_widgets` has been called"""
-    ui = UserInterface()
-    return ui
+    return UserInterface()
 
 
 def run_validity_check(ui, section, x_value, y_value, z_value, plot_type, var, ds):
@@ -145,7 +144,7 @@ def test_check_plot_validity_1d(
     assert results.requires_slice == requires_slice_output
     assert results.invalid_heatmap_data == invalid_heatmap_output
     assert results.same_axes_chosen == same_axes_output
-    assert results.prompt_bounds == False
+    assert not results.prompt_bounds
 
 
 @pytest.mark.parametrize("section", [User(), Ref(), Multiplot()])
@@ -196,7 +195,7 @@ def test_check_plot_validity_2d(
     assert results.requires_slice == requires_slice_output
     assert results.invalid_heatmap_data == invalid_heatmap_output
     assert results.same_axes_chosen == same_axes_output
-    assert results.prompt_bounds == False
+    assert not results.prompt_bounds
 
 
 @pytest.mark.parametrize("section", [User(), Ref(), Multiplot()])
@@ -244,7 +243,7 @@ def test_check_plot_validity_3d(
     assert results.requires_slice == requires_slice_output
     assert results.invalid_heatmap_data == invalid_heatmap_output
     assert results.same_axes_chosen == same_axes_output
-    assert results.prompt_bounds == False
+    assert not results.prompt_bounds
 
 
 @pytest.mark.parametrize("section", [User(), Ref(), Multiplot()])
@@ -331,7 +330,7 @@ def test_check_plot_validity_4d(
     assert results.requires_slice == requires_slice_output
     assert results.invalid_heatmap_data == invalid_heatmap_output
     assert results.same_axes_chosen == same_axes_output
-    assert results.prompt_bounds == False
+    assert not results.prompt_bounds
     if requires_slice_output:
         # Determine which attributes we should be checking
         row_attr = "ref_slice_ui_row" if isinstance(section, Ref) else "slice_ui_row"
@@ -379,8 +378,8 @@ def test_ref_clear_data_click(ui, meta, cat, ds):
 
     # Verify that metadata is cleared and dataset/catalog attributes are removed from the UI instance
     assert ui.ref_model_metadata.value == ""
-    assert hasattr(ui, "ref_model_cat") == False
-    assert hasattr(ui, "ref_dataset") == False
+    assert not hasattr(ui, "ref_model_cat")
+    assert not hasattr(ui, "ref_dataset")
 
 
 def test_clear_multiplot_data(ui):
@@ -412,9 +411,9 @@ def test_display_dataset_selection_ui(ui):
     ui._display_dataset_selection_ui()
 
     # Verify that the relevant dividers and selection rows are made visible
-    assert ui.div_1.visible == True
-    assert ui.keys_selection_row.visible == True
-    assert ui.div_2.visible == True
+    assert ui.div_1.visible
+    assert ui.keys_selection_row.visible
+    assert ui.div_2.visible
 
     # Verify that the dropdown options match the sorted catalog keys and button properties are set
     assert ui.keys_dropdown.options == sorted(ui.model_cat.keys())
@@ -752,7 +751,7 @@ def test_display_dataset_plot_ui(ui):
     assert ui.plot_variable_dropdown.options == sorted(dataset.keys())
     assert ui.plot_type_dropdown.name == "Select plot type"
     assert ui.plot_type_dropdown.options == ui.plot_type_mapping
-    assert ui.variable_toggle.value == False
+    assert not ui.variable_toggle.value
     assert ui.select_variable_button.name == "Select variable and plot type"
 
     # Verify that the plot UI selection row is attached to the UI instance
@@ -786,7 +785,7 @@ def test_ref_display_dataset_plot_ui(ui, datakeysexists):
     assert ui.ref_plot_variable_dropdown.options == sorted(dataset.keys())
     assert ui.ref_plot_type_dropdown.name == "Select plot type"
     assert ui.ref_plot_type_dropdown.options == ui.plot_type_mapping
-    assert ui.ref_variable_toggle.value == False
+    assert not ui.ref_variable_toggle.value
     assert ui.ref_select_variable_button.name == "Select variable and plot type"
     assert hasattr(ui, "ref_plot_ui_row")
 
@@ -1747,7 +1746,7 @@ def test_ref_clear_data_button_click(ui, monkeypatch):
 
 
 def test_select_variable_button_click(ui, monkeypatch):
-    """Test that pressing the select variabel button triggers the correct internal method."""
+    """Test that pressing the select variable button triggers the correct internal method."""
 
     mock_display_plot_choices_ui = MagicMock()
     monkeypatch.setattr(ui, "_display_plot_choices_ui", mock_display_plot_choices_ui)
@@ -1760,7 +1759,7 @@ def test_select_variable_button_click(ui, monkeypatch):
 
 
 def test_ref_select_variable_button_click(ui, monkeypatch):
-    """Test that pressing the ref select variabel button triggers the correct internal method."""
+    """Test that pressing the ref select variable button triggers the correct internal method."""
 
     mock_display_plot_choices_ui = MagicMock()
     monkeypatch.setattr(
@@ -2725,6 +2724,7 @@ def test_multiplot_variable_toggle_click(ui, monkeypatch):
     "target_exists, container_contents, above, append, expected_return, expected_index",
     [
         (True, ["target"], True, False, False, 0),
+        (True, ["first", "target"], True, False, False, 1),
         (True, ["target"], False, False, False, 1),
         (False, ["other"], False, True, True, 1),
         (False, ["other"], False, False, False, 1),
@@ -2739,7 +2739,7 @@ def test_safe_add_to_widget(
     expected_return,
     expected_index,
 ):
-    """Test safe widget insertion across all matching, index-clamping, and fallback append branches."""
+    """Test safe widget insertion directly above or below a target, and the fallback append."""
 
     # Configure mock attribute on ui
     target_widget = "target" if target_exists else None
@@ -3664,7 +3664,7 @@ def test_years_files_text_with_real_datastore(ui):
 def test_refresh_catalog(ui):
     """Test that the refresh catalog button calls the controller and updates the status text."""
     ui._refresh_catalog()
-    assert ui.refresh_catalog_button.disabled == True
+    assert ui.refresh_catalog_button.disabled
     assert (
         ui.status_textbox.value
         == "User model status >> Refreshing data catalog. This can take a few minutes."

@@ -530,7 +530,11 @@ def test_om3_timeseries_datastores(monkeypatch):
     access_nri_catalog.access_nri = {recipes.OM3_TIMESERIES_OM2_EXPT: "om2 catalog"}
     monkeypatch.setattr(recipes.intake, "cat", access_nri_catalog)
 
+    recipes._om3_timeseries_datastores.cache_clear()
     datastores, om2cat = recipes._om3_timeseries_datastores()
+    # A second call reuses the opened catalogs
+    recipes._om3_timeseries_datastores()
+    recipes._om3_timeseries_datastores.cache_clear()
 
     assert datastores == {
         "refA": "/g/data/refA/datastore.json",
@@ -703,6 +707,17 @@ def test_recipe_sst_anomaly_nino34():
         recipes.plot_customisations.nino_fills,
         recipes.plot_customisations.nino_reference_lines,
     ]
+
+
+def test_recipe_sst_anomaly_nino34_rejects_wrong_grid():
+    """Test that a dataset without the chosen lat/lon dims gives a readable error."""
+    ds = xr.Dataset(
+        {"tos": (("time", "lat", "lon"), np.zeros((12, 2, 2)))},
+        coords={"time": _monthly_time(12), "lat": [0, 1], "lon": [0, 1]},
+    )
+
+    with pytest.raises(ValueError, match="write a custom"):
+        recipes.recipe_sst_anomaly_nino34(ds)
 
 
 # Regional mean (MOM5)

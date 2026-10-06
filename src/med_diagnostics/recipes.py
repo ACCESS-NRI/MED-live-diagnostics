@@ -1,3 +1,4 @@
+from functools import cache
 from pathlib import Path
 from typing import Annotated
 
@@ -338,7 +339,7 @@ def _cell_measure(ds, da, measure):
     """
     # e.g. cell_measures = "area: area_t volume: volcello"
     parts = da.attrs.get("cell_measures", "").replace(":", " ").split()
-    for key, name in zip(parts[::2], parts[1::2]):
+    for key, name in zip(parts[::2], parts[1::2], strict=False):
         if key == measure and name in ds:
             return ds[name]
     return None
@@ -458,6 +459,8 @@ def _om3_timeseries_reduction(name):
     return name.rsplit("_", 1)[-1] if name.endswith(("_max", "_min")) else "mean"
 
 
+# Cached so a suite run opens the catalogs once, not once per variable
+@cache
 def _om3_timeseries_datastores():
     """
     Helper to open the OM3 timeseries reference catalogs.
@@ -654,6 +657,8 @@ def recipe_sst_anomaly_nino34(
     tuple of (xarray.DataArray, dict)
         The Niño 3.4 index and its plot kwargs.
     """
+    require_coords(dataset, var, [y_dim, x_dim, "time"], "lat/lon gridded")
+
     nino34_ds = extract_region(dataset, "nino34", x_dim, y_dim)
     anomalies = calc_anomalies(nino34_ds, x_dim, y_dim, var)
 
@@ -667,7 +672,7 @@ def recipe_sst_anomaly_nino34(
         "title": "Niño 3.4 Index",
         "color": "black",
         "linewidth": 1.5,  # overrides the 1D default of 2 to match plain ax.plot
-        "ax_kwargs": {"xlabel": "Year", "ylabel": "Niño 3.4 SST Anomoly"},
+        "ax_kwargs": {"xlabel": "Year", "ylabel": "Niño 3.4 SST Anomaly"},
         "customise": [
             plot_customisations.nino_fills,
             plot_customisations.nino_reference_lines,

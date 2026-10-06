@@ -46,7 +46,7 @@ def shade_bottom_10pct(ax, data):
 
 
 def nino_fills(ax, data):
-    """Fill betwen +- 0.4 degrees indicating El Nino (red) or La Nina (blue)"""
+    """Fill between +- 0.4 degrees indicating El Nino (red) or La Nina (blue)"""
     t, y = data.time.values, data.values
     ax.fill_between(
         t, y, 0.4, where=(y >= 0.4), interpolate=True, color="red", alpha=0.3
