@@ -1962,8 +1962,21 @@ class UserInterface:
             slider = pn.widgets.DiscreteSlider(
                 name=f"Slice {dimension} at:", options=options_dict
             )
-            text = pn.widgets.TextInput(value=str(slider.value))
-            slider.link(text, value="value", bidirectional=True)
+            labels = list(options_dict)
+            text = pn.widgets.AutocompleteInput(
+                options=labels, value=labels[0], restrict=True, min_characters=1
+            )
+
+            # Link via the labels, as the slider holds raw coordinate values
+            def _slider_to_text(event, text=text, options_dict=options_dict):
+                text.value = next(k for k, v in options_dict.items() if v == event.new)
+
+            def _text_to_slider(event, slider=slider, options_dict=options_dict):
+                if event.new in options_dict:
+                    slider.value = options_dict[event.new]
+
+            slider.param.watch(_slider_to_text, "value")
+            text.param.watch(_text_to_slider, "value")
 
             slice_widgets[dimension] = slider
             column = pn.Column(slider, text)
