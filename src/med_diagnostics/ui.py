@@ -1962,11 +1962,12 @@ class UserInterface:
             slider = pn.widgets.DiscreteSlider(
                 name=f"Slice {dimension} at:", options=options_dict
             )
-            text = pn.widgets.TextInput()
-            pn.widgets.link((slider, "value"), (text, "value"))
+            text = pn.widgets.TextInput(value=str(slider.value))
+            slider.link(text, value="value", bidirectional=True)
 
             slice_widgets[dimension] = slider
-            ui_components.append(slider, text)
+            column = pn.Column(slider, text)
+            ui_components.append(column)
 
         # Group them into a row
         slice_ui_row = pn.Row(*ui_components)
