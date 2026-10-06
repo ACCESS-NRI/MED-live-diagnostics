@@ -235,8 +235,6 @@ def variable_toggle_change(variable_toggle, variable_dropdown, dataset):
     options = variable_dropdown.options
     has_none = None in (options.values() if isinstance(options, dict) else options)
 
-    # Translate the selection too, otherwise the dropdown keeps a name that is
-    # no longer one of its options
     selected = variable_dropdown.value
     if variable_toggle.value:
         names = list(long_names.keys())
