@@ -277,7 +277,27 @@ def require_coords(ds, variable, coords, grid):
 
 
 def _find_axis_dim(ds, da, axis, skip):
-    """Find the dim of ``da`` along ``axis`` ("X", "Y" or "Z") from its coordinate attributes."""
+    """
+    Helper to find which dimension of ``da`` is the X, Y or Z axis, from coordinate attributes.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Dataset holding the coordinates of ``da``.
+    da : xarray.DataArray
+        Variable whose dimensions are searched.
+    axis : {"X", "Y", "Z"}
+        Axis to look for.
+    skip : str
+        Dimension to ignore, usually the time dimension being kept.
+
+    Returns
+    -------
+    str or None
+        Name of the matching dimension, or None if none match.
+    """
+    # Dim names differ between models (yt_ocean, yh, lat; st_ocean, z_l, lev),
+    # so match on attributes rather than names
     for d in da.dims:
         if d == skip or d not in ds.coords:
             continue
@@ -299,7 +319,23 @@ def _find_axis_dim(ds, da, axis, skip):
 
 
 def _cell_measure(ds, da, measure):
-    """Return the ``area``/``volume`` variable named in ``da``'s ``cell_measures``, if it is in ``ds``."""
+    """
+    Helper to return the cell area or volume variable named in ``da``'s ``cell_measures``.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Dataset that should hold the cell measure variable.
+    da : xarray.DataArray
+        Variable whose ``cell_measures`` attribute is read.
+    measure : {"area", "volume"}
+        Cell measure to look for.
+
+    Returns
+    -------
+    xarray.DataArray or None
+        The cell measure, or None if it isn't named or isn't in ``ds``.
+    """
     # e.g. cell_measures = "area: area_t volume: volcello"
     parts = da.attrs.get("cell_measures", "").replace(":", " ").split()
     for key, name in zip(parts[::2], parts[1::2]):
@@ -309,7 +345,22 @@ def _cell_measure(ds, da, measure):
 
 
 def _layer_thickness(ds, z):
-    """Layer thickness along depth dim ``z``, from its edges/bounds or, failing that, level midpoints."""
+    """
+    Helper to return the thickness of each depth layer along ``z``.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Dataset holding the depth coordinate and any edges/bounds variable.
+    z : str
+        Depth dimension.
+
+    Returns
+    -------
+    xarray.DataArray
+        Layer thickness along ``z``, from the edges/bounds if present, otherwise
+        from the midpoints between levels.
+    """
     levels = ds[z]
     edges_name = levels.attrs.get("edges") or levels.attrs.get("bounds")  # MOM5 / CF
     if edges_name in ds:
@@ -391,12 +442,32 @@ def global_mean(ds, variable, dim, how="mean"):
 
 
 def _om3_timeseries_reduction(name):
-    """``"max"``/``"min"`` for the paper's ``*_max``/``*_min`` fields, otherwise ``"mean"``."""
+    """
+    Helper to choose how to reduce an OM3 timeseries field.
+
+    Parameters
+    ----------
+    name : str
+        ``OM3_TIMESERIES_FIELDS`` name, e.g. "soga" or "tos_max".
+
+    Returns
+    -------
+    {"mean", "max", "min"}
+        "max"/"min" for the paper's ``*_max``/``*_min`` fields, otherwise "mean".
+    """
     return name.rsplit("_", 1)[-1] if name.endswith(("_max", "_min")) else "mean"
 
 
 def _om3_timeseries_datastores():
-    """Open the OM3 timeseries reference catalogs once."""
+    """
+    Helper to open the OM3 timeseries reference catalogs.
+
+    Returns
+    -------
+    tuple of (dict, intake_esm.esm_datastore)
+        The OM3 reference datastores as {experiment: datastore}, and the OM2
+        comparison experiment from the ACCESS-NRI catalogue.
+    """
     datastores = {
         Path(c).parent.name: intake.open_esm_datastore(
             c, columns_with_iterables=["variable"]
@@ -407,7 +478,22 @@ def _om3_timeseries_datastores():
 
 
 def _load_om3_timeseries_var(datastores, var):
-    """Open ``var`` from each OM3 reference datastore, as {experiment: Dataset}."""
+    """
+    Helper to open one variable from each OM3 reference datastore.
+
+    Parameters
+    ----------
+    datastores : dict
+        OM3 reference datastores, as {experiment: datastore}.
+    var : str
+        Variable to open.
+
+    Returns
+    -------
+    dict
+        {experiment: xarray.Dataset} for the datastores that have ``var``, or
+        an empty dict if none could be opened.
+    """
     for extra in OM3_TIMESERIES_REF_SEARCHES:
         try:
             found = {
@@ -427,7 +513,20 @@ def _load_om3_timeseries_var(datastores, var):
 
 
 def _load_om3_timeseries_reference(var):
-    """Reference timeseries for one OM3 variable, as {experiment: DataArray over time}."""
+    """
+    Helper to load the reference timeseries for one OM3 variable.
+
+    Parameters
+    ----------
+    var : str
+        ``OM3_TIMESERIES_FIELDS`` name to load.
+
+    Returns
+    -------
+    dict
+        {experiment: xarray.DataArray} of global timeseries, including OM2 where
+        it has a matching variable. Empty if no reference has ``var``.
+    """
     datastores, om2cat = _om3_timeseries_datastores()
     d = _load_om3_timeseries_var(datastores, var)
     if not d:
@@ -537,23 +636,23 @@ def recipe_sst_anomaly_nino34(
     """
     Niño 3.4 index for sea surface temperature
 
-    For analysis of sea surface temperature anomoly in the Niño 3.4 region.
+    For analysis of sea surface temperature anomaly in the Niño 3.4 region.
 
     Parameters
     ----------
     dataset : xarray.Dataset
         Model output containing ``var``.
-    x_dim : str, dimension
-        Native longitude name (e.g. "lon"/"lat" or "xt_ocean"/"yt_ocean"). Default "xt_ocean".
-    y_dim : str, dimension
-        Native latitude name (e.g. "lon"/"lat" or "xt_ocean"/"yt_ocean"). Default "yt_ocean".
-    var : str, data variable
-        Sea surface temperature variable to use, default "tos".
+    var : str, default "tos"
+        Sea surface temperature variable.
+    x_dim : str, default "xt_ocean"
+        Longitude dimension, e.g. "lon" or "xt_ocean".
+    y_dim : str, default "yt_ocean"
+        Latitude dimension, e.g. "lat" or "yt_ocean".
 
     Returns
     -------
-    matplotlib.figure.Figure
-        The Niño 3.4 index plot.
+    tuple of (xarray.DataArray, dict)
+        The Niño 3.4 index and its plot kwargs.
     """
     # Trim before any computation so spinup doesn't skew the climatology,
     # anomaly or normalisation - not just the plotted window
@@ -629,6 +728,34 @@ def recipe_regional_mean_mom5(
     Timeseries of a variable over a chosen region (Area-weighted mean).
 
     For MOM5 output (ACCESS-OM2, ACCESS-ESM1.6).
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Model output containing ``variable``.
+    variable : str, default "temp"
+        Variable to average.
+    region : str, default "tasmania"
+        Key of ``PREDEFINED_REGIONS`` to average over.
+    lon_dim, lat_dim : str, default "xt_ocean", "yt_ocean"
+        Longitude and latitude dimensions.
+    lvl_dim : str or None, default "st_ocean"
+        Depth dimension, or None for surface fields.
+    depth : float, default 0.0
+        Depth in metres; the nearest level is used.
+    smooth_steps : int, default 1
+        Rolling-mean window in timesteps (1 = no smoothing).
+    show_trend : bool, default True
+        Overlay a linear trend.
+    show_percentiles : bool, default True
+        Shade the top and bottom 10 percentiles.
+    threshold : str, default ""
+        Reference value to draw as a line, blank for none.
+
+    Returns
+    -------
+    tuple of (xarray.DataArray, dict)
+        The regional mean timeseries and its plot kwargs.
     """
     # Fail with a readable message if this isn't the grid we expect
     require_coords(ds, variable, [lat_dim, lon_dim], "MOM5")
@@ -700,6 +827,25 @@ def recipe_om3_timeseries(
     OM3 timeseries suite (OM3 variable names)
 
     For ACCESS-OM3 output that uses OM3 variable names (e.g. soga, thetaoga). Automatically plots every variable in ``OM3_TIMESERIES_FIELDS`` found in the dataset, overlaid with select reference runs not currently available in the intake catalogue. Gridded datasets can also be plotted but takes significantly longer as global mean must be calculated. Part of the suite of analysis based on the timeseries plots generated for access-om3-paper-1-figures (https://access-om3-paper-1.readthedocs.io/). Analysis adapted from analysis created by Andrew Kiss, Christopher Bull, ezhilsabareesh8.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Model output with OM3 variable names.
+    dim : str, default "time"
+        Time dimension; every other dimension is averaged over.
+    avg_window : int, default 365
+        Rolling-mean window in days.
+
+    Returns
+    -------
+    list of tuple of (xarray.DataArray, dict)
+        One timeseries and its plot kwargs per OM3 variable found.
+
+    Raises
+    ------
+    ValueError
+        If the dataset has none of the OM3 variable names.
     """
     names = [name for name in OM3_TIMESERIES_FIELDS if name in ds]
     if not names:
@@ -958,6 +1104,23 @@ def recipe_om3_timeseries_mapped(
     OM3 timeseries suite (custom variable mapping)
 
     For ACCESS ocean output of any grid, choosing which variable stands in for each OM3 name. Empty variable dropdowns will not be plotted. OM3 timeseries suite overlaid with select reference runs not currently available in the intake catalogue. Gridded datasets can also be plotted but takes significantly longer as global mean must be calculated. Part of the suite of analysis based on the timeseries plots generated for access-om3-paper-1-figures (https://access-om3-paper-1.readthedocs.io/).
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Model output to plot.
+    masso_var, soga_var, ..., total_net_massin_var : str or None, default None
+        Variable in ``ds`` standing in for each ``OM3_TIMESERIES_FIELDS`` name
+        (the parameter name minus ``_var``). None skips that plot.
+    dim : str, default "time"
+        Time dimension; every other dimension is averaged over.
+    avg_window : int, default 365
+        Rolling-mean window in days.
+
+    Returns
+    -------
+    list of tuple of (xarray.DataArray, dict)
+        One timeseries and its plot kwargs per chosen variable.
     """
     chosen = {
         "masso": masso_var,

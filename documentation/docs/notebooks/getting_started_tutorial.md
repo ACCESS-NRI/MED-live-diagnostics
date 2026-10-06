@@ -35,6 +35,9 @@ Running `CreateModelDiagnosticsSession()` starts a session with four collapsible
 - **Overlay user and reference models** (3.3)
 - **Run analysis recipes** (3.4)
 
+!!! tip
+    This tutorial covers the sections in order, but you can use them in any order once your dataset is loaded.
+
 #### 3.1. Loading and Plotting User Data
 
 i) Upon startup, the <span style="color:orange">orange</span> 'catalog', <span style="color:lightblue">blue</span> 'status', and <span style="color:darkred">red</span> 'warning' information boxes will load. You will see the following session summary and <span style="color:lightblue">blue</span> status message while the new intake catalogue is being built from the live model data. Depending on the size of the model data, this can take a number of minutes. The Dask cluster address (in this case: /proxy/8787/status) can be used to monitor data retrieval by adding it to the 'Dask Dashboard URL' found in the left panel.
@@ -138,15 +141,17 @@ vi) Once configured, click the 'Confirm Slices & Plot' button. The selected plot
 ![Comparison difference heatmap](/assets/notebooks/2026tutorial_image_15.png)
 
 #### 3.4. Running Analysis Recipes (Optional)
-The **Run analysis recipes** section runs predefined analyses ("recipes") on the loaded user dataset, such as the Niño 3.4 sea surface temperature anomaly (`recipe_sst_anomaly_nino34`), a regional mean on the MOM5 grid (`recipe_regional_mean_mom5`), or the OM3 timeseries suites (`recipe_om3_timeseries` and `recipe_om3_timeseries_mapped`). See [Built-in analysis recipes](built_in_recipes_tutorial.md) for what each one does and the options it takes.
+The **Run analysis recipes** section runs predefined analyses ("recipes") on the loaded user dataset, such as the Niño 3.4 sea surface temperature anomaly (`recipe_sst_anomaly_nino34`), a regional mean on the MOM5 grid (`recipe_regional_mean_mom5`), or the OM3 timeseries suites (`recipe_om3_timeseries` and `recipe_om3_timeseries_mapped`). See [Built-in analysis recipes](built_in_recipes_tutorial.md) for what each one does and the options it takes. You can also write your own recipes; see [Adding custom analyses.](adding_custom_analyses.md).
 
 i) Select the dataset in "Select dataset to analyse", set the years to load, and click "Load dataset". If a user dataset is already loaded, it is selected here automatically.
 
 ii) Choose a recipe from "Select analysis recipe" and click "Select recipe". A description of the recipe will appear, along with input widgets for its options (e.g. the variable or region to use).
 
-![Analysis section](/assets/notebooks/Analysis_section.png)
+![Analysis section](/assets/notebooks/2026tutorial_image_16.png)
 
 iii) Fill in the options and click "Plot data". As with the other sections, each plot has a "Remove Plot" button, and the button changes to "Add Plot" so you can run the recipe again with different options. If a recipe fails, the error is shown in the <span style="color:darkred">red</span> warning box.
+
+![Analysis plot](/assets/notebooks/2026tutorial_image_17.png)
 
 !!! tip "Running a suite of analyses"
     Some recipes are **suites**: one click of "Plot data" runs several analyses and adds one plot for each, in order. The status box then reads "Plots created". Each plot gets its own "Remove Plot" button, so you can remove the ones you don't need. Any recipe can be a suite, including your own (see [Running a suite of analyses](adding_custom_analyses.md#running-a-suite-of-analyses)).

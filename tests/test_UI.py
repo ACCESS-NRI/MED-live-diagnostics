@@ -1874,13 +1874,21 @@ def test_prompt_bounds_button_click(ui, monkeypatch):
     ],
 )
 @pytest.mark.parametrize("bounds_return", [True, False])
+@pytest.mark.parametrize(
+    "invalid_datasets", [{}, {"bad_model": "ds"}], ids=["all_valid", "some_invalid"]
+)
 def test_check_plot_validity_routing(
-    ui, monkeypatch, section, plot_type, bounds_return
+    ui, monkeypatch, section, plot_type, bounds_return, invalid_datasets
 ):
-    """Tests variable routing, controller calls, and multiplot bounds logic."""
+    """Tests variable routing, controller calls, multiplot bounds and invalid ref removal."""
+    valid_datasets = {"good_model": "ds"}
     monkeypatch.setattr(
-        controller, "check_dict_validity", MagicMock(return_value=({}, {}))
+        controller,
+        "check_dict_validity",
+        MagicMock(return_value=(invalid_datasets, valid_datasets)),
     )
+    mock_update_textbox_text = MagicMock()
+    monkeypatch.setattr(controller, "update_textbox_text", mock_update_textbox_text)
 
     mock_get_variable_helper = MagicMock(return_value="data")
     monkeypatch.setattr(ui, "_get_variable_helper", mock_get_variable_helper)
@@ -1943,6 +1951,17 @@ def test_check_plot_validity_routing(
     assert results == validity
     assert validity.plot_valid == expected_plot_valid
     assert validity.prompt_bounds == expected_prompt_bounds
+
+    # Multiplot drops refs without the variable and warns about them
+    if isinstance(section, Multiplot):
+        assert ui.multiplot_ref_dataset_dict == valid_datasets
+    if isinstance(section, Multiplot) and invalid_datasets:
+        mock_update_textbox_text.assert_called_once_with(
+            ui.multiplot_warning_textbox,
+            "Warning >> The following models were removed as they do not contain the selected variable: bad_model",
+        )
+    else:
+        mock_update_textbox_text.assert_not_called()
 
 
 @pytest.mark.parametrize("section", [User(), Ref(), Multiplot()])
@@ -3145,11 +3164,12 @@ def test_update_multiplot_dataset_uses_new_dataset_variables(ui, monkeypatch):
     assert ui.analysis_keys_dropdown.value == "b"
 
 
-def test_display_analysis_recipe_options_ui(analysis_ui):
+def test_display_analysis_recipe_options_ui(analysis_ui, monkeypatch):
     """Test that the recipe's annotations become one widget per parameter.
 
     Also checks that selecting a recipe again replaces its options row rather
-    than stacking a second copy in the container.
+    than stacking a second copy in the container, and that a recipe with a
+    broken declaration shows a warning instead of options.
     """
     ui = analysis_ui
     ui._display_analysis_recipe_options_ui()
@@ -3181,6 +3201,16 @@ def test_display_analysis_recipe_options_ui(analysis_ui):
     # Options sit directly under the recipe details
     info_index = container_items.index(ui.analysis_recipe_info)
     assert container_items[info_index + 1] is ui.analysis_recipe_options_row
+
+    # A broken declaration warns and leaves no options row behind
+    monkeypatch.setattr(
+        analysis,
+        "_get_recipe_kwarg_options",
+        MagicMock(side_effect=ValueError("bad declaration")),
+    )
+    ui._display_analysis_recipe_options_ui()
+    assert ui.analysis_warning_textbox.value == "Warning >> bad declaration"
+    assert not hasattr(ui, "analysis_recipe_options_row")
 
 
 def test_analysis_variable_toggle_shows_long_names(analysis_ui):
@@ -3631,3 +3661,71 @@ def test_years_files_text_with_real_datastore(ui):
     # A rendered UI selects the first option itself; unrendered widgets don't
     ui.multiplot_keys_dropdown.value = "atmos.1mon"
     assert ui.multiplot_years_files_text.value == "Loads 10 of 20 files, 2010–2019"
+
+
+def test_refresh_catalog(ui):
+    """Test that the refresh catalog button calls the controller and updates the status text."""
+    ui._refresh_catalog()
+    assert ui.refresh_catalog_button.disabled == True
+    assert (
+        ui.status_textbox.value
+        == "User model status >> Refreshing data catalog. This can take a few minutes."
+    )
+    assert (
+        ui.multiplot_status_textbox.value
+        == "Overlay Plot >> Refreshing data catalog. This can take a few minutes."
+    )
+    assert (
+        ui.analysis_status_textbox.value
+        == "Analysis status >> Refreshing data catalog. This can take a few minutes."
+    )
+
+
+def test_update_widgets_after_catalog_refresh(ui):
+    """Test that the refresh catalog button calls the controller and updates the status text."""
+    fake_catalog = {"key1": None, "key2": None}
+    sorted_keys = sorted(fake_catalog.keys())
+    ui._update_widgets_after_catalog_refresh(fake_catalog)
+
+    assert ui.model_cat == fake_catalog
+    assert ui.keys_dropdown.options == sorted_keys
+    assert ui.multiplot_keys_dropdown.options == sorted_keys
+    assert ui.analysis_keys_dropdown.options == sorted_keys
+    assert (
+        ui.status_textbox.value
+        == "User model status >> Data catalog refreshed. Reload a dataset to see the latest data."
+    )
+    assert (
+        ui.multiplot_status_textbox.value
+        == "Overlay Plot >> Data catalog refreshed. Reload user datasets to see the latest data."
+    )
+    assert (
+        ui.analysis_status_textbox.value
+        == "Analysis status >> Data catalog refreshed. Reload a dataset to see the latest data."
+    )
+
+
+def test_analysis_keys_button_click(ui, monkeypatch):
+    """Event wrapper for the analysis load dataset button click."""
+    mock_analysis_keys_dropdown_click = MagicMock()
+    monkeypatch.setattr(
+        ui, "_analysis_keys_dropdown_click", mock_analysis_keys_dropdown_click
+    )
+
+    ui._analysis_keys_button_click(None)
+
+    mock_analysis_keys_dropdown_click.assert_called_once()
+
+
+def test_analysis_select_recipe_button_click(ui, monkeypatch):
+    """Event wrapper for the analysis select recipe button click."""
+    mock_display_analysis_recipe_options_ui = MagicMock()
+    monkeypatch.setattr(
+        ui,
+        "_display_analysis_recipe_options_ui",
+        mock_display_analysis_recipe_options_ui,
+    )
+
+    ui._analysis_select_recipe_button_click(None)
+
+    mock_display_analysis_recipe_options_ui.assert_called_once()

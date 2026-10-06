@@ -723,6 +723,11 @@ def plot_multiplot_heatmap_dataset(
         global_vmin = min(global_vmin, float(plot_data[variable].min()))
         global_vmax = max(global_vmax, float(plot_data[variable].max()))
 
+    # Make the difference scale symmetric so that 0 is always white
+    if plot_diff:
+        abs_max = max(abs(global_vmin), abs(global_vmax))
+        global_vmin, global_vmax = -abs_max, abs_max
+
     # Create grid
     fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=[6 * ncols, 4 * nrows])
     axes_flat = axes.flatten() if hasattr(axes, "flatten") else [axes]
@@ -769,7 +774,7 @@ def plot_multiplot_heatmap_dataset(
             vmin=global_vmin,
             vmax=global_vmax,
             cmap=chosen_heatmap,
-            cbar_kwargs={"label": variable},
+            cbar_kwargs={"label": f"Δ {variable}" if plot_diff else variable},
         )
         axes_flat[ax_idx].set_title(f"{title_prefix}{model_key}{member_title}")
         ax_idx += 1

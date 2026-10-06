@@ -693,6 +693,30 @@ def test_plot_multiplot_heatmap_dataset(build_kwargs):
     assert fig is not None
 
 
+def test_plot_multiplot_heatmap_dataset_diff_scale_is_symmetric():
+    """Difference heatmaps centre the colour scale on 0, so 0 is always white."""
+    coords = {"lat": [0.0, 1.0], "lon": [0.0, 1.0]}
+    user_ds = xr.Dataset({"temp": (("lat", "lon"), np.zeros((2, 2)))}, coords=coords)
+    # Ref - user ranges from -2 to 6, so the scale should be -6 to 6
+    ref_ds = xr.Dataset(
+        {"temp": (("lat", "lon"), np.array([[-2.0, 0.0], [3.0, 6.0]]))},
+        coords=coords,
+    )
+
+    fig = controller.plot_multiplot_heatmap_dataset(
+        dataset=user_ds,
+        variable="temp",
+        ref_dict={"model1": ref_ds},
+        chosen_slices={},
+        x_axis="lon",
+        y_axis="lat",
+        plot_diff=True,
+    )
+
+    assert fig.axes[0].collections[0].get_clim() == (-6.0, 6.0)
+    assert fig.axes[1].get_ylabel() == "Δ temp"  # colour bar label
+
+
 @pytest.mark.parametrize(
     "chosen_slices, x_min, x_max, multiplot_legend, expected_caption, expected_xlim_called",
     [
