@@ -1527,7 +1527,9 @@ class UserInterface:
         self.prompt_bounds_dropdown.options = self.prompt_bounds_mapping
 
         self.prompt_bounds_row = pn.Row(
-            self.prompt_bounds_dropdown, self.prompt_bounds_button
+            self.multiplot_analysis_type_dropdown,
+            self.prompt_bounds_dropdown,
+            self.prompt_bounds_button,
         )
 
         # Determine the insertion index based on a hierarchy of existing UI elements
