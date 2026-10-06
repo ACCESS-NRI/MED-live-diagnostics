@@ -94,8 +94,10 @@ class UserInterface:
             "align": "end",
         },
         "widget_container": {
-            "header_background": "#616161",
+            "header_background": "#1C1C1C",
             "header_color": "white",
+            # header_color only colours the title, so colour the collapse arrow too
+            "stylesheets": [".card-button { color: white; }"],
             "collapsible": True,
             "sizing_mode": "stretch_width",
             "collapsed": True,
