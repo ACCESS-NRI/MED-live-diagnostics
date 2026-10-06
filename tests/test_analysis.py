@@ -1,6 +1,9 @@
 from typing import Annotated
 
+import matplotlib.pyplot as plt
+import numpy as np
 import pytest
+import xarray as xr
 
 from med_diagnostics import analysis
 
@@ -17,7 +20,25 @@ def my_mean(
         str, {"kind": "data variable", "description": "Variable to average"}
     ] = "o2",
 ):
-    """Mean of a variable."""
+    """
+    Mean of a variable.
+
+    A description
+    """
+    return ds[variable].mean()
+
+
+def recipe_summary_test_recipe(
+    ds,
+    variable: Annotated[
+        str, {"kind": "data variable", "description": "Variable to average"}
+    ] = "o2",
+):
+    """
+    Mean of a variable.
+
+    Parameters as the first word of the second paragraph of the docstring.
+    """
     return ds[variable].mean()
 
 
@@ -79,3 +100,55 @@ def test_register_analysis_accepts_unannotated_parameters():
 
     assert analysis.register_analysis(plain) is plain
     assert analysis.REGISTERED_ANALYSES == {"plain": plain}
+
+
+def test_get_recipe_summary_regular():
+    """Test that the recipe summary is extracted from the docstring."""
+
+    summary, details = analysis._get_recipe_summary(my_mean)
+    assert summary == "Mean of a variable."
+    assert details == "A description"
+
+
+def test_get_recipe_summary_parameters():
+    """Test that the recipe summary is extracted from the docstring, test that paramters are not included if in the second paragraph of the docstring."""
+
+    summary, details = analysis._get_recipe_summary(recipe_summary_test_recipe)
+
+    assert summary == "Mean of a variable."
+    assert details == ""
+
+
+def random_plot_customisation(ax, data):
+    """A mock plot customisation function for testing."""
+    ax.set_title("Customised Plot")
+
+
+def another_random_plot_customisation(ax, data):
+    """A mock plot customisation function for testing."""
+    ax.set_title("Another Customisation")
+
+
+def test_plot_result():
+    """Test that the plot result is customised by the provided functions."""
+    time = np.arange(10)
+    da = xr.DataArray(np.random.rand(10), dims="time", coords={"time": time}, name="o2")
+
+    fig = analysis._plot_result(
+        (
+            da,
+            {
+                "customise": [
+                    random_plot_customisation,
+                    another_random_plot_customisation,
+                ]
+            },
+        )
+    )
+
+    assert fig.axes[0].get_title() == "Another Customisation"
+    plt.close(fig)
+
+    fig = analysis._plot_result((da, {"customise": random_plot_customisation}))
+    assert fig.axes[0].get_title() == "Customised Plot"
+    plt.close(fig)

@@ -449,7 +449,7 @@ def check_plot_validity(
             remaining_dims,
         )
 
-    # 1. Build chosen_axes first so we can filter dimensions
+    # Build chosen_axes first so we can filter dimensions
     if isinstance(plot_type, Animation):
         chosen_axes = (x, y, z)
     elif isinstance(plot_type, heatmaps):
@@ -824,7 +824,6 @@ def check_bounds(dataset, x_axis, ref_dict):
     # Iterate through the reference datasets to find the absolute min and max
     for ref_ds in ref_dict.values():
         if x_axis in ref_ds:
-            # Crucial: Apply .item() to reference bounds as well!
             ref_min = ref_ds[x_axis].min().values[()]
             ref_max = ref_ds[x_axis].max().values[()]
 

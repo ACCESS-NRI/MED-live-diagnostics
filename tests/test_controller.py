@@ -74,7 +74,7 @@ def test_get_current_time(mock_datetime):
 @pytest.mark.parametrize(
     "has_member, plot_type, is_ref, attrs, expected_caption",
     [
-        # Case 1: Member dims exist, Line plot, Is Reference
+        # Member dims exist, Line plot, Is Reference
         (
             True,
             Line(),
@@ -82,9 +82,9 @@ def test_get_current_time(mock_datetime):
             {"long_name": "Test Var"},
             "Model: TestModel\nDataset: TestData",
         ),
-        # Case 2: Heatmap plot (bypasses member loop), Not Reference
+        # Heatmap plot (bypasses member loop), Not Reference
         (True, Heatmap(), False, {}, "User model \nDataset: TestData"),
-        # Case 3: No member dims, Line plot, Not Reference
+        # No member dims, Line plot, Not Reference
         (False, Line(), False, {}, "User model \nDataset: TestData"),
     ],
 )
@@ -522,7 +522,7 @@ def test_multiplot_check_bounds_mismatched_types():
     import cftime
     import xarray as xr
 
-    from med_diagnostics import controller  # Update import if needed
+    from med_diagnostics import controller
 
     # Primary dataset is numeric
     ds_primary = xr.Dataset({"data": (["x"], [1, 2])}, coords={"x": [0, 10]})
@@ -720,9 +720,9 @@ def test_plot_multiplot_heatmap_dataset_diff_scale_is_symmetric():
 @pytest.mark.parametrize(
     "chosen_slices, x_min, x_max, multiplot_legend, expected_caption, expected_xlim_called",
     [
-        # Case 1: Empty slices, no limits, multiplot_legend=False
+        # Empty slices, no limits, multiplot_legend=False
         ({}, None, None, False, "Base Caption", False),
-        # Case 2: Populated slices, valid limits, multiplot_legend=True
+        # Populated slices, valid limits, multiplot_legend=True
         ({"lat": -35.5}, 0.0, 100.0, True, "Base Caption\nSliced by: lat: -35.5", True),
     ],
 )

@@ -654,9 +654,6 @@ def recipe_sst_anomaly_nino34(
     tuple of (xarray.DataArray, dict)
         The Niño 3.4 index and its plot kwargs.
     """
-    # Trim before any computation so spinup doesn't skew the climatology,
-    # anomaly or normalisation - not just the plotted window
-
     nino34_ds = extract_region(dataset, "nino34", x_dim, y_dim)
     anomalies = calc_anomalies(nino34_ds, x_dim, y_dim, var)
 

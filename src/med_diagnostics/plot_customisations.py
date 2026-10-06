@@ -3,12 +3,13 @@ import numpy as np
 
 def shade_top_10pct(ax, data):
     """Shade where the timeseries is above its 90th percentile."""
+    dim = "time"
     threshold = float(data.quantile(0.9))
     ax.axhline(
         threshold, color="tab:red", linestyle="--", linewidth=1, label="90th percentile"
     )
     ax.fill_between(
-        data["time"].values,
+        data[dim].values,
         threshold,
         data.values,
         where=data.values >= threshold,
@@ -22,6 +23,7 @@ def shade_top_10pct(ax, data):
 
 def shade_bottom_10pct(ax, data):
     """Shade where the timeseries is below its 10th percentile."""
+    dim = "time"
     threshold = float(data.quantile(0.1))
     ax.axhline(
         threshold,
@@ -31,7 +33,7 @@ def shade_bottom_10pct(ax, data):
         label="10th percentile",
     )
     ax.fill_between(
-        data["time"].values,
+        data[dim].values,
         threshold,
         data.values,
         where=data.values <= threshold,

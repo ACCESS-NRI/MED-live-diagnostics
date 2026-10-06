@@ -2,7 +2,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-# Adjust this import path if your file is named something else (e.g., main.py)
 from med_diagnostics.session import CreateModelDiagnosticsSession
 
 
@@ -32,8 +31,7 @@ def mock_session_deps(monkeypatch):
     mock_controller = MagicMock()
     mock_controller.get_current_time.return_value = "12:00:00"
 
-    # Patch the modules directly where they are imported in your session file
-    # (Update "med_diagnostics.session" if your file is named differently)
+    # Patch the modules directly where they are imported in session.py
     monkeypatch.setattr("med_diagnostics.session.Client", mock_client_class)
     monkeypatch.setattr("med_diagnostics.session.ui.UserInterface", mock_ui_class)
     monkeypatch.setattr("med_diagnostics.session.data", mock_data)
@@ -100,3 +98,42 @@ def test_return_model_data_catalog(mock_session_deps):
     catalog = session.return_model_data_catalog()
 
     assert catalog == "mock_model_cat"
+
+
+def test_refresh_catalog(mock_session_deps, monkeypatch):
+    """Tests the refresh catalog functionality."""
+    _, mock_ui, _, _ = mock_session_deps
+    session = CreateModelDiagnosticsSession("CM2", "/mock/path")
+
+    mock_refresh_catalog = MagicMock()
+    monkeypatch.setattr(mock_ui, "_refresh_catalog", mock_refresh_catalog)
+
+    mock_build_model_catalog = MagicMock()
+    monkeypatch.setattr(session, "_build_model_catalog", mock_build_model_catalog)
+
+    mock_update_widgets_after_catalog_refresh = MagicMock()
+    monkeypatch.setattr(
+        mock_ui,
+        "_update_widgets_after_catalog_refresh",
+        mock_update_widgets_after_catalog_refresh,
+    )
+
+    # Call the refresh catalog method
+    session._refresh_catalog(None)
+
+    mock_refresh_catalog.assert_called_once()
+    # Verify that the model catalog was rebuilt and loaded
+    mock_build_model_catalog.assert_called_once()
+    mock_update_widgets_after_catalog_refresh.assert_called_once()
+
+    assert mock_ui.refresh_catalog_button.disabled is False
+
+
+def test_return_loaded_dataset(mock_session_deps):
+    """Tests the getter function for the loaded dataset."""
+    _, mock_ui, _, _ = mock_session_deps
+    mock_ui.dataset = dataset = {"some": "data"}  # Mock dataset
+    session = CreateModelDiagnosticsSession("CM2", "/mock/path")
+    dataset_return = session.return_loaded_dataset()
+
+    assert dataset_return == dataset

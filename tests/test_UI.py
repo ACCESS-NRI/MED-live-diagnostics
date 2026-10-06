@@ -1663,7 +1663,6 @@ def test_multiplot_plot_button_click(
     monkeypatch.setattr(ui, "_prompt_bounds_ui", mock_prompt_bounds_ui)
 
     mock_display_choices = MagicMock()
-    # Note: ensure this string exactly matches the name of your multiplot choices method!
     monkeypatch.setattr(ui, "_display_multiplot_plot_choices_ui", mock_display_choices)
 
     # Trigger the multiplot plot button click handler with a dummy event argument
@@ -2341,7 +2340,6 @@ def test_display_multiplot_plot_choices_ui(
 
     ui._display_multiplot_plot_choices_ui()
 
-    # (Keep your existing assertions below, adding validation for "heatmap_valid_else" if needed)
     if expected_scenario == "heatmap_valid_else":
         viable_dims = sorted(
             [dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"]
@@ -2440,13 +2438,13 @@ def test_display_multiplot_plot_choices_ui(
 @pytest.mark.parametrize(
     "plot_type, plot_diff, bounds_dropdown_val, expected_xmin, expected_xmax",
     [
-        # 1. Line plot, no diff, constrain to user bounds
+        # Line plot, no diff, constrain to user bounds
         (Line(), False, ConstrainToUser(), 2, 8),
-        # 2. Line plot, diff, use global bounds (simulating "Expand bounds to fit all" or similar)
+        # Line plot, diff, use global bounds (simulating "Expand bounds to fit all" or similar)
         (Line(), True, ConstrainToRef(), 0, 10),
-        # 3. Heatmap, no diff (bounds don't matter)
+        # Heatmap, no diff (bounds don't matter)
         (MultiplotHeatmap(), False, ConstrainToUser(), None, None),
-        # 4. Heatmap, diff (bounds don't matter)
+        # Heatmap, diff (bounds don't matter)
         (MultiplotHeatmap(), True, ConstrainToRef(), None, None),
     ],
 )
@@ -2463,7 +2461,7 @@ def test_multiplot_plot_dataset_helper(
     Verifies that the helper correctly extracts UI state and passes the right
     arguments to the controller plotting functions.
     """
-    # 1. Mock the controller's plotting functions
+    # Mock the controller's plotting functions
     mock_plot_line = MagicMock(return_value="line_figure")
     monkeypatch.setattr(controller, "plot_multiplot_dataset", mock_plot_line)
 
@@ -2474,7 +2472,7 @@ def test_multiplot_plot_dataset_helper(
     mock_check_bounds = MagicMock(return_value=(False, 0, 10, 2, 8))
     monkeypatch.setattr(controller, "check_bounds", mock_check_bounds)
 
-    # 2. Mock the UI state and widgets
+    # Mock the UI state and widgets
     mock_variable = "test_var"
     monkeypatch.setattr(
         ui, "_get_variable_helper", MagicMock(return_value=mock_variable)
@@ -2489,10 +2487,10 @@ def test_multiplot_plot_dataset_helper(
     ui.multiplot_ref_dataset_dict = {"ref1": "mock_ref_ds"}
     ui.multiplot_chosen_slices = {"z": 0}
 
-    # 3. Run the function
+    # Run the function
     result = ui._multiplot_plot_dataset_helper(plot_diff=plot_diff, plot_type=plot_type)
 
-    # 4. Assertions
+    # Assertions
     if isinstance(plot_type, Line):
         # Check that bounds were calculated
         mock_check_bounds.assert_called_once_with(
@@ -2521,7 +2519,7 @@ def test_multiplot_plot_dataset_helper(
         mock_plot_heatmap.assert_called_once_with(
             "mock_primary_ds",
             mock_variable,
-            {"ref1": "mock_ref_ds"},  # <--- Added the missing dictionary here!
+            {"ref1": "mock_ref_ds"},
             {"z": 0},
             "time",
             "lat",
@@ -2618,13 +2616,13 @@ def test_reproduce_live_multiplot_flow(ui, mock_multiplot_datasets):
     """Simulate the exact user interaction cycle in the multiplot UI from variable selection to plot rendering."""
     ds_user, ds_ref = mock_multiplot_datasets
 
-    # 1. State representing initial data load in multiplot
+    # State representing initial data load in multiplot
     ui.dataset = ds_user
     ui.multiplot_ref_dataset_dict = {"ref_model_1": ds_ref}
     ui.multiplot_plot_variable_dropdown.value = "salt_surface_ave"
     ui.multiplot_plot_type_dropdown.value = Line()
 
-    # 2. Simulate clicking "Select variable and plot type"
+    # Simulate clicking "Select variable and plot type"
     # Ensure any preexisting row isn't present
     if hasattr(ui, "multiplot_plot_choices_row"):
         ui._safe_remove_widget_object(
@@ -2643,11 +2641,11 @@ def test_reproduce_live_multiplot_flow(ui, mock_multiplot_datasets):
     if hasattr(ui, "prompt_bounds_dropdown"):
         ui.prompt_bounds_dropdown.value = "Global bounds"
 
-    # 3. Simulate clicking "Plot data"
+    # Simulate clicking "Plot data"
     initial_widget_count = len(ui.multiplot_widget_container)
     ui._multiplot_plot_button_click(None)
 
-    # 4. Verify execution reached the end without freezing on 'Generating plot...'
+    # Verify execution reached the end without freezing on 'Generating plot...'
     assert ui.multiplot_warning_textbox.value == ""
     assert ui.multiplot_status_textbox.value == "Overlay plot status >> Plot created"
     assert len(ui.multiplot_widget_container) >= initial_widget_count

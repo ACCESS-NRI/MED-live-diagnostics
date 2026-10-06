@@ -92,7 +92,7 @@ def test_start_dask_cluster(monkeypatch):
 def test_build_data_object(monkeypatch, is_aliased):
     """Test converting standard and aliased ESM datastores into xarray objects."""
 
-    # 1. Setup nested mocks for: model_cat[key](kwargs).to_dask()
+    # Setup nested mocks for: model_cat[key](kwargs).to_dask()
     mock_dataset = "mock_xarray_dataset"
     mock_to_dask = MagicMock(return_value=mock_dataset)
 
@@ -103,11 +103,11 @@ def test_build_data_object(monkeypatch, is_aliased):
     # The dictionary indexing result
     mock_model_cat_dict = MagicMock(return_value=mock_callable)
 
-    # 2. Setup the parent catalog mock
+    # Setup the parent catalog mock
     mock_model_cat = MagicMock()
     mock_model_cat.__getitem__.return_value = mock_model_cat_dict
 
-    # 3. Handle the AliasedESMCatalog unwrap branch
+    # Handle the AliasedESMCatalog unwrap branch
     mock_unwrapped_cat = MagicMock()
     mock_unwrapped_cat.__getitem__.return_value = mock_model_cat_dict
     mock_model_cat.unwrap.return_value = mock_unwrapped_cat
@@ -122,10 +122,10 @@ def test_build_data_object(monkeypatch, is_aliased):
 
     monkeypatch.setattr("builtins.isinstance", custom_isinstance)
 
-    # 4. Execute the function
+    # Execute the function
     result = data._build_data_object(mock_model_cat, "test_key")
 
-    # 5. Assertions
+    # Assertions
     if is_aliased:
         mock_model_cat.unwrap.assert_called_once()
         mock_unwrapped_cat.__getitem__.assert_called_once_with("test_key")
@@ -220,3 +220,43 @@ def test_select_year_files_keeps_undated_files():
     assert len(selected) == 13
     static = pd.DataFrame({"path": [1, 2], "start_date": ["none", "none"]})
     assert data._select_year_files(static, 1).equals(static)
+
+
+class _FakeDatastore:
+    """Minimal intake-esm datastore holding one dataset made of ``df``'s files.
+
+    Like the real one, it can be rebuilt from ``{"esmcat", "df"}`` (how a
+    search makes a subset), and opening it returns the rows it would load.
+    """
+
+    def __init__(self, spec):
+        self.df = spec["df"]
+        self.esmcat = MagicMock()
+
+    def __getitem__(self, key):
+        source = MagicMock(df=self.df)
+        source.return_value.to_dask.return_value = self.df
+        return source
+
+
+@pytest.mark.parametrize(
+    "years, from_start, expected_years",
+    [
+        (None, False, [2000, 2001, 2002, 2003, 2004]),
+        (2, True, [2000, 2001]),
+        (2, False, [2003, 2004]),
+    ],
+    ids=["all-years", "first-2", "last-2"],
+)
+def test_build_data_object_years(years, from_start, expected_years):
+    """Test that only the files in the chosen years are opened.
+
+    Opening files is the slow part of a load, so the catalog must be cut down
+    to the chosen years before ``to_dask`` rather than trimmed afterwards.
+    """
+    catalog = _FakeDatastore({"df": _monthly_df(2000, 5)})
+
+    opened = data._build_data_object(catalog, "key", years, from_start)
+
+    opened_years = sorted({int(date[:4]) for date in opened["start_date"]})
+    assert opened_years == expected_years
