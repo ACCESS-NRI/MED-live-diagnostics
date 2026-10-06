@@ -94,7 +94,7 @@ class UserInterface:
             "align": "end",
         },
         "widget_container": {
-            "header_background": "#2f2f2f",
+            "header_background": "#625463",
             "header_color": "white",
             "collapsible": True,
             "sizing_mode": "stretch_width",
