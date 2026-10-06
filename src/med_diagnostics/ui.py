@@ -1527,7 +1527,7 @@ class UserInterface:
         self.prompt_bounds_dropdown.options = self.prompt_bounds_mapping
 
         self.prompt_bounds_row = pn.Row(
-            self.multiplot_analysis_type_dropdown,
+            self.multiplot_analysis_choice_dropdown,
             self.prompt_bounds_dropdown,
             self.prompt_bounds_button,
         )
