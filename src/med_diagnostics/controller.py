@@ -235,17 +235,25 @@ def variable_toggle_change(variable_toggle, variable_dropdown, dataset):
     options = variable_dropdown.options
     has_none = None in (options.values() if isinstance(options, dict) else options)
 
+    # Translate the selection too, otherwise the dropdown keeps a name that is
+    # no longer one of its options
+    selected = variable_dropdown.value
     if variable_toggle.value:
         names = list(long_names.keys())
+        short_to_long = {short: long for long, short in long_names.items()}
+        selected = short_to_long.get(selected, selected)
         variable_toggle.label = "Display Variable Short Names"
     else:
         names = list(dataset.keys())
+        selected = long_names.get(selected, selected)
         variable_toggle.label = "Display Variable Long Names"
 
     if has_none:
         variable_dropdown.options = {"None": None, **{name: name for name in names}}
     else:
         variable_dropdown.options = names
+    if selected in names or (has_none and selected is None):
+        variable_dropdown.value = selected
 
     return long_names
 
@@ -272,7 +280,8 @@ def get_selected_variable(variable_toggle, variable_dropdown, long_names=None):
     if long_names is None:
         long_names = {}
     if variable_toggle.value and long_names and variable_dropdown.value is not None:
-        return long_names[variable_dropdown.value]
+        # Fall back to the value itself if it is already a short name
+        return long_names.get(variable_dropdown.value, variable_dropdown.value)
     return variable_dropdown.value
 
 
