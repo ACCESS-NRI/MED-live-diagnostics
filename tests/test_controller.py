@@ -234,6 +234,44 @@ def test_variable_toggle_change_keeps_selection(has_none):
     assert dropdown.value == "thetaoga"
 
 
+def test_variable_toggle_change_shared_long_names():
+    """Test that variables sharing a long name stay distinct and keep the selection.
+
+    A shared long name used to map to only one variable, so the others vanished
+    from the long name list and their selection was lost on toggling.
+    """
+    ds = xr.Dataset(
+        {
+            "soga": ("time", np.zeros(3), {"long_name": "Ocean Salinity"}),
+            "sosga": ("time", np.zeros(3), {"long_name": "Ocean Salinity"}),
+            "thetaoga": ("time", np.zeros(3), {"long_name": "Ocean Temperature"}),
+        }
+    )
+    toggle_widget = pn.widgets.Toggle(value=True)
+    dropdown = pn.widgets.Select(
+        options={
+            "None": None,
+            "soga": "soga",
+            "sosga": "sosga",
+            "thetaoga": "thetaoga",
+        },
+        value="soga",
+    )
+
+    long_names = controller.variable_toggle_change(toggle_widget, dropdown, ds)
+
+    assert long_names == {
+        "Ocean Salinity (soga)": "soga",
+        "Ocean Salinity (sosga)": "sosga",
+        "Ocean Temperature": "thetaoga",
+    }
+    assert dropdown.value == "Ocean Salinity (soga)"
+
+    toggle_widget.value = False
+    controller.variable_toggle_change(toggle_widget, dropdown, ds)
+    assert dropdown.value == "soga"
+
+
 def test_variable_toggle_change_keeps_none_selection():
     """Test that an optional variable left as None stays None across the toggle."""
     ds = xr.Dataset({"soga": ("time", np.zeros(3), {"long_name": "Ocean Salinity"})})

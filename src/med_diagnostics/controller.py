@@ -1,4 +1,5 @@
 import datetime
+from collections import Counter
 
 import hvplot.xarray  # noqa: F401 Ruff keeps removing this even though it is required for animations
 import matplotlib.pyplot as plt
@@ -227,9 +228,16 @@ def variable_toggle_change(variable_toggle, variable_dropdown, dataset):
         A mapping dictionary linking variable long names to their internal keys.
     """
 
+    names_by_var = {
+        var: str(dataset[var].attrs.get("long_name", var)) for var in dataset
+    }
+    counts = Counter(names_by_var.values())
     long_names = {}
-    for var in dataset:
-        long_names[(dataset[var].attrs.get("long_name", var))] = var
+    for var, long_name in names_by_var.items():
+        # A shared long name would hide all but one of its variables and lose
+        # the selection on toggling, so tell them apart by short name
+        label = f"{long_name} ({var})" if counts[long_name] > 1 else long_name
+        long_names[label] = var
 
     # Optional recipe variables offer None, which must survive the toggle
     options = variable_dropdown.options
