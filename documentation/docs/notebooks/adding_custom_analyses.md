@@ -44,7 +44,7 @@ def recipe_global_mean_temp(ds):
 analysis.register_analysis(recipe_global_mean_temp)
 ```
 
-Once your function is defined, click the **Refresh analysis recipes** button in the UI. The analysis status textbox will update to read: `"Analysis status >> Recipes refreshed (n custom)."`. 
+Once your function is defined, click the **Refresh analysis recipes** button in the UI. The analysis status textbox will update to read: `"Analysis status >> Recipes refreshed (n custom)"`. 
 
 Your new analysis will now appear in the dropdown menu, as shown below:
 

@@ -588,7 +588,7 @@ class UserInterface:
 
         controller.update_textbox_text(
             self.status_textbox,
-            "User model status >> Waiting for initial model data catalog to be built. This can take a few minutes.",
+            "User model status >> Waiting for initial model data catalog to be built. This can take a few minutes...",
         )
         self.user_widget_container.collapsed = False
 
@@ -782,7 +782,7 @@ class UserInterface:
         self.access_nri_cat = access_nri_cat
         controller.update_textbox_text(
             self.ref_status_textbox,
-            "Reference Model Status >> Select a model to load and plot data",
+            "Reference model status >> Select a model to load and plot data",
         )
         self.ref_keys_button.disabled = False
         self.clear_ref_model_data_button.disabled = False
@@ -792,7 +792,7 @@ class UserInterface:
 
         controller.update_textbox_text(
             self.multiplot_status_textbox,
-            "Overlay Plot >> Load user dataset to continue.",
+            "Overlay plot status >> Load user dataset to continue",
         )
         self.multiplot_ref_keys_dropdown.options = sorted(self.access_nri_cat.keys())
         self.multiplot_keys_dropdown.options = sorted(self.model_cat.keys())
@@ -803,7 +803,7 @@ class UserInterface:
 
         controller.update_textbox_text(
             self.analysis_status_textbox,
-            "Analysis status >> Load a dataset to analyse.",
+            "Analysis status >> Load a dataset to analyse",
         )
         self.analysis_keys_dropdown.options = sorted(self.model_cat.keys())
         self.analysis_keys_dropdown.disabled = False
@@ -820,15 +820,15 @@ class UserInterface:
         self.refresh_catalog_button.disabled = True
         controller.update_textbox_text(
             self.status_textbox,
-            "User model status >> Refreshing data catalog. This can take a few minutes.",
+            "User model status >> Refreshing data catalog. This can take a few minutes...",
         )
         controller.update_textbox_text(
             self.multiplot_status_textbox,
-            "Overlay Plot >> Refreshing data catalog. This can take a few minutes.",
+            "Overlay plot status >> Refreshing data catalog. This can take a few minutes...",
         )
         controller.update_textbox_text(
             self.analysis_status_textbox,
-            "Analysis status >> Refreshing data catalog. This can take a few minutes.",
+            "Analysis status >> Refreshing data catalog. This can take a few minutes...",
         )
 
     def _update_widgets_after_catalog_refresh(self, model_cat):
@@ -848,15 +848,15 @@ class UserInterface:
 
         controller.update_textbox_text(
             self.status_textbox,
-            "User model status >> Data catalog refreshed. Reload a dataset to see the latest data.",
+            "User model status >> Data catalog refreshed. Reload a dataset to see the latest data",
         )
         controller.update_textbox_text(
             self.multiplot_status_textbox,
-            "Overlay Plot >> Data catalog refreshed. Reload user datasets to see the latest data.",
+            "Overlay plot status >> Data catalog refreshed. Reload user datasets to see the latest data",
         )
         controller.update_textbox_text(
             self.analysis_status_textbox,
-            "Analysis status >> Data catalog refreshed. Reload a dataset to see the latest data.",
+            "Analysis status >> Data catalog refreshed. Reload a dataset to see the latest data",
         )
 
     def _display_dataset_selection_ui(self):
@@ -923,7 +923,7 @@ class UserInterface:
         """
         # Update text box
         controller.update_textbox_text(
-            self.status_textbox, "User model status >> Loading data."
+            self.status_textbox, "User model status >> Loading data..."
         )
         if key:
             selected_key = key
@@ -945,7 +945,7 @@ class UserInterface:
         controller.update_textbox_text(
             self.status_textbox,
             "User model status >> Data successfully loaded"
-            + (f" ({files_text})." if files_text else "."),
+            + (f" ({files_text})" if files_text else ""),
         )
         self.keys_button.name = "Load different dataset"
 
@@ -963,7 +963,7 @@ class UserInterface:
             self.multiplot_plot_type_dropdown.disabled = False
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
-                "Overlay Plot >> User data loaded. Load one or more reference datasets to compare.",
+                "Overlay plot status >> User data loaded. Load one or more reference datasets to compare",
             )
 
         # Check if plot already exists
@@ -987,7 +987,7 @@ class UserInterface:
 
         # Update text box
         controller.update_textbox_text(
-            self.ref_status_textbox, "Reference model status >> Loading data."
+            self.ref_status_textbox, "Reference model status >> Loading data..."
         )
 
         # Extract selected model catalog
@@ -998,7 +998,7 @@ class UserInterface:
         # Update text box
         controller.update_textbox_text(
             self.ref_status_textbox,
-            "Reference model status >> Data catalog successfully loaded.",
+            "Reference model status >> Data catalog successfully loaded",
         )
 
         if (
@@ -1032,7 +1032,7 @@ class UserInterface:
         ):
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
-                "Overlay Plot Status >> User dataset selection changed, reloading user dataset...",
+                "Overlay plot status >> User dataset selection changed, reloading user dataset...",
             )
             # Load through the user section so every section sharing self.dataset updates
             self._keys_dropdown_click(
@@ -1042,7 +1042,7 @@ class UserInterface:
 
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
-                "Overlay Plot Status >> New user dataset loaded, clearing loaded user models",
+                "Overlay plot status >> New user dataset loaded, clearing loaded user models",
             )
             self._clear_multiplot_data()
 
@@ -1058,7 +1058,7 @@ class UserInterface:
             model_value = self.multiplot_ref_keys_dropdown.value
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
-                "Overlay Plot Status >> Loading reference dataset...",
+                "Overlay plot status >> Loading reference dataset...",
             )
             self.multiplot_ref_dataset_dict = controller.add_to_dataset_dict(
                 self.multiplot_ref_dataset_dict,
@@ -1069,7 +1069,7 @@ class UserInterface:
             )
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
-                "Overlay Plot Status >> Loaded reference model, add another or plot the overlay",
+                "Overlay plot status >> Loaded reference model, add another or plot the overlay",
             )
         elif self.multiplot_ref_keys_dropdown.value in self.multiplot_ref_dataset_dict:
             controller.update_textbox_text(
@@ -1079,7 +1079,7 @@ class UserInterface:
         else:
             controller.update_textbox_text(
                 self.multiplot_warning_textbox,
-                "Overlay Plot Status >> There is no dataset matching the user dataset in this model, please select another",
+                "Overlay plot status >> There is no dataset matching the user dataset in this model, please select another",
             )
 
     def _ref_dataset_dropdown_click(self):
@@ -1096,7 +1096,7 @@ class UserInterface:
         )
         controller.update_textbox_text(
             self.ref_status_textbox,
-            "Reference model status >> Reference dataset successfully loaded.",
+            "Reference model status >> Reference dataset successfully loaded",
         )
         # Check if plot already exists
         if not self.ref_figure_exists:
@@ -1113,7 +1113,7 @@ class UserInterface:
 
         # Update text box
         controller.update_textbox_text(
-            self.ref_status_textbox, "Reference model status >> Data removed."
+            self.ref_status_textbox, "Reference model status >> Data removed"
         )
 
         ui_components_to_remove = [
@@ -1143,7 +1143,7 @@ class UserInterface:
         # Update text box
         controller.update_textbox_text(
             self.ref_status_textbox,
-            "Reference model status >> Retrieving model metadata.",
+            "Reference model status >> Retrieving model metadata...",
         )
         # Generate the metadata string
         self.ref_model_metadata.value = controller.get_metadata(
@@ -1180,7 +1180,7 @@ class UserInterface:
         if not hasattr(self, "dataset"):
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
-                "Overlay Plot Status >> Loading user dataset...",
+                "Overlay plot status >> Loading user dataset...",
             )
             self._keys_dropdown_click(
                 key=self.multiplot_keys_dropdown.value,
@@ -1195,7 +1195,7 @@ class UserInterface:
         else:
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
-                "Overlay Plot Status >> Loading new user dataset...",
+                "Overlay plot status >> Loading new user dataset...",
             )
             # Load through the user section so every section sharing self.dataset
             # updates. The variable lists must come from the new dataset, after loading.
@@ -1210,7 +1210,7 @@ class UserInterface:
             self.plot_variable_dropdown.options = sorted_keys
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
-                "Overlay Plot Status >> New user dataset loaded, clearing loaded models",
+                "Overlay plot status >> New user dataset loaded, clearing loaded models",
             )
             # Clear the loaded data, as different datasets from the selected models will need to be loaded.
             self._clear_multiplot_data()
@@ -1223,7 +1223,7 @@ class UserInterface:
         self.multiplot_ref_dataset_dict = {}
         controller.update_textbox_text(
             self.multiplot_status_textbox,
-            "Overlay Plot Status >> Cleared loaded reference models",
+            "Overlay plot status >> Cleared loaded reference models",
         )
 
     def _display_dataset_plot_ui(self):
@@ -1341,7 +1341,7 @@ class UserInterface:
             if len(viable_dims) < 2:
                 controller.update_textbox_text(
                     warning_textbox,
-                    "Warning >> Not enough dimensions available for this variable to plot a Heatmap.",
+                    "Warning >> Not enough dimensions available for this variable to plot a Heatmap",
                 )
                 plot_type_dropdown.value = Line()
                 show_plot_choices = False
@@ -1366,7 +1366,7 @@ class UserInterface:
             if len(viable_dims) < 2:
                 controller.update_textbox_text(
                     warning_textbox,
-                    "Warning >> Not enough dimensions available for this variable to plot an animation.",
+                    "Warning >> Not enough dimensions available for this variable to plot an animation",
                 )
                 plot_type_dropdown.value = Line()
                 show_plot_choices = False
@@ -1451,7 +1451,7 @@ class UserInterface:
             if len(viable_dims) < 2:
                 controller.update_textbox_text(
                     self.multiplot_warning_textbox,
-                    "Warning >> Not enough dimensions available for this variable to plot a Heatmap.",
+                    "Warning >> Not enough dimensions available for this variable to plot a Heatmap",
                 )
                 self.multiplot_plot_type_dropdown.value = Line()
                 return  # Stop generating the heatmap UI; dropdown change triggers a new callback
@@ -1568,7 +1568,7 @@ class UserInterface:
 
         self.multiplot_plot_button.name = "Select"
         controller.update_textbox_text(
-            self.multiplot_status_textbox, "Plot Overlay Status >> Generating plot..."
+            self.multiplot_status_textbox, "Overlay plot status >> Generating plot..."
         )
         self.multiplot_x_axis_dropdown.name = "Select X-Axis"
         self.multiplot_y_axis_dropdown.name = "Select Y-Axis"
@@ -1791,7 +1791,7 @@ class UserInterface:
         elif validity.invalid_heatmap_data:
             controller.update_textbox_text(
                 warning_box,
-                "Warning >> The dataset only has one plottable dimension. Defaulting to line plot.",
+                "Warning >> The dataset only has one plottable dimension. Defaulting to line plot",
             )
             plot_type_dd.value = Line()
             if not isinstance(section, Multiplot):
@@ -1799,7 +1799,7 @@ class UserInterface:
         elif validity.same_axes_chosen:
             controller.update_textbox_text(
                 warning_box,
-                "Warning >> Please ensure different values are selected for each axis.",
+                "Warning >> Please ensure different values are selected for each axis",
             )
 
             # Remove preexisting plot choices UI using strings
@@ -2001,7 +2001,7 @@ class UserInterface:
             position = ["multiplot_plot_choices_row"]
             button = self.multiplot_plot_button
             textbox = self.multiplot_status_textbox
-            status_prefix = "Overlay Plot"
+            status_prefix = "Overlay plot status"
             widget_container = self.multiplot_widget_container
         elif isinstance(section, Ref):
             self.ref_slice_widgets = slice_widgets
@@ -2027,7 +2027,7 @@ class UserInterface:
         button.name = "Confirm Slices & Plot"
         controller.update_textbox_text(
             textbox,
-            f"{status_prefix} >> Action required: Select slice values and click plot again.",
+            f"{status_prefix} >> Action required: Select slice values and click plot again",
         )
 
     def _plot_dataset_helper(self, is_ref=False, plot_type=Line):
@@ -2209,7 +2209,7 @@ class UserInterface:
             )
             controller.update_textbox_text(
                 self.analysis_status_textbox,
-                "Analysis status >> Recipe updated. Select it again to continue.",
+                "Analysis status >> Recipe updated. Select it again to continue",
             )
             return True
         return False
@@ -2219,7 +2219,7 @@ class UserInterface:
         Load the dataset selected in analysis_keys_dropdown and enable recipe selection.
         """
         controller.update_textbox_text(
-            self.analysis_status_textbox, "Analysis status >> Loading data."
+            self.analysis_status_textbox, "Analysis status >> Loading data..."
         )
         controller.update_textbox_text(self.analysis_warning_textbox, "")
 
@@ -2304,7 +2304,7 @@ class UserInterface:
 
         controller.update_textbox_text(
             self.analysis_status_textbox,
-            "Analysis status >> User data loaded. Select a recipe.",
+            "Analysis status >> User data loaded. Select a recipe",
         )
 
     def _analysis_refresh_click(self):
@@ -2318,7 +2318,7 @@ class UserInterface:
             controller.update_textbox_text(
                 self.analysis_status_textbox,
                 f"Analysis status >> Recipes refreshed "
-                f"({len(analysis.REGISTERED_ANALYSES)} custom).",
+                f"({len(analysis.REGISTERED_ANALYSES)} custom)",
             )
 
     def _display_analysis_recipe_options_ui(self):
@@ -2380,7 +2380,7 @@ class UserInterface:
 
         controller.update_textbox_text(
             self.analysis_status_textbox,
-            "Analysis status >> Choose the recipe options, then plot.",
+            "Analysis status >> Choose the recipe options, then plot",
         )
 
     def _build_recipe_option_widget(self, option):

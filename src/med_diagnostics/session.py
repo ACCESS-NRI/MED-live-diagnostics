@@ -93,7 +93,7 @@ class CreateModelDiagnosticsSession:
 
         # Update status text
         controller.update_textbox_text(
-            self.ui.status_textbox, "User model status >> Model data catalog built."
+            self.ui.status_textbox, "User model status >> Model data catalog built"
         )
         controller.update_textbox_text(
             self.ui.last_data_load_textbox,

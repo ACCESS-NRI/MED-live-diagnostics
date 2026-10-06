@@ -871,7 +871,7 @@ def test_display_plot_choices_ui(
         assert isinstance(ui.plot_type_dropdown.value, Line)
         assert (
             ui.warning_textbox.value
-            == "Warning >> Not enough dimensions available for this variable to plot a Heatmap."
+            == "Warning >> Not enough dimensions available for this variable to plot a Heatmap"
         )
         assert not hasattr(ui, "plot_choices_row")
     elif expected_outcome == "auto_plot_line":
@@ -886,7 +886,7 @@ def test_display_plot_choices_ui(
     elif expected_outcome == "fail_dim_check_animation":
         assert (
             ui.warning_textbox.value
-            == "Warning >> Not enough dimensions available for this variable to plot an animation."
+            == "Warning >> Not enough dimensions available for this variable to plot an animation"
         )
         assert isinstance(ui.plot_type_dropdown.value, Line)
         assert not hasattr(ui, "plot_choices_row")
@@ -983,7 +983,7 @@ def test_ref_display_plot_choices_ui(
         assert isinstance(ui.ref_plot_type_dropdown.value, Line)
         assert (
             ui.ref_warning_textbox.value
-            == "Warning >> Not enough dimensions available for this variable to plot a Heatmap."
+            == "Warning >> Not enough dimensions available for this variable to plot a Heatmap"
         )
         assert (
             not hasattr(ui, "ref_plot_choices_row")
@@ -1002,7 +1002,7 @@ def test_ref_display_plot_choices_ui(
     elif expected_outcome == "fail_dim_check_animation":
         assert (
             ui.ref_warning_textbox.value
-            == "Warning >> Not enough dimensions available for this variable to plot an animation."
+            == "Warning >> Not enough dimensions available for this variable to plot an animation"
         )
         assert isinstance(ui.ref_plot_type_dropdown.value, Line)
         assert not hasattr(ui, "ref_plot_choices_row")
@@ -1157,7 +1157,7 @@ def test_keys_dropdown_click(ui, monkeypatch, fig_exists):
 
     # Verify that loaded dataset tracking, status message, and button properties are updated correctly
     assert ui.loaded_dataset_key == ui.keys_dropdown.value
-    assert ui.status_textbox.value == "User model status >> Data successfully loaded."
+    assert ui.status_textbox.value == "User model status >> Data successfully loaded"
     assert ui.keys_button.name == "Load different dataset"
 
     # Verify that either the dataset plot UI update or initial display method is called appropriately
@@ -1180,7 +1180,7 @@ def test_keys_dropdown_click(ui, monkeypatch, fig_exists):
         assert ui.multiplot_plot_type_dropdown.disabled is False
         assert (
             ui.multiplot_status_textbox.value
-            == "Overlay Plot >> Load one or more reference datasets to compare."
+            == "Overlay plot status >> User data loaded. Load one or more reference datasets to compare"
         )
 
 
@@ -1218,7 +1218,7 @@ def test_update_multiplot_dataset(ui, monkeypatch, button_disabled):
     assert ui.plot_variable_dropdown.options == sorted(ui.dataset.keys())
     assert (
         ui.multiplot_status_textbox.value
-        == "Overlay Plot Status >> New user dataset loaded, clearing loaded models"
+        == "Overlay plot status >> New user dataset loaded, clearing loaded models"
     )
 
     # Verify that old multiplot data is cleared out
@@ -1274,7 +1274,7 @@ def test_update_multiplot_dataset_no_dataset_loaded(ui, monkeypatch):
     assert ui.multiplot_plot_type_dropdown.disabled is False
     assert (
         ui.multiplot_status_textbox.value
-        == "Overlay Plot >> User data loaded. Load one or more reference datasets to compare."
+        == "Overlay plot status >> User data loaded. Load one or more reference datasets to compare"
     )
 
 
@@ -1310,7 +1310,7 @@ def test_ref_keys_dropdown_click(ui, monkeypatch, selection_row_exists):
     # Verify that the reference status message is successfully updated and catalog search is executed
     assert (
         ui.ref_status_textbox.value
-        == "Reference model status >> Data catalog successfully loaded."
+        == "Reference model status >> Data catalog successfully loaded"
     )
 
     mock_cat.search.assert_called_once()
@@ -1400,7 +1400,7 @@ def test_multiplot_ref_keys_dropdown_click(
     elif not matching_catalog:
         assert (
             ui.multiplot_warning_textbox.value
-            == "Overlay Plot Status >> There is no dataset matching the user dataset in this model, please select another"
+            == "Overlay plot status >> There is no dataset matching the user dataset in this model, please select another"
         )
 
     # Verify that state cleanup and status updates occur correctly when user selection changes
@@ -1409,7 +1409,7 @@ def test_multiplot_ref_keys_dropdown_click(
         # status is the last one shown
         assert (
             ui.multiplot_status_textbox.value
-            == "Overlay Plot Status >> Loaded reference model, add another or plot the overlay"
+            == "Overlay plot status >> Loaded reference model, add another or plot the overlay"
         )
         assert ui.loaded_dataset_key == ui.multiplot_keys_dropdown.value
         assert ui.multiplot_plot_variable_dropdown.options == sorted(ui.dataset.keys())
@@ -1445,7 +1445,7 @@ def test_ref_dataset_dropdown_click(ui, monkeypatch, fig_exists):
     mock_build_data_object.assert_called_once()
     assert (
         ui.ref_status_textbox.value
-        == "Reference model status >> Reference dataset successfully loaded."
+        == "Reference model status >> Reference dataset successfully loaded"
     )
 
     # Verify that either the reference dataset plot UI update or initial display method is called based on figure existence
@@ -1531,14 +1531,14 @@ def test_plot_button_click(
     elif invalid_heatmap_data:
         assert (
             ui.warning_textbox.value
-            == "Warning >> The dataset only has one plottable dimension. Defaulting to line plot."
+            == "Warning >> The dataset only has one plottable dimension. Defaulting to line plot"
         )
         assert isinstance(ui.plot_type_dropdown.value, Line)
         mock_plot_data_button_click.assert_called()
     elif same_axes_chosen:
         assert (
             ui.warning_textbox.value
-            == "Warning >> Please ensure different values are selected for each axis."
+            == "Warning >> Please ensure different values are selected for each axis"
         )
         mock_display_plot_choices_ui.assert_called_once()
         assert not hasattr(ui, "plot_choices_row")
@@ -1601,14 +1601,14 @@ def test_ref_plot_button_click(
     elif invalid_heatmap_data:
         assert (
             ui.ref_warning_textbox.value
-            == "Warning >> The dataset only has one plottable dimension. Defaulting to line plot."
+            == "Warning >> The dataset only has one plottable dimension. Defaulting to line plot"
         )
         assert isinstance(ui.ref_plot_type_dropdown.value, Line)
         mock_plot_data_button_click.assert_called()
     elif same_axes_chosen:
         assert (
             ui.ref_warning_textbox.value
-            == "Warning >> Please ensure different values are selected for each axis."
+            == "Warning >> Please ensure different values are selected for each axis"
         )
         mock_display_plot_choices_ui.assert_called_once()
         assert not hasattr(ui, "ref_plot_choices_row")
@@ -2042,7 +2042,7 @@ def test_check_plot_validity_slice_cleanup(ui, monkeypatch, section, keys_match)
             Multiplot(),
             "multiplot_",
             ["multiplot_plot_choices_row"],
-            "Overlay Plot",
+            "Overlay plot status",
             ["lat"],
         ),
     ],
@@ -2143,7 +2143,7 @@ def test_check_slice(
     assert btn.name == "Confirm Slices & Plot"
     mock_update_text.assert_called_once_with(
         txt,
-        f"{expected_status_prefix} >> Action required: Select slice values and click plot again.",
+        f"{expected_status_prefix} >> Action required: Select slice values and click plot again",
     )
 
 
@@ -2362,7 +2362,7 @@ def test_display_multiplot_plot_choices_ui(
     if expected_scenario == "heatmap_invalid":
         mock_update_text.assert_called_once_with(
             ui.multiplot_warning_textbox,
-            "Warning >> Not enough dimensions available for this variable to plot a Heatmap.",
+            "Warning >> Not enough dimensions available for this variable to plot a Heatmap",
         )
         assert isinstance(ui.multiplot_plot_type_dropdown.value, Line)
         mock_safe_add.assert_not_called()
@@ -2822,7 +2822,7 @@ def test_initialise_user_widgets(uninitialised_ui):
     # Verify the status text is set and the container is expanded
     assert (
         ui.status_textbox.value
-        == "User model status >> Waiting for initial model data catalog to be built. This can take a few minutes."
+        == "User model status >> Waiting for initial model data catalog to be built. This can take a few minutes..."
     )
     assert ui.user_widget_container.collapsed is False
 
@@ -2976,7 +2976,7 @@ def test_enable_widgets_after_catalog_load(ui):
 
     assert (
         ui.ref_status_textbox.value
-        == "Reference Model Status >> Select a model to load and plot data"
+        == "Reference model status >> Select a model to load and plot data"
     )
     assert ui.ref_keys_button.disabled is False
     assert ui.clear_ref_model_data_button.disabled is False
@@ -2986,7 +2986,7 @@ def test_enable_widgets_after_catalog_load(ui):
 
     assert (
         ui.multiplot_status_textbox.value
-        == "Overlay Plot >> Load user dataset to continue."
+        == "Overlay plot status >> Load user dataset to continue"
     )
 
     assert ui.multiplot_ref_keys_dropdown.options == sorted(ui.access_nri_cat.keys())
@@ -3062,7 +3062,7 @@ def test_enable_widgets_after_catalog_load_enables_analysis(ui):
     assert ui.analysis_recipe_dropdown.disabled is True
     assert (
         ui.analysis_status_textbox.value
-        == "Analysis status >> Load a dataset to analyse."
+        == "Analysis status >> Load a dataset to analyse"
     )
 
 
@@ -3131,7 +3131,7 @@ def test_user_load_syncs_analysis_section(analysis_ui, monkeypatch):
     assert not hasattr(ui, "analysis_recipe_widgets")
     assert (
         ui.analysis_status_textbox.value
-        == "Analysis status >> User data loaded. Select a recipe."
+        == "Analysis status >> User data loaded. Select a recipe"
     )
 
 
@@ -3391,7 +3391,7 @@ def test_refresh_button_adds_uploaded_analysis(analysis_ui, empty_uploads):
     assert ui.analysis_recipe_dropdown.value is recipes.recipe_regional_mean_mom5
     assert (
         ui.analysis_status_textbox.value
-        == "Analysis status >> Recipes refreshed (1 custom)."
+        == "Analysis status >> Recipes refreshed (1 custom)"
     )
 
 
@@ -3667,15 +3667,15 @@ def test_refresh_catalog(ui):
     assert ui.refresh_catalog_button.disabled
     assert (
         ui.status_textbox.value
-        == "User model status >> Refreshing data catalog. This can take a few minutes."
+        == "User model status >> Refreshing data catalog. This can take a few minutes..."
     )
     assert (
         ui.multiplot_status_textbox.value
-        == "Overlay Plot >> Refreshing data catalog. This can take a few minutes."
+        == "Overlay plot status >> Refreshing data catalog. This can take a few minutes..."
     )
     assert (
         ui.analysis_status_textbox.value
-        == "Analysis status >> Refreshing data catalog. This can take a few minutes."
+        == "Analysis status >> Refreshing data catalog. This can take a few minutes..."
     )
 
 
@@ -3691,15 +3691,15 @@ def test_update_widgets_after_catalog_refresh(ui):
     assert ui.analysis_keys_dropdown.options == sorted_keys
     assert (
         ui.status_textbox.value
-        == "User model status >> Data catalog refreshed. Reload a dataset to see the latest data."
+        == "User model status >> Data catalog refreshed. Reload a dataset to see the latest data"
     )
     assert (
         ui.multiplot_status_textbox.value
-        == "Overlay Plot >> Data catalog refreshed. Reload user datasets to see the latest data."
+        == "Overlay plot status >> Data catalog refreshed. Reload user datasets to see the latest data"
     )
     assert (
         ui.analysis_status_textbox.value
-        == "Analysis status >> Data catalog refreshed. Reload a dataset to see the latest data."
+        == "Analysis status >> Data catalog refreshed. Reload a dataset to see the latest data"
     )
 
 
