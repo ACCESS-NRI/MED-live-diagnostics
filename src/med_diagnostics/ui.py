@@ -624,6 +624,9 @@ class UserInterface:
             self.clear_ref_model_data_button,
         )
 
+        # Divider separating the ref controls from its plots
+        self.ref_divider = pn.layout.Divider(styles={"color": "white"})
+
         # Append all reference elements to the main widget container simultaneously
         self.ref_widget_container.extend(
             [
@@ -631,7 +634,7 @@ class UserInterface:
                 self.ref_warning_textbox,
                 self.ref_keys_selection_row,
                 self.ref_model_metadata,
-                pn.layout.Divider(styles={"color": "white"}),
+                self.ref_divider,
             ]
         )
 
@@ -1714,13 +1717,13 @@ class UserInterface:
             self._safe_remove_widget_object(
                 self.ref_widget_container, "ref_slice_widgets"
             )
-            # Add plot above the multiplot widgets
+            # Add the newest plot directly below the divider, above older plots
             self._safe_add_to_widget(
                 self.ref_widget_container,
-                ["multiplot_status_textbox"],
+                ["ref_divider"],
                 plot_group,
                 append=True,
-                above=True,
+                above=False,
             )
         else:
             self._safe_remove_widget_object(
@@ -1729,12 +1732,13 @@ class UserInterface:
             self._safe_remove_widget_object(self.user_widget_container, "slice_ui_row")
             self._safe_remove_widget_object(self.user_widget_container, "slice_widgets")
 
+            # Add the newest plot directly below the plot UI row, above older plots
             self._safe_add_to_widget(
                 self.user_widget_container,
-                ["ref_status_textbox"],
+                ["plot_ui_row"],
                 plot_group,
                 append=True,
-                above=True,
+                above=False,
             )
 
         controller.update_textbox_text(textbox, f"{text_prefix} >> Plot created")
