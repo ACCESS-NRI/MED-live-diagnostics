@@ -1,11 +1,12 @@
 import datetime
+from collections import Counter
 
 import hvplot.xarray  # noqa: F401 Ruff keeps removing this even though it is required for animations
 import matplotlib.pyplot as plt
 import panel as pn
 import xarray as xr
 
-from med_diagnostics import data
+from med_diagnostics import analysis, data
 from med_diagnostics.types import (
     Animation,
     Heatmap,
@@ -227,16 +228,35 @@ def variable_toggle_change(variable_toggle, variable_dropdown, dataset):
         A mapping dictionary linking variable long names to their internal keys.
     """
 
+    names_by_var = {
+        var: str(dataset[var].attrs.get("long_name", var)) for var in dataset
+    }
+    counts = Counter(names_by_var.values())
     long_names = {}
-    for var in dataset:
-        long_names[(dataset[var].attrs.get("long_name", var))] = var
+    for var, long_name in names_by_var.items():
+        # A shared long name would hide all but one of its variables and lose
+        # the selection on toggling, so tell them apart by short name
+        label = f"{long_name} ({var})" if counts[long_name] > 1 else long_name
+        long_names[label] = var
 
+    # Optional recipe variables offer None, which must survive the toggle
+    options = variable_dropdown.options
+    has_none = None in (options.values() if isinstance(options, dict) else options)
+
+    selected = variable_dropdown.value
     if variable_toggle.value:
-        variable_dropdown.options = list(long_names.keys())
+        names = list(long_names.keys())
+        short_to_long = {short: long for long, short in long_names.items()}
+        selected = short_to_long.get(selected, selected)
         variable_toggle.label = "Display Variable Short Names"
     else:
-        variable_dropdown.options = list(dataset.keys())
+        names = list(dataset.keys())
+        selected = long_names.get(selected, selected)
         variable_toggle.label = "Display Variable Long Names"
+
+    variable_dropdown.options = [None, *names] if has_none else names
+    if selected in names or (has_none and selected is None):
+        variable_dropdown.value = selected
 
     return long_names
 
@@ -262,8 +282,9 @@ def get_selected_variable(variable_toggle, variable_dropdown, long_names=None):
 
     if long_names is None:
         long_names = {}
-    if variable_toggle.value and long_names:
-        return long_names[variable_dropdown.value]
+    if variable_toggle.value and long_names and variable_dropdown.value is not None:
+        # Fall back to the value itself if it is already a short name
+        return long_names.get(variable_dropdown.value, variable_dropdown.value)
     return variable_dropdown.value
 
 
@@ -440,7 +461,7 @@ def check_plot_validity(
             remaining_dims,
         )
 
-    # 1. Build chosen_axes first so we can filter dimensions
+    # Build chosen_axes first so we can filter dimensions
     if isinstance(plot_type, Animation):
         chosen_axes = (x, y, z)
     elif isinstance(plot_type, heatmaps):
@@ -623,10 +644,7 @@ def plot_multiplot_dataset(
         sliced_ref_data = ref_dataset.sel(**valid_slices, method="nearest")
 
         # Determine the data to plot based on the diff flag
-        if plot_diff:
-            plot_data = sliced_ref_data - sliced_user_data
-        else:
-            plot_data = sliced_ref_data
+        plot_data = sliced_ref_data - sliced_user_data if plot_diff else sliced_ref_data
 
         # Plot all model variants if multiple exist
         if "member" in plot_data.dims:
@@ -661,6 +679,29 @@ def plot_multiplot_dataset(
 def plot_multiplot_heatmap_dataset(
     dataset, variable, ref_dict, chosen_slices, x_axis, y_axis, plot_diff=False
 ):
+    """
+    Plot heatmaps of the user model and each reference model on a shared colour scale.
+
+    Parameters
+    ----------
+    dataset : xarray.Dataset
+        User model data.
+    variable : str
+        Variable to plot.
+    ref_dict : dict
+        Reference datasets, as {model name: xarray.Dataset}.
+    chosen_slices : dict
+        Values to slice each dataset at, as {dimension: value}.
+    x_axis, y_axis : str
+        Dimensions for the heatmap axes.
+    plot_diff : bool, optional
+        Plot each reference minus the user data instead of the raw data.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        A grid of heatmaps, two per row.
+    """
     num_refs = len(ref_dict)
 
     # If not plotting the difference, add 1 to total_plots to accommodate the user dataset
@@ -702,7 +743,7 @@ def plot_multiplot_heatmap_dataset(
         global_vmax = float(first_plot_data[variable].max())
 
     # Calculate min and max across all reference datasets to keep colour scales consistent
-    for model_key, ref_ds in ref_dict.items():
+    for ref_ds in ref_dict.values():
         valid_slices = {
             dim: val for dim, val in chosen_slices.items() if dim in ref_ds.dims
         }
@@ -713,6 +754,11 @@ def plot_multiplot_heatmap_dataset(
         plot_data = (sliced_ref - sliced_user_data) if plot_diff else sliced_ref
         global_vmin = min(global_vmin, float(plot_data[variable].min()))
         global_vmax = max(global_vmax, float(plot_data[variable].max()))
+
+    # Make the difference scale symmetric so that 0 is always white
+    if plot_diff:
+        abs_max = max(abs(global_vmin), abs(global_vmax))
+        global_vmin, global_vmax = -abs_max, abs_max
 
     # Create grid
     fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=[6 * ncols, 4 * nrows])
@@ -749,10 +795,7 @@ def plot_multiplot_heatmap_dataset(
         plot_data = (sliced_ref - sliced_user_data) if plot_diff else sliced_ref
         title_prefix = "Ref. - User data: " if plot_diff else ""
 
-        if plot_diff:
-            chosen_heatmap = "RdBu_r"
-        else:
-            chosen_heatmap = "viridis"
+        chosen_heatmap = "RdBu_r" if plot_diff else "viridis"
         plot_data[variable].plot(
             x=x_axis,
             y=y_axis,
@@ -760,7 +803,7 @@ def plot_multiplot_heatmap_dataset(
             vmin=global_vmin,
             vmax=global_vmax,
             cmap=chosen_heatmap,
-            cbar_kwargs={"label": variable},
+            cbar_kwargs={"label": f"Δ {variable}" if plot_diff else variable},
         )
         axes_flat[ax_idx].set_title(f"{title_prefix}{model_key}{member_title}")
         ax_idx += 1
@@ -793,8 +836,8 @@ def check_bounds(dataset, x_axis, ref_dict):
     """
     Calculate the absolute minimum and maximum x-axis bounds across all datasets.
     """
-    # Safely extract pure Python scalars from Xarray DataArrays using .item()
-    # This prevents 0D NumPy arrays from crashing Matplotlib's set_xlim
+    # Index the 0D arrays with [()] to get scalars, as 0D NumPy arrays crash
+    # Matplotlib's set_xlim
     dataset_min = dataset[x_axis].min().values[()]
     dataset_max = dataset[x_axis].max().values[()]
 
@@ -810,7 +853,6 @@ def check_bounds(dataset, x_axis, ref_dict):
     # Iterate through the reference datasets to find the absolute min and max
     for ref_ds in ref_dict.values():
         if x_axis in ref_ds:
-            # Crucial: Apply .item() to reference bounds as well!
             ref_min = ref_ds[x_axis].min().values[()]
             ref_max = ref_ds[x_axis].max().values[()]
 
@@ -838,3 +880,24 @@ def check_bounds(dataset, x_axis, ref_dict):
                     pass
 
     return bounds_widened, global_min, global_max, dataset_min, dataset_max
+
+
+def plot_recipe(dataset, recipe, recipe_kwargs):
+    """
+    Run an analysis recipe on a dataset and return its figures.
+
+    Parameters
+    ----------
+    dataset : xarray.Dataset
+        The dataset to analyse.
+    recipe : callable
+        A recipe from ``med_diagnostics.recipes``, or a user's own.
+    recipe_kwargs : dict
+        The options chosen in the UI, passed to the recipe.
+
+    Returns
+    -------
+    list of matplotlib.figure.Figure
+        One figure per recipe result, from ``analysis._analyse_and_plot``.
+    """
+    return analysis._analyse_and_plot(dataset, recipe, **recipe_kwargs)

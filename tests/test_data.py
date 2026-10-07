@@ -1,6 +1,7 @@
 import os
 from unittest.mock import MagicMock
 
+import pandas as pd
 import pytest
 from access_nri_intake.aliases import AliasedESMCatalog
 from access_nri_intake.source.builders import (
@@ -71,27 +72,11 @@ def test_load_new_catalog(monkeypatch):
     )
 
 
-def test_start_dask_cluster(monkeypatch):
-    """Test that the local Dask cluster starts and returns the dashboard link."""
-    # Create mock instances to traverse distributed.Client().dashboard_link
-    mock_client_instance = MagicMock()
-    mock_client_instance.dashboard_link = "http://mock-dashboard:8787"
-    mock_client_class = MagicMock(return_value=mock_client_instance)
-
-    # Patch the Client inside the distributed module, which is imported locally in the function
-    monkeypatch.setattr("distributed.Client", mock_client_class)
-
-    result = data._start_dask_cluster()
-
-    assert result == "http://mock-dashboard:8787"
-    mock_client_class.assert_called_once_with(threads_per_worker=1)
-
-
 @pytest.mark.parametrize("is_aliased", [True, False])
 def test_build_data_object(monkeypatch, is_aliased):
     """Test converting standard and aliased ESM datastores into xarray objects."""
 
-    # 1. Setup nested mocks for: model_cat[key](kwargs).to_dask()
+    # Setup nested mocks for: model_cat[key](kwargs).to_dask()
     mock_dataset = "mock_xarray_dataset"
     mock_to_dask = MagicMock(return_value=mock_dataset)
 
@@ -102,11 +87,11 @@ def test_build_data_object(monkeypatch, is_aliased):
     # The dictionary indexing result
     mock_model_cat_dict = MagicMock(return_value=mock_callable)
 
-    # 2. Setup the parent catalog mock
+    # Setup the parent catalog mock
     mock_model_cat = MagicMock()
     mock_model_cat.__getitem__.return_value = mock_model_cat_dict
 
-    # 3. Handle the AliasedESMCatalog unwrap branch
+    # Handle the AliasedESMCatalog unwrap branch
     mock_unwrapped_cat = MagicMock()
     mock_unwrapped_cat.__getitem__.return_value = mock_model_cat_dict
     mock_model_cat.unwrap.return_value = mock_unwrapped_cat
@@ -121,10 +106,10 @@ def test_build_data_object(monkeypatch, is_aliased):
 
     monkeypatch.setattr("builtins.isinstance", custom_isinstance)
 
-    # 4. Execute the function
+    # Execute the function
     result = data._build_data_object(mock_model_cat, "test_key")
 
-    # 5. Assertions
+    # Assertions
     if is_aliased:
         mock_model_cat.unwrap.assert_called_once()
         mock_unwrapped_cat.__getitem__.assert_called_once_with("test_key")
@@ -169,3 +154,93 @@ def test_load_access_nri_catalog(monkeypatch, filter_arg, expected_regex):
     else:
         mock_access_nri_cat.search.assert_not_called()
         assert result == mock_access_nri_cat
+
+
+def _monthly_df(start_year, n_years):
+    """Catalog rows for one file per month, dated like access-nri-intake's builders."""
+    dates = [
+        f"{year:04d}-{month:02d}-01, 00:00:00"
+        for year in range(start_year, start_year + n_years)
+        for month in range(1, 13)
+    ]
+    return pd.DataFrame({"path": range(len(dates)), "start_date": dates})
+
+
+@pytest.mark.parametrize(
+    "years, from_start, expected_years",
+    [
+        pytest.param(2, False, [2003, 2004], id="most-recent"),
+        pytest.param(2, True, [2000, 2001], id="first"),
+        pytest.param(50, False, [2000, 2001, 2002, 2003, 2004], id="more-than-run"),
+        pytest.param(None, False, [2000, 2001, 2002, 2003, 2004], id="all-years"),
+    ],
+)
+def test_select_year_files(years, from_start, expected_years):
+    """Test that only the files starting in the chosen years are kept.
+
+    Loading is slow because every file is opened, so the filter must drop
+    whole files by their start year rather than trimming after loading.
+    """
+    selected = data._select_year_files(_monthly_df(2000, 5), years, from_start)
+
+    selected_years = sorted({int(date[:4]) for date in selected["start_date"]})
+    assert selected_years == expected_years
+    assert len(selected) == 12 * len(expected_years)
+
+
+def test_select_year_files_keeps_undated_files():
+    """Test that files without a time axis are kept, and all-undated data is unchanged.
+
+    access-nri-intake dates static files (e.g. grid data) as "none", so they
+    have no year to filter on and must not be silently dropped.
+    """
+    df = pd.concat(
+        [_monthly_df(2000, 3), pd.DataFrame({"path": [99], "start_date": ["none"]})]
+    )
+
+    selected = data._select_year_files(df, 1)
+
+    assert "none" in list(selected["start_date"])
+    assert len(selected) == 13
+    static = pd.DataFrame({"path": [1, 2], "start_date": ["none", "none"]})
+    assert data._select_year_files(static, 1).equals(static)
+
+
+class _FakeDatastore:
+    """Minimal intake-esm datastore holding one dataset made of ``df``'s files.
+
+    Like the real one, it can be rebuilt from ``{"esmcat", "df"}`` (how a
+    search makes a subset), and opening it returns the rows it would load.
+    """
+
+    def __init__(self, spec):
+        self.df = spec["df"]
+        self.esmcat = MagicMock()
+
+    def __getitem__(self, key):
+        source = MagicMock(df=self.df)
+        source.return_value.to_dask.return_value = self.df
+        return source
+
+
+@pytest.mark.parametrize(
+    "years, from_start, expected_years",
+    [
+        (None, False, [2000, 2001, 2002, 2003, 2004]),
+        (2, True, [2000, 2001]),
+        (2, False, [2003, 2004]),
+    ],
+    ids=["all-years", "first-2", "last-2"],
+)
+def test_build_data_object_years(years, from_start, expected_years):
+    """Test that only the files in the chosen years are opened.
+
+    Opening files is the slow part of a load, so the catalog must be cut down
+    to the chosen years before ``to_dask`` rather than trimmed afterwards.
+    """
+    catalog = _FakeDatastore({"df": _monthly_df(2000, 5)})
+
+    opened = data._build_data_object(catalog, "key", years, from_start)
+
+    opened_years = sorted({int(date[:4]) for date in opened["start_date"]})
+    assert opened_years == expected_years

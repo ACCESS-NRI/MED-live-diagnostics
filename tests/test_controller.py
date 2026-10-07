@@ -18,8 +18,7 @@ from med_diagnostics.ui import UserInterface
 def ui():
     """Return a session-scoped UserInterface instance for testing"""
 
-    ui = UserInterface()
-    return ui
+    return UserInterface()
 
 
 @pytest.mark.parametrize(
@@ -74,7 +73,7 @@ def test_get_current_time(mock_datetime):
 @pytest.mark.parametrize(
     "has_member, plot_type, is_ref, attrs, expected_caption",
     [
-        # Case 1: Member dims exist, Line plot, Is Reference
+        # Member dims exist, Line plot, Is Reference
         (
             True,
             Line(),
@@ -82,9 +81,9 @@ def test_get_current_time(mock_datetime):
             {"long_name": "Test Var"},
             "Model: TestModel\nDataset: TestData",
         ),
-        # Case 2: Heatmap plot (bypasses member loop), Not Reference
+        # Heatmap plot (bypasses member loop), Not Reference
         (True, Heatmap(), False, {}, "User model \nDataset: TestData"),
-        # Case 3: No member dims, Line plot, Not Reference
+        # No member dims, Line plot, Not Reference
         (False, Line(), False, {}, "User model \nDataset: TestData"),
     ],
 )
@@ -200,6 +199,100 @@ def test_variable_toggle_change(toggle_value):
     else:
         assert variable_dropdown_widget.options == ["data"]
         assert toggle_widget.label == "Display Variable Long Names"
+
+
+@pytest.mark.parametrize("has_none", [True, False])
+def test_variable_toggle_change_keeps_selection(has_none):
+    """Test that the selected variable is carried across the toggle in both directions.
+
+    The dropdown used to keep the old name, which was no longer an option, so
+    switching back looked stuck and plotting with long names raised a KeyError.
+    """
+    ds = xr.Dataset(
+        {
+            "soga": ("time", np.zeros(3), {"long_name": "Ocean Salinity"}),
+            "thetaoga": ("time", np.zeros(3), {"long_name": "Ocean Temperature"}),
+        }
+    )
+    toggle_widget = pn.widgets.Toggle(value=False)
+    if has_none:
+        # Optional recipe variables offer None
+        options = [None, "soga", "thetaoga"]
+    else:
+        options = ["soga", "thetaoga"]
+    dropdown = pn.widgets.Select(options=options, value="thetaoga")
+
+    toggle_widget.value = True
+    long_names = controller.variable_toggle_change(toggle_widget, dropdown, ds)
+    assert dropdown.value == "Ocean Temperature"
+    assert controller.get_selected_variable(toggle_widget, dropdown, long_names) == (
+        "thetaoga"
+    )
+
+    toggle_widget.value = False
+    controller.variable_toggle_change(toggle_widget, dropdown, ds)
+    assert dropdown.value == "thetaoga"
+
+
+def test_variable_toggle_change_shared_long_names():
+    """Test that variables sharing a long name stay distinct and keep the selection.
+
+    A shared long name used to map to only one variable, so the others vanished
+    from the long name list and their selection was lost on toggling.
+    """
+    ds = xr.Dataset(
+        {
+            "soga": ("time", np.zeros(3), {"long_name": "Ocean Salinity"}),
+            "sosga": ("time", np.zeros(3), {"long_name": "Ocean Salinity"}),
+            "thetaoga": ("time", np.zeros(3), {"long_name": "Ocean Temperature"}),
+        }
+    )
+    toggle_widget = pn.widgets.Toggle(value=True)
+    dropdown = pn.widgets.Select(
+        options=[None, "soga", "sosga", "thetaoga"],
+        value="soga",
+    )
+
+    long_names = controller.variable_toggle_change(toggle_widget, dropdown, ds)
+
+    assert long_names == {
+        "Ocean Salinity (soga)": "soga",
+        "Ocean Salinity (sosga)": "sosga",
+        "Ocean Temperature": "thetaoga",
+    }
+    assert dropdown.value == "Ocean Salinity (soga)"
+
+    toggle_widget.value = False
+    controller.variable_toggle_change(toggle_widget, dropdown, ds)
+    assert dropdown.value == "soga"
+
+
+def test_variable_toggle_change_keeps_none_selection():
+    """Test that an optional variable left as None stays None across the toggle.
+
+    The options must stay a list: {label: value} dict options stop the toggle
+    responding in Jupyter on Panel 1.9.3.
+    """
+    ds = xr.Dataset({"soga": ("time", np.zeros(3), {"long_name": "Ocean Salinity"})})
+    toggle_widget = pn.widgets.Toggle(value=True)
+    dropdown = pn.widgets.Select(options=[None, "soga"], value=None)
+
+    controller.variable_toggle_change(toggle_widget, dropdown, ds)
+
+    assert dropdown.value is None
+    assert dropdown.options == [None, "Ocean Salinity"]
+
+
+def test_get_selected_variable_accepts_short_name_in_long_mode():
+    """Test that a short name left selected in long-name mode resolves to itself."""
+    toggle_widget = pn.widgets.Toggle(value=True)
+    dropdown = pn.widgets.Select(options=["soga"], value="soga")
+
+    result = controller.get_selected_variable(
+        toggle_widget, dropdown, {"Ocean Salinity": "soga"}
+    )
+
+    assert result == "soga"
 
 
 @pytest.mark.parametrize(
@@ -522,7 +615,7 @@ def test_multiplot_check_bounds_mismatched_types():
     import cftime
     import xarray as xr
 
-    from med_diagnostics import controller  # Update import if needed
+    from med_diagnostics import controller
 
     # Primary dataset is numeric
     ds_primary = xr.Dataset({"data": (["x"], [1, 2])}, coords={"x": [0, 10]})
@@ -693,12 +786,36 @@ def test_plot_multiplot_heatmap_dataset(build_kwargs):
     assert fig is not None
 
 
+def test_plot_multiplot_heatmap_dataset_diff_scale_is_symmetric():
+    """Difference heatmaps centre the colour scale on 0, so 0 is always white."""
+    coords = {"lat": [0.0, 1.0], "lon": [0.0, 1.0]}
+    user_ds = xr.Dataset({"temp": (("lat", "lon"), np.zeros((2, 2)))}, coords=coords)
+    # Ref - user ranges from -2 to 6, so the scale should be -6 to 6
+    ref_ds = xr.Dataset(
+        {"temp": (("lat", "lon"), np.array([[-2.0, 0.0], [3.0, 6.0]]))},
+        coords=coords,
+    )
+
+    fig = controller.plot_multiplot_heatmap_dataset(
+        dataset=user_ds,
+        variable="temp",
+        ref_dict={"model1": ref_ds},
+        chosen_slices={},
+        x_axis="lon",
+        y_axis="lat",
+        plot_diff=True,
+    )
+
+    assert fig.axes[0].collections[0].get_clim() == (-6.0, 6.0)
+    assert fig.axes[1].get_ylabel() == "Δ temp"  # colour bar label
+
+
 @pytest.mark.parametrize(
     "chosen_slices, x_min, x_max, multiplot_legend, expected_caption, expected_xlim_called",
     [
-        # Case 1: Empty slices, no limits, multiplot_legend=False
+        # Empty slices, no limits, multiplot_legend=False
         ({}, None, None, False, "Base Caption", False),
-        # Case 2: Populated slices, valid limits, multiplot_legend=True
+        # Populated slices, valid limits, multiplot_legend=True
         ({"lat": -35.5}, 0.0, 100.0, True, "Base Caption\nSliced by: lat: -35.5", True),
     ],
 )

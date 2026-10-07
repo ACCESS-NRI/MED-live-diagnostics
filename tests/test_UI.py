@@ -2,8 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+from typing import Annotated
 from unittest.mock import MagicMock, call, patch
 
+import intake
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -12,7 +14,7 @@ import pytest
 import xarray as xr
 
 import med_diagnostics.data as med_data
-from med_diagnostics import controller
+from med_diagnostics import analysis, controller, recipes
 from med_diagnostics.types import (
     AllAnalysis,
     Animation,
@@ -65,8 +67,7 @@ def ui():
 @pytest.fixture(scope="function")
 def uninitialised_ui():
     """Return a UserInterface instance before `_initialise_widgets` has been called"""
-    ui = UserInterface()
-    return ui
+    return UserInterface()
 
 
 def run_validity_check(ui, section, x_value, y_value, z_value, plot_type, var, ds):
@@ -143,7 +144,7 @@ def test_check_plot_validity_1d(
     assert results.requires_slice == requires_slice_output
     assert results.invalid_heatmap_data == invalid_heatmap_output
     assert results.same_axes_chosen == same_axes_output
-    assert results.prompt_bounds == False
+    assert not results.prompt_bounds
 
 
 @pytest.mark.parametrize("section", [User(), Ref(), Multiplot()])
@@ -194,7 +195,7 @@ def test_check_plot_validity_2d(
     assert results.requires_slice == requires_slice_output
     assert results.invalid_heatmap_data == invalid_heatmap_output
     assert results.same_axes_chosen == same_axes_output
-    assert results.prompt_bounds == False
+    assert not results.prompt_bounds
 
 
 @pytest.mark.parametrize("section", [User(), Ref(), Multiplot()])
@@ -242,7 +243,7 @@ def test_check_plot_validity_3d(
     assert results.requires_slice == requires_slice_output
     assert results.invalid_heatmap_data == invalid_heatmap_output
     assert results.same_axes_chosen == same_axes_output
-    assert results.prompt_bounds == False
+    assert not results.prompt_bounds
 
 
 @pytest.mark.parametrize("section", [User(), Ref(), Multiplot()])
@@ -329,7 +330,7 @@ def test_check_plot_validity_4d(
     assert results.requires_slice == requires_slice_output
     assert results.invalid_heatmap_data == invalid_heatmap_output
     assert results.same_axes_chosen == same_axes_output
-    assert results.prompt_bounds == False
+    assert not results.prompt_bounds
     if requires_slice_output:
         # Determine which attributes we should be checking
         row_attr = "ref_slice_ui_row" if isinstance(section, Ref) else "slice_ui_row"
@@ -377,8 +378,8 @@ def test_ref_clear_data_click(ui, meta, cat, ds):
 
     # Verify that metadata is cleared and dataset/catalog attributes are removed from the UI instance
     assert ui.ref_model_metadata.value == ""
-    assert hasattr(ui, "ref_model_cat") == False
-    assert hasattr(ui, "ref_dataset") == False
+    assert not hasattr(ui, "ref_model_cat")
+    assert not hasattr(ui, "ref_dataset")
 
 
 def test_clear_multiplot_data(ui):
@@ -410,9 +411,9 @@ def test_display_dataset_selection_ui(ui):
     ui._display_dataset_selection_ui()
 
     # Verify that the relevant dividers and selection rows are made visible
-    assert ui.div_1.visible == True
-    assert ui.keys_selection_row.visible == True
-    assert ui.div_2.visible == True
+    assert ui.div_1.visible
+    assert ui.keys_selection_row.visible
+    assert ui.div_2.visible
 
     # Verify that the dropdown options match the sorted catalog keys and button properties are set
     assert ui.keys_dropdown.options == sorted(ui.model_cat.keys())
@@ -750,7 +751,7 @@ def test_display_dataset_plot_ui(ui):
     assert ui.plot_variable_dropdown.options == sorted(dataset.keys())
     assert ui.plot_type_dropdown.name == "Select plot type"
     assert ui.plot_type_dropdown.options == ui.plot_type_mapping
-    assert ui.variable_toggle.value == False
+    assert not ui.variable_toggle.value
     assert ui.select_variable_button.name == "Select variable and plot type"
 
     # Verify that the plot UI selection row is attached to the UI instance
@@ -784,7 +785,7 @@ def test_ref_display_dataset_plot_ui(ui, datakeysexists):
     assert ui.ref_plot_variable_dropdown.options == sorted(dataset.keys())
     assert ui.ref_plot_type_dropdown.name == "Select plot type"
     assert ui.ref_plot_type_dropdown.options == ui.plot_type_mapping
-    assert ui.ref_variable_toggle.value == False
+    assert not ui.ref_variable_toggle.value
     assert ui.ref_select_variable_button.name == "Select variable and plot type"
     assert hasattr(ui, "ref_plot_ui_row")
 
@@ -870,7 +871,7 @@ def test_display_plot_choices_ui(
         assert isinstance(ui.plot_type_dropdown.value, Line)
         assert (
             ui.warning_textbox.value
-            == "Warning >> Not enough dimensions available for this variable to plot a Heatmap."
+            == "Warning >> Not enough dimensions available for this variable to plot a Heatmap"
         )
         assert not hasattr(ui, "plot_choices_row")
     elif expected_outcome == "auto_plot_line":
@@ -885,7 +886,7 @@ def test_display_plot_choices_ui(
     elif expected_outcome == "fail_dim_check_animation":
         assert (
             ui.warning_textbox.value
-            == "Warning >> Not enough dimensions available for this variable to plot an animation."
+            == "Warning >> Not enough dimensions available for this variable to plot an animation"
         )
         assert isinstance(ui.plot_type_dropdown.value, Line)
         assert not hasattr(ui, "plot_choices_row")
@@ -982,7 +983,7 @@ def test_ref_display_plot_choices_ui(
         assert isinstance(ui.ref_plot_type_dropdown.value, Line)
         assert (
             ui.ref_warning_textbox.value
-            == "Warning >> Not enough dimensions available for this variable to plot a Heatmap."
+            == "Warning >> Not enough dimensions available for this variable to plot a Heatmap"
         )
         assert (
             not hasattr(ui, "ref_plot_choices_row")
@@ -1001,7 +1002,7 @@ def test_ref_display_plot_choices_ui(
     elif expected_outcome == "fail_dim_check_animation":
         assert (
             ui.ref_warning_textbox.value
-            == "Warning >> Not enough dimensions available for this variable to plot an animation."
+            == "Warning >> Not enough dimensions available for this variable to plot an animation"
         )
         assert isinstance(ui.ref_plot_type_dropdown.value, Line)
         assert not hasattr(ui, "ref_plot_choices_row")
@@ -1093,6 +1094,7 @@ def test_prompt_bounds_ui(ui, ui_row):
 
     # Verify that the bounds dropdown name, options, and container row are correctly configured
     assert ui.prompt_bounds_dropdown.name == "Choose how to constrain the x-axis bounds"
+    assert ui.prompt_bounds_button.name == "Plot data"
     assert ui.prompt_bounds_dropdown.options == ui.prompt_bounds_mapping
     assert hasattr(ui, "prompt_bounds_row")
 
@@ -1149,11 +1151,13 @@ def test_keys_dropdown_click(ui, monkeypatch, fig_exists):
     ui._keys_dropdown_click()
 
     # Verify that the dataset builder is called with correct arguments
-    mock_build_data_object.assert_called_once_with(ui.model_cat, ui.keys_dropdown.value)
+    mock_build_data_object.assert_called_once_with(
+        ui.model_cat, ui.keys_dropdown.value, years=10, from_start=False
+    )
 
     # Verify that loaded dataset tracking, status message, and button properties are updated correctly
     assert ui.loaded_dataset_key == ui.keys_dropdown.value
-    assert ui.status_textbox.value == "User model status >> Data successfully loaded."
+    assert ui.status_textbox.value == "User model status >> Data successfully loaded"
     assert ui.keys_button.name == "Load different dataset"
 
     # Verify that either the dataset plot UI update or initial display method is called appropriately
@@ -1176,7 +1180,7 @@ def test_keys_dropdown_click(ui, monkeypatch, fig_exists):
         assert ui.multiplot_plot_type_dropdown.disabled is False
         assert (
             ui.multiplot_status_textbox.value
-            == "Overlay Plot >> Load one or more reference datasets to compare."
+            == "Overlay plot status >> User data loaded. Load one or more reference datasets to compare"
         )
 
 
@@ -1204,7 +1208,7 @@ def test_update_multiplot_dataset(ui, monkeypatch, button_disabled):
 
     # Verify that the dataset builder is called with the correct multiplot catalog and key
     mock_build_data_object.assert_called_once_with(
-        ui.model_cat, ui.multiplot_keys_dropdown.value
+        ui.model_cat, ui.multiplot_keys_dropdown.value, years=10, from_start=False
     )
 
     # Verify that dataset tracking keys, variable dropdown options, primary dropdown synchronization, and status messages are correctly updated
@@ -1214,7 +1218,7 @@ def test_update_multiplot_dataset(ui, monkeypatch, button_disabled):
     assert ui.plot_variable_dropdown.options == sorted(ui.dataset.keys())
     assert (
         ui.multiplot_status_textbox.value
-        == "Overlay Plot Status >> New user dataset loaded, clearing loaded models"
+        == "Overlay plot status >> New user dataset loaded, clearing loaded models"
     )
 
     # Verify that old multiplot data is cleared out
@@ -1247,7 +1251,9 @@ def test_update_multiplot_dataset_no_dataset_loaded(ui, monkeypatch):
     ui._update_multiplot_dataset()
 
     # Verify that the dataset builder is called with the multiplot dropdown's selection
-    mock_build_data_object.assert_called_once_with(ui.model_cat, "multiplot option")
+    mock_build_data_object.assert_called_once_with(
+        ui.model_cat, "multiplot option", years=10, from_start=False
+    )
 
     # Verify the main dropdown and loaded dataset key are synchronised to the multiplot selection
     assert ui.loaded_dataset_key == "multiplot option"
@@ -1268,7 +1274,7 @@ def test_update_multiplot_dataset_no_dataset_loaded(ui, monkeypatch):
     assert ui.multiplot_plot_type_dropdown.disabled is False
     assert (
         ui.multiplot_status_textbox.value
-        == "Overlay Plot >> User data loaded. Load one or more reference datasets to compare."
+        == "Overlay plot status >> User data loaded. Load one or more reference datasets to compare"
     )
 
 
@@ -1304,7 +1310,7 @@ def test_ref_keys_dropdown_click(ui, monkeypatch, selection_row_exists):
     # Verify that the reference status message is successfully updated and catalog search is executed
     assert (
         ui.ref_status_textbox.value
-        == "Reference model status >> Data catalog successfully loaded."
+        == "Reference model status >> Data catalog successfully loaded"
     )
 
     mock_cat.search.assert_called_once()
@@ -1394,14 +1400,16 @@ def test_multiplot_ref_keys_dropdown_click(
     elif not matching_catalog:
         assert (
             ui.multiplot_warning_textbox.value
-            == "Overlay Plot Status >> There is no dataset matching the user dataset in this model, please select another"
+            == "Overlay plot status >> There is no dataset matching the user dataset in this model, please select another"
         )
 
     # Verify that state cleanup and status updates occur correctly when user selection changes
     if user_selection_changed:
+        # The reload happens before the reference model is added, so the add's
+        # status is the last one shown
         assert (
             ui.multiplot_status_textbox.value
-            == "Overlay Plot Status >> New user dataset loaded, clearing loaded user models"
+            == "Overlay plot status >> Loaded reference model, add another or plot the overlay"
         )
         assert ui.loaded_dataset_key == ui.multiplot_keys_dropdown.value
         assert ui.multiplot_plot_variable_dropdown.options == sorted(ui.dataset.keys())
@@ -1437,7 +1445,7 @@ def test_ref_dataset_dropdown_click(ui, monkeypatch, fig_exists):
     mock_build_data_object.assert_called_once()
     assert (
         ui.ref_status_textbox.value
-        == "Reference model status >> Reference dataset successfully loaded."
+        == "Reference model status >> Reference dataset successfully loaded"
     )
 
     # Verify that either the reference dataset plot UI update or initial display method is called based on figure existence
@@ -1523,14 +1531,14 @@ def test_plot_button_click(
     elif invalid_heatmap_data:
         assert (
             ui.warning_textbox.value
-            == "Warning >> The dataset only has one plottable dimension. Defaulting to line plot."
+            == "Warning >> The dataset only has one plottable dimension. Defaulting to line plot"
         )
         assert isinstance(ui.plot_type_dropdown.value, Line)
         mock_plot_data_button_click.assert_called()
     elif same_axes_chosen:
         assert (
             ui.warning_textbox.value
-            == "Warning >> Please ensure different values are selected for each axis."
+            == "Warning >> Please ensure different values are selected for each axis"
         )
         mock_display_plot_choices_ui.assert_called_once()
         assert not hasattr(ui, "plot_choices_row")
@@ -1593,14 +1601,14 @@ def test_ref_plot_button_click(
     elif invalid_heatmap_data:
         assert (
             ui.ref_warning_textbox.value
-            == "Warning >> The dataset only has one plottable dimension. Defaulting to line plot."
+            == "Warning >> The dataset only has one plottable dimension. Defaulting to line plot"
         )
         assert isinstance(ui.ref_plot_type_dropdown.value, Line)
         mock_plot_data_button_click.assert_called()
     elif same_axes_chosen:
         assert (
             ui.ref_warning_textbox.value
-            == "Warning >> Please ensure different values are selected for each axis."
+            == "Warning >> Please ensure different values are selected for each axis"
         )
         mock_display_plot_choices_ui.assert_called_once()
         assert not hasattr(ui, "ref_plot_choices_row")
@@ -1654,7 +1662,6 @@ def test_multiplot_plot_button_click(
     monkeypatch.setattr(ui, "_prompt_bounds_ui", mock_prompt_bounds_ui)
 
     mock_display_choices = MagicMock()
-    # Note: ensure this string exactly matches the name of your multiplot choices method!
     monkeypatch.setattr(ui, "_display_multiplot_plot_choices_ui", mock_display_choices)
 
     # Trigger the multiplot plot button click handler with a dummy event argument
@@ -1739,7 +1746,7 @@ def test_ref_clear_data_button_click(ui, monkeypatch):
 
 
 def test_select_variable_button_click(ui, monkeypatch):
-    """Test that pressing the select variabel button triggers the correct internal method."""
+    """Test that pressing the select variable button triggers the correct internal method."""
 
     mock_display_plot_choices_ui = MagicMock()
     monkeypatch.setattr(ui, "_display_plot_choices_ui", mock_display_plot_choices_ui)
@@ -1752,7 +1759,7 @@ def test_select_variable_button_click(ui, monkeypatch):
 
 
 def test_ref_select_variable_button_click(ui, monkeypatch):
-    """Test that pressing the ref select variabel button triggers the correct internal method."""
+    """Test that pressing the ref select variable button triggers the correct internal method."""
 
     mock_display_plot_choices_ui = MagicMock()
     monkeypatch.setattr(
@@ -1865,13 +1872,21 @@ def test_prompt_bounds_button_click(ui, monkeypatch):
     ],
 )
 @pytest.mark.parametrize("bounds_return", [True, False])
+@pytest.mark.parametrize(
+    "invalid_datasets", [{}, {"bad_model": "ds"}], ids=["all_valid", "some_invalid"]
+)
 def test_check_plot_validity_routing(
-    ui, monkeypatch, section, plot_type, bounds_return
+    ui, monkeypatch, section, plot_type, bounds_return, invalid_datasets
 ):
-    """Tests variable routing, controller calls, and multiplot bounds logic."""
+    """Tests variable routing, controller calls, multiplot bounds and invalid ref removal."""
+    valid_datasets = {"good_model": "ds"}
     monkeypatch.setattr(
-        controller, "check_dict_validity", MagicMock(return_value=({}, {}))
+        controller,
+        "check_dict_validity",
+        MagicMock(return_value=(invalid_datasets, valid_datasets)),
     )
+    mock_update_textbox_text = MagicMock()
+    monkeypatch.setattr(controller, "update_textbox_text", mock_update_textbox_text)
 
     mock_get_variable_helper = MagicMock(return_value="data")
     monkeypatch.setattr(ui, "_get_variable_helper", mock_get_variable_helper)
@@ -1934,6 +1949,17 @@ def test_check_plot_validity_routing(
     assert results == validity
     assert validity.plot_valid == expected_plot_valid
     assert validity.prompt_bounds == expected_prompt_bounds
+
+    # Multiplot drops refs without the variable and warns about them
+    if isinstance(section, Multiplot):
+        assert ui.multiplot_ref_dataset_dict == valid_datasets
+    if isinstance(section, Multiplot) and invalid_datasets:
+        mock_update_textbox_text.assert_called_once_with(
+            ui.multiplot_warning_textbox,
+            "Warning >> The following models were removed as they do not contain the selected variable: bad_model",
+        )
+    else:
+        mock_update_textbox_text.assert_not_called()
 
 
 @pytest.mark.parametrize("section", [User(), Ref(), Multiplot()])
@@ -2016,7 +2042,7 @@ def test_check_plot_validity_slice_cleanup(ui, monkeypatch, section, keys_match)
             Multiplot(),
             "multiplot_",
             ["multiplot_plot_choices_row"],
-            "Overlay Plot",
+            "Overlay plot status",
             ["lat"],
         ),
     ],
@@ -2117,7 +2143,7 @@ def test_check_slice(
     assert btn.name == "Confirm Slices & Plot"
     mock_update_text.assert_called_once_with(
         txt,
-        f"{expected_status_prefix} >> Action required: Select slice values and click plot again.",
+        f"{expected_status_prefix} >> Action required: Select slice values and click plot again",
     )
 
 
@@ -2313,7 +2339,6 @@ def test_display_multiplot_plot_choices_ui(
 
     ui._display_multiplot_plot_choices_ui()
 
-    # (Keep your existing assertions below, adding validation for "heatmap_valid_else" if needed)
     if expected_scenario == "heatmap_valid_else":
         viable_dims = sorted(
             [dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"]
@@ -2337,7 +2362,7 @@ def test_display_multiplot_plot_choices_ui(
     if expected_scenario == "heatmap_invalid":
         mock_update_text.assert_called_once_with(
             ui.multiplot_warning_textbox,
-            "Warning >> Not enough dimensions available for this variable to plot a Heatmap.",
+            "Warning >> Not enough dimensions available for this variable to plot a Heatmap",
         )
         assert isinstance(ui.multiplot_plot_type_dropdown.value, Line)
         mock_safe_add.assert_not_called()
@@ -2412,13 +2437,13 @@ def test_display_multiplot_plot_choices_ui(
 @pytest.mark.parametrize(
     "plot_type, plot_diff, bounds_dropdown_val, expected_xmin, expected_xmax",
     [
-        # 1. Line plot, no diff, constrain to user bounds
+        # Line plot, no diff, constrain to user bounds
         (Line(), False, ConstrainToUser(), 2, 8),
-        # 2. Line plot, diff, use global bounds (simulating "Expand bounds to fit all" or similar)
+        # Line plot, diff, use global bounds (simulating "Expand bounds to fit all" or similar)
         (Line(), True, ConstrainToRef(), 0, 10),
-        # 3. Heatmap, no diff (bounds don't matter)
+        # Heatmap, no diff (bounds don't matter)
         (MultiplotHeatmap(), False, ConstrainToUser(), None, None),
-        # 4. Heatmap, diff (bounds don't matter)
+        # Heatmap, diff (bounds don't matter)
         (MultiplotHeatmap(), True, ConstrainToRef(), None, None),
     ],
 )
@@ -2435,7 +2460,7 @@ def test_multiplot_plot_dataset_helper(
     Verifies that the helper correctly extracts UI state and passes the right
     arguments to the controller plotting functions.
     """
-    # 1. Mock the controller's plotting functions
+    # Mock the controller's plotting functions
     mock_plot_line = MagicMock(return_value="line_figure")
     monkeypatch.setattr(controller, "plot_multiplot_dataset", mock_plot_line)
 
@@ -2446,7 +2471,7 @@ def test_multiplot_plot_dataset_helper(
     mock_check_bounds = MagicMock(return_value=(False, 0, 10, 2, 8))
     monkeypatch.setattr(controller, "check_bounds", mock_check_bounds)
 
-    # 2. Mock the UI state and widgets
+    # Mock the UI state and widgets
     mock_variable = "test_var"
     monkeypatch.setattr(
         ui, "_get_variable_helper", MagicMock(return_value=mock_variable)
@@ -2461,10 +2486,10 @@ def test_multiplot_plot_dataset_helper(
     ui.multiplot_ref_dataset_dict = {"ref1": "mock_ref_ds"}
     ui.multiplot_chosen_slices = {"z": 0}
 
-    # 3. Run the function
+    # Run the function
     result = ui._multiplot_plot_dataset_helper(plot_diff=plot_diff, plot_type=plot_type)
 
-    # 4. Assertions
+    # Assertions
     if isinstance(plot_type, Line):
         # Check that bounds were calculated
         mock_check_bounds.assert_called_once_with(
@@ -2493,7 +2518,7 @@ def test_multiplot_plot_dataset_helper(
         mock_plot_heatmap.assert_called_once_with(
             "mock_primary_ds",
             mock_variable,
-            {"ref1": "mock_ref_ds"},  # <--- Added the missing dictionary here!
+            {"ref1": "mock_ref_ds"},
             {"z": 0},
             "time",
             "lat",
@@ -2590,13 +2615,13 @@ def test_reproduce_live_multiplot_flow(ui, mock_multiplot_datasets):
     """Simulate the exact user interaction cycle in the multiplot UI from variable selection to plot rendering."""
     ds_user, ds_ref = mock_multiplot_datasets
 
-    # 1. State representing initial data load in multiplot
+    # State representing initial data load in multiplot
     ui.dataset = ds_user
     ui.multiplot_ref_dataset_dict = {"ref_model_1": ds_ref}
     ui.multiplot_plot_variable_dropdown.value = "salt_surface_ave"
     ui.multiplot_plot_type_dropdown.value = Line()
 
-    # 2. Simulate clicking "Select variable and plot type"
+    # Simulate clicking "Select variable and plot type"
     # Ensure any preexisting row isn't present
     if hasattr(ui, "multiplot_plot_choices_row"):
         ui._safe_remove_widget_object(
@@ -2615,11 +2640,11 @@ def test_reproduce_live_multiplot_flow(ui, mock_multiplot_datasets):
     if hasattr(ui, "prompt_bounds_dropdown"):
         ui.prompt_bounds_dropdown.value = "Global bounds"
 
-    # 3. Simulate clicking "Plot data"
+    # Simulate clicking "Plot data"
     initial_widget_count = len(ui.multiplot_widget_container)
     ui._multiplot_plot_button_click(None)
 
-    # 4. Verify execution reached the end without freezing on 'Generating plot...'
+    # Verify execution reached the end without freezing on 'Generating plot...'
     assert ui.multiplot_warning_textbox.value == ""
     assert ui.multiplot_status_textbox.value == "Overlay plot status >> Plot created"
     assert len(ui.multiplot_widget_container) >= initial_widget_count
@@ -2699,6 +2724,7 @@ def test_multiplot_variable_toggle_click(ui, monkeypatch):
     "target_exists, container_contents, above, append, expected_return, expected_index",
     [
         (True, ["target"], True, False, False, 0),
+        (True, ["first", "target"], True, False, False, 1),
         (True, ["target"], False, False, False, 1),
         (False, ["other"], False, True, True, 1),
         (False, ["other"], False, False, False, 1),
@@ -2713,7 +2739,7 @@ def test_safe_add_to_widget(
     expected_return,
     expected_index,
 ):
-    """Test safe widget insertion across all matching, index-clamping, and fallback append branches."""
+    """Test safe widget insertion directly above or below a target, and the fallback append."""
 
     # Configure mock attribute on ui
     target_widget = "target" if target_exists else None
@@ -2785,12 +2811,18 @@ def test_initialise_user_widgets(uninitialised_ui):
     assert ui.div_1.visible is False
     assert ui.div_2.visible is False
     assert ui.keys_selection_row.visible is False
-    assert list(ui.keys_selection_row) == [ui.keys_dropdown, ui.keys_button]
+    assert list(ui.keys_selection_row) == [
+        ui.keys_dropdown,
+        ui.years_mode,
+        ui.years_input,
+        ui.keys_button,
+        ui.years_files_text,
+    ]
 
     # Verify the status text is set and the container is expanded
     assert (
         ui.status_textbox.value
-        == "User model status >> Waiting for initial model data catalog to be built. This can take a few minutes."
+        == "User model status >> Waiting for initial model data catalog to be built. This can take a few minutes..."
     )
     assert ui.user_widget_container.collapsed is False
 
@@ -2800,6 +2832,7 @@ def test_initialise_user_widgets(uninitialised_ui):
         ui.last_data_load_textbox,
         ui.status_textbox,
         ui.warning_textbox,
+        ui.refresh_catalog_button,
         ui.div_1,
         ui.keys_selection_row,
         ui.div_2,
@@ -2903,7 +2936,10 @@ def test_initialise_multiplot_widgets(uninitialised_ui):
     # Verify the selection rows group the correct widgets together
     assert list(ui.multiplot_user_dataset_keys_selection_row) == [
         ui.multiplot_keys_dropdown,
+        ui.multiplot_years_mode,
+        ui.multiplot_years_input,
         ui.multiplot_keys_update_button,
+        ui.multiplot_years_files_text,
     ]
     assert list(ui.multiplot_ref_keys_selection_row) == [
         ui.multiplot_plot_variable_dropdown,
@@ -2940,7 +2976,7 @@ def test_enable_widgets_after_catalog_load(ui):
 
     assert (
         ui.ref_status_textbox.value
-        == "Reference Model Status >> Select a model to load and plot data"
+        == "Reference model status >> Select a model to load and plot data"
     )
     assert ui.ref_keys_button.disabled is False
     assert ui.clear_ref_model_data_button.disabled is False
@@ -2950,9 +2986,765 @@ def test_enable_widgets_after_catalog_load(ui):
 
     assert (
         ui.multiplot_status_textbox.value
-        == "Overlay Plot >> Load user dataset to continue."
+        == "Overlay plot status >> Load user dataset to continue"
     )
 
     assert ui.multiplot_ref_keys_dropdown.options == sorted(ui.access_nri_cat.keys())
     assert ui.multiplot_keys_dropdown.options == sorted(ui.model_cat.keys())
     assert ui.multiplot_keys_update_button.disabled is False
+
+
+def mock_mom5_dataset():
+    """Build a small MOM5-style dataset covering the Niño 3.4 box."""
+    time = xr.date_range("2000-01-01", periods=12, freq="MS")
+    lat = np.arange(-4.5, 5)
+    lon = np.arange(-169.5, -119)
+    shape = (time.size, 3, lat.size, lon.size)
+    return xr.Dataset(
+        {
+            "o2": (
+                ("time", "st_ocean", "yt_ocean", "xt_ocean"),
+                np.random.rand(*shape),
+                {"units": "mmol/m^3"},
+            ),
+            "area_t": (("yt_ocean", "xt_ocean"), np.ones((lat.size, lon.size))),
+        },
+        coords={
+            "time": time,
+            "st_ocean": [5.0, 50.0, 100.0],
+            "yt_ocean": lat,
+            "xt_ocean": lon,
+        },
+    )
+
+
+@pytest.fixture(scope="function")
+def analysis_ui(ui):
+    """Return a UI with a MOM5 dataset loaded into the analysis section."""
+    ui._enable_widgets_after_catalog_load({"ocean": None}, {"model": None})
+    ui.dataset = mock_mom5_dataset()
+    ui.analysis_recipe_dropdown.value = recipes.recipe_regional_mean_mom5
+    return ui
+
+
+def test_initialise_analysis_widgets(ui):
+    """Test that the analysis section starts disabled, below the multiplot section.
+
+    Recipes need a dataset, so dataset and recipe selection must stay disabled
+    until the catalog loads, and the section must be the last card in the UI.
+    """
+    container_items = list(ui.analysis_widget_container)
+    assert container_items[:5] == [
+        ui.analysis_status_textbox,
+        ui.analysis_warning_textbox,
+        ui.analysis_keys_selection_row,
+        ui.analysis_recipe_selection_row,
+        ui.analysis_recipe_info,
+    ]
+    assert isinstance(container_items[5], pn.layout.Divider)
+    assert ui.analysis_keys_button.disabled is True
+    assert ui.analysis_recipe_dropdown.disabled is True
+    assert ui.analysis_select_recipe_button.disabled is True
+    assert ui.analysis_recipe_dropdown.options == analysis._list_recipes()
+
+
+def test_enable_widgets_after_catalog_load_enables_analysis(ui):
+    """Test that the catalog load enables dataset selection but not recipes yet.
+
+    Recipe options are built from the loaded dataset, so recipe selection must
+    wait until a dataset has been loaded.
+    """
+    ui._enable_widgets_after_catalog_load({"b": None, "a": None}, {"model": None})
+
+    assert ui.analysis_keys_dropdown.options == ["a", "b"]
+    assert ui.analysis_keys_dropdown.disabled is False
+    assert ui.analysis_keys_button.disabled is False
+    assert ui.analysis_recipe_dropdown.disabled is True
+    assert (
+        ui.analysis_status_textbox.value
+        == "Analysis status >> Load a dataset to analyse"
+    )
+
+
+def test_analysis_keys_dropdown_click_loads_through_user_section(ui, monkeypatch):
+    """Test that the analysis section loads data through the shared user load path.
+
+    Every section reads self.dataset, so loading anywhere else would leave
+    loaded_dataset_key unset (crashing multiplot's add-reference button) and
+    the user and multiplot sections showing the previous dataset's variables.
+    """
+    ui._enable_widgets_after_catalog_load({"ocean": None}, {"model": None})
+    mock_keys_dropdown_click = MagicMock()
+    monkeypatch.setattr(ui, "_keys_dropdown_click", mock_keys_dropdown_click)
+    ui.analysis_keys_dropdown.value = "ocean"
+
+    ui._analysis_keys_dropdown_click()
+
+    mock_keys_dropdown_click.assert_called_once_with(
+        key="ocean", year_selection=(10, False)
+    )
+
+
+def test_analysis_first_load_enables_every_section(ui, monkeypatch):
+    """Test that loading first through the analysis section sets up the others.
+
+    Guards the crash where multiplot's add-reference button raised
+    AttributeError because loaded_dataset_key was never set.
+    """
+    ui._enable_widgets_after_catalog_load({"ocean": None}, {"model": None})
+    monkeypatch.setattr(
+        med_data, "_build_data_object", MagicMock(return_value=mock_mom5_dataset())
+    )
+    ui.analysis_keys_dropdown.value = "ocean"
+
+    ui._analysis_keys_dropdown_click()
+
+    assert ui.loaded_dataset_key == "ocean"
+    assert ui.keys_dropdown.value == "ocean"
+    assert ui.figure_exists is True
+    assert ui.multiplot_ref_keys_button.disabled is False
+    assert ui.analysis_recipe_dropdown.disabled is False
+
+
+def test_user_load_syncs_analysis_section(analysis_ui, monkeypatch):
+    """Test that loading through the user section enables and resets analysis.
+
+    The analysis options row is built from the old dataset's variables and
+    dims, so it must be cleared, and recipe selection enabled, whichever
+    section did the loading.
+    """
+    ui = analysis_ui
+    ui._display_analysis_recipe_options_ui()
+    monkeypatch.setattr(
+        med_data, "_build_data_object", MagicMock(return_value=mock_mom5_dataset())
+    )
+    ui.analysis_recipe_dropdown.disabled = True
+    ui.keys_dropdown.value = "ocean"
+
+    ui._keys_dropdown_click()
+
+    assert ui.analysis_keys_dropdown.value == "ocean"
+    assert ui.analysis_recipe_dropdown.disabled is False
+    assert ui.analysis_select_recipe_button.disabled is False
+    assert ui.analysis_refresh_button.disabled is False
+    assert not hasattr(ui, "analysis_recipe_options_row")
+    assert not hasattr(ui, "analysis_recipe_widgets")
+    assert (
+        ui.analysis_status_textbox.value
+        == "Analysis status >> User data loaded. Select a recipe"
+    )
+
+
+def test_update_multiplot_dataset_uses_new_dataset_variables(ui, monkeypatch):
+    """Test that switching the multiplot user dataset lists the new variables.
+
+    The variable lists used to be read from the old dataset before reloading,
+    so the dropdowns offered variables the new dataset doesn't have.
+    """
+    ui._enable_widgets_after_catalog_load({"a": None, "b": None}, {"model": None})
+    datasets = {
+        "a": xr.Dataset({"tas": ("x", [1.0])}),
+        "b": xr.Dataset({"pr": ("x", [1.0])}),
+    }
+    monkeypatch.setattr(
+        med_data,
+        "_build_data_object",
+        MagicMock(side_effect=lambda cat, key, **kwargs: datasets[key]),
+    )
+    ui.keys_dropdown.value = "a"
+    ui._keys_dropdown_click()
+
+    ui.multiplot_keys_dropdown.value = "b"
+    ui._update_multiplot_dataset()
+
+    assert ui.multiplot_plot_variable_dropdown.options == ["pr"]
+    assert ui.plot_variable_dropdown.options == ["pr"]
+    assert ui.analysis_keys_dropdown.value == "b"
+
+
+def test_display_analysis_recipe_options_ui(analysis_ui, monkeypatch):
+    """Test that the recipe's annotations become one widget per parameter.
+
+    Also checks that selecting a recipe again replaces its options row rather
+    than stacking a second copy in the container, and that a recipe with a
+    broken declaration shows a warning instead of options.
+    """
+    ui = analysis_ui
+    ui._display_analysis_recipe_options_ui()
+    ui._display_analysis_recipe_options_ui()
+
+    widgets = ui.analysis_recipe_widgets
+    assert list(widgets) == [
+        "variable",
+        "region",
+        "lon_dim",
+        "lat_dim",
+        "lvl_dim",
+        "depth",
+        "smooth_steps",
+        "show_trend",
+        "show_percentiles",
+        "threshold",
+    ]
+    # The default "temp" isn't in this dataset, so the first variable is used
+    assert widgets["variable"].value == "o2"
+    assert widgets["lvl_dim"].value == "st_ocean"
+    assert isinstance(widgets["depth"], pn.widgets.FloatInput)
+    assert widgets["depth"].name == "depth (m)"
+    assert ui.analysis_recipe_info.value == (
+        "For MOM5 output (ACCESS-OM2, ACCESS-ESM1.6)."
+    )
+    container_items = list(ui.analysis_widget_container)
+    assert sum(item is ui.analysis_recipe_options_row for item in container_items) == 1
+    # Options sit directly under the recipe details
+    info_index = container_items.index(ui.analysis_recipe_info)
+    assert container_items[info_index + 1] is ui.analysis_recipe_options_row
+
+    # A broken declaration warns and leaves no options row behind
+    monkeypatch.setattr(
+        analysis,
+        "_get_recipe_kwarg_options",
+        MagicMock(side_effect=ValueError("bad declaration")),
+    )
+    ui._display_analysis_recipe_options_ui()
+    assert ui.analysis_warning_textbox.value == "Warning >> bad declaration"
+    assert not hasattr(ui, "analysis_recipe_options_row")
+
+
+def test_analysis_variable_toggle_shows_long_names(analysis_ui):
+    """Test that the analysis variable toggle shows long names but runs on short ones.
+
+    Raw names like UM STASH codes are unreadable, so the toggle lists long
+    names, but the recipe must still receive the dataset's short name.
+    """
+    ui = analysis_ui
+    ui.dataset["o2"].attrs["long_name"] = "Dissolved oxygen"
+    ui._display_analysis_recipe_options_ui()
+    assert ui.analysis_variable_toggle in list(ui.analysis_recipe_options_row)
+    variable_widget = ui.analysis_recipe_widgets["variable"]
+
+    ui.analysis_variable_toggle.value = True
+    variable_widget.value = "Dissolved oxygen"
+
+    assert "Dissolved oxygen" in variable_widget.options
+    assert ui.analysis_variable_toggle.label == "Display Variable Short Names"
+    # Dimension options are not variables and keep their names
+    assert "st_ocean" in ui.analysis_recipe_widgets["lvl_dim"].options
+    ui.analysis_recipe_widgets["region"].value = "nino34"
+    ui._analysis_plot_data_button_click()
+    assert ui.analysis_warning_textbox.value == ""
+    assert "o2" in _newest_analysis_plot(ui)[0].object.axes[0].get_title()
+    plt.close("all")
+
+    ui.analysis_variable_toggle.value = False
+
+    assert "o2" in variable_widget.options
+
+
+def test_analysis_variable_toggle_resets_for_new_recipe(analysis_ui):
+    """Test that a newly built options row starts on short names, like the other sections."""
+    ui = analysis_ui
+    ui._display_analysis_recipe_options_ui()
+    ui.analysis_variable_toggle.value = True
+
+    ui._display_analysis_recipe_options_ui()
+
+    assert ui.analysis_variable_toggle.value is False
+    assert "o2" in ui.analysis_recipe_widgets["variable"].options
+
+
+@pytest.mark.parametrize(
+    "option, widget_type, value",
+    [
+        (
+            {"kind": "data variable", "choices": ["a", "b"], "default": "b"},
+            pn.widgets.Select,
+            "b",
+        ),
+        (
+            {"kind": "choice", "choices": ["mean", "max"], "default": "max"},
+            pn.widgets.Select,
+            "max",
+        ),
+        (
+            {"kind": "dimension", "choices": [None, "lat"], "default": None},
+            pn.widgets.Select,
+            None,
+        ),
+        (
+            {"kind": "dimension", "choices": ["lat"], "default": "st_ocean"},
+            pn.widgets.Select,
+            None,
+        ),
+        (
+            {"kind": "float", "choices": None, "default": 2.5},
+            pn.widgets.FloatInput,
+            2.5,
+        ),
+        ({"kind": "int", "choices": None, "default": 3}, pn.widgets.IntInput, 3),
+        ({"kind": "bool", "choices": None, "default": True}, pn.widgets.Checkbox, True),
+        ({"kind": "str", "choices": None, "default": "x"}, pn.widgets.TextInput, "x"),
+    ],
+)
+def test_build_recipe_option_widget(ui, option, widget_type, value):
+    """Test that each parameter kind gets the right widget and default value.
+
+    A dimension default the dataset lacks (e.g. no depth on a surface field)
+    must fall back to None, so the recipe skips it rather than the dropdown
+    showing a dim that isn't there or silently selecting an unrelated one.
+    """
+    option = {"name": "p", "units": None, "description": "tip", **option}
+    widget = ui._build_recipe_option_widget(option)
+
+    assert isinstance(widget, widget_type)
+    assert widget.value == value
+    if "description" in widget.param:
+        assert widget.description == "tip"
+
+
+def test_recipe_option_widget_uses_list_options(ui):
+    """Test that dropdown options are a list, with None shown as "None".
+
+    {label: value} dict options stop the long name toggle responding in
+    Jupyter on Panel 1.9.3, so dropdowns must not use them.
+    """
+    option = {
+        "name": "soga_var",
+        "kind": "data variable",
+        "default": None,
+        "choices": [None, "soga", "thetaoga"],
+        "units": None,
+        "description": None,
+    }
+    widget = ui._build_recipe_option_widget(option)
+
+    assert widget.options == [None, "soga", "thetaoga"]
+    assert widget.labels == ["None", "soga", "thetaoga"]
+    assert widget.value is None
+
+
+@pytest.mark.parametrize(
+    "extra, expected",
+    [
+        pytest.param({"label": "Select Depth"}, "Select Depth (m)", id="label"),
+        pytest.param({}, "depth (m)", id="no-label-falls-back-to-name"),
+    ],
+)
+def test_recipe_option_widget_label(ui, extra, expected):
+    """Test that a recipe's ``"name"`` metadata becomes the widget label.
+
+    The parameter name is the fallback, so options without a label (e.g.
+    xclim's) still get a readable widget.
+    """
+    option = {
+        "name": "depth",
+        "kind": "float",
+        "default": 0.0,
+        "choices": None,
+        "units": "m",
+        "description": None,
+        **extra,
+    }
+    assert ui._build_recipe_option_widget(option).name == expected
+
+
+def _newest_analysis_plot(ui):
+    """Return the plot group directly under the recipe details, the newest one."""
+    container_items = list(ui.analysis_widget_container)
+    return container_items[container_items.index(ui.analysis_recipe_info) + 1]
+
+
+def test_analysis_plot_data_button_click(analysis_ui):
+    """Test that plotting replaces the options row with a removable plot.
+
+    New plots go on top, directly under the recipe details, so the latest
+    result is the first thing the user sees. The options row is removed;
+    selecting the recipe again brings it back for another run.
+    """
+    ui = analysis_ui
+    ui._display_analysis_recipe_options_ui()
+    # The mock dataset only covers the tropical Pacific
+    ui.analysis_recipe_widgets["region"].value = "nino34"
+    ui.analysis_recipe_widgets["depth"].value = 50.0
+
+    ui._analysis_plot_data_button_click()
+
+    plot_group = _newest_analysis_plot(ui)
+    assert isinstance(plot_group[0], pn.pane.Matplotlib)
+    assert plot_group[0].object.axes[0].get_title() == "Nino34 mean o2 (~50 m)"
+    assert not hasattr(ui, "analysis_recipe_options_row")
+    assert ui.analysis_status_textbox.value == "Analysis status >> Plot created"
+    assert ui.analysis_warning_textbox.value == ""
+    plt.close("all")
+
+
+def custom_recipe(
+    ds,
+    variable: Annotated[
+        str, {"kind": "data variable", "description": "Variable to average"}
+    ] = "o2",
+):
+    """Custom mean timeseries."""
+    return ds[variable].mean(["st_ocean", "yt_ocean", "xt_ocean"])
+
+
+@pytest.fixture
+def empty_uploads(monkeypatch):
+    """Give the test its own empty upload registry."""
+    monkeypatch.setattr(analysis, "REGISTERED_ANALYSES", {})
+
+
+def test_refresh_button_adds_uploaded_analysis(analysis_ui, empty_uploads):
+    """Test that an upload only reaches an open UI when the user clicks refresh.
+
+    Users define and upload functions after the UI is on screen. The dropdown
+    must pick them up on refresh without the section being rebuilt, and keep
+    the user's current selection.
+    """
+    ui = analysis_ui
+    analysis.register_analysis(custom_recipe)
+    assert custom_recipe not in ui.analysis_recipe_dropdown.options.values()
+
+    ui.analysis_refresh_button.clicks += 1
+
+    options = ui.analysis_recipe_dropdown.options
+    assert options["Custom: Custom mean timeseries."] is custom_recipe
+    assert ui.analysis_recipe_dropdown.value is recipes.recipe_regional_mean_mom5
+    assert (
+        ui.analysis_status_textbox.value
+        == "Analysis status >> Recipes refreshed (1 custom)"
+    )
+
+
+def test_uploaded_analysis_runs_from_ui(analysis_ui, empty_uploads):
+    """Test that an uploaded function gets a form and plots like a prebuilt one."""
+    ui = analysis_ui
+    analysis.register_analysis(custom_recipe)
+    ui._analysis_refresh_click()
+    ui.analysis_recipe_dropdown.value = custom_recipe
+    ui._display_analysis_recipe_options_ui()
+
+    assert list(ui.analysis_recipe_widgets) == ["variable"]
+    ui._analysis_plot_data_button_click()
+    assert isinstance(_newest_analysis_plot(ui)[0], pn.pane.Matplotlib)
+    assert ui.analysis_warning_textbox.value == ""
+    plt.close("all")
+
+
+def test_suite_recipe_adds_one_plot_per_result(analysis_ui, empty_uploads):
+    """Test that a recipe returning a list adds a separate plot for each result.
+
+    A suite recipe can call other recipes and return their results together.
+    Each should get its own removable plot, in the order the suite returned them.
+    """
+
+    def suite_recipe(ds):
+        """Suite of two timeseries."""
+        return [
+            (custom_recipe(ds), {"title": "First"}),
+            (custom_recipe(ds), {"title": "Second"}),
+        ]
+
+    ui = analysis_ui
+    analysis.register_analysis(suite_recipe)
+    ui._analysis_refresh_click()
+    ui.analysis_recipe_dropdown.value = suite_recipe
+    ui._display_analysis_recipe_options_ui()
+    ui._analysis_plot_data_button_click()
+
+    container_items = list(ui.analysis_widget_container)
+    start = container_items.index(ui.analysis_recipe_info) + 1
+    titles = [
+        group[0].object.axes[0].get_title()
+        for group in container_items[start : start + 2]
+    ]
+    assert titles == ["First", "Second"]
+    assert ui.analysis_status_textbox.value == "Analysis status >> Plots created"
+    plt.close("all")
+
+
+def test_refresh_after_reupload_clears_stale_options(analysis_ui, empty_uploads):
+    """Test that refreshing after re-uploading the selected function drops its old form.
+
+    The options row was built from the old version's parameters, so plotting
+    with it could pass arguments the new version doesn't accept.
+    """
+    ui = analysis_ui
+    analysis.register_analysis(custom_recipe)
+    ui._analysis_refresh_click()
+    ui.analysis_recipe_dropdown.value = custom_recipe
+    ui._display_analysis_recipe_options_ui()
+
+    def custom_recipe_v2(ds):
+        """Custom mean timeseries."""
+
+    custom_recipe_v2.__name__ = "custom_recipe"
+    analysis.register_analysis(custom_recipe_v2)
+    ui._analysis_refresh_click()
+
+    assert ui.analysis_recipe_dropdown.value is custom_recipe_v2
+    assert not hasattr(ui, "analysis_recipe_options_row")
+    assert "Recipe updated" in ui.analysis_status_textbox.value
+
+
+def test_multiplot_add_ref_after_dataset_change_keeps_new_ref(ui, monkeypatch):
+    """Test that adding a reference model after changing the user dataset keeps it.
+
+    The changed user dataset used to be reloaded after the reference model was
+    added, and the clear that follows a reload threw the new model away, so
+    the user had to add it twice. It must also be matched to the new dataset.
+    """
+    ui._enable_widgets_after_catalog_load({"a": None, "b": None}, {"ref": None})
+    datasets = {
+        "a": xr.Dataset({"tas": ("x", [1.0])}),
+        "b": xr.Dataset({"pr": ("x", [1.0])}),
+    }
+    monkeypatch.setattr(
+        med_data,
+        "_build_data_object",
+        MagicMock(side_effect=lambda cat, key, **kwargs: datasets[key]),
+    )
+    ui.keys_dropdown.value = "a"
+    ui._keys_dropdown_click()
+
+    mock_cat = MagicMock()
+    mock_cat.search.return_value.to_source.return_value = {"b": None}
+    monkeypatch.setattr(ui, "access_nri_cat", mock_cat)
+    mock_add = MagicMock(
+        side_effect=lambda refs, model, *args: {**refs, model: "ref data"}
+    )
+    monkeypatch.setattr(controller, "add_to_dataset_dict", mock_add)
+
+    ui.multiplot_ref_keys_dropdown.value = "ref"
+    ui.multiplot_keys_dropdown.value = "b"
+    ui._multiplot_ref_keys_dropdown_click()
+
+    assert ui.multiplot_ref_dataset_dict == {"ref": "ref data"}
+    # Matched against the newly loaded user dataset, not the old one
+    assert mock_add.call_args.args[-1] is datasets["b"]
+
+
+def test_analysis_plot_shows_any_custom_recipe_error(analysis_ui, empty_uploads):
+    """Test that any exception from a custom recipe reaches the warning box.
+
+    Panel callbacks don't show exceptions in a notebook, so an error type the
+    UI didn't catch (here a NameError from a helper the user never imported)
+    used to make the plot button fail silently.
+    """
+
+    def broken_recipe(ds):
+        """Broken recipe."""
+        return undefined_helper(ds)  # noqa: F821
+
+    ui = analysis_ui
+    analysis.register_analysis(broken_recipe)
+    ui._analysis_refresh_click()
+    ui.analysis_recipe_dropdown.value = broken_recipe
+    ui._display_analysis_recipe_options_ui()
+
+    ui.analysis_plot_button.clicks += 1
+
+    assert "NameError" in ui.analysis_warning_textbox.value
+    assert ui.analysis_status_textbox.value == "Analysis status >> Recipe failed"
+
+
+def _year_catalog(start_year=2000, n_years=5):
+    """A dict catalog whose one entry has a file table of monthly files."""
+    dates = [
+        f"{year:04d}-{month:02d}-01, 00:00:00"
+        for year in range(start_year, start_year + n_years)
+        for month in range(1, 13)
+    ]
+    df = pd.DataFrame({"path": range(len(dates)), "start_date": dates})
+    return {"atmos": MagicMock(df=df)}
+
+
+def test_years_files_text_follows_selection(ui):
+    """Test that each dataset row shows how many files its year selection would load.
+
+    Loading is slow because every file is opened, so the count has to be
+    visible before the user clicks load, and follow the dataset, mode and years.
+    """
+    ui.model_cat = _year_catalog()
+    ui.keys_dropdown.options = ["atmos"]
+    ui.keys_dropdown.value = "atmos"
+
+    ui.years_input.value = 2
+    assert ui.years_files_text.value == "Loads 24 of 60 files, 2003–2004"
+
+    ui.years_mode.value = "First"
+    assert ui.years_files_text.value == "Loads 24 of 60 files, 2000–2001"
+
+    ui.years_mode.value = "All years"
+    assert ui.years_input.disabled is True
+    assert ui.years_files_text.value == "Loads 60 of 60 files, 2000–2004"
+    # Rows whose dropdown isn't on a catalog entry show nothing
+    assert ui.analysis_years_files_text.value == ""
+
+
+@pytest.mark.parametrize(
+    "mode, years, expected",
+    [
+        pytest.param("Most recent", 10, (10, False), id="default-recent"),
+        pytest.param("First", 3, (3, True), id="first"),
+        pytest.param("All years", 3, (None, False), id="all-years"),
+    ],
+)
+def test_analysis_load_passes_and_syncs_year_selection(
+    ui, monkeypatch, mode, years, expected
+):
+    """Test that a load uses the calling section's years and syncs them to every section.
+
+    All sections share one loaded dataset, so after a load from any of them
+    each row must show the years that are actually loaded.
+    """
+    mock_build_data_object = MagicMock(return_value=mock_mom5_dataset())
+    monkeypatch.setattr(med_data, "_build_data_object", mock_build_data_object)
+    ui._enable_widgets_after_catalog_load({"ocean": None}, {"model": None})
+    ui.analysis_keys_dropdown.value = "ocean"
+    ui.analysis_years_mode.value = mode
+    ui.analysis_years_input.value = years
+
+    ui._analysis_keys_dropdown_click()
+
+    mock_build_data_object.assert_called_once_with(
+        ui.model_cat, "ocean", years=expected[0], from_start=expected[1]
+    )
+    assert ui.loaded_year_selection == expected
+    for _, years_mode, years_input, _ in ui.year_widget_sets:
+        assert years_mode.value == mode
+        if expected[0] is not None:
+            assert years_input.value == years
+
+
+def test_multiplot_reloads_when_only_years_change(ui, monkeypatch):
+    """Test that adding a reference model reloads the user data if only the years changed.
+
+    The overlay would otherwise compare the reference against the previously
+    loaded years, not the ones shown in the overlay row.
+    """
+    mock_keys_dropdown_click = MagicMock()
+    monkeypatch.setattr(ui, "_keys_dropdown_click", mock_keys_dropdown_click)
+    monkeypatch.setattr(ui, "_clear_multiplot_data", MagicMock())
+    mock_cat = MagicMock()
+    mock_cat.search.return_value.to_source.return_value = {}
+    monkeypatch.setattr(ui, "access_nri_cat", mock_cat)
+    ui.dataset = xr.Dataset({"tas": ("x", [1.0])})
+    ui.multiplot_keys_dropdown.options = ["atmos"]
+    ui.multiplot_keys_dropdown.value = "atmos"
+    ui.loaded_dataset_key = "atmos"
+    ui.loaded_year_selection = (10, False)
+    ui.multiplot_years_input.value = 5
+
+    ui._multiplot_ref_keys_dropdown_click()
+
+    mock_keys_dropdown_click.assert_called_once_with(
+        key="atmos", year_selection=(5, False)
+    )
+
+
+def test_years_files_text_with_real_datastore(ui):
+    """Test that loading a real intake-esm catalog doesn't crash the file count.
+
+    Dropdown values are briefly None while their options are set, and a real
+    esm_datastore raises a pydantic ValidationError for a None key, where the
+    dict catalogs used in the other tests just return False.
+    """
+    rows = [
+        {
+            "path": f"/fake/tas_{year}.nc",
+            "realm": "atmos",
+            "frequency": "1mon",
+            "variable": "tas",
+            "start_date": f"{year}-01-01, 00:00:00",
+        }
+        for year in range(2000, 2020)
+    ]
+    esmcat = {
+        "esmcat_version": "0.1.0",
+        "id": "test",
+        "description": "test",
+        "attributes": [],
+        "assets": {"column_name": "path", "format": "netcdf"},
+        "aggregation_control": {
+            "variable_column_name": "variable",
+            "groupby_attrs": ["realm", "frequency"],
+            "aggregations": [],
+        },
+    }
+    model_cat = intake.open_esm_datastore({"esmcat": esmcat, "df": pd.DataFrame(rows)})
+
+    ui._enable_widgets_after_catalog_load(model_cat, {"model": None})
+
+    assert ui._years_files_summary(None, 10, False) == ""
+    # A rendered UI selects the first option itself; unrendered widgets don't
+    ui.multiplot_keys_dropdown.value = "atmos.1mon"
+    assert ui.multiplot_years_files_text.value == "Loads 10 of 20 files, 2010–2019"
+
+
+def test_refresh_catalog(ui):
+    """Test that the refresh catalog button calls the controller and updates the status text."""
+    ui._refresh_catalog()
+    assert ui.refresh_catalog_button.disabled
+    assert (
+        ui.status_textbox.value
+        == "User model status >> Refreshing data catalog. This can take a few minutes..."
+    )
+    assert (
+        ui.multiplot_status_textbox.value
+        == "Overlay plot status >> Refreshing data catalog. This can take a few minutes..."
+    )
+    assert (
+        ui.analysis_status_textbox.value
+        == "Analysis status >> Refreshing data catalog. This can take a few minutes..."
+    )
+
+
+def test_update_widgets_after_catalog_refresh(ui):
+    """Test that the refresh catalog button calls the controller and updates the status text."""
+    fake_catalog = {"key1": None, "key2": None}
+    sorted_keys = sorted(fake_catalog.keys())
+    ui._update_widgets_after_catalog_refresh(fake_catalog)
+
+    assert ui.model_cat == fake_catalog
+    assert ui.keys_dropdown.options == sorted_keys
+    assert ui.multiplot_keys_dropdown.options == sorted_keys
+    assert ui.analysis_keys_dropdown.options == sorted_keys
+    assert (
+        ui.status_textbox.value
+        == "User model status >> Data catalog refreshed. Reload a dataset to see the latest data"
+    )
+    assert (
+        ui.multiplot_status_textbox.value
+        == "Overlay plot status >> Data catalog refreshed. Reload user datasets to see the latest data"
+    )
+    assert (
+        ui.analysis_status_textbox.value
+        == "Analysis status >> Data catalog refreshed. Reload a dataset to see the latest data"
+    )
+
+
+def test_analysis_keys_button_click(ui, monkeypatch):
+    """Event wrapper for the analysis load dataset button click."""
+    mock_analysis_keys_dropdown_click = MagicMock()
+    monkeypatch.setattr(
+        ui, "_analysis_keys_dropdown_click", mock_analysis_keys_dropdown_click
+    )
+
+    ui._analysis_keys_button_click(None)
+
+    mock_analysis_keys_dropdown_click.assert_called_once()
+
+
+def test_analysis_select_recipe_button_click(ui, monkeypatch):
+    """Event wrapper for the analysis select recipe button click."""
+    mock_display_analysis_recipe_options_ui = MagicMock()
+    monkeypatch.setattr(
+        ui,
+        "_display_analysis_recipe_options_ui",
+        mock_display_analysis_recipe_options_ui,
+    )
+
+    ui._analysis_select_recipe_button_click(None)
+
+    mock_display_analysis_recipe_options_ui.assert_called_once()

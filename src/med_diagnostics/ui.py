@@ -8,7 +8,7 @@ from typing import ClassVar
 import panel as pn
 from IPython.display import display
 
-from med_diagnostics import controller, data
+from med_diagnostics import analysis, controller, data
 from med_diagnostics.types import (
     AllAnalysis,
     Animation,
@@ -31,7 +31,7 @@ class UserInterface:
     """
 
     # Set up styles used for text boxes and buttons
-    STYLES: ClassVar[dict] = {
+    _STYLES: ClassVar[dict] = {
         "status_text": {
             "styles": {
                 "background": "lightblue",
@@ -74,6 +74,13 @@ class UserInterface:
             "margin": (23, 0, 0, 0),
             "button_type": "success",
         },
+        "years_mode": {
+            "options": ["Most recent", "First", "All years"],
+            "value": "Most recent",
+            "margin": (23, 0, 0, 10),
+        },
+        "years_input": {"name": "Years to load", "start": 1, "value": 10, "width": 110},
+        "years_files_text": {"margin": (28, 0, 0, 10)},
         "remove_button": {
             "name": "Remove the above plot",
             "button_type": "danger",
@@ -87,8 +94,9 @@ class UserInterface:
             "align": "end",
         },
         "widget_container": {
-            "header_background": "#2f2f2f",
+            "header_background": "#1C1C1C",
             "header_color": "white",
+            "stylesheets": [".card-button > svg { stroke: white; }"],
             "collapsible": True,
             "sizing_mode": "stretch_width",
             "collapsed": True,
@@ -105,30 +113,43 @@ class UserInterface:
         pn.extension()
 
         self.user_widget_container = pn.Card(
-            **self.STYLES.get("widget_container"), title="Load and plot user data"
+            **self._STYLES.get("widget_container"), title="Load and plot user data"
         )
         self.ref_widget_container = pn.Card(
-            **self.STYLES.get("widget_container"),
+            **self._STYLES.get("widget_container"),
             title="Load and plot reference models",
         )
         self.multiplot_widget_container = pn.Card(
-            **self.STYLES.get("widget_container"),
+            **self._STYLES.get("widget_container"),
             title="Overlay user and reference models",
+        )
+        self.analysis_widget_container = pn.Card(
+            **self._STYLES.get("widget_container"),
+            title="Run analysis recipes",
         )
 
         # Build initial panel text widgets
         self.last_data_load_textbox = pn.widgets.StaticText(
-            **self.STYLES.get("last_data_load_text")
+            **self._STYLES.get("last_data_load_text")
         )
-        self.status_textbox = pn.widgets.StaticText(**self.STYLES.get("status_text"))
-        self.warning_textbox = pn.widgets.StaticText(**self.STYLES.get("warning_text"))
+        self.status_textbox = pn.widgets.StaticText(**self._STYLES.get("status_text"))
+        self.warning_textbox = pn.widgets.StaticText(**self._STYLES.get("warning_text"))
+
+        self.refresh_catalog_button = pn.widgets.Button(
+            **self._STYLES.get("primary_button")
+        )
 
         # Build initial user plot buttons and dropdowns
         self.keys_dropdown = pn.widgets.Select()
-        self.keys_button = pn.widgets.Button(**self.STYLES.get("primary_button"))
+        self.keys_button = pn.widgets.Button(**self._STYLES.get("primary_button"))
+        self.years_mode = pn.widgets.RadioButtonGroup(**self._STYLES.get("years_mode"))
+        self.years_input = pn.widgets.IntInput(**self._STYLES.get("years_input"))
+        self.years_files_text = pn.widgets.StaticText(
+            **self._STYLES.get("years_files_text")
+        )
         self.plot_variable_dropdown = pn.widgets.Select()
-        self.variable_toggle = pn.widgets.Toggle(**self.STYLES.get("variable_toggle"))
-        self.plot_button = pn.widgets.Button(**self.STYLES.get("green_button"))
+        self.variable_toggle = pn.widgets.Toggle(**self._STYLES.get("variable_toggle"))
+        self.plot_button = pn.widgets.Button(**self._STYLES.get("green_button"))
         self.plot_pane = pn.pane.Matplotlib(tight=True)
         self.plot_type_dropdown = pn.widgets.Select()
         self.x_axis_dropdown, self.y_axis_dropdown, self.animation_axis_dropdown = (
@@ -137,36 +158,36 @@ class UserInterface:
             pn.widgets.Select(),
         )
         self.select_variable_button = pn.widgets.Button(
-            **self.STYLES.get("green_button")
+            **self._STYLES.get("green_button")
         )
 
         # Build reference panel status text
         self.ref_status_textbox = pn.widgets.StaticText(
-            **self.STYLES.get("status_text")
+            **self._STYLES.get("status_text")
         )
         self.ref_warning_textbox = pn.widgets.StaticText(
-            **self.STYLES.get("warning_text")
+            **self._STYLES.get("warning_text")
         )
 
         # Build reference panel buttons
         self.ref_keys_dropdown = pn.widgets.Select()
-        self.ref_keys_button = pn.widgets.Button(**self.STYLES.get("primary_button"))
+        self.ref_keys_button = pn.widgets.Button(**self._STYLES.get("primary_button"))
         self.ref_data_keys_dropdown = pn.widgets.Select()
         self.ref_data_keys_button = pn.widgets.Button(
-            **self.STYLES.get("primary_button")
+            **self._STYLES.get("primary_button")
         )
         self.ref_plot_variable_dropdown = pn.widgets.Select()
         self.ref_variable_toggle = pn.widgets.Toggle(
-            **self.STYLES.get("variable_toggle")
+            **self._STYLES.get("variable_toggle")
         )
         self.clear_ref_model_data_button = pn.widgets.Button(
-            **self.STYLES.get("danger_button")
+            **self._STYLES.get("danger_button")
         )
         self.ref_model_info_button = pn.widgets.Button(
-            **self.STYLES.get("primary_button")
+            **self._STYLES.get("primary_button")
         )
         self.ref_model_metadata = pn.widgets.StaticText(styles={"color": "white"})
-        self.ref_plot_button = pn.widgets.Button(**self.STYLES.get("green_button"))
+        self.ref_plot_button = pn.widgets.Button(**self._STYLES.get("green_button"))
         self.ref_plot_pane = pn.pane.Matplotlib(tight=True)
         self.ref_plot_type_dropdown = pn.widgets.Select()
         (
@@ -180,33 +201,33 @@ class UserInterface:
         )
 
         self.ref_select_variable_button = pn.widgets.Button(
-            **self.STYLES.get("green_button")
+            **self._STYLES.get("green_button")
         )
 
         # Build plot overlay status text
         self.multiplot_status_textbox = pn.widgets.StaticText(
-            **self.STYLES.get("status_text")
+            **self._STYLES.get("status_text")
         )
         self.multiplot_warning_textbox = pn.widgets.StaticText(
-            **self.STYLES.get("warning_text")
+            **self._STYLES.get("warning_text")
         )
 
         # Build plot overlay buttons
         self.multiplot_ref_keys_dropdown = pn.widgets.Select()
         self.multiplot_ref_keys_button = pn.widgets.Button(
-            **self.STYLES.get("primary_button")
+            **self._STYLES.get("primary_button")
         )
         self.multiplot_plot_button = pn.widgets.Button(
-            **self.STYLES.get("green_button")
+            **self._STYLES.get("green_button")
         )
         self.multiplot_plot_pane = pn.pane.Matplotlib(tight=True)
         self.clear_multiplot_data_button = pn.widgets.Button(
-            **self.STYLES.get("danger_button")
+            **self._STYLES.get("danger_button")
         )
 
         self.multiplot_keys_dropdown = pn.widgets.Select()
         self.multiplot_keys_button = pn.widgets.Button(
-            **self.STYLES.get("primary_button")
+            **self._STYLES.get("primary_button")
         )
         self.multiplot_plot_variable_dropdown = pn.widgets.Select()
         self.multiplot_x_axis_dropdown, self.multiplot_y_axis_dropdown = (
@@ -214,23 +235,95 @@ class UserInterface:
             pn.widgets.Select(),
         )
         self.multiplot_select_variable_button = pn.widgets.Button(
-            **self.STYLES.get("green_button")
+            **self._STYLES.get("green_button")
         )
         self.multiplot_keys_update_button = pn.widgets.Button(
-            **self.STYLES.get("primary_button")
+            **self._STYLES.get("primary_button")
         )
         self.prompt_bounds_dropdown = pn.widgets.Select()
         self.prompt_bounds_button = pn.widgets.Button(
-            **self.STYLES.get("primary_button")
+            **self._STYLES.get("primary_button")
         )
         self.multiplot_plot_type_dropdown = pn.widgets.Select()
         self.multiplot_analysis_choice_dropdown = pn.widgets.Select()
+        self.multiplot_years_mode = pn.widgets.RadioButtonGroup(
+            **self._STYLES.get("years_mode")
+        )
+        self.multiplot_years_input = pn.widgets.IntInput(
+            **self._STYLES.get("years_input")
+        )
+        self.multiplot_years_files_text = pn.widgets.StaticText(
+            **self._STYLES.get("years_files_text")
+        )
         self.multiplot_variable_toggle = pn.widgets.Toggle(
-            **self.STYLES.get("variable_toggle")
+            **self._STYLES.get("variable_toggle")
+        )
+
+        # Build analysis status text
+        self.analysis_status_textbox = pn.widgets.StaticText(
+            **self._STYLES.get("status_text")
+        )
+        self.analysis_warning_textbox = pn.widgets.StaticText(
+            **self._STYLES.get("warning_text")
+        )
+
+        # Build analysis buttons
+        self.analysis_keys_dropdown = pn.widgets.Select()
+        self.analysis_keys_button = pn.widgets.Button(
+            **self._STYLES.get("primary_button")
+        )
+        self.analysis_years_mode = pn.widgets.RadioButtonGroup(
+            **self._STYLES.get("years_mode")
+        )
+        self.analysis_years_input = pn.widgets.IntInput(
+            **self._STYLES.get("years_input")
+        )
+        self.analysis_years_files_text = pn.widgets.StaticText(
+            **self._STYLES.get("years_files_text")
+        )
+        self.analysis_recipe_dropdown = pn.widgets.Select()
+        self.analysis_select_recipe_button = pn.widgets.Button(
+            **self._STYLES.get("green_button")
+        )
+        self.analysis_recipe_info = pn.widgets.StaticText(styles={"color": "black"})
+        self.analysis_plot_button = pn.widgets.Button(
+            **self._STYLES.get("green_button")
+        )
+        self.analysis_refresh_button = pn.widgets.Button(
+            **self._STYLES.get("primary_button")
+        )
+        self.analysis_variable_toggle = pn.widgets.Toggle(
+            **self._STYLES.get("variable_toggle")
         )
 
         self.figure_exists, self.ref_figure_exists = False, False
         self.long_names, self.ref_long_names, self.multiplot_long_names = {}, {}, {}
+        self.analysis_long_names, self.analysis_variable_widgets = {}, []
+
+        # Each section that loads user data has its own year widgets, synced after a load
+        self.year_widget_sets = [
+            (
+                self.keys_dropdown,
+                self.years_mode,
+                self.years_input,
+                self.years_files_text,
+            ),
+            (
+                self.multiplot_keys_dropdown,
+                self.multiplot_years_mode,
+                self.multiplot_years_input,
+                self.multiplot_years_files_text,
+            ),
+            (
+                self.analysis_keys_dropdown,
+                self.analysis_years_mode,
+                self.analysis_years_input,
+                self.analysis_years_files_text,
+            ),
+        ]
+        self.loaded_year_selection = self._get_year_selection(
+            self.years_mode, self.years_input
+        )
 
         # Initialise button listener functions
         # Plot buttons
@@ -272,12 +365,28 @@ class UserInterface:
 
         self.prompt_bounds_button.on_click(self._prompt_bounds_button_click)
 
+        # Analysis buttons
+        self.analysis_keys_button.on_click(self._analysis_keys_button_click)
+        self.analysis_select_recipe_button.on_click(
+            self._analysis_select_recipe_button_click
+        )
+        self.analysis_plot_button.on_click(self._analysis_plot_button_click)
+        self.analysis_refresh_button.on_click(self._analysis_refresh_button_click)
+
         # Variable button toggles
         self.variable_toggle.param.watch(self._variable_toggle_click, "value")
         self.ref_variable_toggle.param.watch(self._ref_variable_toggle_click, "value")
         self.multiplot_variable_toggle.param.watch(
             self._multiplot_variable_toggle_click, "value"
         )
+        self.analysis_variable_toggle.param.watch(
+            self._analysis_variable_toggle_click, "value"
+        )
+
+        # Year selection widgets update the file count shown before loading
+        for widgets in self.year_widget_sets:
+            for widget in widgets[:3]:
+                widget.param.watch(self._years_selection_change, "value")
 
         self.plot_type_mapping = {
             Line.value: Line(),
@@ -402,14 +511,47 @@ class UserInterface:
             self.dataset,
         )
 
+    def _analysis_variable_toggle_click(self, event):
+        """Event wrapper for the analysis variable toggle."""
+        for widget in self.analysis_variable_widgets:
+            self.analysis_long_names = controller.variable_toggle_change(
+                self.analysis_variable_toggle, widget, self.dataset
+            )
+
+    def _years_selection_change(self, event):
+        """Event wrapper for the dataset and year selection widgets."""
+        self._update_years_files_texts()
+
+    def _analysis_keys_button_click(self, event):
+        """Event wrapper for the analysis load dataset button click."""
+
+        self._analysis_keys_dropdown_click()
+
+    def _analysis_refresh_button_click(self, event):
+        """Event wrapper for the analysis refresh button click."""
+
+        self._analysis_refresh_click()
+
+    def _analysis_select_recipe_button_click(self, event):
+        """Event wrapper for the analysis select recipe button click."""
+
+        self._display_analysis_recipe_options_ui()
+
+    def _analysis_plot_button_click(self, event):
+        """Event wrapper for the analysis plot data button click."""
+
+        self._analysis_plot_data_button_click()
+
     def _initialise_widgets(self):
         self._initialise_user_widgets()
         self._initialise_ref_widgets()
         self._initialise_multiplot_widgets()
+        self._initialise_analysis_widgets()
         main_ui = pn.Column(
             self.user_widget_container,
             self.ref_widget_container,
             self.multiplot_widget_container,
+            self.analysis_widget_container,
             styles={"gap": "15px"},
         )
         display(main_ui)
@@ -421,7 +563,12 @@ class UserInterface:
 
         self.div_1 = pn.layout.Divider(styles={"color": "white"}, visible=False)
         self.keys_selection_row = pn.Row(
-            self.keys_dropdown, self.keys_button, visible=False
+            self.keys_dropdown,
+            self.years_mode,
+            self.years_input,
+            self.keys_button,
+            self.years_files_text,
+            visible=False,
         )
         self.div_2 = pn.layout.Divider(styles={"color": "white"}, visible=False)
 
@@ -429,15 +576,19 @@ class UserInterface:
             self.last_data_load_textbox,
             self.status_textbox,
             self.warning_textbox,
+            self.refresh_catalog_button,
             self.div_1,
             self.keys_selection_row,
             self.div_2,
         )
         self.user_widget_container.append(widgets_to_add)
 
+        self.refresh_catalog_button.name = "Refresh model data catalog"
+        self.refresh_catalog_button.disabled = True
+
         controller.update_textbox_text(
             self.status_textbox,
-            "User model status >> Waiting for initial model data catalog to be built. This can take a few minutes.",
+            "User model status >> Waiting for initial model data catalog to be built. This can take a few minutes...",
         )
         self.user_widget_container.collapsed = False
 
@@ -474,6 +625,9 @@ class UserInterface:
             self.clear_ref_model_data_button,
         )
 
+        # Divider separating the ref controls from its plots
+        self.ref_divider = pn.layout.Divider(styles={"color": "white"})
+
         # Append all reference elements to the main widget container simultaneously
         self.ref_widget_container.extend(
             [
@@ -481,7 +635,7 @@ class UserInterface:
                 self.ref_warning_textbox,
                 self.ref_keys_selection_row,
                 self.ref_model_metadata,
-                pn.layout.Divider(styles={"color": "white"}),
+                self.ref_divider,
             ]
         )
 
@@ -504,6 +658,8 @@ class UserInterface:
         self.multiplot_ref_keys_dropdown.options = ["Waiting for model to load"]
         self.multiplot_ref_keys_button.name = "Add reference model"
         self.multiplot_ref_keys_button.disabled = True
+        self.multiplot_years_mode.disabled = True
+        self.multiplot_years_input.disabled = True
 
         self.clear_multiplot_data_button.name = "Clear loaded data"
         self.clear_multiplot_data_button.disabled = True
@@ -536,7 +692,11 @@ class UserInterface:
         self.multiplot_plot_type_dropdown.options = self.multiplot_type_mapping
 
         self.multiplot_user_dataset_keys_selection_row = pn.Row(
-            self.multiplot_keys_dropdown, self.multiplot_keys_update_button
+            self.multiplot_keys_dropdown,
+            self.multiplot_years_mode,
+            self.multiplot_years_input,
+            self.multiplot_keys_update_button,
+            self.multiplot_years_files_text,
         )
 
         self.multiplot_ref_keys_selection_row = pn.Row(
@@ -559,8 +719,61 @@ class UserInterface:
         self.multiplot_widget_container.append(self.multiplot_type_selection_row)
 
         # Add horizontal line divider to widget_container
-        self.multiplot_widget_container.append(
-            pn.layout.Divider(styles={"color": "white"})
+        self.multiplot_divider = pn.layout.Divider(styles={"color": "white"})
+        self.multiplot_widget_container.append(self.multiplot_divider)
+
+    def _initialise_analysis_widgets(self):
+        """
+        Add the analysis status text, dataset selection and recipe selection widgets.
+        """
+
+        # Add analysis status text boxes
+        self.analysis_widget_container.append(self.analysis_status_textbox)
+        self.analysis_widget_container.append(self.analysis_warning_textbox)
+        controller.update_textbox_text(
+            self.analysis_status_textbox,
+            "Waiting for user model catalog to be built...",
+        )
+
+        # Populate dataset selection widgets
+        self.analysis_keys_dropdown.name = "Select dataset to analyse"
+        self.analysis_keys_dropdown.options = ["Waiting for model to load"]
+        self.analysis_keys_dropdown.disabled = True
+        self.analysis_keys_button.name = "Load dataset"
+        self.analysis_keys_button.disabled = True
+        self.analysis_years_mode.disabled = True
+        self.analysis_years_input.disabled = True
+
+        # Populate recipe selection widgets
+        self.analysis_recipe_dropdown.name = "Select analysis recipe"
+        self._refresh_analysis_recipes()
+        self.analysis_recipe_dropdown.disabled = True
+        self.analysis_select_recipe_button.name = "Select recipe"
+        self.analysis_select_recipe_button.disabled = True
+
+        self.analysis_refresh_button.name = "Refresh analysis recipes"
+        self.analysis_refresh_button.disabled = True
+
+        self.analysis_keys_selection_row = pn.Row(
+            self.analysis_keys_dropdown,
+            self.analysis_years_mode,
+            self.analysis_years_input,
+            self.analysis_keys_button,
+            self.analysis_years_files_text,
+        )
+        self.analysis_recipe_selection_row = pn.Row(
+            self.analysis_recipe_dropdown,
+            self.analysis_select_recipe_button,
+            self.analysis_refresh_button,
+        )
+
+        self.analysis_widget_container.extend(
+            [
+                self.analysis_keys_selection_row,
+                self.analysis_recipe_selection_row,
+                self.analysis_recipe_info,
+                pn.layout.Divider(styles={"color": "white"}),
+            ]
         )
 
     def _enable_widgets_after_catalog_load(self, model_cat, access_nri_cat):
@@ -569,7 +782,7 @@ class UserInterface:
         self.access_nri_cat = access_nri_cat
         controller.update_textbox_text(
             self.ref_status_textbox,
-            "Reference Model Status >> Select a model to load and plot data",
+            "Reference model status >> Select a model to load and plot data",
         )
         self.ref_keys_button.disabled = False
         self.clear_ref_model_data_button.disabled = False
@@ -579,12 +792,72 @@ class UserInterface:
 
         controller.update_textbox_text(
             self.multiplot_status_textbox,
-            "Overlay Plot >> Load user dataset to continue.",
+            "Overlay plot status >> Load user dataset to continue",
         )
         self.multiplot_ref_keys_dropdown.options = sorted(self.access_nri_cat.keys())
         self.multiplot_keys_dropdown.options = sorted(self.model_cat.keys())
         self.multiplot_keys_update_button.disabled = False
         self.multiplot_keys_dropdown.disabled = False
+        self.multiplot_years_mode.disabled = False
+        self.multiplot_years_input.disabled = False
+
+        controller.update_textbox_text(
+            self.analysis_status_textbox,
+            "Analysis status >> Load a dataset to analyse",
+        )
+        self.analysis_keys_dropdown.options = sorted(self.model_cat.keys())
+        self.analysis_keys_dropdown.disabled = False
+        self.analysis_keys_button.disabled = False
+        self.analysis_years_mode.disabled = False
+        self.analysis_years_input.disabled = False
+
+        self.refresh_catalog_button.disabled = False
+
+    def _refresh_catalog(self):
+        """
+        Show refreshing status text while the session rebuilds the user model catalog.
+        """
+        self.refresh_catalog_button.disabled = True
+        controller.update_textbox_text(
+            self.status_textbox,
+            "User model status >> Refreshing data catalog. This can take a few minutes...",
+        )
+        controller.update_textbox_text(
+            self.multiplot_status_textbox,
+            "Overlay plot status >> Refreshing data catalog. This can take a few minutes...",
+        )
+        controller.update_textbox_text(
+            self.analysis_status_textbox,
+            "Analysis status >> Refreshing data catalog. This can take a few minutes...",
+        )
+
+    def _update_widgets_after_catalog_refresh(self, model_cat):
+        """
+        Repopulate user dataset dropdowns from the refreshed catalog and prompt a reload.
+
+        Parameters
+        ----------
+        model_cat : Intake-ESM datastore object
+            Refreshed intake catalog of user model data.
+        """
+        self.model_cat = model_cat
+        keys = sorted(self.model_cat.keys())
+        self.keys_dropdown.options = keys
+        self.multiplot_keys_dropdown.options = keys
+        self.analysis_keys_dropdown.options = keys
+
+        controller.update_textbox_text(
+            self.status_textbox,
+            "User model status >> Data catalog refreshed. Reload a dataset to see the latest data",
+        )
+        controller.update_textbox_text(
+            self.multiplot_status_textbox,
+            "Overlay plot status >> Data catalog refreshed. Reload user datasets to see the latest data",
+        )
+        controller.update_textbox_text(
+            self.analysis_status_textbox,
+            "Analysis status >> Data catalog refreshed. Reload a dataset to see the latest data",
+        )
 
     def _display_dataset_selection_ui(self):
         """
@@ -636,26 +909,43 @@ class UserInterface:
             append=True,
         )
 
-    def _keys_dropdown_click(self, key=None):
+    def _keys_dropdown_click(self, key=None, year_selection=None):
         """
         Loads selected model dataset from keys_dropdown and creates new interactive plot.
+
+        Parameters
+        ----------
+        key : str, optional
+            Dataset key to load. Defaults to the keys_dropdown value.
+        year_selection : tuple, optional
+            ``(years, from_start)`` from the calling section's year widgets.
+            Defaults to the user section's.
         """
         # Update text box
         controller.update_textbox_text(
-            self.status_textbox, "User model status >> Loading data."
+            self.status_textbox, "User model status >> Loading data..."
         )
         if key:
             selected_key = key
             self.keys_dropdown.value = key
         else:
             selected_key = self.keys_dropdown.value
+        if year_selection is None:
+            year_selection = self._get_year_selection(self.years_mode, self.years_input)
+        years, from_start = year_selection
         # Load selected dataset
-        self.dataset = data._build_data_object(self.model_cat, selected_key)
+        self.dataset = data._build_data_object(
+            self.model_cat, selected_key, years=years, from_start=from_start
+        )
         self.loaded_dataset_key = self.keys_dropdown.value
+        self.loaded_year_selection = year_selection
 
         # Update text box
+        files_text = self._years_files_summary(selected_key, years, from_start)
         controller.update_textbox_text(
-            self.status_textbox, "User model status >> Data successfully loaded."
+            self.status_textbox,
+            "User model status >> Data successfully loaded"
+            + (f" ({files_text})" if files_text else ""),
         )
         self.keys_button.name = "Load different dataset"
 
@@ -673,7 +963,7 @@ class UserInterface:
             self.multiplot_plot_type_dropdown.disabled = False
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
-                "Overlay Plot >> User data loaded. Load one or more reference datasets to compare.",
+                "Overlay plot status >> User data loaded. Load one or more reference datasets to compare",
             )
 
         # Check if plot already exists
@@ -686,6 +976,10 @@ class UserInterface:
             # Update existing plot
             self._update_dataset_plot_ui()
 
+        # The analysis section also reads self.dataset, whichever section loaded it
+        self._sync_analysis_section()
+        self._sync_year_widgets()
+
     def _ref_keys_dropdown_click(self):
         """
         Loads selected reference model from ref_keys_dropdown and display reference model dataset selection.
@@ -693,7 +987,7 @@ class UserInterface:
 
         # Update text box
         controller.update_textbox_text(
-            self.ref_status_textbox, "Reference model status >> Loading data."
+            self.ref_status_textbox, "Reference model status >> Loading data..."
         )
 
         # Extract selected model catalog
@@ -704,7 +998,7 @@ class UserInterface:
         # Update text box
         controller.update_textbox_text(
             self.ref_status_textbox,
-            "Reference model status >> Data catalog successfully loaded.",
+            "Reference model status >> Data catalog successfully loaded",
         )
 
         if (
@@ -726,19 +1020,45 @@ class UserInterface:
         if not hasattr(self, "multiplot_ref_dataset_dict"):
             self.multiplot_ref_dataset_dict = {}
 
+        # Reload a changed user dataset first, so the reference model is matched
+        # to it and not discarded by the clear that follows a reload
+        year_selection = self._get_year_selection(
+            self.multiplot_years_mode, self.multiplot_years_input
+        )
+        # A changed year selection needs a reload too, not just a changed dataset
+        if (
+            self.multiplot_keys_dropdown.value != self.loaded_dataset_key
+            or year_selection != self.loaded_year_selection
+        ):
+            controller.update_textbox_text(
+                self.multiplot_status_textbox,
+                "Overlay plot status >> User dataset selection changed, reloading user dataset...",
+            )
+            # Load through the user section so every section sharing self.dataset updates
+            self._keys_dropdown_click(
+                key=self.multiplot_keys_dropdown.value, year_selection=year_selection
+            )
+            self.multiplot_plot_variable_dropdown.options = sorted(self.dataset.keys())
+
+            controller.update_textbox_text(
+                self.multiplot_status_textbox,
+                "Overlay plot status >> New user dataset loaded, clearing loaded user models",
+            )
+            self._clear_multiplot_data()
+
         selected_ref_model_cat = self.access_nri_cat.search(
             name=self.multiplot_ref_keys_dropdown.value
         ).to_source()
 
         if (
             self.multiplot_keys_dropdown.value in list(selected_ref_model_cat.keys())
-            and not self.multiplot_ref_keys_dropdown.value
-            in self.multiplot_ref_dataset_dict
+            and self.multiplot_ref_keys_dropdown.value
+            not in self.multiplot_ref_dataset_dict
         ):
             model_value = self.multiplot_ref_keys_dropdown.value
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
-                "Overlay Plot Status >> Loading reference dataset...",
+                "Overlay plot status >> Loading reference dataset...",
             )
             self.multiplot_ref_dataset_dict = controller.add_to_dataset_dict(
                 self.multiplot_ref_dataset_dict,
@@ -749,7 +1069,7 @@ class UserInterface:
             )
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
-                "Overlay Plot Status >> Loaded reference model, add another or plot the overlay",
+                "Overlay plot status >> Loaded reference model, add another or plot the overlay",
             )
         elif self.multiplot_ref_keys_dropdown.value in self.multiplot_ref_dataset_dict:
             controller.update_textbox_text(
@@ -759,26 +1079,8 @@ class UserInterface:
         else:
             controller.update_textbox_text(
                 self.multiplot_warning_textbox,
-                "Overlay Plot Status >> There is no dataset matching the user dataset in this model, please select another",
+                "Overlay plot status >> There is no dataset matching the user dataset in this model, please select another",
             )
-
-        if self.multiplot_keys_dropdown.value != self.loaded_dataset_key:
-            controller.update_textbox_text(
-                self.multiplot_status_textbox,
-                "Overlay Plot Status >> User dataset selection changed, reloading user dataset...",
-            )
-            # Load selected dataset
-            self.dataset = data._build_data_object(
-                self.model_cat, self.multiplot_keys_dropdown.value
-            )
-            self.loaded_dataset_key = self.multiplot_keys_dropdown.value
-            self.multiplot_plot_variable_dropdown.options = sorted(self.dataset.keys())
-
-            controller.update_textbox_text(
-                self.multiplot_status_textbox,
-                "Overlay Plot Status >> New user dataset loaded, clearing loaded user models",
-            )
-            self._clear_multiplot_data()
 
     def _ref_dataset_dropdown_click(self):
         """
@@ -794,7 +1096,7 @@ class UserInterface:
         )
         controller.update_textbox_text(
             self.ref_status_textbox,
-            "Reference model status >> Reference dataset successfully loaded.",
+            "Reference model status >> Reference dataset successfully loaded",
         )
         # Check if plot already exists
         if not self.ref_figure_exists:
@@ -811,7 +1113,7 @@ class UserInterface:
 
         # Update text box
         controller.update_textbox_text(
-            self.ref_status_textbox, "Reference model status >> Data removed."
+            self.ref_status_textbox, "Reference model status >> Data removed"
         )
 
         ui_components_to_remove = [
@@ -841,7 +1143,7 @@ class UserInterface:
         # Update text box
         controller.update_textbox_text(
             self.ref_status_textbox,
-            "Reference model status >> Retrieving model metadata.",
+            "Reference model status >> Retrieving model metadata...",
         )
         # Generate the metadata string
         self.ref_model_metadata.value = controller.get_metadata(
@@ -878,30 +1180,37 @@ class UserInterface:
         if not hasattr(self, "dataset"):
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
-                "Overlay Plot Status >> Loading user dataset...",
+                "Overlay plot status >> Loading user dataset...",
             )
-            self._keys_dropdown_click(key=self.multiplot_keys_dropdown.value)
+            self._keys_dropdown_click(
+                key=self.multiplot_keys_dropdown.value,
+                year_selection=self._get_year_selection(
+                    self.multiplot_years_mode, self.multiplot_years_input
+                ),
+            )
             self.multiplot_keys_update_button.name = "Load different dataset"
             self.loaded_dataset_key = self.multiplot_keys_dropdown.value
             self.keys_dropdown.value = self.loaded_dataset_key
 
         else:
-            sorted_keys = sorted(self.dataset.keys())
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
-                "Overlay Plot Status >> Loading new user dataset...",
+                "Overlay plot status >> Loading new user dataset...",
             )
-            # Load selected dataset
-            self.dataset = data._build_data_object(
-                self.model_cat, self.multiplot_keys_dropdown.value
+            # Load through the user section so every section sharing self.dataset
+            # updates. The variable lists must come from the new dataset, after loading.
+            self._keys_dropdown_click(
+                key=self.multiplot_keys_dropdown.value,
+                year_selection=self._get_year_selection(
+                    self.multiplot_years_mode, self.multiplot_years_input
+                ),
             )
-            self.loaded_dataset_key = self.multiplot_keys_dropdown.value
+            sorted_keys = sorted(self.dataset.keys())
             self.multiplot_plot_variable_dropdown.options = sorted_keys
-            self.keys_dropdown.value = self.loaded_dataset_key
             self.plot_variable_dropdown.options = sorted_keys
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
-                "Overlay Plot Status >> New user dataset loaded, clearing loaded models",
+                "Overlay plot status >> New user dataset loaded, clearing loaded models",
             )
             # Clear the loaded data, as different datasets from the selected models will need to be loaded.
             self._clear_multiplot_data()
@@ -914,7 +1223,7 @@ class UserInterface:
         self.multiplot_ref_dataset_dict = {}
         controller.update_textbox_text(
             self.multiplot_status_textbox,
-            "Overlay Plot Status >> Cleared loaded reference models",
+            "Overlay plot status >> Cleared loaded reference models",
         )
 
     def _display_dataset_plot_ui(self):
@@ -1032,7 +1341,7 @@ class UserInterface:
             if len(viable_dims) < 2:
                 controller.update_textbox_text(
                     warning_textbox,
-                    "Warning >> Not enough dimensions available for this variable to plot a Heatmap.",
+                    "Warning >> Not enough dimensions available for this variable to plot a Heatmap",
                 )
                 plot_type_dropdown.value = Line()
                 show_plot_choices = False
@@ -1057,7 +1366,7 @@ class UserInterface:
             if len(viable_dims) < 2:
                 controller.update_textbox_text(
                     warning_textbox,
-                    "Warning >> Not enough dimensions available for this variable to plot an animation.",
+                    "Warning >> Not enough dimensions available for this variable to plot an animation",
                 )
                 plot_type_dropdown.value = Line()
                 show_plot_choices = False
@@ -1142,7 +1451,7 @@ class UserInterface:
             if len(viable_dims) < 2:
                 controller.update_textbox_text(
                     self.multiplot_warning_textbox,
-                    "Warning >> Not enough dimensions available for this variable to plot a Heatmap.",
+                    "Warning >> Not enough dimensions available for this variable to plot a Heatmap",
                 )
                 self.multiplot_plot_type_dropdown.value = Line()
                 return  # Stop generating the heatmap UI; dropdown change triggers a new callback
@@ -1215,10 +1524,13 @@ class UserInterface:
         )
 
         self.prompt_bounds_dropdown.name = "Choose how to constrain the x-axis bounds"
+        self.prompt_bounds_button.name = "Plot data"
         self.prompt_bounds_dropdown.options = self.prompt_bounds_mapping
 
         self.prompt_bounds_row = pn.Row(
-            self.prompt_bounds_dropdown, self.prompt_bounds_button
+            self.multiplot_analysis_choice_dropdown,
+            self.prompt_bounds_dropdown,
+            self.prompt_bounds_button,
         )
 
         # Determine the insertion index based on a hierarchy of existing UI elements
@@ -1256,7 +1568,7 @@ class UserInterface:
 
         self.multiplot_plot_button.name = "Select"
         controller.update_textbox_text(
-            self.multiplot_status_textbox, "Plot Overlay Status >> Generating plot..."
+            self.multiplot_status_textbox, "Overlay plot status >> Generating plot..."
         )
         self.multiplot_x_axis_dropdown.name = "Select X-Axis"
         self.multiplot_y_axis_dropdown.name = "Select Y-Axis"
@@ -1317,7 +1629,14 @@ class UserInterface:
             self.multiplot_widget_container, "multiplot_slice_widgets"
         )
 
-        self.multiplot_widget_container.append(plot_group)
+        # Add the newest plot directly below the divider, above older plots
+        self._safe_add_to_widget(
+            self.multiplot_widget_container,
+            ["multiplot_divider"],
+            plot_group,
+            append=True,
+            above=False,
+        )
 
         controller.update_textbox_text(
             self.multiplot_status_textbox, "Overlay plot status >> Plot created"
@@ -1382,11 +1701,8 @@ class UserInterface:
         elif isinstance(plot_type_dropdown.value, Animation):
             fig_animated = self._plot_dataset_helper(is_ref=ref, plot_type=Animation())
 
-        if fig_animated:
-            new_plot_pane = fig_animated
-        else:
-            # Create a new pane for the figure
-            new_plot_pane = pn.pane.Matplotlib(fig, tight=True)
+        # Animations are already a pane, static figures need wrapping in one
+        new_plot_pane = fig_animated or pn.pane.Matplotlib(fig, tight=True)
 
         plot_group = self._add_remove_btn(new_plot_pane, widget_container)
 
@@ -1401,13 +1717,13 @@ class UserInterface:
             self._safe_remove_widget_object(
                 self.ref_widget_container, "ref_slice_widgets"
             )
-            # Add plot above the multiplot widgets
+            # Add the newest plot directly below the divider, above older plots
             self._safe_add_to_widget(
                 self.ref_widget_container,
-                ["multiplot_status_textbox"],
+                ["ref_divider"],
                 plot_group,
                 append=True,
-                above=True,
+                above=False,
             )
         else:
             self._safe_remove_widget_object(
@@ -1416,12 +1732,13 @@ class UserInterface:
             self._safe_remove_widget_object(self.user_widget_container, "slice_ui_row")
             self._safe_remove_widget_object(self.user_widget_container, "slice_widgets")
 
+            # Add the newest plot directly below the plot UI row, above older plots
             self._safe_add_to_widget(
                 self.user_widget_container,
-                ["ref_status_textbox"],
+                ["plot_ui_row"],
                 plot_group,
                 append=True,
-                above=True,
+                above=False,
             )
 
         controller.update_textbox_text(textbox, f"{text_prefix} >> Plot created")
@@ -1474,7 +1791,7 @@ class UserInterface:
         elif validity.invalid_heatmap_data:
             controller.update_textbox_text(
                 warning_box,
-                "Warning >> The dataset only has one plottable dimension. Defaulting to line plot.",
+                "Warning >> The dataset only has one plottable dimension. Defaulting to line plot",
             )
             plot_type_dd.value = Line()
             if not isinstance(section, Multiplot):
@@ -1482,7 +1799,7 @@ class UserInterface:
         elif validity.same_axes_chosen:
             controller.update_textbox_text(
                 warning_box,
-                "Warning >> Please ensure different values are selected for each axis.",
+                "Warning >> Please ensure different values are selected for each axis",
             )
 
             # Remove preexisting plot choices UI using strings
@@ -1652,12 +1969,28 @@ class UserInterface:
             options_dict = {
                 controller.round_slice_val(val): val for val in coord_values
             }
-            dropdown = pn.widgets.DiscreteSlider(
+            slider = pn.widgets.DiscreteSlider(
                 name=f"Slice {dimension} at:", options=options_dict
             )
+            labels = list(options_dict)
+            text = pn.widgets.AutocompleteInput(
+                options=labels, value=labels[0], restrict=True, min_characters=1
+            )
 
-            slice_widgets[dimension] = dropdown
-            ui_components.append(dropdown)
+            # Link via the labels, as the slider holds raw coordinate values
+            def _slider_to_text(event, text=text, options_dict=options_dict):
+                text.value = next(k for k, v in options_dict.items() if v == event.new)
+
+            def _text_to_slider(event, slider=slider, options_dict=options_dict):
+                if event.new in options_dict:
+                    slider.value = options_dict[event.new]
+
+            slider.param.watch(_slider_to_text, "value")
+            text.param.watch(_text_to_slider, "value")
+
+            slice_widgets[dimension] = slider
+            column = pn.Column(slider, text)
+            ui_components.append(column)
 
         # Group them into a row
         slice_ui_row = pn.Row(*ui_components)
@@ -1668,7 +2001,7 @@ class UserInterface:
             position = ["multiplot_plot_choices_row"]
             button = self.multiplot_plot_button
             textbox = self.multiplot_status_textbox
-            status_prefix = "Overlay Plot"
+            status_prefix = "Overlay plot status"
             widget_container = self.multiplot_widget_container
         elif isinstance(section, Ref):
             self.ref_slice_widgets = slice_widgets
@@ -1694,7 +2027,7 @@ class UserInterface:
         button.name = "Confirm Slices & Plot"
         controller.update_textbox_text(
             textbox,
-            f"{status_prefix} >> Action required: Select slice values and click plot again.",
+            f"{status_prefix} >> Action required: Select slice values and click plot again",
         )
 
     def _plot_dataset_helper(self, is_ref=False, plot_type=Line):
@@ -1830,23 +2163,338 @@ class UserInterface:
                 x_max,
                 plot_diff=plot_diff,
             )
-        else:
-            return controller.plot_multiplot_heatmap_dataset(
-                self.dataset,
-                variable,
-                self.multiplot_ref_dataset_dict,
-                self.multiplot_chosen_slices,
-                x_axis,
-                self.multiplot_y_axis_dropdown.value,
-                plot_diff=plot_diff,
+        return controller.plot_multiplot_heatmap_dataset(
+            self.dataset,
+            variable,
+            self.multiplot_ref_dataset_dict,
+            self.multiplot_chosen_slices,
+            x_axis,
+            self.multiplot_y_axis_dropdown.value,
+            plot_diff=plot_diff,
+        )
+
+    def _refresh_analysis_recipes(self):
+        """
+        Update the recipe dropdown with the prebuilt and uploaded recipes.
+
+        Returns
+        -------
+        bool
+            True if the selected recipe was re-uploaded and its options row removed.
+        """
+        selected = self.analysis_recipe_dropdown.value
+        self.analysis_recipe_mapping = analysis._list_recipes()
+        self.analysis_recipe_dropdown.options = self.analysis_recipe_mapping
+
+        # Keep the current choice, following it to its new version if re-uploaded
+        selected_name = getattr(selected, "__name__", None)
+        replacement = next(
+            (
+                func
+                for func in self.analysis_recipe_mapping.values()
+                if func.__name__ == selected_name
+            ),
+            None,
+        )
+        if replacement is not None:
+            self.analysis_recipe_dropdown.value = replacement
+
+        # Its options row was built from the old version's parameters
+        if replacement is not selected and hasattr(self, "analysis_recipe_options_row"):
+            self._safe_remove_widget_object(
+                self.analysis_widget_container, "analysis_recipe_options_row"
             )
+            self._safe_remove_widget_object(
+                self.analysis_widget_container, "analysis_recipe_widgets"
+            )
+            controller.update_textbox_text(
+                self.analysis_status_textbox,
+                "Analysis status >> Recipe updated. Select it again to continue",
+            )
+            return True
+        return False
+
+    def _analysis_keys_dropdown_click(self):
+        """
+        Load the dataset selected in analysis_keys_dropdown and enable recipe selection.
+        """
+        controller.update_textbox_text(
+            self.analysis_status_textbox, "Analysis status >> Loading data..."
+        )
+        controller.update_textbox_text(self.analysis_warning_textbox, "")
+
+        # Load through the user section so every section sharing self.dataset
+        # updates; this also syncs the analysis section via _sync_analysis_section
+        self._keys_dropdown_click(
+            key=self.analysis_keys_dropdown.value,
+            year_selection=self._get_year_selection(
+                self.analysis_years_mode, self.analysis_years_input
+            ),
+        )
+
+    def _get_year_selection(self, years_mode, years_input):
+        """
+        Read a section's year widgets as ``(years, from_start)``, with years None for all years.
+        """
+        if years_mode.value == "All years":
+            return None, False
+        return years_input.value, years_mode.value == "First"
+
+    def _years_files_summary(self, key, years, from_start):
+        """
+        Describe how many files and which years a selection would load, or "" if unknown.
+        """
+        # Keys that aren't catalog entries (e.g. "Waiting for model to load") have nothing to count, so check the type first
+        if (
+            not hasattr(self, "model_cat")
+            or not isinstance(key, str)
+            or key not in self.model_cat
+        ):
+            return ""
+        summary = data._summarise_year_selection(self.model_cat, key, years, from_start)
+        if summary is None:
+            return ""
+
+        text = f"{summary['n_files']} of {summary['total_files']} files"
+        if summary["first_year"] is not None:
+            text += f", {summary['first_year']}–{summary['last_year']}"
+        return text
+
+    def _update_years_files_texts(self):
+        """
+        Show each section's file count for its selected dataset and years.
+        """
+        for keys_dropdown, years_mode, years_input, files_text in self.year_widget_sets:
+            years_input.disabled = years_mode.value == "All years"
+            summary = self._years_files_summary(
+                keys_dropdown.value,
+                *self._get_year_selection(years_mode, years_input),
+            )
+            files_text.value = f"Loads {summary}" if summary else ""
+
+    def _sync_year_widgets(self):
+        """
+        Show the loaded year selection in every section that loads user data.
+        """
+        years, from_start = self.loaded_year_selection
+        for _, years_mode, years_input, _ in self.year_widget_sets:
+            if years is None:
+                years_mode.value = "All years"
+            else:
+                years_mode.value = "First" if from_start else "Most recent"
+                years_input.value = years
+
+    def _sync_analysis_section(self):
+        """
+        Point the analysis section at the newly loaded user dataset and enable recipe selection.
+        """
+        self.analysis_keys_dropdown.value = self.loaded_dataset_key
+        self.analysis_keys_button.name = "Load different dataset"
+        self.analysis_recipe_dropdown.disabled = False
+        self.analysis_select_recipe_button.disabled = False
+        self.analysis_refresh_button.disabled = False
+
+        # Recipe options are built from the dataset, so clear any from the old one
+        self._safe_remove_widget_object(
+            self.analysis_widget_container, "analysis_recipe_options_row"
+        )
+        self._safe_remove_widget_object(
+            self.analysis_widget_container, "analysis_recipe_widgets"
+        )
+
+        controller.update_textbox_text(
+            self.analysis_status_textbox,
+            "Analysis status >> User data loaded. Select a recipe",
+        )
+
+    def _analysis_refresh_click(self):
+        """
+        Refresh the list of available recipes in the analysis dropdown, for if the user has added a custom analysis.
+        """
+        controller.update_textbox_text(self.analysis_warning_textbox, "")
+
+        # If a stale options row was cleared, keep its "select it again" status
+        if not self._refresh_analysis_recipes():
+            controller.update_textbox_text(
+                self.analysis_status_textbox,
+                f"Analysis status >> Recipes refreshed "
+                f"({len(analysis.REGISTERED_ANALYSES)} custom)",
+            )
+
+    def _display_analysis_recipe_options_ui(self):
+        """
+        Build the selected recipe's option widgets from its docstring and add them to the container.
+        """
+        # Remove preexisting recipe options UI
+        self._safe_remove_widget_object(
+            self.analysis_widget_container, "analysis_recipe_options_row"
+        )
+        controller.update_textbox_text(self.analysis_warning_textbox, "")
+
+        # Start each options row on short names, as the other sections do
+        self.analysis_variable_toggle.value = False
+
+        recipe = self.analysis_recipe_dropdown.value
+        _, details = analysis._get_recipe_summary(recipe)
+        self.analysis_recipe_info.value = details
+
+        try:
+            kwarg_options = analysis._get_recipe_kwarg_options(recipe, self.dataset)
+        except ValueError as err:
+            # A recipe with an error in the annotated declaration that causes an error
+            controller.update_textbox_text(
+                self.analysis_warning_textbox, f"Warning >> {err}"
+            )
+            return
+
+        self.analysis_recipe_widgets = {
+            option["name"]: self._build_recipe_option_widget(option)
+            for option in kwarg_options
+        }
+        self.analysis_plot_button.name = "Plot data"
+
+        # Only recipes that take a data variable need the long name toggle
+        self.analysis_variable_widgets = [
+            self.analysis_recipe_widgets[option["name"]]
+            for option in kwarg_options
+            if option["kind"] == "data variable"
+        ]
+        toggle = (
+            [self.analysis_variable_toggle] if self.analysis_variable_widgets else []
+        )
+
+        self.analysis_recipe_options_row = pn.FlexBox(
+            *self.analysis_recipe_widgets.values(),
+            *toggle,
+            self.analysis_plot_button,
+            align_items="flex-end",
+        )
+
+        # Insert the options under the recipe details
+        self._safe_add_to_widget(
+            self.analysis_widget_container,
+            ["analysis_recipe_info", "analysis_recipe_selection_row"],
+            self.analysis_recipe_options_row,
+            append=True,
+        )
+
+        controller.update_textbox_text(
+            self.analysis_status_textbox,
+            "Analysis status >> Choose the recipe options, then plot",
+        )
+
+    def _build_recipe_option_widget(self, option):
+        """
+        Create the widget for one recipe parameter.
+
+        Parameters
+        ----------
+        option : dict
+            One entry from ``analysis.get_recipe_kwarg_options``.
+
+        Returns
+        -------
+        panel.widgets.Widget
+            A widget whose ``value`` is passed to the recipe as that parameter.
+        """
+        # Options without a label fall back to the parameter name
+        label = option.get("label") or option["name"]
+        if option["units"]:
+            label += f" ({option['units']})"
+        kind, default = option["kind"], option["default"]
+        widget_kwargs = {"name": label}
+
+        if kind in ("data variable", "dimension", "choice"):
+            choices = list(option["choices"] or [])
+            # A default dim this dataset lacks (e.g. no depth on a surface field)
+            # falls back to None so the recipe skips it, rather than selecting
+            # an unrelated dim such as time
+            if kind == "dimension" and default not in choices and None not in choices:
+                choices.insert(0, None)
+            widget_type = pn.widgets.Select
+            widget_kwargs["options"] = choices
+            widget_kwargs["value"] = (
+                default if default in choices else next(iter(choices), None)
+            )
+        elif kind == "float":
+            widget_type, widget_kwargs["value"] = pn.widgets.FloatInput, default
+        elif kind == "int":
+            widget_type, widget_kwargs["value"] = pn.widgets.IntInput, default
+        elif kind == "bool":
+            widget_type, widget_kwargs["value"] = pn.widgets.Checkbox, bool(default)
+        else:
+            widget_type = pn.widgets.TextInput
+            widget_kwargs["value"] = "" if default is None else str(default)
+
+        # Show the docstring description as a tooltip where the widget has one
+        if "description" in widget_type.param:
+            widget_kwargs["description"] = option["description"]
+        return widget_type(**widget_kwargs)
+
+    def _analysis_plot_data_button_click(self):
+        """
+        Run the selected recipe with the chosen options and add its plot to the container.
+        """
+        controller.update_textbox_text(
+            self.analysis_status_textbox, "Analysis status >> Running recipe..."
+        )
+        controller.update_textbox_text(self.analysis_warning_textbox, "")
+
+        recipe = self.analysis_recipe_dropdown.value
+        recipe_kwargs = {}
+        for name, widget in self.analysis_recipe_widgets.items():
+            if any(widget is variable for variable in self.analysis_variable_widgets):
+                recipe_kwargs[name] = controller.get_selected_variable(
+                    self.analysis_variable_toggle, widget, self.analysis_long_names
+                )
+            else:
+                recipe_kwargs[name] = widget.value
+
+        try:
+            figs = controller.plot_recipe(self.dataset, recipe, recipe_kwargs)
+        except Exception as err:  # noqa: BLE001
+            # Recipes can be user-written and raise any
+            # exceptions in the notebook, so without this a failed plot is silent.
+            controller.update_textbox_text(
+                self.analysis_warning_textbox,
+                f"Warning >> {type(err).__name__}: {err}",
+            )
+            controller.update_textbox_text(
+                self.analysis_status_textbox, "Analysis status >> Recipe failed"
+            )
+            return
+
+        self.analysis_plot_button.name = "Add Plot"
+        # Each plot goes directly below the options row, so add them in reverse
+        # to keep a suite recipe's plots in the order it returned them
+        for fig in reversed(figs):
+            plot_group = self._add_remove_btn(
+                pn.pane.Matplotlib(fig, tight=True), self.analysis_widget_container
+            )
+            self._safe_add_to_widget(
+                self.analysis_widget_container,
+                ["analysis_recipe_options_row"],
+                plot_group,
+                append=True,
+                above=False,
+            )
+
+        controller.update_textbox_text(
+            self.analysis_status_textbox,
+            f"Analysis status >> Plot{'s' * (len(figs) > 1)} created",
+        )
+
+        # Remove the options row
+        self._safe_remove_widget_object(
+            self.analysis_widget_container, "analysis_recipe_options_row"
+        )
 
     def _add_remove_btn(self, plot_pane, widget_container):
         """
         Wrap a plot pane in a Column alongside a functional 'Remove Plot' button. Private.
         """
         # Create a remove button for each plot that is added
-        remove_btn = pn.widgets.Button(**self.STYLES.get("remove_button"))
+        remove_btn = pn.widgets.Button(**self._STYLES.get("remove_button"))
         remove_btn.name = "Remove Plot"
         # Group the plot and the button together
         plot_group = pn.Column(plot_pane, remove_btn, margin=(0, 0, 25, 0))
@@ -1881,16 +2529,15 @@ class UserInterface:
                 self.ref_plot_variable_dropdown,
                 self.ref_long_names,
             )
-        elif isinstance(section, Multiplot):
+        if isinstance(section, Multiplot):
             return controller.get_selected_variable(
                 self.multiplot_variable_toggle,
                 self.multiplot_plot_variable_dropdown,
                 self.multiplot_long_names,
             )
-        else:
-            return controller.get_selected_variable(
-                self.variable_toggle, self.plot_variable_dropdown, self.long_names
-            )
+        return controller.get_selected_variable(
+            self.variable_toggle, self.plot_variable_dropdown, self.long_names
+        )
 
     def _safe_remove_widget_object(self, widget_container, item_to_remove):
         """
@@ -1959,10 +2606,9 @@ class UserInterface:
 
             # If the attribute exists and is currently rendered on screen
             if target is not None and target in widget_container:
+                # Inserting at the target's index puts the item directly above it
                 insert_index = widget_container.index(target)
-                if above:
-                    insert_index = max(0, insert_index - 1)
-                else:
+                if not above:
                     insert_index += 1
                 widget_container.insert(insert_index, item_to_add)
                 return False  # Item was successfully inserted
