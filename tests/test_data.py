@@ -72,22 +72,6 @@ def test_load_new_catalog(monkeypatch):
     )
 
 
-def test_start_dask_cluster(monkeypatch):
-    """Test that the local Dask cluster starts and returns the dashboard link."""
-    # Create mock instances to traverse distributed.Client().dashboard_link
-    mock_client_instance = MagicMock()
-    mock_client_instance.dashboard_link = "http://mock-dashboard:8787"
-    mock_client_class = MagicMock(return_value=mock_client_instance)
-
-    # Patch the Client inside the distributed module, which is imported locally in the function
-    monkeypatch.setattr("distributed.Client", mock_client_class)
-
-    result = data._start_dask_cluster()
-
-    assert result == "http://mock-dashboard:8787"
-    mock_client_class.assert_called_once_with(threads_per_worker=1)
-
-
 @pytest.mark.parametrize("is_aliased", [True, False])
 def test_build_data_object(monkeypatch, is_aliased):
     """Test converting standard and aliased ESM datastores into xarray objects."""

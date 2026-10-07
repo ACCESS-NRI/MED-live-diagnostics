@@ -18,8 +18,7 @@ from med_diagnostics.ui import UserInterface
 def ui():
     """Return a session-scoped UserInterface instance for testing"""
 
-    ui = UserInterface()
-    return ui
+    return UserInterface()
 
 
 @pytest.mark.parametrize(
@@ -200,6 +199,100 @@ def test_variable_toggle_change(toggle_value):
     else:
         assert variable_dropdown_widget.options == ["data"]
         assert toggle_widget.label == "Display Variable Long Names"
+
+
+@pytest.mark.parametrize("has_none", [True, False])
+def test_variable_toggle_change_keeps_selection(has_none):
+    """Test that the selected variable is carried across the toggle in both directions.
+
+    The dropdown used to keep the old name, which was no longer an option, so
+    switching back looked stuck and plotting with long names raised a KeyError.
+    """
+    ds = xr.Dataset(
+        {
+            "soga": ("time", np.zeros(3), {"long_name": "Ocean Salinity"}),
+            "thetaoga": ("time", np.zeros(3), {"long_name": "Ocean Temperature"}),
+        }
+    )
+    toggle_widget = pn.widgets.Toggle(value=False)
+    if has_none:
+        # Optional recipe variables offer None
+        options = [None, "soga", "thetaoga"]
+    else:
+        options = ["soga", "thetaoga"]
+    dropdown = pn.widgets.Select(options=options, value="thetaoga")
+
+    toggle_widget.value = True
+    long_names = controller.variable_toggle_change(toggle_widget, dropdown, ds)
+    assert dropdown.value == "Ocean Temperature"
+    assert controller.get_selected_variable(toggle_widget, dropdown, long_names) == (
+        "thetaoga"
+    )
+
+    toggle_widget.value = False
+    controller.variable_toggle_change(toggle_widget, dropdown, ds)
+    assert dropdown.value == "thetaoga"
+
+
+def test_variable_toggle_change_shared_long_names():
+    """Test that variables sharing a long name stay distinct and keep the selection.
+
+    A shared long name used to map to only one variable, so the others vanished
+    from the long name list and their selection was lost on toggling.
+    """
+    ds = xr.Dataset(
+        {
+            "soga": ("time", np.zeros(3), {"long_name": "Ocean Salinity"}),
+            "sosga": ("time", np.zeros(3), {"long_name": "Ocean Salinity"}),
+            "thetaoga": ("time", np.zeros(3), {"long_name": "Ocean Temperature"}),
+        }
+    )
+    toggle_widget = pn.widgets.Toggle(value=True)
+    dropdown = pn.widgets.Select(
+        options=[None, "soga", "sosga", "thetaoga"],
+        value="soga",
+    )
+
+    long_names = controller.variable_toggle_change(toggle_widget, dropdown, ds)
+
+    assert long_names == {
+        "Ocean Salinity (soga)": "soga",
+        "Ocean Salinity (sosga)": "sosga",
+        "Ocean Temperature": "thetaoga",
+    }
+    assert dropdown.value == "Ocean Salinity (soga)"
+
+    toggle_widget.value = False
+    controller.variable_toggle_change(toggle_widget, dropdown, ds)
+    assert dropdown.value == "soga"
+
+
+def test_variable_toggle_change_keeps_none_selection():
+    """Test that an optional variable left as None stays None across the toggle.
+
+    The options must stay a list: {label: value} dict options stop the toggle
+    responding in Jupyter on Panel 1.9.3.
+    """
+    ds = xr.Dataset({"soga": ("time", np.zeros(3), {"long_name": "Ocean Salinity"})})
+    toggle_widget = pn.widgets.Toggle(value=True)
+    dropdown = pn.widgets.Select(options=[None, "soga"], value=None)
+
+    controller.variable_toggle_change(toggle_widget, dropdown, ds)
+
+    assert dropdown.value is None
+    assert dropdown.options == [None, "Ocean Salinity"]
+
+
+def test_get_selected_variable_accepts_short_name_in_long_mode():
+    """Test that a short name left selected in long-name mode resolves to itself."""
+    toggle_widget = pn.widgets.Toggle(value=True)
+    dropdown = pn.widgets.Select(options=["soga"], value="soga")
+
+    result = controller.get_selected_variable(
+        toggle_widget, dropdown, {"Ocean Salinity": "soga"}
+    )
+
+    assert result == "soga"
 
 
 @pytest.mark.parametrize(

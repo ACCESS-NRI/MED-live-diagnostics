@@ -49,7 +49,7 @@ def test_register_analysis_registers_by_name():
     a decorator without replacing the user's function with None.
     """
     assert analysis.register_analysis(my_mean) is my_mean
-    assert analysis.REGISTERED_ANALYSES == {"my_mean": my_mean}
+    assert {"my_mean": my_mean} == analysis.REGISTERED_ANALYSES
     assert analysis._list_recipes()["Custom: Mean of a variable."] is my_mean
 
 
@@ -66,7 +66,7 @@ def test_reuploading_replaces_the_old_version():
 
     edited.__name__ = "my_mean"  # as if the notebook cell were edited and re-run
     analysis.register_analysis(edited)
-    assert analysis.REGISTERED_ANALYSES == {"my_mean": edited}
+    assert {"my_mean": edited} == analysis.REGISTERED_ANALYSES
     assert list(analysis._list_recipes()).count("Custom: New version.") == 1
 
 
@@ -99,7 +99,7 @@ def test_register_analysis_accepts_unannotated_parameters():
         """Plain recipe."""
 
     assert analysis.register_analysis(plain) is plain
-    assert analysis.REGISTERED_ANALYSES == {"plain": plain}
+    assert {"plain": plain} == analysis.REGISTERED_ANALYSES
 
 
 def test_get_recipe_summary_regular():
@@ -111,7 +111,7 @@ def test_get_recipe_summary_regular():
 
 
 def test_get_recipe_summary_parameters():
-    """Test that the recipe summary is extracted from the docstring, test that paramters are not included if in the second paragraph of the docstring."""
+    """Test that the recipe summary is extracted from the docstring, test that parameters are not included if in the second paragraph of the docstring."""
 
     summary, details = analysis._get_recipe_summary(recipe_summary_test_recipe)
 

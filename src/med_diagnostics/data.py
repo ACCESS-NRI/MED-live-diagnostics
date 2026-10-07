@@ -24,7 +24,7 @@ def _build_new_catalog(model_path, model_type):
     """
     Build new intake ESM datastore from user model data found in model_path.
     Uses intake datastore builder for the specified model_type.
-    Saves new catalog file to user home. Private.
+    Saves new catalog file to the current working directory. Private.
 
     Parameters
     ----------
@@ -64,7 +64,7 @@ def _build_new_catalog(model_path, model_type):
         builder_kwargs_set = {}
 
     # Use the matched builder to build the new catalog in the users working directory.
-    ds = use_datastore(
+    return use_datastore(
         experiment_dir=model_path,
         catalog_dir=os.getcwd(),
         builder=model_type_builder,
@@ -73,12 +73,10 @@ def _build_new_catalog(model_path, model_type):
         builder_kwargs=builder_kwargs_set,
     )
 
-    return ds
-
 
 def _load_new_catalog():
     """
-    Load saved ESM datastore catalog file from user home path. Private.
+    Load saved ESM datastore catalog file from the current working directory. Private.
 
     Returns
     ----------
@@ -86,29 +84,10 @@ def _load_new_catalog():
         Intake catalog of user model data.
     """
 
-    model_cat = intake.open_esm_datastore(
+    return intake.open_esm_datastore(
         os.path.join(os.getcwd(), "live_diagnostics_tmp_catalog.json"),
         columns_with_iterables=["variable"],
     )
-
-    return model_cat
-
-
-def _start_dask_cluster():
-    """
-    Starts local dask cluster for data retrieval. Private.
-
-    Returns
-    ----------
-    client.dashboard_link : str
-        Dask client 'dashboard url' for monitoring.
-    """
-
-    from distributed import Client
-
-    client = Client(threads_per_worker=1)
-
-    return client.dashboard_link
 
 
 def _select_year_files(df, years=None, from_start=False):
@@ -188,7 +167,7 @@ def _summarise_year_selection(model_cat, key, years=None, from_start=False):
 
 def _build_data_object(model_cat, key, years=None, from_start=False):
     """
-    Covert model_cat ESM datastore to xarray object. Private.
+    Convert model_cat ESM datastore to xarray object. Private.
 
     Parameters
     ----------
@@ -226,10 +205,9 @@ def _build_data_object(model_cat, key, years=None, from_start=False):
     open_kwargs = {"use_cftime": True, "chunks": {}}
     combine_kwargs = {"compat": "override", "data_vars": "minimal", "coords": "minimal"}
     # Standard Intake catalog approach for getting dataset
-    dataset = model_cat[key](
+    return model_cat[key](
         xarray_open_kwargs=open_kwargs, xarray_combine_by_coords_kwargs=combine_kwargs
     ).to_dask()
-    return dataset
 
 
 def _load_access_nri_catalog(model_type, filter=True):
@@ -248,9 +226,8 @@ def _load_access_nri_catalog(model_type, filter=True):
 
     catalog = intake.cat.access_nri
 
-    if filter == False:
+    if not filter:
         return catalog
 
-    else:
-        # Filter catalog by model type
-        return catalog.search(model=f".*{model_type.upper()}.*")
+    # Filter catalog by model type
+    return catalog.search(model=f".*{model_type.upper()}.*")
