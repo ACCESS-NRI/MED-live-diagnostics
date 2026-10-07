@@ -8,8 +8,10 @@ The API reference is generated from the public Python modules and their docstrin
 
 ::: med_diagnostics.ui
 
+<!-- Re-enable once the code from functionforfunctions is merged
 ::: med_diagnostics.analysis
 
 ::: med_diagnostics.recipes
 
 ::: med_diagnostics.plot_customisations
+-->
