@@ -3302,6 +3302,27 @@ def test_build_recipe_option_widget(ui, option, widget_type, value):
         assert widget.description == "tip"
 
 
+def test_recipe_option_widget_uses_list_options(ui):
+    """Test that dropdown options are a list, with None shown as "None".
+
+    {label: value} dict options stop the long name toggle responding in
+    Jupyter on Panel 1.9.3, so dropdowns must not use them.
+    """
+    option = {
+        "name": "soga_var",
+        "kind": "data variable",
+        "default": None,
+        "choices": [None, "soga", "thetaoga"],
+        "units": None,
+        "description": None,
+    }
+    widget = ui._build_recipe_option_widget(option)
+
+    assert widget.options == [None, "soga", "thetaoga"]
+    assert widget.labels == ["None", "soga", "thetaoga"]
+    assert widget.value is None
+
+
 @pytest.mark.parametrize(
     "extra, expected",
     [

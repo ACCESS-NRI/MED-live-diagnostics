@@ -216,8 +216,8 @@ def test_variable_toggle_change_keeps_selection(has_none):
     )
     toggle_widget = pn.widgets.Toggle(value=False)
     if has_none:
-        # Optional recipe variables offer None, as dict options
-        options = {"None": None, "soga": "soga", "thetaoga": "thetaoga"}
+        # Optional recipe variables offer None
+        options = [None, "soga", "thetaoga"]
     else:
         options = ["soga", "thetaoga"]
     dropdown = pn.widgets.Select(options=options, value="thetaoga")
@@ -249,12 +249,7 @@ def test_variable_toggle_change_shared_long_names():
     )
     toggle_widget = pn.widgets.Toggle(value=True)
     dropdown = pn.widgets.Select(
-        options={
-            "None": None,
-            "soga": "soga",
-            "sosga": "sosga",
-            "thetaoga": "thetaoga",
-        },
+        options=[None, "soga", "sosga", "thetaoga"],
         value="soga",
     )
 
@@ -273,15 +268,19 @@ def test_variable_toggle_change_shared_long_names():
 
 
 def test_variable_toggle_change_keeps_none_selection():
-    """Test that an optional variable left as None stays None across the toggle."""
+    """Test that an optional variable left as None stays None across the toggle.
+
+    The options must stay a list: {label: value} dict options stop the toggle
+    responding in Jupyter on Panel 1.9.3.
+    """
     ds = xr.Dataset({"soga": ("time", np.zeros(3), {"long_name": "Ocean Salinity"})})
     toggle_widget = pn.widgets.Toggle(value=True)
-    dropdown = pn.widgets.Select(options={"None": None, "soga": "soga"}, value=None)
+    dropdown = pn.widgets.Select(options=[None, "soga"], value=None)
 
     controller.variable_toggle_change(toggle_widget, dropdown, ds)
 
     assert dropdown.value is None
-    assert None in dropdown.options.values()
+    assert dropdown.options == [None, "Ocean Salinity"]
 
 
 def test_get_selected_variable_accepts_short_name_in_long_mode():

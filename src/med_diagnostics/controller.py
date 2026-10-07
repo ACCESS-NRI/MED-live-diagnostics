@@ -254,10 +254,7 @@ def variable_toggle_change(variable_toggle, variable_dropdown, dataset):
         selected = long_names.get(selected, selected)
         variable_toggle.label = "Display Variable Long Names"
 
-    if has_none:
-        variable_dropdown.options = {"None": None, **{name: name for name in names}}
-    else:
-        variable_dropdown.options = names
+    variable_dropdown.options = [None, *names] if has_none else names
     if selected in names or (has_none and selected is None):
         variable_dropdown.value = selected
 

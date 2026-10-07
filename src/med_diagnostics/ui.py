@@ -2412,7 +2412,7 @@ class UserInterface:
             if kind == "dimension" and default not in choices and None not in choices:
                 choices.insert(0, None)
             widget_type = pn.widgets.Select
-            widget_kwargs["options"] = {str(choice): choice for choice in choices}
+            widget_kwargs["options"] = choices
             widget_kwargs["value"] = (
                 default if default in choices else next(iter(choices), None)
             )
