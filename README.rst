@@ -15,12 +15,17 @@ visualise and compare legacy ACCESS model data with the selected live user model
 What does this package do?
 ===========================
 
-This package is actively developed within the Model Evaluation Team at `Australia's climate simulator (ACCESS-NRI) <https://www.access-nri.org.au/>`_. 
-Version 2.0 introduces advanced visualisation capabilities, including:
+This package is actively developed within the Model Evaluation Team at `Australia's climate simulator (ACCESS-NRI) <https://www.access-nri.org.au/>`_.
+It supports ACCESS-CM2, ACCESS-CM3, ACCESS-OM2, ACCESS-OM3, ACCESS-ESM1.5, ACCESS-ESM1.6 and MOM6 output.
 
-* **Interactive animations** for visualising changes over time.
-* **Multidimensional data slicing** via dynamic interface sliders.
-* **Calculated difference overlays** (Reference vs. User data) for direct model comparisons.
+A session opens an interactive interface in your notebook with four collapsible sections:
+
+* **Load and plot user data.** Builds an intake catalogue from your live model output, so you can load any of its datasets and plot a variable as a line plot, heatmap, or animation over time. Sliders let you slice through extra dimensions such as ocean depth.
+* **Load and plot reference models.** Loads any model of the same type from the `ACCESS-NRI Intake Catalogue <https://github.com/ACCESS-NRI/access-nri-intake-catalog>`_ and plots its data with the same controls.
+* **Overlay user and reference models.** Overlays line plots or shows heatmaps side by side for your run and as many reference models as you like, and can plot the difference between them to highlight discrepancies.
+* **Run analysis recipes.** Runs ready-made analyses on your data, such as the Niño 3.4 index, area-weighted regional mean timeseries, and the ACCESS-OM3 timeseries suites, which make a whole set of plots in one click.
+
+You can also choose how many years of output to load, write your own analysis recipes and have them appear in the interface, and work with the loaded data directly in Python.
 
 We value your feedback, especially in the form of reporting issues/bugs or suggesting ways to improve the framework. To do so, please open an 
 `issue <https://github.com/ACCESS-NRI/MED-live-diagnostics/issues>`_.
@@ -50,9 +55,8 @@ Getting started
 To use the med-diagnostics package use: ``import med_diagnostics``        
 
 
-Tutorial notebooks describing usage options can be found in the `documentation/docs/notebooks <https://github.com/ACCESS-NRI/MED-live-diagnostics/tree/main/documentation/docs/notebooks>`_ directory.
-
-The full documentation is available from `readthedocs <https://med-live-diagnostics.readthedocs.io/en/latest/>`_.
+The full documentation, including tutorials on getting started, the built-in analysis recipes, adding custom analyses and advanced usage, is available from `readthedocs <https://model-live-diagnostics.readthedocs.io/en/latest/>`_.
+The tutorial sources are in the `documentation/docs/notebooks <https://github.com/ACCESS-NRI/MED-live-diagnostics/tree/main/documentation/docs/notebooks>`_ directory.
 
 ------------
 
