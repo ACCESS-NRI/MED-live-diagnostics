@@ -8,3 +8,4 @@ See the relevant guide:
 - [Contributing documentation](docs.md)
 - [Feature requests and bug reports](issues.md)
 - [Contributing recipes](recipes.md)
+- [Adding support for a new model type](models.md)

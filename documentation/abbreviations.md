@@ -10,6 +10,7 @@ Add, delete or edit the list below to add known abbreviations to the site.
 *[MOSRS]: Met Office Science Repository Service
 *[UM]: Unified Model
 *[ESM]: Earth System Model
+*[CM]: Coupled Model
 *[CMIP]: Coupled Model Intercomparison Project
 *[CMIP5]: Coupled Model Intercomparison Project Phase 5
 *[CMIP6]: Coupled Model Intercomparison Project Phase 6

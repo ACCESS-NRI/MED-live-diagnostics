@@ -36,6 +36,7 @@ nav:
     - Documentation: pages/contributing/docs.md
     - Issues and feature requests: pages/contributing/issues.md
     - Contributing recipes: pages/contributing/recipes.md
+    - Adding model types: pages/contributing/models.md
 
 
 # Theme configuration

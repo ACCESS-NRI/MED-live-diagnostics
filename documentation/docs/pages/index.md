@@ -6,13 +6,20 @@ The framework is intended for use in the [Australian Research Environment (ARE)]
 
 ## What does this package do?
 
-Model Live Diagnostics helps the ACCESS modelling community check, monitor, visualise, and evaluate the behaviour and progress of live ACCESS models on [Gadi](https://nci.org.au/our-systems/hpc-systems). It can also load, visualise, and compare legacy ACCESS model data with the selected live user model.
+Model Live Diagnostics helps the ACCESS modelling community check, monitor, visualise, and evaluate the behaviour and progress of live ACCESS models on [Gadi](https://nci.org.au/our-systems/hpc-systems). It can also load, visualise, and compare legacy ACCESS model data with the selected live user model. It supports ACCESS-CM2, ACCESS-CM3, ACCESS-OM2, ACCESS-OM3, ACCESS-ESM1.5, ACCESS-ESM1.6 and MOM6 output.
 
-Version 2.0 introduces:
+A session opens an interactive interface in your notebook with four collapsible sections:
 
-- **Interactive animations** for visualising changes over time.
-- **Multidimensional data slicing** via dynamic interface sliders.
-- **Calculated difference overlays** for direct reference-versus-user model comparisons.
+- **Load and plot user data.** Builds an intake catalogue from your live model output, so you can load any of its datasets and plot a variable as a line plot, heatmap, or animation over time. Sliders let you slice through extra dimensions such as ocean depth.
+- **Load and plot reference models.** Loads any model of the same type from the [ACCESS-NRI Intake Catalogue](https://github.com/ACCESS-NRI/access-nri-intake-catalog) and plots its data with the same controls.
+- **Overlay user and reference models.** Overlays line plots or shows heatmaps side by side for your run and as many reference models as you like, and can plot the difference between them to highlight discrepancies.
+- **Run analysis recipes.** Runs ready-made analyses on your data, such as the Niño 3.4 index, area-weighted regional mean timeseries, and the ACCESS-OM3 timeseries suites, which make a whole set of plots in one click. See [Built-in analysis recipes](../notebooks/built_in_recipes_tutorial.md).
+
+You can also:
+
+- **Choose how many years to load** (most recent, first, or all years) to keep load times and memory use down.
+- **Write your own analysis recipes**, with their own options, plot customisations, and suites of plots, and have them appear in the interface. See [Adding custom analyses](../notebooks/adding_custom_analyses.md).
+- **Work with the data directly** in Python, for example by retrieving the catalogue or a loaded dataset. See [Advanced usage](../notebooks/advanced_usage.md).
 
 ## Quick-start guide
 
