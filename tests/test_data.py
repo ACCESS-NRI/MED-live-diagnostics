@@ -1,4 +1,5 @@
 import os
+import re
 from unittest.mock import MagicMock
 
 import pandas as pd
@@ -129,36 +130,76 @@ def test_build_data_object(monkeypatch, is_aliased):
     assert result == mock_dataset
 
 
+# Real model names from the ACCESS-NRI catalog (2026-10-08), including
+# non-ACCESS models that substring searches used to pick up
+CATALOG_MODELS = [
+    "ACCESS-CM2",
+    "ACCESS-ESM1-5",
+    "ACCESS-ESM1.6",
+    "ACCESS-OM2",
+    "ACCESS-OM2-01",
+    "ACCESS-OM2-025",
+    "ACCESS1-3",
+    "CMCC-CM2-SR5",
+    "GFDL-CM2p1",
+    "GFDL-CM3",
+    "HadCM3",
+    "MOM6",
+    "MRI-CGCM3",
+    "TaiESM1-TIMCOM2",
+]
+
+
+class _FakeAccessNriCatalog:
+    """Stands in for intake.cat.access_nri, matching search patterns as regexes."""
+
+    def __init__(self, models):
+        self.models = models
+
+    def search(self, model):
+        return [name for name in self.models if re.search(model, name)]
+
+
 @pytest.mark.parametrize(
-    "filter_arg, expected_regex, model_type",
+    "model_type, expected_models",
     [
-        (False, None, None),
-        (True, ".*CM2.*", "CM2"),
-        (True, ".*ESM16.*", "ESM16"),
-        (True, ".*ESM15.*", "ESM15"),
-        (True, ".*CM3.*", "CM3"),
-        (True, ".*OM2.*", "OM2"),
-        (True, ".*OM3.*", "OM3"),
+        ("CM2", ["ACCESS-CM2"]),
+        ("CM3", ["MOM6"]),
+        ("ESM15", ["ACCESS-ESM1-5"]),
+        ("ESM16", ["ACCESS-ESM1.6"]),
+        ("MOM6", ["MOM6"]),
+        ("OM2", ["ACCESS-OM2", "ACCESS-OM2-01", "ACCESS-OM2-025"]),
+        ("OM3", ["MOM6"]),
     ],
 )
-def test_load_access_nri_catalog(monkeypatch, filter_arg, expected_regex, model_type):
-    """Test loading and filtering the ACCESS-NRI intake catalog."""
+def test_load_access_nri_catalog_finds_only_its_models(
+    monkeypatch, model_type, expected_models
+):
+    """Each model type finds exactly its own ACCESS models in the catalog.
+
+    Guards against substring matches, which missed ESM1-5/ESM1.6 and picked up
+    CMCC-CM2-SR5, GFDL-CM3 and TaiESM1-TIMCOM2.
+    """
+    monkeypatch.setattr(
+        data.intake, "cat", MagicMock(access_nri=_FakeAccessNriCatalog(CATALOG_MODELS))
+    )
+
+    assert data._load_access_nri_catalog(model_type) == expected_models
+
+
+def test_every_model_type_has_catalog_names():
+    """Every model type that can build a user catalog can also filter the reference catalog."""
+    for model_type in ["cm2", "cm3", "esm15", "esm16", "mom6", "om2", "om3"]:
+        assert model_type in data.CATALOG_MODEL_NAMES
+
+
+def test_load_access_nri_catalog_unfiltered(monkeypatch):
+    """With filter=False the whole catalog is returned without searching."""
     mock_access_nri_cat = MagicMock()
-    mock_access_nri_cat.search.return_value = "filtered_catalog"
+    monkeypatch.setattr(data.intake, "cat", MagicMock(access_nri=mock_access_nri_cat))
 
-    # Mock intake.cat.access_nri
-    mock_cat = MagicMock()
-    mock_cat.access_nri = mock_access_nri_cat
-    monkeypatch.setattr(data.intake, "cat", mock_cat)
-
-    result = data._load_access_nri_catalog(model_type, filter=filter_arg)
-
-    if filter_arg:
-        mock_access_nri_cat.search.assert_called_once_with(model=expected_regex)
-        assert result == "filtered_catalog"
-    else:
-        mock_access_nri_cat.search.assert_not_called()
-        assert result == mock_access_nri_cat
+    assert data._load_access_nri_catalog("cm2", filter=False) is mock_access_nri_cat
+    mock_access_nri_cat.search.assert_not_called()
 
 
 def _monthly_df(start_year, n_years):

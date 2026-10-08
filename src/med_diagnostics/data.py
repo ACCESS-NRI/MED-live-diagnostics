@@ -4,6 +4,7 @@
 """Data IO functions"""
 
 import os
+import re
 
 import intake
 import pandas as pd
@@ -18,6 +19,19 @@ from access_nri_intake.source.builders import (
     AccessOm3Builder,
     Mom6Builder,
 )
+
+# Model names in the ACCESS-NRI catalog for each model type. Matched exactly,
+# as substrings pick up other models (e.g. CM2 in CMCC-CM2-SR5).
+# CM3 and OM3 have no ACCESS entries yet, so use MOM6 (unconfirmed).
+CATALOG_MODEL_NAMES = {
+    "cm2": ["ACCESS-CM2"],
+    "cm3": ["MOM6"],
+    "esm15": ["ACCESS-ESM1-5"],
+    "esm16": ["ACCESS-ESM1.6"],
+    "mom6": ["MOM6"],
+    "om2": ["ACCESS-OM2", "ACCESS-OM2-01", "ACCESS-OM2-025"],
+    "om3": ["MOM6"],
+}
 
 
 def _build_new_catalog(model_path, model_type):
@@ -229,5 +243,8 @@ def _load_access_nri_catalog(model_type, filter=True):
     if not filter:
         return catalog
 
-    # Filter catalog by model type
-    return catalog.search(model=f".*{model_type.upper()}.*")
+    # Filter catalog to the exact model names for this model type.
+    # An empty list gives "^()$", which matches no models.
+    names = CATALOG_MODEL_NAMES[model_type.lower()]
+    pattern = "^(" + "|".join(re.escape(name) for name in names) + ")$"
+    return catalog.search(model=pattern)

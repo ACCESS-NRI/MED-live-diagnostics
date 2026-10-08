@@ -780,9 +780,14 @@ class UserInterface:
         # Assign argument to class-accessible variables
         self.model_cat = model_cat
         self.access_nri_cat = access_nri_cat
+        if not self.access_nri_cat.keys():
+            ref_status = (
+                "No reference models in the ACCESS-NRI catalog for this model type"
+            )
+        else:
+            ref_status = "Select a model to load and plot data"
         controller.update_textbox_text(
-            self.ref_status_textbox,
-            "Reference model status >> Select a model to load and plot data",
+            self.ref_status_textbox, f"Reference model status >> {ref_status}"
         )
         self.ref_keys_button.disabled = False
         self.clear_ref_model_data_button.disabled = False

@@ -3048,6 +3048,17 @@ def test_initialise_analysis_widgets(ui):
     assert ui.analysis_recipe_dropdown.options == analysis._list_recipes()
 
 
+def test_enable_widgets_after_catalog_load_no_reference_models(ui):
+    """An empty reference catalog (no models for the type) tells the user why the list is empty."""
+    ui._enable_widgets_after_catalog_load({"Key": None}, {})
+
+    assert (
+        ui.ref_status_textbox.value
+        == "Reference model status >> No reference models in the ACCESS-NRI catalog for this model type"
+    )
+    assert ui.ref_keys_dropdown.options == []
+
+
 def test_enable_widgets_after_catalog_load_enables_analysis(ui):
     """Test that the catalog load enables dataset selection but not recipes yet.
 
