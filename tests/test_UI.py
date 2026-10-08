@@ -3238,7 +3238,7 @@ def test_analysis_variable_toggle_shows_long_names(analysis_ui):
     variable_widget.value = "Dissolved oxygen"
 
     assert "Dissolved oxygen" in variable_widget.options
-    assert ui.analysis_variable_toggle.label == "Display Variable Short Names"
+    assert ui.analysis_variable_toggle.label == "Display Variable Long Names"
     # Dimension options are not variables and keep their names
     assert "st_ocean" in ui.analysis_recipe_widgets["lvl_dim"].options
     ui.analysis_recipe_widgets["region"].value = "nino34"
