@@ -1720,10 +1720,10 @@ class UserInterface:
             self._safe_remove_widget_object(
                 self.ref_widget_container, "ref_plot_choices_row"
             )
-            # Add the newest plot directly below the divider, above older plots
+            # Add the newest plot directly below the slice widgets if there, or plot variable selection row, above older plots
             self._safe_add_to_widget(
                 self.ref_widget_container,
-                ["ref_divider"],
+                ["ref_slice_ui_row", "ref_plot_ui_row"],
                 plot_group,
                 append=True,
                 above=False,
@@ -1733,10 +1733,10 @@ class UserInterface:
                 self.user_widget_container, "plot_choices_row"
             )
 
-            # Add the newest plot directly below the plot UI row, above older plots
+            # Add the newest plot directly below the plot UI row or slice widgets if there, above older plots
             self._safe_add_to_widget(
                 self.user_widget_container,
-                ["plot_ui_row"],
+                ["slice_ui_row", "plot_ui_row"],
                 plot_group,
                 append=True,
                 above=False,
