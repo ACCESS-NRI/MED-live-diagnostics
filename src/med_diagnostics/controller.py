@@ -118,7 +118,9 @@ def plot_dataset(
             sliced_data[variable].sel(member=mem).plot(label=mem, x=x_axis, ax=ax)
     else:
         if isinstance(plot_type, Heatmap):
-            sliced_data[variable].plot(x=x_axis, y=y_axis, ax=ax)
+            sliced_data[variable].plot(
+                x=x_axis, y=y_axis, ax=ax, cmap="viridis", center=False
+            )
         else:
             sliced_data[variable].plot(x=x_axis, ax=ax)
 

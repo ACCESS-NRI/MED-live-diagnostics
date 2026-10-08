@@ -153,7 +153,9 @@ def test_plot_dataset(
             ]
         )
     elif isinstance(plot_type, Heatmap):
-        mock_da.plot.assert_called_once_with(x=x_axis, y=y_axis, ax=mock_ax)
+        mock_da.plot.assert_called_once_with(
+            x=x_axis, y=y_axis, ax=mock_ax, cmap="viridis", center=False
+        )
     else:
         mock_da.plot.assert_called_once_with(x=x_axis, ax=mock_ax)
 

@@ -11,7 +11,7 @@ from med_diagnostics import recipes
 # 2D a Hovmöller diagram or zonal mean over latitude.
 DEFAULT_PLOT_KWARGS: dict[int, dict[str, Any]] = {
     1: {"linewidth": 2},
-    2: {"cmap": "viridis"},
+    2: {"cmap": "viridis", "center": False},
     3: {"figsize": (6, 4)},
 }
 
