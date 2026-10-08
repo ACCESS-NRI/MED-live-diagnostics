@@ -1431,6 +1431,7 @@ class UserInterface:
             "multiplot_plot_choices_row",
             "multiplot_slice_widgets",
             "multiplot_slice_ui_row",
+            "prompt_bounds_row",
         ]
 
         for item in rows_to_remove:
@@ -1548,6 +1549,12 @@ class UserInterface:
             self.prompt_bounds_button,
         )
 
+        # The bounds row has its own plot button, so remove the plot button from the slice UI or plot choices row
+        for row_attr in ["multiplot_slice_ui_row", "multiplot_plot_choices_row"]:
+            row = getattr(self, row_attr, None)
+            if row is not None and self.multiplot_plot_button in row:
+                row.remove(self.multiplot_plot_button)
+
         # Determine the insertion index based on a hierarchy of existing UI elements
         priority_list = [
             "multiplot_slice_ui_row",
@@ -1637,6 +1644,13 @@ class UserInterface:
             new_plot_pane, self.multiplot_widget_container
         )
         self.multiplot_plot_button.name = "Update Plot"
+
+        # Readd the plot button to the slice UI row, as the prompt bounds row has been removed
+        if (
+            hasattr(self, "multiplot_slice_ui_row")
+            and self.multiplot_plot_button not in self.multiplot_slice_ui_row
+        ):
+            self.multiplot_slice_ui_row.append(self.multiplot_plot_button)
 
         # Add the newest plot directly below the divider, above older plots
         self._safe_add_to_widget(

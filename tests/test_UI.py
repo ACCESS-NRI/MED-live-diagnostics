@@ -1085,10 +1085,14 @@ def test_prompt_bounds_ui(ui, ui_row):
     # Clear the widget container and conditionally append mock multiplot UI rows based on parameters
     ui.multiplot_widget_container.clear()
     if ui_row == "multiplot_slice_ui_row":
-        ui.multiplot_slice_ui_row = pn.Row(pn.pane.Markdown("something"))
+        ui.multiplot_slice_ui_row = pn.Row(
+            pn.pane.Markdown("something"), ui.multiplot_plot_button
+        )
         ui.multiplot_widget_container.append(ui.multiplot_slice_ui_row)
     elif ui_row == "multiplot_plot_choices_row":
-        ui.multiplot_plot_choices_row = pn.Row(pn.pane.Markdown("something"))
+        ui.multiplot_plot_choices_row = pn.Row(
+            pn.pane.Markdown("something"), ui.multiplot_plot_button
+        )
         ui.multiplot_widget_container.append(ui.multiplot_plot_choices_row)
     elif ui_row == "multiplot_type_selection_row":
         ui.multiplot_type_selection_row = pn.Row(pn.pane.Markdown("something"))
@@ -1112,11 +1116,15 @@ def test_prompt_bounds_ui(ui, ui_row):
             ui.multiplot_widget_container.index(ui.prompt_bounds_row)
             == ui.multiplot_widget_container.index(ui.multiplot_slice_ui_row) + 1
         )
+        # Verify the plot button is removed from the slice row so only the bounds plot button shows
+        assert ui.multiplot_plot_button not in ui.multiplot_slice_ui_row
     elif ui_row == "multiplot_plot_choices_row":
         assert (
             ui.multiplot_widget_container.index(ui.prompt_bounds_row)
             == ui.multiplot_widget_container.index(ui.multiplot_plot_choices_row) + 1
         )
+        # Verify the plot button is removed from the plot choices row so only the bounds plot button shows
+        assert ui.multiplot_plot_button not in ui.multiplot_plot_choices_row
     elif ui_row == "multiplot_type_selection_row":
         assert (
             ui.multiplot_widget_container.index(ui.prompt_bounds_row)
@@ -2331,6 +2339,7 @@ def test_display_multiplot_plot_choices_ui(
     ui.multiplot_plot_choices_row = MagicMock()
     ui.multiplot_slice_widgets = MagicMock()
     ui.multiplot_slice_ui_row = MagicMock()
+    ui.prompt_bounds_row = MagicMock()
 
     mock_variable = "test_var"
     mock_get_variable = MagicMock(return_value=mock_variable)
@@ -2451,6 +2460,7 @@ def test_display_multiplot_plot_choices_ui(
     assert not hasattr(ui.multiplot_widget_container, "multiplot_plot_choices_row")
     assert not hasattr(ui.multiplot_widget_container, "multiplot_slice_widgets")
     assert not hasattr(ui.multiplot_widget_container, "multiplot_slice_ui_row")
+    assert not hasattr(ui, "prompt_bounds_row")
 
 
 @pytest.mark.parametrize(
@@ -2600,6 +2610,32 @@ def test_multiplot_plot_data_button_click_line(ui, mock_multiplot_datasets):
     assert isinstance(plot_pane, pn.pane.Matplotlib)
     assert isinstance(plot_pane.object, plt.Figure)
 
+    assert ui.multiplot_plot_button.name == "Update Plot"
+
+
+def test_multiplot_plot_data_button_click_readds_slice_button(
+    ui, mock_multiplot_datasets
+):
+    """Test the plot button is readded to the slice row after plotting from the bounds row."""
+    ds_user, ds_ref = mock_multiplot_datasets
+
+    ui.dataset = ds_user
+    ui.multiplot_ref_dataset_dict = {"ref_model_1": ds_ref}
+    ui.multiplot_plot_variable_dropdown.value = "salt_surface_ave"
+    ui.multiplot_x_axis_dropdown.value = "time"
+    ui.multiplot_plot_type_dropdown.value = Line()
+
+    # Slice row is shown, then the bounds row takes the plot button out of it
+    ui.multiplot_slice_ui_row = pn.Row(ui.multiplot_plot_button)
+    ui.multiplot_widget_container.append(ui.multiplot_slice_ui_row)
+    ui._prompt_bounds_ui()
+    assert ui.multiplot_plot_button not in ui.multiplot_slice_ui_row
+
+    # Plotting from the bounds row removes it and puts the plot button back
+    ui._multiplot_plot_data_button_click()
+
+    assert not hasattr(ui, "prompt_bounds_row")
+    assert list(ui.multiplot_slice_ui_row).count(ui.multiplot_plot_button) == 1
     assert ui.multiplot_plot_button.name == "Update Plot"
 
 
