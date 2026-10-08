@@ -1301,7 +1301,7 @@ class UserInterface:
 
         if isinstance(section, User):
             widget_container = self.user_widget_container
-            row_to_remove = "plot_choices_row"
+            rows_to_remove = ["plot_choices_row", "slice_widgets", "slice_ui_row"]
             dataset = self.dataset
             x_dropdown = self.x_axis_dropdown
             y_dropdown = self.y_axis_dropdown
@@ -1313,7 +1313,11 @@ class UserInterface:
             plot_ui_row = "plot_ui_row"
         elif isinstance(section, Ref):
             widget_container = self.ref_widget_container
-            row_to_remove = "ref_plot_choices_row"
+            rows_to_remove = [
+                "ref_plot_choices_row",
+                "ref_slice_widgets",
+                "ref_slice_ui_row",
+            ]
             dataset = self.ref_dataset
             x_dropdown = self.ref_x_axis_dropdown
             y_dropdown = self.ref_y_axis_dropdown
@@ -1325,7 +1329,8 @@ class UserInterface:
             plot_ui_row = "ref_plot_ui_row"
 
         # Remove preexisting plot choices UI
-        self._safe_remove_widget_object(widget_container, row_to_remove)
+        for item in rows_to_remove:
+            self._safe_remove_widget_object(widget_container, item)
 
         variable = self._get_variable_helper(section=section)
 
@@ -1422,10 +1427,15 @@ class UserInterface:
         available axis options, as it is a structural dimension in netCDF files rather
         than a plottable axis.
         """
-        # Remove preexisting plot choices UI
-        self._safe_remove_widget_object(
-            self.multiplot_widget_container, "multiplot_plot_choices_row"
-        )
+        rows_to_remove = [
+            "multiplot_plot_choices_row",
+            "multiplot_slice_widgets",
+            "multiplot_slice_ui_row",
+        ]
+
+        for item in rows_to_remove:
+            # Remove preexisting plot choices UI
+            self._safe_remove_widget_object(self.multiplot_widget_container, item)
 
         # Find viable dimensions for axis selection
         dim_sizes = self.dataset[self._get_variable_helper(section=Multiplot())].sizes
@@ -1626,13 +1636,7 @@ class UserInterface:
         plot_group = self._add_remove_btn(
             new_plot_pane, self.multiplot_widget_container
         )
-
-        self._safe_remove_widget_object(
-            self.multiplot_widget_container, "multiplot_slice_ui_row"
-        )
-        self._safe_remove_widget_object(
-            self.multiplot_widget_container, "multiplot_slice_widgets"
-        )
+        self.multiplot_plot_button.name = "Update Plot"
 
         # Add the newest plot directly below the divider, above older plots
         self._safe_add_to_widget(
@@ -2004,6 +2008,7 @@ class UserInterface:
             self.multiplot_slice_widgets = slice_widgets
             self.multiplot_slice_ui_row = slice_ui_row
             position = ["multiplot_plot_choices_row"]
+            plot_choices_row = self.multiplot_plot_choices_row
             button = self.multiplot_plot_button
             textbox = self.multiplot_status_textbox
             status_prefix = "Overlay plot status"
@@ -2012,6 +2017,7 @@ class UserInterface:
             self.ref_slice_widgets = slice_widgets
             self.ref_slice_ui_row = slice_ui_row
             position = ["ref_plot_choices_row"]
+            plot_choices_row = self.ref_plot_choices_row
             button = self.ref_plot_button
             textbox = self.ref_status_textbox
             status_prefix = "Reference model status"
@@ -2020,16 +2026,26 @@ class UserInterface:
             self.slice_widgets = slice_widgets
             self.slice_ui_row = slice_ui_row
             position = ["plot_choices_row"]
+            plot_choices_row = self.plot_choices_row
             button = self.plot_button
             textbox = self.status_textbox
             status_prefix = "User model status"
             widget_container = self.user_widget_container
 
+        # Remove the plot button from the plot choices row
+        if button in plot_choices_row:
+            plot_choices_row.remove(button)
+
+        # Add plot button to the slice UI row
+        button.name = "Confirm Slices & Plot"
+        slice_ui_row.append(button)
+
         # Insert the slice UI below the plot choices row
         self._safe_add_to_widget(widget_container, position, slice_ui_row, append=True)
 
-        # Update the UI text to prompt the user
-        button.name = "Confirm Slices & Plot"
+        # Remove the plot choices row.
+        self._safe_remove_widget_object(widget_container, position[0])
+
         controller.update_textbox_text(
             textbox,
             f"{status_prefix} >> Action required: Select slice values and click plot again",
