@@ -197,7 +197,7 @@ def test_variable_toggle_change(toggle_value):
     controller.variable_toggle_change(toggle_widget, variable_dropdown_widget, ds)
     if toggle_value:
         assert variable_dropdown_widget.options == ["long name"]
-        assert toggle_widget.label == "Display Variable Short Names"
+        assert toggle_widget.label == "Display Variable Long Names"
     else:
         assert variable_dropdown_widget.options == ["data"]
         assert toggle_widget.label == "Display Variable Long Names"

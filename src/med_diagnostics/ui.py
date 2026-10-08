@@ -88,8 +88,6 @@ class UserInterface:
         },
         "variable_toggle": {
             "label": "Display Variable Long Names",
-            "name": "",
-            "color": "primary",
             "value": False,
             "align": "end",
         },
@@ -148,7 +146,9 @@ class UserInterface:
             **self._STYLES.get("years_files_text")
         )
         self.plot_variable_dropdown = pn.widgets.Select()
-        self.variable_toggle = pn.widgets.Toggle(**self._STYLES.get("variable_toggle"))
+        self.variable_toggle = pn.widgets.Checkbox(
+            **self._STYLES.get("variable_toggle")
+        )
         self.plot_button = pn.widgets.Button(**self._STYLES.get("green_button"))
         self.plot_pane = pn.pane.Matplotlib(tight=True)
         self.plot_type_dropdown = pn.widgets.Select()
@@ -177,7 +177,7 @@ class UserInterface:
             **self._STYLES.get("primary_button")
         )
         self.ref_plot_variable_dropdown = pn.widgets.Select()
-        self.ref_variable_toggle = pn.widgets.Toggle(
+        self.ref_variable_toggle = pn.widgets.Checkbox(
             **self._STYLES.get("variable_toggle")
         )
         self.clear_ref_model_data_button = pn.widgets.Button(
@@ -255,7 +255,7 @@ class UserInterface:
         self.multiplot_years_files_text = pn.widgets.StaticText(
             **self._STYLES.get("years_files_text")
         )
-        self.multiplot_variable_toggle = pn.widgets.Toggle(
+        self.multiplot_variable_toggle = pn.widgets.Checkbox(
             **self._STYLES.get("variable_toggle")
         )
 
@@ -292,7 +292,7 @@ class UserInterface:
         self.analysis_refresh_button = pn.widgets.Button(
             **self._STYLES.get("primary_button")
         )
-        self.analysis_variable_toggle = pn.widgets.Toggle(
+        self.analysis_variable_toggle = pn.widgets.Checkbox(
             **self._STYLES.get("variable_toggle")
         )
 
@@ -2411,9 +2411,6 @@ class UserInterface:
 
         if kind in ("data variable", "dimension", "choice"):
             choices = list(option["choices"] or [])
-            # A default dim this dataset lacks (e.g. no depth on a surface field)
-            # falls back to None so the recipe skips it, rather than selecting
-            # an unrelated dim such as time
             if kind == "dimension" and default not in choices and None not in choices:
                 choices.insert(0, None)
             widget_type = pn.widgets.Select
