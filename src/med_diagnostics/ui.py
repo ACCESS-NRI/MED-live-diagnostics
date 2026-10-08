@@ -1720,6 +1720,7 @@ class UserInterface:
             self._safe_remove_widget_object(
                 self.ref_widget_container, "ref_plot_choices_row"
             )
+            self.ref_plot_button.name = "Add Updated Plot"
             # Add the newest plot directly below the slice widgets if there, or plot variable selection row, above older plots
             self._safe_add_to_widget(
                 self.ref_widget_container,
@@ -1732,7 +1733,7 @@ class UserInterface:
             self._safe_remove_widget_object(
                 self.user_widget_container, "plot_choices_row"
             )
-
+            self.plot_button.name = "Add Updated Plot"
             # Add the newest plot directly below the plot UI row or slice widgets if there, above older plots
             self._safe_add_to_widget(
                 self.user_widget_container,

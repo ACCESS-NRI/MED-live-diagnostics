@@ -518,7 +518,7 @@ def test_plot_data_button_click(
     ui._plot_data_button_click()
 
     # Verify that UI buttons and status text labels are updated appropriately
-    assert ui.plot_button.name == "Add Plot"
+    assert ui.plot_button.name == "Add Updated Plot"
     assert (
         ui.select_variable_button.name
         == "Add new plot with different variable/ plot type"
@@ -590,7 +590,7 @@ def test_plot_ref_data_button_click(
     ui._ref_plot_data_button_click()
 
     # Verify that reference UI buttons and status text labels are updated appropriately
-    assert ui.ref_plot_button.name == "Add Plot"
+    assert ui.ref_plot_button.name == "Add Updated Plot"
     assert (
         ui.ref_select_variable_button.name
         == "Add new plot with different variable/ plot type"
