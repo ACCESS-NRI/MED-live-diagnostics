@@ -539,8 +539,6 @@ def test_plot_data_button_click(
 
     # Verify that plot choices and slice UI components are removed from the widget container
     assert not hasattr(ui, "plot_choices_row")
-    assert not hasattr(ui, "slice_ui_row")
-    assert not hasattr(ui, "slice_widgets")
 
 
 @pytest.mark.parametrize(
@@ -615,8 +613,6 @@ def test_plot_ref_data_button_click(
 
     # Verify that reference plot choices and slice UI components are removed from the widget container
     assert not hasattr(ui, "ref_plot_choices_row")
-    assert not hasattr(ui, "ref_slice_ui_row")
-    assert not hasattr(ui, "ref_slice_widgets")
 
 
 @pytest.mark.parametrize(
