@@ -130,13 +130,18 @@ def test_build_data_object(monkeypatch, is_aliased):
 
 
 @pytest.mark.parametrize(
-    "filter_arg, expected_regex",
+    "filter_arg, expected_regex, model_type",
     [
-        (False, None),
-        (True, ".*CM2.*"),
+        (False, None, None),
+        (True, ".*CM2.*", "CM2"),
+        (True, ".*ESM16.*", "ESM16"),
+        (True, ".*ESM15.*", "ESM15"),
+        (True, ".*CM3.*", "CM3"),
+        (True, ".*OM2.*", "OM2"),
+        (True, ".*OM3.*", "OM3"),
     ],
 )
-def test_load_access_nri_catalog(monkeypatch, filter_arg, expected_regex):
+def test_load_access_nri_catalog(monkeypatch, filter_arg, expected_regex, model_type):
     """Test loading and filtering the ACCESS-NRI intake catalog."""
     mock_access_nri_cat = MagicMock()
     mock_access_nri_cat.search.return_value = "filtered_catalog"
@@ -146,7 +151,7 @@ def test_load_access_nri_catalog(monkeypatch, filter_arg, expected_regex):
     mock_cat.access_nri = mock_access_nri_cat
     monkeypatch.setattr(data.intake, "cat", mock_cat)
 
-    result = data._load_access_nri_catalog("cm2", filter=filter_arg)
+    result = data._load_access_nri_catalog(model_type, filter=filter_arg)
 
     if filter_arg:
         mock_access_nri_cat.search.assert_called_once_with(model=expected_regex)
