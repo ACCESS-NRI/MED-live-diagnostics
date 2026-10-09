@@ -34,14 +34,14 @@ class CreateModelDiagnosticsSession:
         ----------
         model_type : str
             Type of ACCESS model, case-insensitive (e.g. CM2, OM2).
-        model_path : str
-            Path to model output directory/files on Gadi.
+        model_path : str or None
+            Path to model output directory/files on Gadi. None starts a reference-only session.
 
         """
 
         # Set local variables
         self.model_type = str(model_type).lower()
-        self.model_path = str(model_path)
+        self.model_path = str(model_path) if model_path else None
 
         # Start dask cluster and client. Keep the cluster so its workers can be shut down
         self.cluster = LocalCluster(threads_per_worker=1)
@@ -53,7 +53,7 @@ class CreateModelDiagnosticsSession:
         )
         print()
         print("Model type:", str(model_type))
-        print("Model data path:", self.model_path)
+        print("Model data path:", self.model_path or "none (reference models only)")
         print()
         print("Started dask client:", self.client.dashboard_link)
         print()
@@ -63,7 +63,7 @@ class CreateModelDiagnosticsSession:
         print()
 
         # Start UserUI instance and display initial status text
-        self.ui._initialise_widgets()
+        self.ui._initialise_widgets(reference_only=self.model_path is None)
 
         # Get initial model data
         self._get_data()
@@ -104,14 +104,18 @@ class CreateModelDiagnosticsSession:
         """
         Check nominated model data path for new data. Private.
         """
-        self._build_model_catalog()
+        if self.model_path:
+            self._build_model_catalog()
+        else:
+            self.model_cat = None
 
         # Load access_nri catalog for model comparison filtered by model type
         self.access_nri_cat = data._load_access_nri_catalog(self.model_type)
 
         self.ui._enable_widgets_after_catalog_load(self.model_cat, self.access_nri_cat)
         # Generate UI
-        self.ui._display_dataset_selection_ui()
+        if self.model_cat is not None:
+            self.ui._display_dataset_selection_ui()
 
     def _build_model_catalog(self):
         """
@@ -150,8 +154,8 @@ class CreateModelDiagnosticsSession:
 
         Returns
         ----------
-        Intake-ESM datastore object
-            Intake catalog of user model data.
+        Intake-ESM datastore object or None
+            Intake catalog of user model data, or None in a reference-only session.
         """
 
         return self.model_cat
@@ -177,19 +181,23 @@ class CreateModelDiagnosticsSession:
         self.ui.start_session_button.disabled = True
         controller.update_textbox_text(self.ui.session_warning_textbox, "")
 
+        # A blank path starts a reference-only session
         model_path = os.path.expanduser(self.ui.live_model_path.value.strip())
-        warning = controller.validate_model_path(model_path)
+        warning = controller.validate_model_path(model_path) if model_path else None
         if warning:
             controller.update_textbox_text(self.ui.session_warning_textbox, warning)
             self.ui.start_session_button.disabled = False
             return
 
+        loading = (
+            "building model data catalog" if model_path else "loading reference models"
+        )
         controller.update_textbox_text(
             self.ui.session_status_textbox,
-            "Session status >> Starting session and building model data catalog. This can take a few minutes...",
+            f"Session status >> Starting session and {loading}. This can take a few minutes...",
         )
         try:
-            self._start_session(self.ui.model_type_dropdown.value, model_path)
+            self._start_session(self.ui.model_type_dropdown.value, model_path or None)
         except Exception as e:  # noqa: BLE001
             self._close_dask()
             self.ui._reset_session_ui()
@@ -201,9 +209,14 @@ class CreateModelDiagnosticsSession:
             self.ui.start_session_button.disabled = False
             return
 
-        controller.update_textbox_text(
-            self.ui.session_status_textbox, "Session status >> Session started"
-        )
+        if model_path:
+            status = "Session status >> Session started"
+        else:
+            status = (
+                "Session status >> Session started with reference models only. "
+                "End the session and enter a model output path to view your own run"
+            )
+        controller.update_textbox_text(self.ui.session_status_textbox, status)
         self.ui.end_session_button.disabled = False
 
     def _session_end_button_click(self, event):

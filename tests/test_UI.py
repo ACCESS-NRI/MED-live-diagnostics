@@ -3813,3 +3813,54 @@ def test_reset_session_ui_allows_retry(uninitialised_ui):
         len(ui.user_widget_container),
         len(ui.analysis_widget_container),
     ] == card_lengths
+
+
+def test_initialise_widgets_reference_only(uninitialised_ui):
+    """Tests a reference-only session shows just the reference card, with every card still built."""
+    ui = uninitialised_ui
+    ui._start_session_ui()
+    ui._initialise_widgets(reference_only=True)
+
+    assert ui.main_ui.objects == [
+        ui.session_start_widget_container,
+        ui.ref_widget_container,
+    ]
+    # Built but hidden, so later code doesn't hit missing attributes
+    assert len(ui.user_widget_container) > 0
+    assert len(ui.multiplot_widget_container) > 0
+    assert len(ui.analysis_widget_container) > 0
+
+
+def test_enable_widgets_after_catalog_load_reference_only(ui):
+    """Tests no user catalog fills the reference dropdown but leaves the user-data widgets disabled."""
+    multiplot_options = list(ui.multiplot_keys_dropdown.options)
+    analysis_options = list(ui.analysis_keys_dropdown.options)
+
+    ui._enable_widgets_after_catalog_load(None, {"b": None, "a": None})
+
+    assert ui.model_cat is None
+    assert ui.ref_keys_dropdown.options == ["a", "b"]
+    assert ui.ref_keys_dropdown.disabled is False
+    assert ui.multiplot_keys_dropdown.options == multiplot_options
+    assert ui.multiplot_keys_dropdown.disabled is True
+    assert ui.analysis_keys_dropdown.options == analysis_options
+    assert ui.analysis_keys_dropdown.disabled is True
+    assert ui.refresh_catalog_button.disabled is True
+
+
+def test_reset_reference_only_session_then_full_session(uninitialised_ui):
+    """Tests ending a reference-only session and starting one with a path shows all four cards."""
+    ui = uninitialised_ui
+    ui._start_session_ui()
+    ui._initialise_widgets(reference_only=True)
+
+    ui._reset_session_ui()
+    ui._initialise_widgets()
+
+    assert ui.main_ui.objects == [
+        ui.session_start_widget_container,
+        ui.user_widget_container,
+        ui.ref_widget_container,
+        ui.multiplot_widget_container,
+        ui.analysis_widget_container,
+    ]

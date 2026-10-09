@@ -132,7 +132,7 @@ class UserInterface:
         # Build initial session start widgets
         self.live_model_path = pn.widgets.TextInput(
             name="Path to model output directory/files on Gadi",
-            placeholder="Enter path here",
+            placeholder="Enter path here, or leave blank to only view reference models",
         )
         self.model_type_dropdown = pn.widgets.Select(
             name="Select model type",
@@ -609,12 +609,25 @@ class UserInterface:
         self.main_ui.objects = [self.session_start_widget_container]
         self.session_start_widget_container.collapsed = False
 
-    def _initialise_widgets(self):
+    def _initialise_widgets(self, reference_only=False):
+        """
+        Build the session cards and add them to the UI.
+
+        Parameters
+        ----------
+        reference_only : bool, optional
+            If True, only show the reference model card (no model output path given).
+        """
+        # Initialise every card, so later code doesn't hit missing attributes
         self._initialise_user_widgets()
         self._initialise_ref_widgets()
         self._initialise_multiplot_widgets()
         self._initialise_analysis_widgets()
         self.session_start_widget_container.collapsed = True
+        if reference_only:
+            self.main_ui.append(self.ref_widget_container)
+            self.ref_widget_container.collapsed = False
+            return
         self.main_ui.append(self.user_widget_container)
         self.main_ui.append(self.ref_widget_container)
         self.main_ui.append(self.multiplot_widget_container)
@@ -858,6 +871,10 @@ class UserInterface:
         self.ref_model_info_button.disabled = False
         self.ref_keys_dropdown.options = sorted(self.access_nri_cat.keys())
         self.ref_keys_dropdown.disabled = False
+
+        # No user catalog in a reference-only session, so the overlay and analysis cards stay disabled
+        if model_cat is None:
+            return
 
         controller.update_textbox_text(
             self.multiplot_status_textbox,

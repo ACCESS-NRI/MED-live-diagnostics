@@ -53,7 +53,7 @@ def test_init_and_get_data(mock_session_deps):
     assert session.model_path == "/mock/path"
 
     # Verify UI was initialised and status text was displayed
-    mock_ui._initialise_widgets.assert_called_once()
+    mock_ui._initialise_widgets.assert_called_once_with(reference_only=False)
 
     # Verify _get_data ran correctly
     mock_data._build_new_catalog.assert_called_once_with("/mock/path", "cm2")
@@ -260,3 +260,39 @@ def test_init_wires_session_buttons(mock_session_deps):
         session._refresh_catalog
     )
     mock_ui._start_session_ui.assert_called_once_with()
+
+
+def test_session_start_click_blank_path_reference_only(mock_session_deps):
+    """Tests a blank path starts a reference-only session without a path warning."""
+    _, mock_ui, mock_data, mock_controller = mock_session_deps
+
+    session = _click_start(mock_ui, "   ")
+
+    mock_controller.validate_model_path.assert_not_called()
+    assert session.model_path is None
+    mock_ui._initialise_widgets.assert_called_once_with(reference_only=True)
+    mock_data._build_new_catalog.assert_not_called()
+    mock_ui._reset_session_ui.assert_not_called()
+    mock_controller.update_textbox_text.assert_called_with(
+        mock_ui.session_status_textbox,
+        "Session status >> Session started with reference models only. "
+        "End the session and enter a model output path to view your own run",
+    )
+    assert mock_ui.end_session_button.disabled is False
+
+
+def test_get_data_reference_only(mock_session_deps):
+    """Tests no model path skips the user catalog and dataset selection but loads the reference catalog."""
+    _, mock_ui, mock_data, _ = mock_session_deps
+    session = CreateModelDiagnosticsSession()
+    session._start_session(model_type="OM2", model_path=None)
+
+    mock_data._build_new_catalog.assert_not_called()
+    mock_data._load_new_catalog.assert_not_called()
+    mock_data._load_access_nri_catalog.assert_called_once_with("om2")
+    assert session.model_cat is None
+    assert session.return_model_data_catalog() is None
+    mock_ui._enable_widgets_after_catalog_load.assert_called_once_with(
+        None, "mock_access_cat"
+    )
+    mock_ui._display_dataset_selection_ui.assert_not_called()
