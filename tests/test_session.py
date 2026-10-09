@@ -45,8 +45,8 @@ def test_init_and_get_data(mock_session_deps):
     _mock_client, mock_ui, mock_data, mock_controller = mock_session_deps
 
     # Initialise the session
-    session = CreateModelDiagnosticsSession(model_type="CM2", model_path="/mock/path")
-
+    session = CreateModelDiagnosticsSession()
+    session._start_session(model_type="CM2", model_path="/mock/path")
     # Verify __init__ assignments
     assert session.model_type == "cm2"
     assert session.model_path == "/mock/path"
@@ -69,7 +69,8 @@ def test_init_and_get_data(mock_session_deps):
 def test_end_session(mock_session_deps):
     """Tests the termination of the Dask client and clearing of the UI."""
     mock_client, mock_ui, _, _ = mock_session_deps
-    session = CreateModelDiagnosticsSession("CM2", "/mock/path")
+    session = CreateModelDiagnosticsSession()
+    session._start_session(model_type="CM2", model_path="/mock/path")
 
     session.end_session()
 
@@ -82,7 +83,8 @@ def test_end_session(mock_session_deps):
 def test_return_model_data_catalog(mock_session_deps):
     """Tests the getter function for the model catalog."""
     _, _, _, _ = mock_session_deps
-    session = CreateModelDiagnosticsSession("CM2", "/mock/path")
+    session = CreateModelDiagnosticsSession()
+    session._start_session(model_type="CM2", model_path="/mock/path")
 
     catalog = session.return_model_data_catalog()
 
@@ -92,7 +94,8 @@ def test_return_model_data_catalog(mock_session_deps):
 def test_refresh_catalog(mock_session_deps, monkeypatch):
     """Tests the refresh catalog functionality."""
     _, mock_ui, _, _ = mock_session_deps
-    session = CreateModelDiagnosticsSession("CM2", "/mock/path")
+    session = CreateModelDiagnosticsSession()
+    session._start_session(model_type="CM2", model_path="/mock/path")
 
     mock_refresh_catalog = MagicMock()
     monkeypatch.setattr(mock_ui, "_refresh_catalog", mock_refresh_catalog)
@@ -122,7 +125,8 @@ def test_return_loaded_dataset(mock_session_deps):
     """Tests the getter function for the loaded dataset."""
     _, mock_ui, _, _ = mock_session_deps
     mock_ui.dataset = dataset = {"some": "data"}  # Mock dataset
-    session = CreateModelDiagnosticsSession("CM2", "/mock/path")
+    session = CreateModelDiagnosticsSession()
+    session._start_session(model_type="CM2", model_path="/mock/path")
     dataset_return = session.return_loaded_dataset()
 
     assert dataset_return == dataset

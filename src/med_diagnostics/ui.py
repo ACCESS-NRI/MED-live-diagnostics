@@ -109,6 +109,10 @@ class UserInterface:
 
         # Import panel extensions
         pn.extension()
+        self.session_start_widget_container = pn.Card(
+            **self._STYLES.get("widget_container"),
+            title="Start a model diagnostics session",
+        )
 
         self.user_widget_container = pn.Card(
             **self._STYLES.get("widget_container"), title="Load and plot user data"
@@ -124,6 +128,18 @@ class UserInterface:
         self.analysis_widget_container = pn.Card(
             **self._STYLES.get("widget_container"),
             title="Run analysis recipes",
+        )
+        # Build initial session start widgets
+        self.live_model_path = pn.widgets.TextInput(
+            name="Path to model output directory/files on Gadi",
+            placeholder="Enter path here",
+        )
+        self.model_type_dropdown = pn.widgets.Select(
+            name="Select model type",
+            options=["CM2", "CM3", "ESM15", "ESM16", "MOM6", "OM2", "OM3"],
+        )
+        self.start_session_button = pn.widgets.Button(
+            name="Start Session", **self._STYLES.get("green_button")
         )
 
         # Build initial panel text widgets
@@ -541,6 +557,16 @@ class UserInterface:
         """Event wrapper for the analysis plot data button click."""
 
         self._analysis_plot_data_button_click()
+
+    def _start_session_ui(self):
+        """
+        Start the model diagnostics session and display the initial UI.
+        """
+        self.session_start_ui_row = pn.Row(
+            self.live_model_path, self.model_type_dropdown, self.start_session_button
+        )
+        self.session_start_widget_container.append(self.session_start_ui_row)
+        display(self.session_start_widget_container)
 
     def _initialise_widgets(self):
         self._initialise_user_widgets()

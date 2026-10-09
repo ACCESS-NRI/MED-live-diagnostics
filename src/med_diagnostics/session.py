@@ -13,7 +13,15 @@ class CreateModelDiagnosticsSession:
     Primary class for starting a model diagnostics session
     """
 
-    def __init__(self, model_type, model_path):
+    def __init__(self):
+        """
+        Initialisae a CreateModelDiagnosticsSession instance to start a model diagnostics session, with no arguments/
+        """
+        self.ui = ui.UserInterface()
+        self.ui.start_session_button.on_click(self._session_start_button_click)
+        self.ui.refresh_catalog_button.on_click(self._refresh_catalog)
+
+    def _start_session(self, model_type, model_path):
         """
         Initialise a CreateModelDiagnosticsSession instance to start a model diagnostics session.
 
@@ -49,9 +57,7 @@ class CreateModelDiagnosticsSession:
         print()
 
         # Start UserUI instance and display initial status text
-        self.ui = ui.UserInterface()
         self.ui._initialise_widgets()
-        self.ui.refresh_catalog_button.on_click(self._refresh_catalog)
 
         # Get initial model data
         self._get_data()
@@ -138,3 +144,10 @@ class CreateModelDiagnosticsSession:
         """
 
         return self.ui.dataset
+
+    def _session_start_button_click(self, event):
+        """Event wrapper for the session start button click."""
+
+        self._start_session(
+            self.ui.model_type_dropdown.value, self.ui.live_model_path.value
+        )
