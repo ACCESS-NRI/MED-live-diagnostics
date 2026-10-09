@@ -33,6 +33,7 @@ def mock_session_deps(monkeypatch):
 
     # Patch the modules directly where they are imported in session.py
     monkeypatch.setattr("med_diagnostics.session.Client", mock_client_class)
+    monkeypatch.setattr("med_diagnostics.session.LocalCluster", MagicMock())
     monkeypatch.setattr("med_diagnostics.session.ui.UserInterface", mock_ui_class)
     monkeypatch.setattr("med_diagnostics.session.data", mock_data)
     monkeypatch.setattr("med_diagnostics.session.controller", mock_controller)
@@ -72,12 +73,47 @@ def test_end_session(mock_session_deps):
     session = CreateModelDiagnosticsSession()
     session._start_session(model_type="CM2", model_path="/mock/path")
 
+    mock_cluster = session.cluster
+
     session.end_session()
 
     mock_client.close.assert_called_once()
-    mock_ui.user_widget_container.clear.assert_called_once()
-    mock_ui.ref_widget_container.clear.assert_called_once()
-    mock_ui.multiplot_widget_container.clear.assert_called_once()
+    mock_cluster.close.assert_called_once()
+    assert session.client is None
+    assert session.cluster is None
+    mock_ui._reset_session_ui.assert_called_once()
+    assert mock_ui.end_session_button.disabled is True
+    assert mock_ui.start_session_button.disabled is False
+
+
+def test_end_session_twice(mock_session_deps):
+    """Tests ending an already ended session doesn't crash."""
+    mock_client, _, _, _ = mock_session_deps
+    session = CreateModelDiagnosticsSession()
+    session._start_session(model_type="CM2", model_path="/mock/path")
+
+    mock_cluster = session.cluster
+
+    session.end_session()
+    session.end_session()
+
+    mock_client.close.assert_called_once()
+    mock_cluster.close.assert_called_once()
+
+
+def test_session_end_button_click(mock_session_deps, monkeypatch):
+    """Tests the end session button calls end_session."""
+    _, mock_ui, _, _ = mock_session_deps
+    session = CreateModelDiagnosticsSession()
+    mock_end_session = MagicMock()
+    monkeypatch.setattr(session, "end_session", mock_end_session)
+
+    mock_ui.end_session_button.on_click.assert_called_once_with(
+        session._session_end_button_click
+    )
+    session._session_end_button_click(None)
+
+    mock_end_session.assert_called_once_with()
 
 
 def test_return_model_data_catalog(mock_session_deps):
@@ -152,6 +188,7 @@ def test_session_start_click_starts_session(mock_session_deps):
     mock_data._build_new_catalog.assert_called_once_with("/mock/path", "cm2")
     mock_ui._reset_session_ui.assert_not_called()
     assert mock_ui.start_session_button.disabled is True
+    assert mock_ui.end_session_button.disabled is False
 
 
 def test_session_start_click_invalid_path(mock_session_deps):
@@ -179,7 +216,9 @@ def test_session_start_click_failure_cleans_up(mock_session_deps):
 
     mock_client.close.assert_called_once()
     assert session.client is None
+    assert session.cluster is None
     mock_ui._reset_session_ui.assert_called_once()
+    assert mock_ui.end_session_button.disabled is not False
     mock_controller.update_textbox_text.assert_called_with(
         mock_ui.session_warning_textbox,
         "Warning >> Session failed to start: no assets found",

@@ -142,6 +142,9 @@ class UserInterface:
         self.start_session_button = pn.widgets.Button(
             name="Start Session", **self._STYLES.get("green_button")
         )
+        self.end_session_button = pn.widgets.Button(
+            name="End Session", disabled=True, **self._STYLES.get("danger_button")
+        )
         self.session_status_textbox = pn.widgets.StaticText(
             **self._STYLES.get("status_text")
         )
@@ -570,7 +573,14 @@ class UserInterface:
         Start the model diagnostics session and display the initial UI.
         """
         self.session_start_ui_row = pn.Row(
-            self.live_model_path, self.model_type_dropdown, self.start_session_button
+            self.live_model_path,
+            self.model_type_dropdown,
+            self.start_session_button,
+            self.end_session_button,
+        )
+        controller.update_textbox_text(
+            self.session_status_textbox,
+            "Session status >> Enter a model output path and type to start",
         )
         self.session_start_widget_container.collapsed = False
         self.session_start_widget_container.extend(

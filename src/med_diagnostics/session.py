@@ -5,7 +5,7 @@
 
 import os
 
-from distributed import Client
+from distributed import Client, LocalCluster
 
 from med_diagnostics import controller, data, ui
 
@@ -21,6 +21,7 @@ class CreateModelDiagnosticsSession:
         """
         self.ui = ui.UserInterface()
         self.ui.start_session_button.on_click(self._session_start_button_click)
+        self.ui.end_session_button.on_click(self._session_end_button_click)
         self.ui.refresh_catalog_button.on_click(self._refresh_catalog)
 
         self.ui._start_session_ui()
@@ -42,8 +43,9 @@ class CreateModelDiagnosticsSession:
         self.model_type = str(model_type).lower()
         self.model_path = str(model_path)
 
-        # Start dask client
-        self.client = Client(threads_per_worker=1)
+        # Start dask cluster and client. Keep the cluster so its workers can be shut down
+        self.cluster = LocalCluster(threads_per_worker=1)
+        self.client = Client(self.cluster)
 
         print()
         print(
@@ -68,19 +70,35 @@ class CreateModelDiagnosticsSession:
 
     def end_session(self):
         """
-        Close the dask client and clear the UI to end the current CreateModelDiagnosticsSession instance.
+        Close the dask client and workers and clear the UI to end the current CreateModelDiagnosticsSession instance.
         """
 
-        self.client.close()
+        self._close_dask()
 
-        self.ui.user_widget_container.clear()
-        self.ui.ref_widget_container.clear()
-        self.ui.multiplot_widget_container.clear()
-        self.ui.analysis_widget_container.clear()
+        # Remove the session cards and let a new session be started
+        self.ui._reset_session_ui()
+        self.ui.end_session_button.disabled = True
+        self.ui.start_session_button.disabled = False
+        controller.update_textbox_text(
+            self.ui.session_status_textbox,
+            "Session status >> Session ended. Enter a model output path and type to start a new one",
+        )
 
         print(
             "------------------------ Live diagnostics session ended ------------------------"
         )
+
+    def _close_dask(self):
+        """
+        Close the dask client and shut down the cluster's workers. Private.
+        """
+        # None if the session never started or has already ended
+        if getattr(self, "client", None):
+            self.client.close()
+            self.client = None
+        if getattr(self, "cluster", None):
+            self.cluster.close()
+            self.cluster = None
 
     def _get_data(self):
         """
@@ -168,14 +186,12 @@ class CreateModelDiagnosticsSession:
 
         controller.update_textbox_text(
             self.ui.session_status_textbox,
-            "User model status >> Starting session and building model data catalog. This can take a few minutes...",
+            "Session status >> Starting session and building model data catalog. This can take a few minutes...",
         )
         try:
             self._start_session(self.ui.model_type_dropdown.value, model_path)
         except Exception as e:  # noqa: BLE001
-            if getattr(self, "client", None):
-                self.client.close()
-                self.client = None
+            self._close_dask()
             self.ui._reset_session_ui()
             controller.update_textbox_text(self.ui.session_status_textbox, "")
             controller.update_textbox_text(
@@ -186,5 +202,11 @@ class CreateModelDiagnosticsSession:
             return
 
         controller.update_textbox_text(
-            self.ui.session_status_textbox, "User model status >> Session started"
+            self.ui.session_status_textbox, "Session status >> Session started"
         )
+        self.ui.end_session_button.disabled = False
+
+    def _session_end_button_click(self, event):
+        """Event wrapper for the session end button click."""
+
+        self.end_session()
