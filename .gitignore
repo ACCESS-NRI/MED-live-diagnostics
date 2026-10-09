@@ -130,3 +130,17 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+# pixi environments
+.pixi/*
+!.pixi/config.toml
+
+.vscode/
+
+.venv-docs/
+
+.claude/
+
+coverage.xml
+.coverage
+
+documentation/site/

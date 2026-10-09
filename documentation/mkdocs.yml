@@ -1,0 +1,211 @@
+# =========== IMPORTANT!! READ THIS!! ============ #
+# This file is used to configure the MkDocs build.
+
+# When you copy this file, make sure to check and modify the fields
+# that here are marked with `MODIFY`.
+
+# For further info about this configuration refer to:
+# - Material for MkDocs theme: https://squidfunk.github.io/mkdocs-material/
+# - MkDocs configuration guide: https://www.mkdocs.org/user-guide/configuration/
+# ============================================== #
+
+site_name: Model Live Diagnostics
+
+# Site URL
+site_url: !ENV [READTHEDOCS_CANONICAL_URL, ""]
+# READTHEDOCS_CANONICAL_URL is set within the ReadTheDocs build
+
+# Git repository (Adds a link to the GitHub repository at the top)
+repo_url: https://github.com/ACCESS-NRI/MED-live-diagnostics
+repo_name: MED-live-diagnostics
+
+edit_uri: edit/main/documentation/docs
+
+# Navigation
+nav:
+  - Home: pages/index.md
+  - Tutorials:
+    - pages/tutorials/index.md
+    - Getting started: notebooks/getting_started_tutorial.md
+    - Advanced usage: notebooks/advanced_usage.md
+    - Adding custom analyses: notebooks/adding_custom_analyses.md
+    - Built-in analysis recipes: notebooks/built_in_recipes_tutorial.md
+  - API reference: pages/api.md
+  - Contributing:
+    - pages/contributing/index.md
+    - Code: pages/contributing/code.md
+    - Documentation: pages/contributing/docs.md
+    - Issues and feature requests: pages/contributing/issues.md
+    - Contributing recipes: pages/contributing/recipes.md
+    - Adding model types: pages/contributing/models.md
+
+
+# Theme configuration
+theme:
+  name: material
+  custom_dir: overrides
+  features:
+    - navigation.instant # Enable instant navigation on internal links (https://squidfunk.github.io/mkdocs-material/setup/setting-up-navigation/?h=navigation#instant-loading)
+    - navigation.instant.prefetch # Prefetch pages for instant navigation
+    - navigation.instant.progress # Show a progress bar for instant navigation on slow pages
+    - navigation.tracking # The URL in the address bar is automatically updated with active anchor
+    # - navigation.tabs # Top-level sections are rendered below the top header
+    - navigation.tabs.sticky # Top-level sections remain visible when scrolling
+    - navigation.indexes # Files can be attached to main sections, which can function as overview pages (https://squidfunk.github.io/mkdocs-material/setup/setting-up-navigation/?h=navigation#section-index-pages)
+    - navigation.top # Add a back-to-top button
+    - navigation.footer # Enables the footer for the site
+    - toc.follow # Automatically scroll the sidebar to the active anchor
+    - content.code.copy # Display a copy icon at top right of code blocks
+    - content.code.annotate # Enable annotations within code blocks (https://squidfunk.github.io/mkdocs-material/reference/code-blocks/?h=content+code+copy#code-annotations)
+    - content.action.edit # Add an edit icon to the page
+    - content.tabs.link # Content tabs are linked and switch to the same label simultaneously
+    - content.tooltips # Replace the default browser tooltips with better ones
+    - content.footnote.tooltips # Enable tooltips for footnotes
+    - search.suggest # Enable search suggestions as the user types
+    - search.highlight # Highlight all occurrences of search keywords when clicking on a search result
+    - search.share # Add a share button for search results that copies the exact search URL
+    - announce.dismiss # Allow users to dismiss site-wide announcements
+  palette:
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: custom-light
+      primary: none
+      accent: none
+      toggle:
+        icon: material/theme-light-dark
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: custom-dark
+      primary: none
+      accent: none
+      toggle:
+        icon: material/theme-light-dark
+        name: Switch to light mode
+  favicon: assets/logos/access_hive_logo.png # Favicon for the site
+  logo: assets/logos/access_hive_logo.png # Main logo for the site
+  icon:
+    edit: material/pencil # Icon for editing the page
+    view: material/eye # Icon for viewing the page
+
+markdown_extensions:
+  - attr_list # Enables attribute lists syntax (https://python-markdown.github.io/extensions/attr_list/)
+  - abbr # Enables abbreviations (https://squidfunk.github.io/mkdocs-material/setup/extensions/python-markdown/?h=abbr#abbreviations)
+  - md_in_html # Enables Markdown inside HTML blocks (https://squidfunk.github.io/mkdocs-material/setup/extensions/python-markdown/?h=markdown+html+in#markdown-in-html)
+  - admonition # Enables admonitions (https://squidfunk.github.io/mkdocs-material/reference/admonitions/?h=adm#usage)
+  - pymdownx.details # Enables collapsible admonitions
+  - pymdownx.superfences: # Allows arbitrary nesting of code
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.critic # Enables critic markup syntax (https://squidfunk.github.io/mkdocs-material/reference/formatting/#highlighting-changes)
+  - pymdownx.caret # Enables superscript and underline syntax (https://facelessuser.github.io/pymdown-extensions/extensions/caret/)
+  - pymdownx.mark # Enables highlighted text syntax (https://facelessuser.github.io/pymdown-extensions/extensions/mark/)
+  - pymdownx.tilde # Enables subscript and striked through syntax (https://facelessuser.github.io/pymdown-extensions/extensions/tilde/)
+  - pymdownx.keys # Enables keyboard key styling (https://squidfunk.github.io/mkdocs-material/reference/formatting/#adding-keyboard-keys)
+  - pymdownx.snippets: # Adds support for including external files (snippets) to a document (https://squidfunk.github.io/mkdocs-material/setup/extensions/python-markdown-extensions/?h=snippets#snippets)
+      auto_append: # Automatically appends the listed files to the end of each document
+        - abbreviations.md # Used to create a website glossary (https://squidfunk.github.io/mkdocs-material/reference/tooltips/#adding-a-glossary-mkdocsyml)
+  - pymdownx.highlight # Enables syntax highlighting for code blocks (https://squidfunk.github.io/mkdocs-material/setup/extensions/python-markdown-extensions/?h=highlight#highlight)
+  - pymdownx.inlinehilite # Enables syntax highlighting for inline code blocks
+  - pymdownx.tasklist: # Enables Github-like task list syntax
+      custom_checkbox: true
+  - pymdownx.emoji: # Enables using icons and emojis with simple shortcodes (https://squidfunk.github.io/mkdocs-material/reference/icons-emojis/?h=emoji#usage)
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.tabbed: # Enables content tabs (https://squidfunk.github.io/mkdocs-material/reference/content-tabs/#content-tabs)
+      alternate_style: true
+  - pymdownx.arithmatex: # Enables LaTeX-like equations rendering (https://squidfunk.github.io/mkdocs-material/setup/extensions/python-markdown-extensions/?h=arithmatex#arithmatex)
+      generic: true
+  - def_list # Enables definition lists (https://squidfunk.github.io/mkdocs-material/reference/lists/#using-definition-lists)
+  - footnotes # Enables footnotes (https://squidfunk.github.io/mkdocs-material/reference/footnotes/?h=footno#usage)
+  - tables # Enables markdown tables (https://squidfunk.github.io/mkdocs-material/reference/data-tables/?h=tables#usage)
+  - toc: # Generate and render the Table of Contents (https://squidfunk.github.io/mkdocs-material/setup/extensions/python-markdown/?h=toc#table-of-contents)
+      title: On this page
+      permalink: true
+      permalink_title: Copy permalink to clipboard
+
+#!!! IMPORTANT !!! Order of plugins matters. Some plugins need to be listed before others to work correctly.
+plugins:
+  - search # Adds the search bar to the header
+  # - optimize: # Optimizes all media files (https://squidfunk.github.io/mkdocs-material/plugins/optimize/#built-in-optimize-plugin)
+  #     optimize_png_speed: 10
+  #     enabled: !env [READTHEDOCS, false]
+  # - privacy # Download any external asset locally to improve privacy (https://squidfunk.github.io/mkdocs-material/plugins/privacy/)
+  #     enabled: !env [READTHEDOCS, false]
+  - mkdocs-jupyter: # Use Jupyter Notebooks in mkdocs (https://github.com/danielfrg/mkdocs-jupyter#mkdocs-jupyter-use-jupyter-notebooks-in-mkdocs)
+      include_source: true
+      no_prompt: True
+      highlight_extra_classes: "jupyter-code"
+  - mkdocstrings: # Automatic documentation from docstrings (https://mkdocstrings.github.io/)
+      default_handler: python
+      handlers:
+        python:
+          paths: [../src]
+          options:
+            docstring_style: numpy
+            members_order: source
+            merge_init_into_class: true
+            separate_signature: true
+            #show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            show_source: false
+            heading_level: 3
+            show_root_heading: true
+  - git-revision-date-localized: # Adds creation and last update dates at the end of each page
+      type: date
+      enable_creation_date: true
+  - bibtex: # Add citation syntax support (https://github.com/shyamd/mkdocs-bibtex#usage)
+      bib_file: references.bib
+      enable_inline_citations: false # Bare @key citations clash with Python decorators like @analysis.register_analysis
+  - redirects: # Adds support for URL redirects using mkdocs-redirects (https://github.com/mkdocs/mkdocs-redirects#mkdocs-redirects)
+      redirect_maps:
+  - resolve-absolute-urls: # Resolves absolute URLs (https://github.com/ACCESS-NRI/mkdocs_resolve_absolute_urls_plugin#mkdocs-resolve-absolute-urls-plugin)
+      url_versioning_scheme: multiple_versions_without_translations
+  - macros # Enables jinja2 templating (https://mkdocs-macros-plugin.readthedocs.io/en/latest/)
+  - include-markdown # Enables including external markdown files in a document (https://github.com/mondeja/mkdocs-include-markdown-plugin#mkdocs-include-markdown-plugin)
+
+hooks:
+  - hooks/set_copyright_year.py # Automatically sets the copyright year to the current year
+  - hooks/hide_pages_url_segment.py # Automatically hides the "/pages" URL segment for pages inside the "pages" directory
+
+copyright: Copyright &copy; {year} ACCESS-NRI
+
+# Footer
+extra:
+  generator: false
+  social:
+    - icon: fontawesome/brands/bluesky
+      link: https://bsky.app/profile/access-nri.bsky.social
+      name: ACCESS-NRI on Bluesky
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/in/access-nri
+      name: ACCESS-NRI on Linkedin
+  analytics:
+    provider: google
+    property: G-JVWLTHSQWM
+
+extra_css:
+  - https://fonts.googleapis.com/css2?family=Roboto:wght@500&display=swap
+  - https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css
+  - fontello/css/fontello.css
+  - css/custom.css
+  - css/responsiveness.css
+
+extra_javascript:
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js # For pymdownx.arithmatex extension
+  - https://cdn.jsdelivr.net/gh/atteggiani/animated-terminal@3.1/animated-terminal.min.js # Terminal animations
+  - js/custom.js
+
+# Automatically reload page when running `mkdocs serve`, for any
+# of the following files outside of the 'docs' directory
+watch:
+  - abbreviations.md
+  - hooks/
+  - mkdocs.yml
+  - overrides/
+  - references.bib
+
+
+
