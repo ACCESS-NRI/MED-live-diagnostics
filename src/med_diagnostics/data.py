@@ -25,12 +25,12 @@ from access_nri_intake.source.builders import (
 # CM3 and OM3 have no ACCESS entries yet, so use MOM6 (unconfirmed).
 CATALOG_MODEL_NAMES = {
     "cm2": ["ACCESS-CM2"],
-    "cm3": ["MOM6"],
+    "cm3": ["ACCESS-CM2", "MOM6"],
     "esm15": ["ACCESS-ESM1-5"],
     "esm16": ["ACCESS-ESM1.6"],
     "mom6": ["MOM6"],
     "om2": ["ACCESS-OM2", "ACCESS-OM2-01", "ACCESS-OM2-025"],
-    "om3": ["MOM6"],
+    "om3": ["ACCESS-OM2", "ACCESS-OM2-01", "ACCESS-OM2-025", "MOM6"],
 }
 
 

@@ -164,12 +164,12 @@ class _FakeAccessNriCatalog:
     "model_type, expected_models",
     [
         ("CM2", ["ACCESS-CM2"]),
-        ("CM3", ["MOM6"]),
+        ("CM3", ["ACCESS-CM2", "MOM6"]),
         ("ESM15", ["ACCESS-ESM1-5"]),
         ("ESM16", ["ACCESS-ESM1.6"]),
         ("MOM6", ["MOM6"]),
         ("OM2", ["ACCESS-OM2", "ACCESS-OM2-01", "ACCESS-OM2-025"]),
-        ("OM3", ["MOM6"]),
+        ("OM3", ["ACCESS-OM2", "ACCESS-OM2-01", "ACCESS-OM2-025", "MOM6"]),
     ],
 )
 def test_load_access_nri_catalog_finds_only_its_models(
