@@ -50,6 +50,7 @@ def ui():
     """Return a function-scoped UserInterface instance for testing"""
     ui = UserInterface()
     ui.access_nri_cat = {"fake": None, "catalog": None}
+    ui._start_session_ui()
     ui._initialise_widgets()
 
     # Assign the pre-cached dataset instantly instead of generating a new one
@@ -2851,6 +2852,7 @@ def test_initialise_widgets_calls_all_sub_initialisers(uninitialised_ui, monkeyp
         uninitialised_ui, "_initialise_multiplot_widgets", mock_multiplot
     )
 
+    uninitialised_ui._start_session_ui()
     uninitialised_ui._initialise_widgets()
 
     mock_user.assert_called_once_with()
@@ -3816,3 +3818,126 @@ def test_analysis_select_recipe_button_click(ui, monkeypatch):
     ui._analysis_select_recipe_button_click(None)
 
     mock_display_analysis_recipe_options_ui.assert_called_once()
+
+
+def test_start_session_ui(uninitialised_ui):
+    """Tests the start card shows the session inputs, with End disabled until a session starts."""
+    ui = uninitialised_ui
+    ui._start_session_ui()
+
+    assert ui.session_start_ui_row.objects == [
+        ui.live_model_path,
+        ui.model_type_dropdown,
+        ui.start_session_button,
+        ui.end_session_button,
+    ]
+    assert ui.session_start_widget_container.objects == [
+        ui.session_status_textbox,
+        ui.session_warning_textbox,
+        ui.session_start_ui_row,
+    ]
+    assert ui.session_start_widget_container.collapsed is False
+    assert ui.main_ui.objects == [ui.session_start_widget_container]
+    assert ui.start_session_button.disabled is False
+    assert ui.end_session_button.disabled is True
+    assert (
+        ui.session_status_textbox.value
+        == "Session status >> Enter a model output path and type to start"
+    )
+    assert not ui.session_warning_textbox.value
+
+
+def test_reset_session_ui_allows_retry(uninitialised_ui):
+    """Tests a failed start can be retried without duplicating the session cards."""
+    ui = uninitialised_ui
+    ui._start_session_ui()
+    ui._initialise_widgets()
+    card_lengths = [
+        len(ui.user_widget_container),
+        len(ui.analysis_widget_container),
+    ]
+
+    ui._reset_session_ui()
+
+    assert ui.main_ui.objects == [ui.session_start_widget_container]
+    assert ui.session_start_widget_container.collapsed is False
+    assert len(ui.user_widget_container) == 0
+
+    ui._initialise_widgets()
+
+    assert len(ui.main_ui) == 5
+    assert [
+        len(ui.user_widget_container),
+        len(ui.analysis_widget_container),
+    ] == card_lengths
+
+
+def test_initialise_widgets_reference_only(uninitialised_ui):
+    """Tests a reference-only session shows just the reference card, with every card still built."""
+    ui = uninitialised_ui
+    ui._start_session_ui()
+    ui._initialise_widgets(reference_only=True)
+
+    assert ui.main_ui.objects == [
+        ui.session_start_widget_container,
+        ui.ref_widget_container,
+    ]
+    # Built but hidden, so later code doesn't hit missing attributes
+    assert len(ui.user_widget_container) > 0
+    assert len(ui.multiplot_widget_container) > 0
+    assert len(ui.analysis_widget_container) > 0
+
+
+def test_enable_widgets_after_catalog_load_reference_only(ui):
+    """Tests no user catalog fills the reference dropdown but leaves the user-data widgets disabled."""
+    multiplot_options = list(ui.multiplot_keys_dropdown.options)
+    analysis_options = list(ui.analysis_keys_dropdown.options)
+
+    ui._enable_widgets_after_catalog_load(None, {"b": None, "a": None})
+
+    assert ui.model_cat is None
+    assert ui.ref_keys_dropdown.options == ["a", "b"]
+    assert ui.ref_keys_dropdown.disabled is False
+    assert ui.multiplot_keys_dropdown.options == multiplot_options
+    assert ui.multiplot_keys_dropdown.disabled is True
+    assert ui.analysis_keys_dropdown.options == analysis_options
+    assert ui.analysis_keys_dropdown.disabled is True
+    assert ui.refresh_catalog_button.disabled is True
+
+
+def test_reset_reference_only_session_then_full_session(uninitialised_ui):
+    """Tests ending a reference-only session and starting one with a path shows all four cards."""
+    ui = uninitialised_ui
+    ui._start_session_ui()
+    ui._initialise_widgets(reference_only=True)
+
+    ui._reset_session_ui()
+    ui._initialise_widgets()
+
+    assert ui.main_ui.objects == [
+        ui.session_start_widget_container,
+        ui.user_widget_container,
+        ui.ref_widget_container,
+        ui.multiplot_widget_container,
+        ui.analysis_widget_container,
+    ]
+
+
+def test_restart_after_reference_only_session(uninitialised_ui):
+    """Tests starting a full session after a reference-only one doesn't crash the years text.
+
+    A reference-only session leaves model_cat as None, and redrawing the cards on
+    restart changes the dataset dropdowns, which updates the years text.
+    """
+    ui = uninitialised_ui
+    ui._start_session_ui()
+    ui._initialise_widgets(reference_only=True)
+    ui._enable_widgets_after_catalog_load(None, {"model": None})
+
+    ui._reset_session_ui()
+    ui._initialise_widgets()
+    ui.multiplot_keys_dropdown.options = ["ocean.1mon"]
+    ui.multiplot_keys_dropdown.value = "ocean.1mon"
+
+    assert ui._years_files_summary("ocean.1mon", 10, False) == ""
+    assert ui.multiplot_years_files_text.value == ""

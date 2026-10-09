@@ -109,6 +109,10 @@ class UserInterface:
 
         # Import panel extensions
         pn.extension()
+        self.session_start_widget_container = pn.Card(
+            **self._STYLES.get("widget_container"),
+            title="Start a model diagnostics session",
+        )
 
         self.user_widget_container = pn.Card(
             **self._STYLES.get("widget_container"), title="Load and plot user data"
@@ -124,6 +128,29 @@ class UserInterface:
         self.analysis_widget_container = pn.Card(
             **self._STYLES.get("widget_container"),
             title="Run analysis recipes",
+        )
+        # Build initial session start widgets
+        self.live_model_path = pn.widgets.TextInput(
+            name="Path to model output directory/files on Gadi",
+            placeholder="Enter path here, or leave blank to only view reference models",
+            width=500,
+        )
+        self.model_type_dropdown = pn.widgets.Select(
+            name="Select model type",
+            options=["CM2", "CM3", "ESM15", "ESM16", "MOM6", "OM2", "OM3"],
+            value="OM2",
+        )
+        self.start_session_button = pn.widgets.Button(
+            name="Start Session", **self._STYLES.get("green_button")
+        )
+        self.end_session_button = pn.widgets.Button(
+            name="End Session", disabled=True, **self._STYLES.get("danger_button")
+        )
+        self.session_status_textbox = pn.widgets.StaticText(
+            **self._STYLES.get("status_text")
+        )
+        self.session_warning_textbox = pn.widgets.StaticText(
+            **self._STYLES.get("warning_text")
         )
 
         # Build initial panel text widgets
@@ -542,19 +569,70 @@ class UserInterface:
 
         self._analysis_plot_data_button_click()
 
-    def _initialise_widgets(self):
-        self._initialise_user_widgets()
-        self._initialise_ref_widgets()
-        self._initialise_multiplot_widgets()
-        self._initialise_analysis_widgets()
-        main_ui = pn.Column(
+    def _start_session_ui(self):
+        """
+        Start the model diagnostics session and display the initial UI.
+        """
+        self.session_start_ui_row = pn.Row(
+            self.live_model_path,
+            self.model_type_dropdown,
+            self.start_session_button,
+            self.end_session_button,
+        )
+        controller.update_textbox_text(
+            self.session_status_textbox,
+            "Session status >> Enter a model output path and type to start",
+        )
+        self.session_start_widget_container.collapsed = False
+        self.session_start_widget_container.extend(
+            [
+                self.session_status_textbox,
+                self.session_warning_textbox,
+                self.session_start_ui_row,
+            ]
+        )
+        self.main_ui = pn.Column(
+            self.session_start_widget_container, styles={"gap": "15px"}
+        )
+        display(self.main_ui)
+
+    def _reset_session_ui(self):
+        """
+        Remove the session cards after a failed start, so the start can be retried.
+        """
+        for container in (
             self.user_widget_container,
             self.ref_widget_container,
             self.multiplot_widget_container,
             self.analysis_widget_container,
-            styles={"gap": "15px"},
-        )
-        display(main_ui)
+        ):
+            container.clear()
+        self.main_ui.objects = [self.session_start_widget_container]
+        self.session_start_widget_container.collapsed = False
+
+    def _initialise_widgets(self, reference_only=False):
+        """
+        Build the session cards and add them to the UI.
+
+        Parameters
+        ----------
+        reference_only : bool, optional
+            If True, only show the reference model card (no model output path given).
+        """
+        # Initialise every card, so later code doesn't hit missing attributes
+        self._initialise_user_widgets()
+        self._initialise_ref_widgets()
+        self._initialise_multiplot_widgets()
+        self._initialise_analysis_widgets()
+        self.session_start_widget_container.collapsed = True
+        if reference_only:
+            self.main_ui.append(self.ref_widget_container)
+            self.ref_widget_container.collapsed = False
+            return
+        self.main_ui.append(self.user_widget_container)
+        self.main_ui.append(self.ref_widget_container)
+        self.main_ui.append(self.multiplot_widget_container)
+        self.main_ui.append(self.analysis_widget_container)
 
     def _initialise_user_widgets(self):
         """
@@ -794,6 +872,10 @@ class UserInterface:
         self.ref_model_info_button.disabled = False
         self.ref_keys_dropdown.options = sorted(self.access_nri_cat.keys())
         self.ref_keys_dropdown.disabled = False
+
+        # No user catalog in a reference-only session, so the overlay and analysis cards stay disabled
+        if model_cat is None:
+            return
 
         controller.update_textbox_text(
             self.multiplot_status_textbox,
@@ -2273,8 +2355,9 @@ class UserInterface:
         Describe how many files and which years a selection would load, or "" if unknown.
         """
         # Keys that aren't catalog entries (e.g. "Waiting for model to load") have nothing to count, so check the type first
+        # model_cat is None after a reference-only session
         if (
-            not hasattr(self, "model_cat")
+            getattr(self, "model_cat", None) is None
             or not isinstance(key, str)
             or key not in self.model_cat
         ):

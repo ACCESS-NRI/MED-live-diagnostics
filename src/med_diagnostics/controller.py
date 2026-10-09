@@ -1,4 +1,5 @@
 import datetime
+import os
 from collections import Counter
 
 import hvplot.xarray  # noqa: F401 Ruff keeps removing this even though it is required for animations
@@ -22,6 +23,36 @@ def update_textbox_text(textbox_obj, text):
     it with the defined text value.
     """
     textbox_obj.value = str(text)
+
+
+def validate_model_path(model_path):
+    """
+    Check the model output path can be catalogued before starting a session.
+
+    Parameters
+    ----------
+    model_path : str
+        Path to model output directory/files on Gadi.
+
+    Returns
+    ----------
+    str or None
+        Warning message if the path is unusable, otherwise None.
+    """
+    # An empty path would make the catalog builder scan the working directory
+    if not model_path:
+        return "Warning >> Enter the path to your model output"
+    if not os.path.exists(model_path):
+        return (
+            f"Warning >> Path not found: {model_path}. "
+            "If it exists, check your ARE session's storage flags include its project"
+        )
+    if not os.access(model_path, os.R_OK):
+        return (
+            f"Warning >> No read permission for {model_path}. "
+            "Check you are a member of its NCI project"
+        )
+    return None
 
 
 def get_current_time():
