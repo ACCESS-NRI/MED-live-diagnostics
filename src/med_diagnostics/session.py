@@ -21,6 +21,8 @@ class CreateModelDiagnosticsSession:
         self.ui.start_session_button.on_click(self._session_start_button_click)
         self.ui.refresh_catalog_button.on_click(self._refresh_catalog)
 
+        self.ui._start_session_ui()
+
     def _start_session(self, model_type, model_path):
         """
         Initialise a CreateModelDiagnosticsSession instance to start a model diagnostics session.
