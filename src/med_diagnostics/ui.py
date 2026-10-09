@@ -565,22 +565,23 @@ class UserInterface:
         self.session_start_ui_row = pn.Row(
             self.live_model_path, self.model_type_dropdown, self.start_session_button
         )
+        self.session_start_widget_container.collapsed = False
         self.session_start_widget_container.append(self.session_start_ui_row)
-        display(self.session_start_widget_container)
+        self.main_ui = pn.Column(
+            self.session_start_widget_container, styles={"gap": "15px"}
+        )
+        display(self.main_ui)
 
     def _initialise_widgets(self):
         self._initialise_user_widgets()
         self._initialise_ref_widgets()
         self._initialise_multiplot_widgets()
         self._initialise_analysis_widgets()
-        main_ui = pn.Column(
-            self.user_widget_container,
-            self.ref_widget_container,
-            self.multiplot_widget_container,
-            self.analysis_widget_container,
-            styles={"gap": "15px"},
-        )
-        display(main_ui)
+        self.session_start_widget_container.collapsed = True
+        self.main_ui.append(self.user_widget_container)
+        self.main_ui.append(self.ref_widget_container)
+        self.main_ui.append(self.multiplot_widget_container)
+        self.main_ui.append(self.analysis_widget_container)
 
     def _initialise_user_widgets(self):
         """
