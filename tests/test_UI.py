@@ -3763,6 +3763,33 @@ def test_analysis_select_recipe_button_click(ui, monkeypatch):
     mock_display_analysis_recipe_options_ui.assert_called_once()
 
 
+def test_start_session_ui(uninitialised_ui):
+    """Tests the start card shows the session inputs, with End disabled until a session starts."""
+    ui = uninitialised_ui
+    ui._start_session_ui()
+
+    assert ui.session_start_ui_row.objects == [
+        ui.live_model_path,
+        ui.model_type_dropdown,
+        ui.start_session_button,
+        ui.end_session_button,
+    ]
+    assert ui.session_start_widget_container.objects == [
+        ui.session_status_textbox,
+        ui.session_warning_textbox,
+        ui.session_start_ui_row,
+    ]
+    assert ui.session_start_widget_container.collapsed is False
+    assert ui.main_ui.objects == [ui.session_start_widget_container]
+    assert ui.start_session_button.disabled is False
+    assert ui.end_session_button.disabled is True
+    assert (
+        ui.session_status_textbox.value
+        == "Session status >> Enter a model output path and type to start"
+    )
+    assert not ui.session_warning_textbox.value
+
+
 def test_reset_session_ui_allows_retry(uninitialised_ui):
     """Tests a failed start can be retried without duplicating the session cards."""
     ui = uninitialised_ui

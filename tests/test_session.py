@@ -211,6 +211,8 @@ def test_session_start_click_failure_cleans_up(mock_session_deps):
     mock_client, mock_ui, mock_data, mock_controller = mock_session_deps
     mock_controller.validate_model_path.return_value = None
     mock_data._build_new_catalog.side_effect = OSError("no assets found")
+    # Disabled until a session starts, so a failed start must leave it disabled
+    mock_ui.end_session_button.disabled = True
 
     session = _click_start(mock_ui, "/mock/path")
 
@@ -218,9 +220,43 @@ def test_session_start_click_failure_cleans_up(mock_session_deps):
     assert session.client is None
     assert session.cluster is None
     mock_ui._reset_session_ui.assert_called_once()
-    assert mock_ui.end_session_button.disabled is not False
+    assert mock_ui.end_session_button.disabled is True
     mock_controller.update_textbox_text.assert_called_with(
         mock_ui.session_warning_textbox,
         "Warning >> Session failed to start: no assets found",
     )
     assert mock_ui.start_session_button.disabled is False
+
+
+def test_start_session_creates_dask_cluster(mock_session_deps, monkeypatch):
+    """Tests the session owns a single-threaded cluster so its workers can be shut down."""
+    mock_cluster_class = MagicMock()
+    mock_client_class = MagicMock()
+    monkeypatch.setattr("med_diagnostics.session.LocalCluster", mock_cluster_class)
+    monkeypatch.setattr("med_diagnostics.session.Client", mock_client_class)
+
+    session = CreateModelDiagnosticsSession()
+    session._start_session(model_type="CM2", model_path="/mock/path")
+
+    mock_cluster_class.assert_called_once_with(threads_per_worker=1)
+    mock_client_class.assert_called_once_with(mock_cluster_class.return_value)
+    assert session.cluster is mock_cluster_class.return_value
+    assert session.client is mock_client_class.return_value
+
+
+def test_init_wires_session_buttons(mock_session_deps):
+    """Tests the no-arg constructor wires the buttons and shows the start UI."""
+    _, mock_ui, _, _ = mock_session_deps
+
+    session = CreateModelDiagnosticsSession()
+
+    mock_ui.start_session_button.on_click.assert_called_once_with(
+        session._session_start_button_click
+    )
+    mock_ui.end_session_button.on_click.assert_called_once_with(
+        session._session_end_button_click
+    )
+    mock_ui.refresh_catalog_button.on_click.assert_called_once_with(
+        session._refresh_catalog
+    )
+    mock_ui._start_session_ui.assert_called_once_with()
