@@ -111,10 +111,10 @@ class MultiplotHeatmap(PlotType):
     Attributes
     ----------
     value : str
-        The string representation of the plot type, defaults to "Heatmap (grid)".
+        The string representation of the plot type, defaults to "Heatmap".
     """
 
-    value = "Heatmap (grid)"
+    value = "Heatmap"
 
 
 @dataclass
