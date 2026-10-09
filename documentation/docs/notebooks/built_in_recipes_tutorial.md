@@ -1,6 +1,6 @@
 # Built-in Analysis Recipes
 
-MLD comes with a set of built-in analysis recipes. They appear in the "Select analysis recipe" dropdown of the **Run analysis recipes** section for every user, without needing to be registered. This page describes what each recipe does, which data it expects, and the options it offers. For how to run a recipe, see [Running Analysis Recipes](getting_started_tutorial.md#34-running-analysis-recipes-optional) in the Getting started tutorial.
+MLD comes with a set of built-in analysis recipes. They appear in the "Select analysis recipe" dropdown of the **Run analysis recipes** section for every user, without needing to be registered. This page describes what each recipe does, which data it expects, and the options it offers. For how to run a recipe, see [Running Analysis Recipes](getting_started_tutorial.md#43-running-analysis-recipes-optional) in the Getting started tutorial.
 
 | Dropdown label | Function | Plots | Targets |
 | :--- | :--- | :--- | :--- |

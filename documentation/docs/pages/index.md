@@ -17,6 +17,7 @@ A session opens an interactive interface in your notebook with four collapsible 
 
 You can also:
 
+- **Explore reference models without a run of your own**, by leaving the model output path blank when starting a session. Only the reference models section is shown, which is a good way to learn the plotting controls (see [Getting started](../notebooks/getting_started_tutorial.md)).
 - **Choose how many years to load** (most recent, first, or all years) to keep load times and memory use down.
 - **Write your own analysis recipes**, with their own options, plot customisations, and suites of plots, and have them appear in the interface. See [Adding custom analyses](../notebooks/adding_custom_analyses.md).
 - **Work with the data directly** in Python, for example by retrieving the catalogue or a loaded dataset. See [Advanced usage](../notebooks/advanced_usage.md).
@@ -67,3 +68,7 @@ The package is pre-installed in the ACCESS-NRI MED conda environment. Alternativ
     ```bash
     pip install med-diagnostics
     ```
+
+---
+
+[Next: Tutorials :material-arrow-right:](tutorials/index.md){ .md-button }

@@ -25,6 +25,7 @@ edit_uri: edit/main/documentation/docs
 nav:
   - Home: pages/index.md
   - Tutorials:
+    - pages/tutorials/index.md
     - Getting started: notebooks/getting_started_tutorial.md
     - Advanced usage: notebooks/advanced_usage.md
     - Adding custom analyses: notebooks/adding_custom_analyses.md

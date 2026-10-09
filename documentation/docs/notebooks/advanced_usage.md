@@ -3,29 +3,13 @@
 To get started with model live diagnostics, please see the [getting started tutorial](getting_started_tutorial.md). The following guide provides further information about the options available within the package.
 
 ### 1. Create live model session
-- `model_type`: str (Type of ACCESS model, case-insensitive. Use one of the following):
-    - CM2
-    - CM3
-    - OM2
-    - OM3
-    - ESM15
-    - ESM16
-    - MOM6
-- `model_path`: str (Path to model output directory/files on Gadi.)
+`CreateModelDiagnosticsSession()` takes no arguments. It shows a start section where you enter the model output path and model type, then click "Start Session" (see the [getting started tutorial](getting_started_tutorial.md#2-create-live-model-session)). The path is optional: leave it blank to start a session with reference models only. In that case no user catalogue is built, only the **Load and plot reference models** section is shown, and `session.return_model_data_catalog()` returns `None`.
 
-Creating a `CreateModelDiagnosticsSession()` instance triggers the following tasks in the background:
+Starting a session triggers the following tasks in the background:
 
-- Start a local `dask` cluster (`distributed.Client(threads_per_worker=1)`), which is used to load the model data. Its dashboard address is printed in the session summary and can be added to the 'Dask Dashboard URL' in the JupyterLab left panel to monitor data retrieval.
-- Retrieve the most up-to-date nominated model data and build a new ESM datastore, using the [ACCESS-NRI intake catalog](https://github.com/ACCESS-NRI/access-nri-intake-catalog.git). N.B. This is saved as a compressed *.csv in the notebook's working directory. If a catalog already exists within the notebook's working directory, and is valid and up to date, the datastore is not overwritten. 
-- Initialises the [HoloViz Panel](https://panel.holoviz.org/) widget, and creates the <span style="color:orange">orange</span> 'catalog', <span style="color:lightblue">blue</span> 'status', and <span style="color:darkred">red</span> 'warning' information boxes.
-
-```python
-import med_diagnostics
-
-session = med_diagnostics.session.CreateModelDiagnosticsSession(
-    model_type="OM2", model_path="path/to/your/live/model/data/output"
-)
-```
+- Start a local `dask` cluster (`distributed.LocalCluster(threads_per_worker=1)`) and client, which are used to load the model data. The dashboard address is printed in the session summary and can be added to the 'Dask Dashboard URL' in the JupyterLab left panel to monitor data retrieval.
+- If a model output path was entered, retrieve the most up-to-date nominated model data and build a new ESM datastore, using the [ACCESS-NRI intake catalog](https://github.com/ACCESS-NRI/access-nri-intake-catalog.git). N.B. This is saved as a compressed *.csv in the notebook's working directory. If a catalog already exists within the notebook's working directory, and is valid and up to date, the datastore is not overwritten. 
+- Initialise the [HoloViz Panel](https://panel.holoviz.org/) widget, and create the <span style="color:orange">catalog</span>, <span style="color:lightblue">status</span>, and <span style="color:darkred">warning</span> information boxes.
 
 ![Model Live Diagnostics widget on startup](/assets/notebooks/AdvUsage_Widget_startup.png)
 
@@ -68,14 +52,14 @@ Please see the [Adding custom analyses](adding_custom_analyses.md) tutorial to s
 ### 4. Session Management
 To free up compute resources on Gadi, it is best practice to close the Dask client when you have finished your analysis.
 
-- This safely closes the Dask client and clears all four sections of the interface to end the current `CreateModelDiagnosticsSession` instance.
+- This safely closes the Dask client and cluster and removes the session's sections of the interface, ending the current session. It does the same as the "End Session" button. You can then start a new session from the start section without creating a new `CreateModelDiagnosticsSession` instance.
 
 ```python
 session.end_session()
 ```
 
 ### 5. Troubleshooting and UI Warnings
-The interface features built-in error handling to prevent crashes from invalid visualisations or missing data. When an issue occurs or the interface automates a step, a <span style="color:darkred">red</span> warning bar will appear at the top of the UI. 
+The interface features built-in error handling to prevent crashes from invalid visualisations or missing data. When an issue occurs or the interface automates a step, a <span style="color:darkred">warning</span> bar will appear at the top of the UI. 
 
 Common triggers for these warnings include:
 
@@ -87,4 +71,4 @@ Common triggers for these warnings include:
 
 -   **Analysis Recipe Failures** If a predefined recipe has an invalid configuration passed to it, or if there is an error in a user defined recipe, details will appear in the warning textbox in the analysis section.
  
-If a plot fails to generate, review the red warning bar and adjust your dropdown selections accordingly. The warning message will clear automatically once a valid plot is successfully generated.
+If a plot fails to generate, review the <span style="color:darkred">warning</span> bar and adjust your dropdown selections accordingly. The warning message will clear automatically once a valid plot is successfully generated.
