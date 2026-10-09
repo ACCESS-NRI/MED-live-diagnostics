@@ -2355,8 +2355,9 @@ class UserInterface:
         Describe how many files and which years a selection would load, or "" if unknown.
         """
         # Keys that aren't catalog entries (e.g. "Waiting for model to load") have nothing to count, so check the type first
+        # model_cat is None after a reference-only session
         if (
-            not hasattr(self, "model_cat")
+            getattr(self, "model_cat", None) is None
             or not isinstance(key, str)
             or key not in self.model_cat
         ):

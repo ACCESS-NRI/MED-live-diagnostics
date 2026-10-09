@@ -3921,3 +3921,23 @@ def test_reset_reference_only_session_then_full_session(uninitialised_ui):
         ui.multiplot_widget_container,
         ui.analysis_widget_container,
     ]
+
+
+def test_restart_after_reference_only_session(uninitialised_ui):
+    """Tests starting a full session after a reference-only one doesn't crash the years text.
+
+    A reference-only session leaves model_cat as None, and redrawing the cards on
+    restart changes the dataset dropdowns, which updates the years text.
+    """
+    ui = uninitialised_ui
+    ui._start_session_ui()
+    ui._initialise_widgets(reference_only=True)
+    ui._enable_widgets_after_catalog_load(None, {"model": None})
+
+    ui._reset_session_ui()
+    ui._initialise_widgets()
+    ui.multiplot_keys_dropdown.options = ["ocean.1mon"]
+    ui.multiplot_keys_dropdown.value = "ocean.1mon"
+
+    assert ui._years_files_summary("ocean.1mon", 10, False) == ""
+    assert ui.multiplot_years_files_text.value == ""
