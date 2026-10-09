@@ -519,7 +519,7 @@ def test_plot_data_button_click(
     ui._plot_data_button_click()
 
     # Verify that UI buttons and status text labels are updated appropriately
-    assert ui.plot_button.name == "Add Plot"
+    assert ui.plot_button.name == "Add Updated Plot"
     assert (
         ui.select_variable_button.name
         == "Add new plot with different variable/ plot type"
@@ -540,8 +540,6 @@ def test_plot_data_button_click(
 
     # Verify that plot choices and slice UI components are removed from the widget container
     assert not hasattr(ui, "plot_choices_row")
-    assert not hasattr(ui, "slice_ui_row")
-    assert not hasattr(ui, "slice_widgets")
 
 
 @pytest.mark.parametrize(
@@ -593,7 +591,7 @@ def test_plot_ref_data_button_click(
     ui._ref_plot_data_button_click()
 
     # Verify that reference UI buttons and status text labels are updated appropriately
-    assert ui.ref_plot_button.name == "Add Plot"
+    assert ui.ref_plot_button.name == "Add Updated Plot"
     assert (
         ui.ref_select_variable_button.name
         == "Add new plot with different variable/ plot type"
@@ -616,8 +614,6 @@ def test_plot_ref_data_button_click(
 
     # Verify that reference plot choices and slice UI components are removed from the widget container
     assert not hasattr(ui, "ref_plot_choices_row")
-    assert not hasattr(ui, "ref_slice_ui_row")
-    assert not hasattr(ui, "ref_slice_widgets")
 
 
 @pytest.mark.parametrize(
@@ -733,8 +729,6 @@ def test_plot_multiplot_data_button_click(
 
     # Verify that multiplot choices and slice UI components are removed from the widget container
     assert not hasattr(ui, "multiplot_plot_choices_row")
-    assert not hasattr(ui, "multiplot_slice_ui_row")
-    assert not hasattr(ui, "multiplot_slice_widgets")
 
 
 def test_display_dataset_plot_ui(ui):
@@ -833,6 +827,9 @@ def test_display_plot_choices_ui(
     ui.dataset = xr.Dataset({"data": data_array})
 
     ui.plot_variable_dropdown.value = "data"
+    ui.plot_choices_row = MagicMock()
+    ui.slice_widgets = MagicMock()
+    ui.slice_ui_row = MagicMock()
 
     # Mock the plot button click handler to prevent automated callback execution during testing
     mock_plot_data_button_click = MagicMock()
@@ -911,6 +908,10 @@ def test_display_plot_choices_ui(
             assert ui.animation_axis_dropdown.name == "Select Z-Axis dimension"
             assert len(ui.plot_choices_row) == 4  # x, y, z, button
 
+    assert not hasattr(ui.user_widget_container, "plot_choices_row")
+    assert not hasattr(ui.user_widget_container, "slice_widgets")
+    assert not hasattr(ui.user_widget_container, "slice_ui_row")
+
 
 @pytest.mark.parametrize(
     "plot_type, dim_dict, has_existing_row, has_plot_ui, expected_outcome",
@@ -943,6 +944,10 @@ def test_ref_display_plot_choices_ui(
     ui.ref_dataset = xr.Dataset({"data": data_array})
     ui.ref_variable_toggle.value = False
     ui.ref_plot_variable_dropdown.value = "data"
+
+    ui.ref_plot_choices_row = MagicMock()
+    ui.ref_slice_widgets = MagicMock()
+    ui.ref_slice_ui_row = MagicMock()
 
     # Mock the reference plot button click handler to prevent automated callback execution during testing
     mock_ref_plot_data_button_click = MagicMock()
@@ -1026,6 +1031,9 @@ def test_ref_display_plot_choices_ui(
             assert ui.ref_y_axis_dropdown.name == "Select Y-Axis dimension"
             assert ui.ref_animation_axis_dropdown.name == "Select Z-Axis dimension"
             assert len(ui.ref_plot_choices_row) == 4  # x, y, z, button
+    assert not hasattr(ui.ref_widget_container, "ref_plot_choices_row")
+    assert not hasattr(ui.ref_widget_container, "ref_slice_widgets")
+    assert not hasattr(ui.ref_widget_container, "ref_slice_ui_row")
 
 
 def test_update_dataset_plot_ui(ui):
@@ -1078,10 +1086,14 @@ def test_prompt_bounds_ui(ui, ui_row):
     # Clear the widget container and conditionally append mock multiplot UI rows based on parameters
     ui.multiplot_widget_container.clear()
     if ui_row == "multiplot_slice_ui_row":
-        ui.multiplot_slice_ui_row = pn.Row(pn.pane.Markdown("something"))
+        ui.multiplot_slice_ui_row = pn.Row(
+            pn.pane.Markdown("something"), ui.multiplot_plot_button
+        )
         ui.multiplot_widget_container.append(ui.multiplot_slice_ui_row)
     elif ui_row == "multiplot_plot_choices_row":
-        ui.multiplot_plot_choices_row = pn.Row(pn.pane.Markdown("something"))
+        ui.multiplot_plot_choices_row = pn.Row(
+            pn.pane.Markdown("something"), ui.multiplot_plot_button
+        )
         ui.multiplot_widget_container.append(ui.multiplot_plot_choices_row)
     elif ui_row == "multiplot_type_selection_row":
         ui.multiplot_type_selection_row = pn.Row(pn.pane.Markdown("something"))
@@ -1105,11 +1117,15 @@ def test_prompt_bounds_ui(ui, ui_row):
             ui.multiplot_widget_container.index(ui.prompt_bounds_row)
             == ui.multiplot_widget_container.index(ui.multiplot_slice_ui_row) + 1
         )
+        # Verify the plot button is removed from the slice row so only the bounds plot button shows
+        assert ui.multiplot_plot_button not in ui.multiplot_slice_ui_row
     elif ui_row == "multiplot_plot_choices_row":
         assert (
             ui.multiplot_widget_container.index(ui.prompt_bounds_row)
             == ui.multiplot_widget_container.index(ui.multiplot_plot_choices_row) + 1
         )
+        # Verify the plot button is removed from the plot choices row so only the bounds plot button shows
+        assert ui.multiplot_plot_button not in ui.multiplot_plot_choices_row
     elif ui_row == "multiplot_type_selection_row":
         assert (
             ui.multiplot_widget_container.index(ui.prompt_bounds_row)
@@ -2075,11 +2091,14 @@ def test_check_slice(
 
     # Mock all necessary UI components
     ui.plot_button = MagicMock()
+    ui.plot_choices_row = MagicMock()
     ui.status_textbox = MagicMock()
     ui.ref_plot_button = MagicMock()
     ui.ref_status_textbox = MagicMock()
+    ui.ref_plot_choices_row = MagicMock()
     ui.multiplot_plot_button = MagicMock()
     ui.multiplot_status_textbox = MagicMock()
+    ui.multiplot_plot_choices_row = MagicMock()
 
     # Mock round_slice_val to simply return a string version of the input
     mock_round_slice = MagicMock(side_effect=lambda x: f"round_{x}")
@@ -2133,7 +2152,7 @@ def test_check_slice(
 
     # Verify the layout row was built
     assert isinstance(ui_row, pn.Row)
-    assert len(ui_row) == len(expected_dims)
+    assert len(ui_row) == len(expected_dims) + 1  # +1 for the plot button
 
     # Verify layout integration
     mock_safe_add.assert_called_once_with(
@@ -2318,6 +2337,11 @@ def test_display_multiplot_plot_choices_ui(
     ui.multiplot_warning_textbox = MagicMock()
     ui.multiplot_ref_dataset_dict = {}
 
+    ui.multiplot_plot_choices_row = MagicMock()
+    ui.multiplot_slice_widgets = MagicMock()
+    ui.multiplot_slice_ui_row = MagicMock()
+    ui.prompt_bounds_row = MagicMock()
+
     mock_variable = "test_var"
     mock_get_variable = MagicMock(return_value=mock_variable)
     monkeypatch.setattr(ui, "_get_variable_helper", mock_get_variable)
@@ -2433,6 +2457,11 @@ def test_display_multiplot_plot_choices_ui(
             [dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"]
         )
         assert ui.multiplot_y_axis_dropdown.value == viable_dims[0]
+
+    assert not hasattr(ui.multiplot_widget_container, "multiplot_plot_choices_row")
+    assert not hasattr(ui.multiplot_widget_container, "multiplot_slice_widgets")
+    assert not hasattr(ui.multiplot_widget_container, "multiplot_slice_ui_row")
+    assert not hasattr(ui, "prompt_bounds_row")
 
 
 @pytest.mark.parametrize(
@@ -2581,6 +2610,34 @@ def test_multiplot_plot_data_button_click_line(ui, mock_multiplot_datasets):
     plot_pane = plot_group[0]
     assert isinstance(plot_pane, pn.pane.Matplotlib)
     assert isinstance(plot_pane.object, plt.Figure)
+
+    assert ui.multiplot_plot_button.name == "Update Plot"
+
+
+def test_multiplot_plot_data_button_click_readds_slice_button(
+    ui, mock_multiplot_datasets
+):
+    """Test the plot button is readded to the slice row after plotting from the bounds row."""
+    ds_user, ds_ref = mock_multiplot_datasets
+
+    ui.dataset = ds_user
+    ui.multiplot_ref_dataset_dict = {"ref_model_1": ds_ref}
+    ui.multiplot_plot_variable_dropdown.value = "salt_surface_ave"
+    ui.multiplot_x_axis_dropdown.value = "time"
+    ui.multiplot_plot_type_dropdown.value = Line()
+
+    # Slice row is shown, then the bounds row takes the plot button out of it
+    ui.multiplot_slice_ui_row = pn.Row(ui.multiplot_plot_button)
+    ui.multiplot_widget_container.append(ui.multiplot_slice_ui_row)
+    ui._prompt_bounds_ui()
+    assert ui.multiplot_plot_button not in ui.multiplot_slice_ui_row
+
+    # Plotting from the bounds row removes it and puts the plot button back
+    ui._multiplot_plot_data_button_click()
+
+    assert not hasattr(ui, "prompt_bounds_row")
+    assert list(ui.multiplot_slice_ui_row).count(ui.multiplot_plot_button) == 1
+    assert ui.multiplot_plot_button.name == "Update Plot"
 
 
 @pytest.mark.parametrize(
