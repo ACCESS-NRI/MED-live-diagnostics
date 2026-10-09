@@ -50,6 +50,7 @@ def ui():
     """Return a function-scoped UserInterface instance for testing"""
     ui = UserInterface()
     ui.access_nri_cat = {"fake": None, "catalog": None}
+    ui._start_session_ui()
     ui._initialise_widgets()
 
     # Assign the pre-cached dataset instantly instead of generating a new one
@@ -2794,6 +2795,7 @@ def test_initialise_widgets_calls_all_sub_initialisers(uninitialised_ui, monkeyp
         uninitialised_ui, "_initialise_multiplot_widgets", mock_multiplot
     )
 
+    uninitialised_ui._start_session_ui()
     uninitialised_ui._initialise_widgets()
 
     mock_user.assert_called_once_with()
@@ -3759,3 +3761,28 @@ def test_analysis_select_recipe_button_click(ui, monkeypatch):
     ui._analysis_select_recipe_button_click(None)
 
     mock_display_analysis_recipe_options_ui.assert_called_once()
+
+
+def test_reset_session_ui_allows_retry(uninitialised_ui):
+    """Tests a failed start can be retried without duplicating the session cards."""
+    ui = uninitialised_ui
+    ui._start_session_ui()
+    ui._initialise_widgets()
+    card_lengths = [
+        len(ui.user_widget_container),
+        len(ui.analysis_widget_container),
+    ]
+
+    ui._reset_session_ui()
+
+    assert ui.main_ui.objects == [ui.session_start_widget_container]
+    assert ui.session_start_widget_container.collapsed is False
+    assert len(ui.user_widget_container) == 0
+
+    ui._initialise_widgets()
+
+    assert len(ui.main_ui) == 5
+    assert [
+        len(ui.user_widget_container),
+        len(ui.analysis_widget_container),
+    ] == card_lengths

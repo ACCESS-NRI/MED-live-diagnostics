@@ -130,3 +130,58 @@ def test_return_loaded_dataset(mock_session_deps):
     dataset_return = session.return_loaded_dataset()
 
     assert dataset_return == dataset
+
+
+def _click_start(mock_ui, model_path, model_type="CM2"):
+    """Set the start session inputs and click the button."""
+    mock_ui.live_model_path.value = model_path
+    mock_ui.model_type_dropdown.value = model_type
+    session = CreateModelDiagnosticsSession()
+    session._session_start_button_click(None)
+    return session
+
+
+def test_session_start_click_starts_session(mock_session_deps):
+    """Tests a valid path is tidied and starts the session."""
+    _, mock_ui, mock_data, mock_controller = mock_session_deps
+    mock_controller.validate_model_path.return_value = None
+
+    _click_start(mock_ui, "  /mock/path\n")
+
+    mock_controller.validate_model_path.assert_called_once_with("/mock/path")
+    mock_data._build_new_catalog.assert_called_once_with("/mock/path", "cm2")
+    mock_ui._reset_session_ui.assert_not_called()
+    assert mock_ui.start_session_button.disabled is True
+
+
+def test_session_start_click_invalid_path(mock_session_deps):
+    """Tests an invalid path shows a warning without starting dask."""
+    _, mock_ui, mock_data, mock_controller = mock_session_deps
+    mock_controller.validate_model_path.return_value = "Warning >> Path not found"
+
+    session = _click_start(mock_ui, "/bad/path")
+
+    assert not hasattr(session, "client")
+    mock_data._build_new_catalog.assert_not_called()
+    mock_controller.update_textbox_text.assert_called_with(
+        mock_ui.session_warning_textbox, "Warning >> Path not found"
+    )
+    assert mock_ui.start_session_button.disabled is False
+
+
+def test_session_start_click_failure_cleans_up(mock_session_deps):
+    """Tests a failed catalog build closes dask and resets the UI for a retry."""
+    mock_client, mock_ui, mock_data, mock_controller = mock_session_deps
+    mock_controller.validate_model_path.return_value = None
+    mock_data._build_new_catalog.side_effect = OSError("no assets found")
+
+    session = _click_start(mock_ui, "/mock/path")
+
+    mock_client.close.assert_called_once()
+    assert session.client is None
+    mock_ui._reset_session_ui.assert_called_once()
+    mock_controller.update_textbox_text.assert_called_with(
+        mock_ui.session_warning_textbox,
+        "Warning >> Session failed to start: no assets found",
+    )
+    assert mock_ui.start_session_button.disabled is False

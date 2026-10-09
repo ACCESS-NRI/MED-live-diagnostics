@@ -3,6 +3,8 @@
 
 """Session class functions for med-diagnostics live diagnostics"""
 
+import os
+
 from distributed import Client
 
 from med_diagnostics import controller, data, ui
@@ -148,8 +150,41 @@ class CreateModelDiagnosticsSession:
         return self.ui.dataset
 
     def _session_start_button_click(self, event):
-        """Event wrapper for the session start button click."""
+        """
+        Event wrapper for the session start button click.
 
-        self._start_session(
-            self.ui.model_type_dropdown.value, self.ui.live_model_path.value
+        Errors are shown in the UI, as Panel does not show errors raised in callbacks.
+        """
+        # Disable straight away so a double click can't start two sessions
+        self.ui.start_session_button.disabled = True
+        controller.update_textbox_text(self.ui.session_warning_textbox, "")
+
+        model_path = os.path.expanduser(self.ui.live_model_path.value.strip())
+        warning = controller.validate_model_path(model_path)
+        if warning:
+            controller.update_textbox_text(self.ui.session_warning_textbox, warning)
+            self.ui.start_session_button.disabled = False
+            return
+
+        controller.update_textbox_text(
+            self.ui.session_status_textbox,
+            "User model status >> Starting session and building model data catalog. This can take a few minutes...",
+        )
+        try:
+            self._start_session(self.ui.model_type_dropdown.value, model_path)
+        except Exception as e:  # noqa: BLE001
+            if getattr(self, "client", None):
+                self.client.close()
+                self.client = None
+            self.ui._reset_session_ui()
+            controller.update_textbox_text(self.ui.session_status_textbox, "")
+            controller.update_textbox_text(
+                self.ui.session_warning_textbox,
+                f"Warning >> Session failed to start: {e}",
+            )
+            self.ui.start_session_button.disabled = False
+            return
+
+        controller.update_textbox_text(
+            self.ui.session_status_textbox, "User model status >> Session started"
         )

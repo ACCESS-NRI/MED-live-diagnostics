@@ -137,9 +137,16 @@ class UserInterface:
         self.model_type_dropdown = pn.widgets.Select(
             name="Select model type",
             options=["CM2", "CM3", "ESM15", "ESM16", "MOM6", "OM2", "OM3"],
+            value="OM2",
         )
         self.start_session_button = pn.widgets.Button(
             name="Start Session", **self._STYLES.get("green_button")
+        )
+        self.session_status_textbox = pn.widgets.StaticText(
+            **self._STYLES.get("status_text")
+        )
+        self.session_warning_textbox = pn.widgets.StaticText(
+            **self._STYLES.get("warning_text")
         )
 
         # Build initial panel text widgets
@@ -566,11 +573,31 @@ class UserInterface:
             self.live_model_path, self.model_type_dropdown, self.start_session_button
         )
         self.session_start_widget_container.collapsed = False
-        self.session_start_widget_container.append(self.session_start_ui_row)
+        self.session_start_widget_container.extend(
+            [
+                self.session_status_textbox,
+                self.session_warning_textbox,
+                self.session_start_ui_row,
+            ]
+        )
         self.main_ui = pn.Column(
             self.session_start_widget_container, styles={"gap": "15px"}
         )
         display(self.main_ui)
+
+    def _reset_session_ui(self):
+        """
+        Remove the session cards after a failed start, so the start can be retried.
+        """
+        for container in (
+            self.user_widget_container,
+            self.ref_widget_container,
+            self.multiplot_widget_container,
+            self.analysis_widget_container,
+        ):
+            container.clear()
+        self.main_ui.objects = [self.session_start_widget_container]
+        self.session_start_widget_container.collapsed = False
 
     def _initialise_widgets(self):
         self._initialise_user_widgets()

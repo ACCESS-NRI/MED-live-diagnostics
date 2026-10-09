@@ -988,3 +988,27 @@ def test_check_dict_validity(variable, ref_dict, expected_invalid, expected_vali
 
     assert invalid == expected_invalid
     assert valid == expected_valid
+
+
+def test_validate_model_path_valid(tmp_path):
+    """Tests an existing, readable path passes."""
+    assert controller.validate_model_path(str(tmp_path)) is None
+
+
+def test_validate_model_path_empty():
+    """Tests an empty path is rejected rather than scanning the working directory."""
+    assert controller.validate_model_path("").startswith("Warning >> Enter")
+
+
+def test_validate_model_path_missing(tmp_path):
+    """Tests a missing path is rejected with a storage flag hint."""
+    warning = controller.validate_model_path(str(tmp_path / "missing"))
+    assert warning.startswith("Warning >> Path not found")
+    assert "storage flags" in warning
+
+
+def test_validate_model_path_unreadable(tmp_path, monkeypatch):
+    """Tests an unreadable path is rejected."""
+    monkeypatch.setattr(controller.os, "access", lambda path, mode: False)
+    warning = controller.validate_model_path(str(tmp_path))
+    assert warning.startswith("Warning >> No read permission")
