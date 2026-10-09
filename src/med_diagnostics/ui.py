@@ -133,6 +133,7 @@ class UserInterface:
         self.live_model_path = pn.widgets.TextInput(
             name="Path to model output directory/files on Gadi",
             placeholder="Enter path here, or leave blank to only view reference models",
+            width=500,
         )
         self.model_type_dropdown = pn.widgets.Select(
             name="Select model type",
