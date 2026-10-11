@@ -1179,8 +1179,7 @@ class UserInterface:
         if not hasattr(self, "multiplot_ref_dataset_dict"):
             self.multiplot_ref_dataset_dict = {}
 
-        # Reload a changed user dataset first, so the reference model is matched
-        # to it and not discarded by the clear that follows a reload
+        # Reload a changed user dataset before adding the reference model
         year_selection = self._get_year_selection(
             self.multiplot_years_mode, self.multiplot_years_input
         )
@@ -1370,8 +1369,6 @@ class UserInterface:
                 self.multiplot_status_textbox,
                 "Overlay plot status >> Loading new user dataset...",
             )
-            # Load through the user section so every section sharing self.dataset
-            # updates. The variable lists must come from the new dataset, after loading.
             self._keys_dropdown_click(
                 key=self.multiplot_keys_dropdown.value,
                 year_selection=self._get_year_selection(
@@ -2350,8 +2347,6 @@ class UserInterface:
         )
         controller.update_textbox_text(self.analysis_warning_textbox, "")
 
-        # Load through the user section so every section sharing self.dataset
-        # updates; this also syncs the analysis section via _sync_analysis_section
         self._keys_dropdown_click(
             key=self.analysis_keys_dropdown.value,
             year_selection=self._get_year_selection(
@@ -2371,8 +2366,7 @@ class UserInterface:
         """
         Describe how many files and which years a selection would load, or "" if unknown.
         """
-        # Keys that aren't catalog entries (e.g. "Waiting for model to load") have nothing to count, so check the type first
-        # model_cat is None after a reference-only session
+        # Placeholder keys and reference-only sessions have no files to count
         if (
             getattr(self, "model_cat", None) is None
             or not isinstance(key, str)
@@ -2577,8 +2571,6 @@ class UserInterface:
         try:
             figs = controller.plot_recipe(self.dataset, recipe, recipe_kwargs)
         except Exception as err:  # noqa: BLE001
-            # Recipes can be user-written and raise any
-            # exceptions in the notebook, so without this a failed plot is silent.
             controller.update_textbox_text(
                 self.analysis_warning_textbox,
                 f"Warning >> {type(err).__name__}: {err}",
@@ -2588,8 +2580,7 @@ class UserInterface:
             )
             return
 
-        # Each plot goes directly below the options row, so add them in reverse
-        # to keep a suite recipe's plots in the order it returned them
+        # Added in reverse to keep a suite recipe's plot order
         for fig in reversed(figs):
             plot_group = self._add_remove_btn(
                 pn.pane.Matplotlib(fig, tight=True), self.analysis_widget_container
@@ -2680,9 +2671,7 @@ class UserInterface:
 
         if hasattr(self, item_to_remove):
             component = getattr(self, item_to_remove)
-            # Identity check (rather than `in`/`==`) avoids ambiguous truth-value
-            # errors when component is an array-like object (e.g. an xarray dataset)
-            # rather than a widget.
+            # `is`, not `in`, as component can be an xarray object
             if any(component is obj for obj in widget_container):
                 widget_container.remove(component)
 

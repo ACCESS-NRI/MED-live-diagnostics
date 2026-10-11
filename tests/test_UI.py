@@ -1244,8 +1244,7 @@ def test_update_multiplot_dataset_no_dataset_loaded(ui, monkeypatch):
     # Simulate a fresh session: nothing has been loaded via the main section yet
     del ui.dataset
 
-    # Configure mock model catalog. The main and multiplot dropdowns intentionally differ,
-    # to catch the main dropdown's (wrong) value being used instead of the multiplot dropdown's.
+    # Different from the main dropdown, to catch the wrong one being used
     ui.model_cat = {"fake": None, "catalog": None}
     ui.keys_dropdown.value = "main section option"
     ui.multiplot_keys_dropdown.value = "multiplot option"
@@ -1425,8 +1424,6 @@ def test_multiplot_ref_keys_dropdown_click(
 
     # Verify that state cleanup and status updates occur correctly when user selection changes
     if user_selection_changed:
-        # The reload happens before the reference model is added, so the add's
-        # status is the last one shown
         assert (
             ui.multiplot_status_textbox.value
             == "Overlay plot status >> Loaded reference model, add another or plot the overlay"
@@ -1452,8 +1449,6 @@ def test_ref_dataset_dropdown_click(ui, monkeypatch, row_shown):
         ui, "_ref_display_dataset_plot_ui", mock_ref_display_dataset_plot_ui
     )
 
-    # Show the variable row, and the axis and slice rows from the previous dataset.
-    # No plot has been made, so loading again must not add a second variable row
     ui.ref_figure_exists = False
     old_rows = ["ref_plot_choices_row", "ref_slice_ui_row"]
     if row_shown:
@@ -2697,7 +2692,6 @@ def test_reproduce_live_multiplot_flow(ui, mock_multiplot_datasets):
     ui.multiplot_plot_type_dropdown.value = Line()
 
     # Simulate clicking "Select variable and plot type"
-    # Ensure any preexisting row isn't present
     if hasattr(ui, "multiplot_plot_choices_row"):
         ui._safe_remove_widget_object(
             ui.multiplot_widget_container, "multiplot_plot_choices_row"
