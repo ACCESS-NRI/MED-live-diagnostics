@@ -609,6 +609,10 @@ class UserInterface:
         )
         display(self.main_ui)
 
+        self.main_ui.link(
+            pn.state, loading=pn.state.param.busy
+        )  # Lock widgets and show loading indicator when kernel is busy
+
     def _reset_session_ui(self):
         """
         Remove the session cards after a failed start, so the start can be retried.
@@ -632,6 +636,7 @@ class UserInterface:
         reference_only : bool, optional
             If True, only show the reference model card (no model output path given).
         """
+
         # Initialise every card, so later code doesn't hit missing attributes
         self._initialise_user_widgets()
         self._initialise_ref_widgets()
