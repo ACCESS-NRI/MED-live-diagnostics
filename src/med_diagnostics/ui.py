@@ -605,13 +605,11 @@ class UserInterface:
             ]
         )
         self.main_ui = pn.Column(
-            self.session_start_widget_container, styles={"gap": "15px"}
+            self.session_start_widget_container,
+            styles={"gap": "15px"},
+            loading=pn.state.param.busy,
         )
         display(self.main_ui)
-
-        self.main_ui.link(
-            pn.state, loading=pn.state.param.busy
-        )  # Lock widgets and show loading indicator when kernel is busy
 
     def _reset_session_ui(self):
         """
