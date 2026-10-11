@@ -20,9 +20,7 @@ from access_nri_intake.source.builders import (
     Mom6Builder,
 )
 
-# Model names in the ACCESS-NRI catalog for each model type. Matched exactly,
-# as substrings pick up other models (e.g. CM2 in CMCC-CM2-SR5).
-# CM3 and OM3 have no ACCESS entries yet, so use MOM6 (unconfirmed).
+# Exact ACCESS-NRI catalog model names per model type; CM3 and OM3 use MOM6 (unconfirmed)
 CATALOG_MODEL_NAMES = {
     "cm2": ["ACCESS-CM2"],
     "cm3": ["ACCESS-CM2", "MOM6"],
@@ -126,9 +124,7 @@ def _select_year_files(df, years=None, from_start=False):
     if years is None or "start_date" not in df:
         return df
 
-    # Dates are "%Y-%m-%d, %H:%M:%S" strings, or "none" for files without a
-    # time axis, which become NaN. end_date isn't used because a December
-    # file ends on 1 January of the next year, so it would count one extra year
+    # end_date isn't used, as December files end on 1 January of the next year
     start_years = pd.to_numeric(df["start_date"].astype(str).str[:4], errors="coerce")
     if start_years.isna().all():
         return df
@@ -204,14 +200,12 @@ def _build_data_object(model_cat, key, years=None, from_start=False):
     if isinstance(model_cat, AliasedESMCatalog):
         model_cat = model_cat.unwrap()
 
-    # Opening each file is the slow part of a load, so drop the files outside
-    # the chosen years before opening anything
+    # Drop files outside the chosen years before opening anything
     if years is not None:
         df = model_cat[key].df
         selected = _select_year_files(df, years, from_start)
         if len(selected) < len(df):
-            # The same subset-catalog construction intake-esm's search uses,
-            # so the key still refers to this dataset
+            # Same subset construction as intake-esm's search, so the key still matches
             model_cat = model_cat.__class__(
                 {"esmcat": model_cat.esmcat.model_dump(), "df": selected}
             )
@@ -243,8 +237,7 @@ def _load_access_nri_catalog(model_type, filter=True):
     if not filter:
         return catalog
 
-    # Filter catalog to the exact model names for this model type.
-    # An empty list gives "^()$", which matches no models.
+    # Exact model names for this model type; an empty list matches none
     names = CATALOG_MODEL_NAMES[model_type.lower()]
     pattern = "^(" + "|".join(re.escape(name) for name in names) + ")$"
     return catalog.search(model=pattern)

@@ -267,8 +267,7 @@ def variable_toggle_change(variable_toggle, variable_dropdown, dataset):
     counts = Counter(names_by_var.values())
     long_names = {}
     for var, long_name in names_by_var.items():
-        # A shared long name would hide all but one of its variables and lose
-        # the selection on toggling, so tell them apart by short name
+        # Tell variables sharing a long name apart by short name
         label = f"{long_name} ({var})" if counts[long_name] > 1 else long_name
         long_names[label] = var
 
@@ -868,8 +867,7 @@ def check_bounds(dataset, x_axis, ref_dict):
     """
     Calculate the absolute minimum and maximum x-axis bounds across all datasets.
     """
-    # Index the 0D arrays with [()] to get scalars, as 0D NumPy arrays crash
-    # Matplotlib's set_xlim
+    # [()] gives scalars, as 0D NumPy arrays crash Matplotlib's set_xlim
     dataset_min = dataset[x_axis].min().values[()]
     dataset_max = dataset[x_axis].max().values[()]
 

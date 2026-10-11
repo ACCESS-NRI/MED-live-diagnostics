@@ -635,8 +635,7 @@ def test_multiplot_check_bounds_mismatched_types():
         controller.check_bounds(ds_primary, "x", ref_dict)
     )
 
-    # Because they are incompatible, bounds should NOT be widened,
-    # and the global bounds should remain equal to the primary numeric bounds.
+    # Incompatible, so the bounds stay as the primary's
     assert result is False
     assert global_min == 0
     assert global_max == 10
@@ -690,9 +689,7 @@ def test_plot_multiplot_dataset(multiplot_datasets, monkeypatch, plot_diff):
     # Check x limits were applied
     assert ax.get_xlim() == (1, 5)
 
-    # Verify number of lines plotted
-    # No-diff: 1 (User) + 1 (Model A) + 2 (Model B mems) = 4 lines
-    # Diff: 1 (Model A diff) + 2 (Model B mems diff) + 1 (hline) = 4 lines
+    # User + A + 2 B members, or A diff + 2 B diffs + hline
     assert len(ax.lines) == 4
 
 

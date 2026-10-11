@@ -130,8 +130,7 @@ def test_build_data_object(monkeypatch, is_aliased):
     assert result == mock_dataset
 
 
-# Real model names from the ACCESS-NRI catalog (2026-10-08), including
-# non-ACCESS models that substring searches used to pick up
+# Real ACCESS-NRI model names (2026-10-08), including non-ACCESS ones
 CATALOG_MODELS = [
     "ACCESS-CM2",
     "ACCESS-ESM1-5",

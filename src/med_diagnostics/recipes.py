@@ -37,8 +37,7 @@ PREDEFINED_REGIONS = {
 # Unit strings `global_mean` converts from Kelvin to degC
 KELVIN_UNITS = {"k", "kelvin", "degk", "deg_k", "degrees_k", "degrees k"}
 
-# Reference runs for the OM3 timeseries recipes, from the access-om3-paper-1
-# timeseries notebook (https://github.com/ACCESS-Community-Hub/access-om3-paper-1/blob/main/notebooks/timeseries.ipynb)
+# Reference runs from https://github.com/ACCESS-Community-Hub/access-om3-paper-1/blob/main/notebooks/timeseries.ipynb
 OM3_TIMESERIES_REF_CATALOGS = [
     "/g/data/ol01/outputs/access-om3-25km/MC_25km_jra_iaf-1.0-beta-5165c0f8/datastore.json",
     "/g/data/ol01/outputs/access-om3-25km/MC_25km_jra_iaf+wombatlite-test3v2-00532b88/datastore.json",
@@ -181,8 +180,7 @@ def median_timestep_days(time_da):
         Median timestep length in days.
     """
     diffs = np.diff(time_da.values)
-    # cftime axes (e.g. 360_day/noleap) diff to datetime.timedelta objects
-    # rather than numpy.timedelta64, so they need separate handling
+    # cftime axes diff to datetime.timedelta, not numpy.timedelta64
     if diffs.dtype == object:
         return np.median([d.days + d.seconds / 86400 for d in diffs])
     return np.median(diffs / np.timedelta64(1, "D"))
@@ -204,9 +202,7 @@ def _rolling_window_size(time_da, target_days=150):
     int
         Window size in timesteps, clamped to ``[1, len(time_da)]``.
     """
-    # A fixed window of 5 assumes monthly data: too short for daily data and
-    # can exceed short yearly records, where bottleneck's rolling mean raises
-    # ValueError. Sizing from the real timestep avoids both.
+    # Size the window from the timestep, as a fixed window breaks on daily or short yearly data
     n = time_da.size
     if n <= 1:
         return 1
@@ -297,8 +293,7 @@ def _find_axis_dim(ds, da, axis, skip):
     str or None
         Name of the matching dimension, or None if none match.
     """
-    # Dim names differ between models (yt_ocean, yh, lat; st_ocean, z_l, lev),
-    # so match on attributes rather than names
+    # Dim names differ between models, so match on attributes
     for d in da.dims:
         if d == skip or d not in ds.coords:
             continue
@@ -418,8 +413,7 @@ def global_mean(ds, variable, dim, how="mean"):
     if how in ("max", "min"):
         return getattr(da, how)(other_dims).compute()
 
-    # Prefer the dataset's own cell measures, otherwise weight by cos(latitude)
-    # for area and by layer thickness for depth
+    # Use cell measures if present, else cos(latitude) for area and layer thickness for depth
     weights = _cell_measure(ds, da, "volume")
     if weights is None:
         weights = _cell_measure(ds, da, "area")
