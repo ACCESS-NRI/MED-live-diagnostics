@@ -1715,17 +1715,28 @@ class UserInterface:
         analysis_choice = self.multiplot_analysis_choice_dropdown.value
         fig, fig1, fig2 = None, None, None
 
-        if isinstance(analysis_choice, AllAnalysis):
-            fig1 = self._multiplot_plot_dataset_helper(plot_type=helper_plot_type)
-            fig2 = self._multiplot_plot_dataset_helper(
-                plot_diff=True, plot_type=helper_plot_type
+        try:
+            if isinstance(analysis_choice, AllAnalysis):
+                fig1 = self._multiplot_plot_dataset_helper(plot_type=helper_plot_type)
+                fig2 = self._multiplot_plot_dataset_helper(
+                    plot_diff=True, plot_type=helper_plot_type
+                )
+            elif isinstance(analysis_choice, DiffAnalysis):
+                fig = self._multiplot_plot_dataset_helper(
+                    plot_diff=True, plot_type=helper_plot_type
+                )
+            else:  # "None (plot all loaded data)"
+                fig = self._multiplot_plot_dataset_helper(plot_type=helper_plot_type)
+        except Exception as err:  # noqa: BLE001
+            # Panel only logs errors raised in callbacks, so without this a failed plot is silent
+            controller.update_textbox_text(
+                self.multiplot_warning_textbox,
+                f"Warning >> {type(err).__name__}: {err}",
             )
-        elif isinstance(analysis_choice, DiffAnalysis):
-            fig = self._multiplot_plot_dataset_helper(
-                plot_diff=True, plot_type=helper_plot_type
+            controller.update_textbox_text(
+                self.multiplot_status_textbox, "Overlay plot status >> Plot failed"
             )
-        else:  # "None (plot all loaded data)"
-            fig = self._multiplot_plot_dataset_helper(plot_type=helper_plot_type)
+            return
 
         if fig1:
             pane1 = pn.pane.Matplotlib(fig1, tight=True)
@@ -1792,12 +1803,22 @@ class UserInterface:
         fig_animated = None
 
         # Based on plot type change function that is used
-        if isinstance(plot_type_dropdown.value, Heatmap):
-            fig = self._plot_dataset_helper(is_ref=ref, plot_type=Heatmap())
-        elif isinstance(plot_type_dropdown.value, Line):
-            fig = self._plot_dataset_helper(is_ref=ref, plot_type=Line())
-        elif isinstance(plot_type_dropdown.value, Animation):
-            fig_animated = self._plot_dataset_helper(is_ref=ref, plot_type=Animation())
+        try:
+            if isinstance(plot_type_dropdown.value, Heatmap):
+                fig = self._plot_dataset_helper(is_ref=ref, plot_type=Heatmap())
+            elif isinstance(plot_type_dropdown.value, Line):
+                fig = self._plot_dataset_helper(is_ref=ref, plot_type=Line())
+            elif isinstance(plot_type_dropdown.value, Animation):
+                fig_animated = self._plot_dataset_helper(
+                    is_ref=ref, plot_type=Animation()
+                )
+        except Exception as err:  # noqa: BLE001
+            # Panel only logs errors raised in callbacks, so without this a failed plot is silent
+            controller.update_textbox_text(
+                warning_textbox, f"Warning >> {type(err).__name__}: {err}"
+            )
+            controller.update_textbox_text(textbox, f"{text_prefix} >> Plot failed")
+            return
 
         # Animations are already a pane, static figures need wrapping in one
         new_plot_pane = fig_animated or pn.pane.Matplotlib(fig, tight=True)

@@ -2627,6 +2627,65 @@ def test_multiplot_plot_data_button_click_all_analysis_modes(
     assert isinstance(ui.multiplot_widget_container[-1], pn.Column)
 
 
+@pytest.mark.parametrize(
+    "plot_click, status_box, warning_box, status_text",
+    [
+        (
+            "_plot_data_button_click",
+            "status_textbox",
+            "warning_textbox",
+            "User model status >> Plot failed",
+        ),
+        (
+            "_ref_plot_data_button_click",
+            "ref_status_textbox",
+            "ref_warning_textbox",
+            "Reference model status >> Plot failed",
+        ),
+    ],
+)
+def test_plot_data_button_click_shows_plot_error(
+    ui, monkeypatch, plot_click, status_box, warning_box, status_text
+):
+    """Test that an error while plotting reaches the warning box instead of failing silently."""
+
+    def broken_plot(is_ref, plot_type):
+        """Raise like a failed slice of the dataset would."""
+        raise KeyError("landuse")
+
+    monkeypatch.setattr(ui, "_plot_dataset_helper", broken_plot)
+    ui.plot_type_dropdown.value = Line()
+    ui.ref_plot_type_dropdown.value = Line()
+    container_length = len(ui.user_widget_container), len(ui.ref_widget_container)
+
+    getattr(ui, plot_click)()
+
+    assert getattr(ui, warning_box).value == "Warning >> KeyError: 'landuse'"
+    assert getattr(ui, status_box).value == status_text
+    # No empty plot is added
+    assert (
+        len(ui.user_widget_container),
+        len(ui.ref_widget_container),
+    ) == container_length
+
+
+def test_multiplot_plot_data_button_click_shows_plot_error(ui, monkeypatch):
+    """Test that an error while plotting the overlay reaches its warning box."""
+
+    def broken_plot(plot_diff=False, plot_type=Line):
+        """Raise like a failed slice of the dataset would."""
+        raise KeyError("landuse")
+
+    monkeypatch.setattr(ui, "_multiplot_plot_dataset_helper", broken_plot)
+    container_length = len(ui.multiplot_widget_container)
+
+    ui._multiplot_plot_data_button_click()
+
+    assert ui.multiplot_warning_textbox.value == "Warning >> KeyError: 'landuse'"
+    assert ui.multiplot_status_textbox.value == "Overlay plot status >> Plot failed"
+    assert len(ui.multiplot_widget_container) == container_length
+
+
 def test_reproduce_live_multiplot_flow(ui, mock_multiplot_datasets):
     """Simulate the exact user interaction cycle in the multiplot UI from variable selection to plot rendering."""
     ds_user, ds_ref = mock_multiplot_datasets
