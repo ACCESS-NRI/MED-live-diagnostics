@@ -1142,12 +1142,6 @@ class UserInterface:
             name=self.ref_keys_dropdown.value
         ).to_source()
 
-        # Update text box
-        controller.update_textbox_text(
-            self.ref_status_textbox,
-            "Reference model status >> Data catalog successfully loaded",
-        )
-
         if (
             hasattr(self, "ref_data_keys_selection_row")
             and self.ref_data_keys_selection_row in self.ref_widget_container
@@ -1166,6 +1160,12 @@ class UserInterface:
         else:
             # Build and display the UI for the first time
             self._display_reference_dataset_selection_ui()
+
+        # Update text box
+        controller.update_textbox_text(
+            self.ref_status_textbox,
+            "Reference model status >> Data catalog successfully loaded",
+        )
 
     def _multiplot_ref_keys_dropdown_click(self):
         """
