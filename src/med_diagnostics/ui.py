@@ -3,6 +3,7 @@
 
 """UI class and functions"""
 
+import functools
 from typing import ClassVar
 
 import panel as pn
@@ -23,6 +24,29 @@ from med_diagnostics.types import (
     Ref,
     User,
 )
+
+
+def _shows_errors(prefix):
+    """
+    Show any error a UserInterface callback raises in its section's warning box.
+
+    Parameters
+    ----------
+    prefix : str
+        Prefix of the section's textbox attributes, e.g. "ref_" for ref_warning_textbox.
+    """
+
+    def decorator(method):
+        @functools.wraps(method)
+        def wrapper(self, *args, **kwargs):
+            try:
+                return method(self, *args, **kwargs)
+            except Exception as err:  # noqa: BLE001
+                self._show_error(err, prefix)
+
+        return wrapper
+
+    return decorator
 
 
 class UserInterface:
@@ -114,6 +138,8 @@ class UserInterface:
 
         # Import panel extensions
         pn.extension()
+        # Errors from callbacks without _shows_errors go to the session warning box
+        pn.config.exception_handler = self._show_error
         self.session_start_widget_container = pn.Card(
             **self._STYLES.get("widget_container"),
             title="Start a model diagnostics session",
@@ -456,80 +482,118 @@ class UserInterface:
             ConstrainToRef.value: ConstrainToRef(),
         }
 
+    def _show_error(self, err, prefix="session_"):
+        """
+        Show an error in a section's warning box and mark its status as failed.
+
+        Parameters
+        ----------
+        err : Exception
+            The error raised.
+        prefix : str, optional
+            Prefix of the section's textbox attributes. Defaults to the session section.
+        """
+        status = getattr(self, f"{prefix}status_textbox")
+        label = status.value.split(" >> ")[0]
+        if label:
+            controller.update_textbox_text(status, f"{label} >> Failed")
+        controller.update_textbox_text(
+            getattr(self, f"{prefix}warning_textbox"),
+            f"Warning >> {type(err).__name__}: {err}",
+        )
+
+    @_shows_errors("")
     def _keys_button_click(self, event):
         """Event wrapper for the primary keys dropdown click."""
 
         self._keys_dropdown_click()
 
+    @_shows_errors("ref_")
     def _ref_keys_button_click(self, event):
         """Event wrapper for the ref keys dropdown click."""
         self._ref_keys_dropdown_click()
 
+    @_shows_errors("ref_")
     def _ref_data_keys_button_click(self, event):
         """Event wrapper for the ref keys button click."""
         self._ref_dataset_dropdown_click()
 
+    @_shows_errors("ref_")
     def _ref_model_info_button_click(self, event):
         """Event wrapper for the ref info button click."""
         self._ref_model_info_click()
 
+    @_shows_errors("ref_")
     def _ref_clear_data_button_click(self, event):
         """Event wrapper for the ref clear data button click."""
         self._ref_clear_data_click()
 
+    @_shows_errors("")
     def _plot_button_click(self, event):
         """Event wrapper for the plot data button click."""
         self._plot_if_ready_helper(section=User())
 
+    @_shows_errors("ref_")
     def _ref_plot_button_click(self, event):
         """Event wrapper for the ref plot data button click."""
         self._plot_if_ready_helper(section=Ref())
 
+    @_shows_errors("")
     def _select_dims_button_click(self, event):
         """Event wrapper for the select dimensions button click."""
         self._select_dims_helper(section=User())
 
+    @_shows_errors("ref_")
     def _ref_select_dims_button_click(self, event):
         """Event wrapper for the ref select dimensions button click."""
         self._select_dims_helper(section=Ref())
 
+    @_shows_errors("")
     def _select_variable_button_click(self, event):
         """Event wrapper for the select variable button click."""
         self._display_plot_choices_ui()
 
+    @_shows_errors("ref_")
     def _ref_select_variable_button_click(self, event):
         """Event wrapper for the ref select variable button click."""
 
         self._ref_display_plot_choices_ui()
 
+    @_shows_errors("multiplot_")
     def _multiplot_ref_keys_button_click(self, event):
         """Event wrapper for the multiplot select variable button click."""
 
         self._multiplot_ref_keys_dropdown_click()
 
+    @_shows_errors("multiplot_")
     def _multiplot_plot_button_click(self, event):
         """Event wrapper for the multiplot plot data button click."""
         self._plot_if_ready_helper(section=Multiplot())
 
+    @_shows_errors("multiplot_")
     def _multiplot_select_dims_button_click(self, event):
         """Event wrapper for the multiplot select dimensions button click."""
         self._select_dims_helper(section=Multiplot())
 
+    @_shows_errors("multiplot_")
     def _clear_multiplot_data_button_click(self, event):
         """Event wrapper for the multiplot clear data button click."""
 
         self._clear_multiplot_data()
 
+    @_shows_errors("multiplot_")
     def _multiplot_keys_update_button_click(self, event):
         """Event wrapper for the multiplot update keys button click."""
 
         self._update_multiplot_dataset()
 
+    @_shows_errors("multiplot_")
     def _multiplot_select_variable_button_click(self, event):
         """Event wrapper for the multiplot select variable button click."""
 
         self._display_multiplot_plot_choices_ui()
 
+    @_shows_errors("")
     def _variable_toggle_click(self, event):
         """Event wrapper for the variable toggle."""
 
@@ -537,12 +601,14 @@ class UserInterface:
             self.variable_toggle, self.plot_variable_dropdown, self.dataset
         )
 
+    @_shows_errors("ref_")
     def _ref_variable_toggle_click(self, event):
         """Event wrapper for the ref variable toggle."""
         self.ref_long_names = controller.variable_toggle_change(
             self.ref_variable_toggle, self.ref_plot_variable_dropdown, self.ref_dataset
         )
 
+    @_shows_errors("multiplot_")
     def _multiplot_variable_toggle_click(self, event):
         """Event wrapper for the multiplot variable toggle."""
         self.multiplot_long_names = controller.variable_toggle_change(
@@ -551,6 +617,7 @@ class UserInterface:
             self.dataset,
         )
 
+    @_shows_errors("analysis_")
     def _analysis_variable_toggle_click(self, event):
         """Event wrapper for the analysis variable toggle."""
         for widget in self.analysis_variable_widgets:
@@ -562,21 +629,25 @@ class UserInterface:
         """Event wrapper for the dataset and year selection widgets."""
         self._update_years_files_texts()
 
+    @_shows_errors("analysis_")
     def _analysis_keys_button_click(self, event):
         """Event wrapper for the analysis load dataset button click."""
 
         self._analysis_keys_dropdown_click()
 
+    @_shows_errors("analysis_")
     def _analysis_refresh_button_click(self, event):
         """Event wrapper for the analysis refresh button click."""
 
         self._analysis_refresh_click()
 
+    @_shows_errors("analysis_")
     def _analysis_select_recipe_button_click(self, event):
         """Event wrapper for the analysis select recipe button click."""
 
         self._display_analysis_recipe_options_ui()
 
+    @_shows_errors("analysis_")
     def _analysis_plot_button_click(self, event):
         """Event wrapper for the analysis plot data button click."""
 
@@ -1715,28 +1786,17 @@ class UserInterface:
         analysis_choice = self.multiplot_analysis_choice_dropdown.value
         fig, fig1, fig2 = None, None, None
 
-        try:
-            if isinstance(analysis_choice, AllAnalysis):
-                fig1 = self._multiplot_plot_dataset_helper(plot_type=helper_plot_type)
-                fig2 = self._multiplot_plot_dataset_helper(
-                    plot_diff=True, plot_type=helper_plot_type
-                )
-            elif isinstance(analysis_choice, DiffAnalysis):
-                fig = self._multiplot_plot_dataset_helper(
-                    plot_diff=True, plot_type=helper_plot_type
-                )
-            else:  # "None (plot all loaded data)"
-                fig = self._multiplot_plot_dataset_helper(plot_type=helper_plot_type)
-        except Exception as err:  # noqa: BLE001
-            # Panel only logs errors raised in callbacks, so without this a failed plot is silent
-            controller.update_textbox_text(
-                self.multiplot_warning_textbox,
-                f"Warning >> {type(err).__name__}: {err}",
+        if isinstance(analysis_choice, AllAnalysis):
+            fig1 = self._multiplot_plot_dataset_helper(plot_type=helper_plot_type)
+            fig2 = self._multiplot_plot_dataset_helper(
+                plot_diff=True, plot_type=helper_plot_type
             )
-            controller.update_textbox_text(
-                self.multiplot_status_textbox, "Overlay plot status >> Plot failed"
+        elif isinstance(analysis_choice, DiffAnalysis):
+            fig = self._multiplot_plot_dataset_helper(
+                plot_diff=True, plot_type=helper_plot_type
             )
-            return
+        else:  # "None (plot all loaded data)"
+            fig = self._multiplot_plot_dataset_helper(plot_type=helper_plot_type)
 
         if fig1:
             pane1 = pn.pane.Matplotlib(fig1, tight=True)
@@ -1803,22 +1863,12 @@ class UserInterface:
         fig_animated = None
 
         # Based on plot type change function that is used
-        try:
-            if isinstance(plot_type_dropdown.value, Heatmap):
-                fig = self._plot_dataset_helper(is_ref=ref, plot_type=Heatmap())
-            elif isinstance(plot_type_dropdown.value, Line):
-                fig = self._plot_dataset_helper(is_ref=ref, plot_type=Line())
-            elif isinstance(plot_type_dropdown.value, Animation):
-                fig_animated = self._plot_dataset_helper(
-                    is_ref=ref, plot_type=Animation()
-                )
-        except Exception as err:  # noqa: BLE001
-            # Panel only logs errors raised in callbacks, so without this a failed plot is silent
-            controller.update_textbox_text(
-                warning_textbox, f"Warning >> {type(err).__name__}: {err}"
-            )
-            controller.update_textbox_text(textbox, f"{text_prefix} >> Plot failed")
-            return
+        if isinstance(plot_type_dropdown.value, Heatmap):
+            fig = self._plot_dataset_helper(is_ref=ref, plot_type=Heatmap())
+        elif isinstance(plot_type_dropdown.value, Line):
+            fig = self._plot_dataset_helper(is_ref=ref, plot_type=Line())
+        elif isinstance(plot_type_dropdown.value, Animation):
+            fig_animated = self._plot_dataset_helper(is_ref=ref, plot_type=Animation())
 
         # Animations are already a pane, static figures need wrapping in one
         new_plot_pane = fig_animated or pn.pane.Matplotlib(fig, tight=True)

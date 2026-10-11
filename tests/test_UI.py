@@ -2623,62 +2623,60 @@ def test_multiplot_plot_data_button_click_all_analysis_modes(
 
 
 @pytest.mark.parametrize(
-    "plot_click, status_box, warning_box, status_text",
+    "wrapper, inner, prefix, label",
     [
+        ("_plot_button_click", "_plot_if_ready_helper", "", "User model status"),
         (
-            "_plot_data_button_click",
-            "status_textbox",
-            "warning_textbox",
-            "User model status >> Plot failed",
+            "_ref_data_keys_button_click",
+            "_ref_dataset_dropdown_click",
+            "ref_",
+            "Reference model status",
         ),
         (
-            "_ref_plot_data_button_click",
-            "ref_status_textbox",
-            "ref_warning_textbox",
-            "Reference model status >> Plot failed",
+            "_multiplot_keys_update_button_click",
+            "_update_multiplot_dataset",
+            "multiplot_",
+            "Overlay plot status",
+        ),
+        (
+            "_analysis_keys_button_click",
+            "_analysis_keys_dropdown_click",
+            "analysis_",
+            "Analysis status",
         ),
     ],
 )
-def test_plot_data_button_click_shows_plot_error(
-    ui, monkeypatch, plot_click, status_box, warning_box, status_text
+def test_callback_error_shown_in_section(
+    ui, monkeypatch, wrapper, inner, prefix, label
 ):
-    """Test that an error while plotting reaches the warning box instead of failing silently."""
+    """Test that an error in a button callback reaches its section's warning box."""
 
-    def broken_plot(is_ref, plot_type):
+    def broken(*args, **kwargs):
         """Raise like a failed slice of the dataset would."""
         raise KeyError("landuse")
 
-    monkeypatch.setattr(ui, "_plot_dataset_helper", broken_plot)
-    ui.plot_type_dropdown.value = Line()
-    ui.ref_plot_type_dropdown.value = Line()
-    container_length = len(ui.user_widget_container), len(ui.ref_widget_container)
+    monkeypatch.setattr(ui, inner, broken)
+    status = getattr(ui, f"{prefix}status_textbox")
+    status.value = f"{label} >> Loading data..."
 
-    getattr(ui, plot_click)()
+    getattr(ui, wrapper)(None)
 
-    assert getattr(ui, warning_box).value == "Warning >> KeyError: 'landuse'"
-    assert getattr(ui, status_box).value == status_text
-    # No empty plot is added
+    assert status.value == f"{label} >> Failed"
     assert (
-        len(ui.user_widget_container),
-        len(ui.ref_widget_container),
-    ) == container_length
+        getattr(ui, f"{prefix}warning_textbox").value
+        == "Warning >> KeyError: 'landuse'"
+    )
 
 
-def test_multiplot_plot_data_button_click_shows_plot_error(ui, monkeypatch):
-    """Test that an error while plotting the overlay reaches its warning box."""
+def test_unhandled_callback_error_shown_in_session(ui):
+    """Test that Panel sends errors from undecorated callbacks to the session warning box."""
+    ui.session_status_textbox.value = ""
 
-    def broken_plot(plot_diff=False, plot_type=Line):
-        """Raise like a failed slice of the dataset would."""
-        raise KeyError("landuse")
+    pn.config.exception_handler(ValueError("bad page"))
 
-    monkeypatch.setattr(ui, "_multiplot_plot_dataset_helper", broken_plot)
-    container_length = len(ui.multiplot_widget_container)
-
-    ui._multiplot_plot_data_button_click()
-
-    assert ui.multiplot_warning_textbox.value == "Warning >> KeyError: 'landuse'"
-    assert ui.multiplot_status_textbox.value == "Overlay plot status >> Plot failed"
-    assert len(ui.multiplot_widget_container) == container_length
+    assert ui.session_warning_textbox.value == "Warning >> ValueError: bad page"
+    # An empty status has no label to mark as failed
+    assert ui.session_status_textbox.value == ""
 
 
 def test_reproduce_live_multiplot_flow(ui, mock_multiplot_datasets):
