@@ -7,8 +7,7 @@ import xarray as xr
 
 from med_diagnostics import recipes
 
-# Default `DataArray.plot` kwargs by result dimensionality: 1D is a timeseries,
-# 2D a Hovmöller diagram or zonal mean over latitude.
+# Default `DataArray.plot` kwargs by result dimensionality
 DEFAULT_PLOT_KWARGS: dict[int, dict[str, Any]] = {
     1: {"linewidth": 2},
     2: {"cmap": "viridis", "center": False},
@@ -151,8 +150,7 @@ def _dataset_choices(ds, kind):
     """List the variables or coordinates of ``ds`` a parameter can take."""
     if kind == "data variable":
         return list(ds.data_vars)
-    # Coords rather than dims alone, so 2D lat/lon (e.g. geolon_t) are
-    # offered; dims without a coordinate variable are included too
+    # Coords as well as dims, so 2D lat/lon (e.g. geolon_t) are offered
     return [
         dim
         for dim in dict.fromkeys([*ds.coords, *ds.dims])
@@ -221,10 +219,7 @@ def _plot_result(result) -> plt.Figure:
     defaults = DEFAULT_PLOT_KWARGS.get(len(result_data.dims), {})
     plot_kwargs = {**defaults, **(recipe_plot_kwargs or {})}
 
-    # Figure/axes-level keys aren't accepted by `DataArray.plot`, so pop them
-    # first. `ax_kwargs` goes to `ax.set` (e.g. xlabel, ylim, yscale), and
-    # `customise` funcs `(ax, data)` run last for anything kwargs can't express
-    # (fills, reference lines, annotations).
+    # `DataArray.plot` rejects figure/axes-level keys, so pop them first
     figsize = plot_kwargs.pop("figsize", (6, 4))
     title = plot_kwargs.pop("title", result_data.name or "Diagnostic Output")
     ax_kwargs = plot_kwargs.pop("ax_kwargs", {})
