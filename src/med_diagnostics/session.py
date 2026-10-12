@@ -47,20 +47,21 @@ class CreateModelDiagnosticsSession:
         self.cluster = LocalCluster(threads_per_worker=1)
         self.client = Client(self.cluster)
 
-        print()
-        print(
-            "----------------------- Live diagnostics session started -----------------------"
+        self.session_info = "\n".join(
+            [
+                "",
+                "----------------------- Live diagnostics session started -----------------------",
+                "",
+                f"Model type: {model_type}",
+                f"Model data path: {self.model_path or 'none (reference models only)'}",
+                "",
+                f"Started dask client: {self.client.dashboard_link}",
+                "",
+                "-" * 80,
+                "",
+            ]
         )
-        print()
-        print("Model type:", str(model_type))
-        print("Model data path:", self.model_path or "none (reference models only)")
-        print()
-        print("Started dask client:", self.client.dashboard_link)
-        print()
-        print(
-            "--------------------------------------------------------------------------------"
-        )
-        print()
+        self.ui.session_info_display.update({"text/plain": self.session_info}, raw=True)
 
         # Start UserUI instance and display initial status text
         self.ui._initialise_widgets(reference_only=self.model_path is None)
@@ -84,8 +85,10 @@ class CreateModelDiagnosticsSession:
             "Session status >> Session ended. Enter a model output path and type to start a new one",
         )
 
-        print(
-            "------------------------ Live diagnostics session ended ------------------------"
+        session_ended = "------------------------ Live diagnostics session ended ------------------------"
+        self.ui.session_info_display.update(
+            {"text/plain": f"{getattr(self, 'session_info', '')}\n{session_ended}"},
+            raw=True,
         )
 
     def _close_dask(self):

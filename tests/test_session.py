@@ -84,6 +84,9 @@ def test_end_session(mock_session_deps):
     mock_ui._reset_session_ui.assert_called_once()
     assert mock_ui.end_session_button.disabled is True
     assert mock_ui.start_session_button.disabled is False
+    banner = mock_ui.session_info_display.update.call_args.args[0]["text/plain"]
+    assert banner.startswith(session.session_info)
+    assert banner.endswith("Live diagnostics session ended ------------------------")
 
 
 def test_end_session_twice(mock_session_deps):
@@ -186,6 +189,10 @@ def test_session_start_click_starts_session(mock_session_deps):
 
     mock_controller.validate_model_path.assert_called_once_with("/mock/path")
     mock_data._build_new_catalog.assert_called_once_with("/mock/path", "cm2")
+    banner = mock_ui.session_info_display.update.call_args.args[0]["text/plain"]
+    assert "Model type: CM2" in banner
+    assert "Model data path: /mock/path" in banner
+    assert "Started dask client: http://mock-dask:8787" in banner
     mock_ui._reset_session_ui.assert_not_called()
     assert mock_ui.start_session_button.disabled is True
     assert mock_ui.end_session_button.disabled is False

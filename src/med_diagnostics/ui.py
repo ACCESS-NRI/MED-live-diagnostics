@@ -7,7 +7,7 @@ import functools
 from typing import ClassVar
 
 import panel as pn
-from IPython.display import display
+from IPython.display import DisplayHandle, display
 
 from med_diagnostics import analysis, controller, data
 from med_diagnostics.types import (
@@ -681,6 +681,10 @@ class UserInterface:
             loading=pn.state.param.busy,
         )
         display(self.main_ui)
+        # Printing from a callback doesn't reliably reach the cell, so the session
+        # banner is shown here and updated in place on each start and end
+        self.session_info_display = DisplayHandle()
+        self.session_info_display.display({"text/plain": ""}, raw=True)
 
     def _reset_session_ui(self):
         """
