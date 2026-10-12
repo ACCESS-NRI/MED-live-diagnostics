@@ -680,11 +680,11 @@ class UserInterface:
             styles={"gap": "15px"},
             loading=pn.state.param.busy,
         )
-        display(self.main_ui)
         # Printing from a callback doesn't reliably reach the cell, so the session
-        # banner is shown here and updated in place on each start and end
+        # banner is shown above the UI and updated in place on each start and end
         self.session_info_display = DisplayHandle()
         self.session_info_display.display({"text/plain": ""}, raw=True)
+        display(self.main_ui)
 
     def _reset_session_ui(self):
         """
