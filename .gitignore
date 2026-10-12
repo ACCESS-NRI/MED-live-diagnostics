@@ -144,3 +144,5 @@ coverage.xml
 .coverage
 
 documentation/site/
+
+coverage.xml
