@@ -170,7 +170,7 @@ def test_return_loaded_dataset(mock_session_deps):
 
 def _click_start(mock_ui, model_path, model_type="CM2"):
     """Set the start session inputs and click the button."""
-    mock_ui.live_model_path.value = model_path
+    mock_ui.live_model_path.value_input = model_path
     mock_ui.model_type_dropdown.value = model_type
     session = CreateModelDiagnosticsSession()
     session._session_start_button_click(None)

@@ -181,8 +181,9 @@ class CreateModelDiagnosticsSession:
         self.ui.start_session_button.disabled = True
         controller.update_textbox_text(self.ui.session_warning_textbox, "")
 
-        # A blank path starts a reference-only session
-        model_path = os.path.expanduser(self.ui.live_model_path.value.strip())
+        # A blank path starts a reference-only session. value_input updates on every
+        # keystroke, while value waits for Enter or blur and can lag behind the click
+        model_path = os.path.expanduser(self.ui.live_model_path.value_input.strip())
         warning = controller.validate_model_path(model_path) if model_path else None
         if warning:
             controller.update_textbox_text(self.ui.session_warning_textbox, warning)
