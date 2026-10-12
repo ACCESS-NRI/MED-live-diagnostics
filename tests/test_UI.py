@@ -1479,14 +1479,29 @@ def test_ref_dataset_dropdown_click(ui, monkeypatch, row_shown):
         mock_ref_display_dataset_plot_ui.assert_called_once()
 
 
+def test_ref_dataset_dropdown_click_reports_missing_files(ui, monkeypatch):
+    """Test that the status says when catalogued files were skipped for missing on disk."""
+    dataset = xr.Dataset(attrs={"med_missing_files": 12})
+    monkeypatch.setattr(med_data, "_build_data_object", MagicMock(return_value=dataset))
+    monkeypatch.setattr(ui, "_ref_display_dataset_plot_ui", MagicMock())
+
+    ui._ref_dataset_dropdown_click()
+
+    assert ui.ref_status_textbox.value == (
+        "Reference model status >> Reference dataset successfully loaded. "
+        "Skipped 12 files listed in the catalog but missing on disk"
+    )
+
+
 def test_ref_model_info_click(ui, monkeypatch):
     """Test the reference model info button callback for fetching catalog metadata and rendering HTML details in the UI"""
 
     # Mock the catalog access and metadata dictionary to return fake info items
     mock_cat = MagicMock()
-    mock_metadata = MagicMock()
-    mock_metadata.__getitem__.return_value = "fake_info"
-    mock_cat.__getitem__.return_value.metadata = mock_metadata
+    mock_cat.__getitem__.return_value.metadata = {
+        "model": "fake_info",
+        "email": "fake_info",
+    }
     monkeypatch.setattr(ui, "access_nri_cat", mock_cat)
 
     ui.ref_keys_dropdown.value = "selection"
@@ -2665,6 +2680,26 @@ def test_callback_error_shown_in_section(
     assert (
         getattr(ui, f"{prefix}warning_textbox").value
         == "Warning >> KeyError: 'landuse'"
+    )
+
+
+def test_callback_error_shows_cause(ui, monkeypatch):
+    """Test that a wrapped error shows the underlying error that caused it."""
+
+    def broken(*args, **kwargs):
+        """Raise like intake-esm does when a file can't be opened."""
+        try:
+            raise PermissionError("Permission denied: '/g/data/p73/file.nc'")
+        except PermissionError as e:
+            raise RuntimeError("Failed to load dataset") from e
+
+    monkeypatch.setattr(ui, "_ref_dataset_dropdown_click", broken)
+
+    ui._ref_data_keys_button_click(None)
+
+    assert ui.ref_warning_textbox.value == (
+        "Warning >> RuntimeError: Failed to load dataset Caused by PermissionError: "
+        "Permission denied: '/g/data/p73/file.nc'"
     )
 
 

@@ -111,12 +111,13 @@ def test_build_data_object(monkeypatch, is_aliased):
     result = data._build_data_object(mock_model_cat, "test_key")
 
     # Assertions
+    # Indexed twice: once for the file table, once to open the dataset
     if is_aliased:
         mock_model_cat.unwrap.assert_called_once()
-        mock_unwrapped_cat.__getitem__.assert_called_once_with("test_key")
+        mock_unwrapped_cat.__getitem__.assert_called_with("test_key")
     else:
         mock_model_cat.unwrap.assert_not_called()
-        mock_model_cat.__getitem__.assert_called_once_with("test_key")
+        mock_model_cat.__getitem__.assert_called_with("test_key")
 
     mock_model_cat_dict.assert_called_once_with(
         xarray_open_kwargs={"use_cftime": True, "chunks": {}},
@@ -277,15 +278,41 @@ class _FakeDatastore:
     ],
     ids=["all-years", "first-2", "last-2"],
 )
-def test_build_data_object_years(years, from_start, expected_years):
+def test_build_data_object_years(monkeypatch, years, from_start, expected_years):
     """Test that only the files in the chosen years are opened.
 
     Opening files is the slow part of a load, so the catalog must be cut down
     to the chosen years before ``to_dask`` rather than trimmed afterwards.
     """
+    monkeypatch.setattr(data.os.path, "exists", lambda path: True)
     catalog = _FakeDatastore({"df": _monthly_df(2000, 5)})
 
     opened = data._build_data_object(catalog, "key", years, from_start)
 
     opened_years = sorted({int(date[:4]) for date in opened["start_date"]})
     assert opened_years == expected_years
+
+
+def test_build_data_object_skips_missing_files(tmp_path):
+    """Test that catalogued files missing on disk are skipped and counted.
+
+    The ACCESS-NRI catalog can list files that have since been moved or deleted
+    (e.g. ESM1.6 piControl), which would otherwise fail the whole load.
+    """
+    paths = [tmp_path / f"file_{i}.nc" for i in range(4)]
+    for path in paths[:3]:
+        path.touch()
+    df = pd.DataFrame({"path": [str(p) for p in paths], "start_date": ["none"] * 4})
+
+    opened = data._build_data_object(_FakeDatastore({"df": df}), "key")
+
+    assert list(opened["path"]) == [str(p) for p in paths[:3]]
+    assert opened.attrs["med_missing_files"] == 1
+
+
+def test_build_data_object_all_files_missing(tmp_path):
+    """Test that a clear error is raised when none of the catalogued files exist."""
+    df = pd.DataFrame({"path": [str(tmp_path / "gone.nc")], "start_date": ["none"]})
+
+    with pytest.raises(FileNotFoundError, match="None of the 1 files"):
+        data._build_data_object(_FakeDatastore({"df": df}), "key")

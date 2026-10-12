@@ -193,29 +193,51 @@ def _build_data_object(model_cat, key, years=None, from_start=False):
     Returns
     ----------
     dataset : xarray object
-        Dask xarray object.
+        Dask xarray object. ``attrs["med_missing_files"]`` counts catalogued files
+        that were skipped because they no longer exist on disk.
+
+    Raises
+    ------
+    FileNotFoundError
+        If none of the catalogued files exist on disk.
     """
 
     # If the model_cat is an AliasedESMCatalog, unwrap it to get the raw esm_datastore (intake_esm.core.esm_datastore) object. Reference models are stored as AliasedESMCatalog objects, so this is necessary for loading reference model data.
     if isinstance(model_cat, AliasedESMCatalog):
         model_cat = model_cat.unwrap()
 
+    df = model_cat[key].df
     # Drop files outside the chosen years before opening anything
-    if years is not None:
-        df = model_cat[key].df
-        selected = _select_year_files(df, years, from_start)
-        if len(selected) < len(df):
-            # Same subset construction as intake-esm's search, so the key still matches
-            model_cat = model_cat.__class__(
-                {"esmcat": model_cat.esmcat.model_dump(), "df": selected}
+    selected = _select_year_files(df, years, from_start)
+
+    # Catalogs can list files that have since been moved or deleted (e.g. ESM1.6 piControl)
+    n_missing = 0
+    if "path" in selected:
+        exists = selected["path"].map(os.path.exists)
+        if not exists.any():
+            raise FileNotFoundError(
+                f"None of the {len(selected)} files the catalog lists for {key} exist "
+                f"on disk, e.g. {selected['path'].iloc[0]}"
             )
+        n_missing = int((~exists).sum())
+        selected = selected[exists]
+
+    if len(selected) < len(df):
+        # Same subset construction as intake-esm's search, so the key still matches
+        model_cat = model_cat.__class__(
+            {"esmcat": model_cat.esmcat.model_dump(), "df": selected}
+        )
 
     open_kwargs = {"use_cftime": True, "chunks": {}}
     combine_kwargs = {"compat": "override", "data_vars": "minimal", "coords": "minimal"}
     # Standard Intake catalog approach for getting dataset
-    return model_cat[key](
+    dataset = model_cat[key](
         xarray_open_kwargs=open_kwargs, xarray_combine_by_coords_kwargs=combine_kwargs
     ).to_dask()
+    # Read by the UI to say files were skipped
+    if n_missing:
+        dataset.attrs["med_missing_files"] = n_missing
+    return dataset
 
 
 def _load_access_nri_catalog(model_type, filter=True):

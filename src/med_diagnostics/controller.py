@@ -388,30 +388,24 @@ def get_metadata(catalog_metadata):
         A formatted HTML string containing structured metadata fields.
     """
 
+    fields = {
+        "Model": "model",
+        "Short description": "description",
+        "Nominal resolution": "nominal_resolution",
+        "Parent experiment": "parent_experiment",
+        "Long description": "long_description",
+        "Contact": "contact",
+        "Email": "email",
+    }
+    # Catalog entries don't all fill in every field (e.g. MOM6 runs have no parent experiment)
+    rows = "".join(
+        f"<b>{label}:   </b>{catalog_metadata.get(key, 'Not provided')}<br>"
+        for label, key in fields.items()
+    )
     return (
         '<div style="color: var(--jp-ui-font-color1);">'
         + "<b>Model information:</b><br>"
-        + "<b>Model:   </b>"
-        + str(catalog_metadata["model"])
-        + "<br>"
-        + "<b>Short description:   </b>"
-        + str(catalog_metadata["description"])
-        + "<br>"
-        + "<b>Nominal resolution:   </b>"
-        + str(catalog_metadata["nominal_resolution"])
-        + "<br>"
-        + "<b>Parent experiment:   </b>"
-        + str(catalog_metadata["parent_experiment"])
-        + "<br>"
-        + "<b>Long description:   </b>"
-        + str(catalog_metadata["long_description"])
-        + "<br>"
-        + "<b>Contact:   </b>"
-        + str(catalog_metadata["contact"])
-        + "<br>"
-        + "<b>Email:   </b>"
-        + str(catalog_metadata["email"])
-        + "<br>"
+        + rows
     )
 
 

@@ -482,6 +482,17 @@ class UserInterface:
             ConstrainToRef.value: ConstrainToRef(),
         }
 
+    @staticmethod
+    def _missing_files_note(dataset):
+        """
+        Describe catalogued files skipped because they're missing on disk, or "" if none.
+        """
+        attrs = getattr(dataset, "attrs", None)
+        n_missing = attrs.get("med_missing_files") if isinstance(attrs, dict) else None
+        if not n_missing:
+            return ""
+        return f". Skipped {n_missing} files listed in the catalog but missing on disk"
+
     def _show_error(self, err, prefix="session_"):
         """
         Show an error in a section's warning box and mark its status as failed.
@@ -497,9 +508,13 @@ class UserInterface:
         label = status.value.split(" >> ")[0]
         if label:
             controller.update_textbox_text(status, f"{label} >> Failed")
+        message = f"Warning >> {type(err).__name__}: {err}"
+        # Wrapper errors (e.g. intake-esm's ESMDataSourceError) hide the real reason in __cause__
+        cause = err.__cause__
+        if cause is not None:
+            message += f" Caused by {type(cause).__name__}: {cause}"
         controller.update_textbox_text(
-            getattr(self, f"{prefix}warning_textbox"),
-            f"Warning >> {type(err).__name__}: {err}",
+            getattr(self, f"{prefix}warning_textbox"), message
         )
 
     @_shows_errors("")
@@ -1171,7 +1186,8 @@ class UserInterface:
         controller.update_textbox_text(
             self.status_textbox,
             "User model status >> Data successfully loaded"
-            + (f" ({files_text})" if files_text else ""),
+            + (f" ({files_text})" if files_text else "")
+            + self._missing_files_note(self.dataset),
         )
 
         # enable multiplot plot UI
@@ -1302,7 +1318,10 @@ class UserInterface:
             )
             controller.update_textbox_text(
                 self.multiplot_status_textbox,
-                "Overlay plot status >> Loaded reference model, add another or plot the overlay",
+                "Overlay plot status >> Loaded reference model, add another or plot the overlay"
+                + self._missing_files_note(
+                    self.multiplot_ref_dataset_dict[model_value]
+                ),
             )
         elif self.multiplot_ref_keys_dropdown.value in self.multiplot_ref_dataset_dict:
             controller.update_textbox_text(
@@ -1329,7 +1348,8 @@ class UserInterface:
         )
         controller.update_textbox_text(
             self.ref_status_textbox,
-            "Reference model status >> Reference dataset successfully loaded",
+            "Reference model status >> Reference dataset successfully loaded"
+            + self._missing_files_note(self.ref_dataset),
         )
         # Check if the variable selection row is already shown
         if not (

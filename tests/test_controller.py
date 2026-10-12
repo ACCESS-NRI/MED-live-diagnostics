@@ -419,6 +419,15 @@ def test_get_metadata():
     assert result.startswith('<div style="color: var(--jp-ui-font-color1);">')
 
 
+def test_get_metadata_missing_fields():
+    """Tests catalog entries missing optional fields show "Not provided" instead of raising."""
+    result = controller.get_metadata({"model": "MOM6", "description": "Regional run"})
+
+    assert "<b>Model:   </b>MOM6<br>" in result
+    assert "<b>Parent experiment:   </b>Not provided<br>" in result
+    assert "<b>Email:   </b>Not provided<br>" in result
+
+
 @pytest.mark.parametrize(
     "plot_type, x, y, z, has_slice, dim_sizes, expected",
     [
