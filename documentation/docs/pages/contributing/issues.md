@@ -9,3 +9,7 @@ When reporting a bug, include:
 - Details about your local setup, especially the Python interpreter version.
 - Detailed steps to reproduce the issue, ideally with a [Minimal, Complete and Verifiable Example](https://matthewrocklin.com/minimal-bug-reports).
 - A demonstration test that currently fails but should pass when the issue is fixed, when possible.
+
+---
+
+[Next: Contributing recipes :material-arrow-right:](recipes.md){ .md-button }

@@ -9,3 +9,7 @@ See the relevant guide:
 - [Feature requests and bug reports](issues.md)
 - [Contributing recipes](recipes.md)
 - [Adding support for a new model type](models.md)
+
+---
+
+[Next: Contributing code :material-arrow-right:](code.md){ .md-button }

@@ -15,3 +15,7 @@ The API reference is generated from the public Python modules and their docstrin
 
 ::: med_diagnostics.plot_customisations
 -->
+
+---
+
+[Next: Contributing :material-arrow-right:](contributing/index.md){ .md-button }

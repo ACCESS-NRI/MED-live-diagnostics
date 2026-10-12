@@ -2,7 +2,7 @@
 
 Learn how to create and integrate custom analyses into the Model Live Diagnostics (MLD) package. By the end of this tutorial, you will know how to implement a custom analysis that automatically generates interactive UI controls based on user selection. Any analysis that can be computed with `xarray` and plotted via `matplotlib.pyplot` can be integrated into the analysis section.
 
-### Prerequisites
+## Prerequisites
 Before starting, ensure you have:
 
 * Started an MLD session in your current notebook or kernel (your custom recipes must be written in this same environment)
@@ -16,13 +16,13 @@ from med_diagnostics import analysis
 import xarray as xr
 ```
 
-For setup guidance, refer to the [Getting Started Tutorial](../getting_started_tutorial/).
+For setup guidance, refer to the [Getting Started Tutorial](getting_started_tutorial.md).
 
 ---
 ## How the analysis section works
 ### Analysis Interface
 
-The **Analysis** section provides a dropdown menu of predefined analyses (and user-defined analyses once they are added!). Selecting an analysis dynamically populates the interface with the required input widgets. 
+The **Run analysis recipes** section provides a dropdown menu of predefined analyses (and user-defined analyses once they are added!). Selecting an analysis dynamically populates the interface with the required input widgets. 
 
 <img src="/assets/notebooks/Analysis_section.png" alt="Model Live Diagnostics Analysis Section Interface" style="width: 100%; height: auto;">
 
@@ -158,7 +158,7 @@ analysis.register_analysis(recipe_global_mean_dynamic)
     - The **first paragraph** becomes the dropdown label, shown as `Custom: <first paragraph>`. Without a docstring, the function name is used instead.
     - The **second paragraph** (after a blank line) is shown under the dropdown when the analysis is selected.
 
-When you choose your new analysis using the **Recipe** dropdown, the UI will automatically generate widgets based on the `Annotated` definitions you provided for each argument. If your specified `<default>` values exist within the loaded dataset, the widgets will auto-populate with them. You can freely change these selections using the generated dropdown menus. 
+When you choose your new analysis in the **Select analysis recipe** dropdown and click **Select recipe**, the UI will automatically generate widgets based on the `Annotated` definitions you provided for each argument. If your specified `<default>` values exist within the loaded dataset, the widgets will auto-populate with them. You can freely change these selections using the generated dropdown menus. 
 
 Now, rather than being restricted to just a timeseries, this single function allows us to plot the average of *any* variable along *any* dimension. For example:
 
@@ -254,7 +254,7 @@ def recipe_custom_plot(
     # Define custom plot settings
     plot_kwargs = {
         "figsize": (10, 6),
-        "title": f"Time-Averaged Heatmap: {variable}",
+        "title": f"Time & Depth Averaged Heatmap: {variable}",
         "ax_kwargs": {"xlabel": "Longitude", "ylabel": "Latitude"},
         "cmap": "magma",
         "cbar_kwargs": {"label": "Temperature (K)"},
@@ -365,7 +365,7 @@ The resultant plot from adding this customisation:
 
 #### Ready-made customisations
 
-MLD provides several built-in customisation functions for common meteorological and oceanographic visualisations in the `med_diagnostics.plot_customisations` module. These will be updated as the package is developed, and full details can be found in the [API Reference](../../api/#med_diagnostics.plot_customisations).
+MLD provides several built-in customisation functions for common meteorological and oceanographic visualisations in the `med_diagnostics.plot_customisations` module. These will be updated as the package is developed, and full details can be found in the [API Reference](../pages/api.md#med_diagnostics.plot_customisations).
 
 #### Passing extra arguments to a customise function
 
@@ -375,6 +375,8 @@ If your custom function requires external settings (like a specific threshold va
 
 ```python
 from typing import Annotated
+
+from med_diagnostics import plot_customisations
 
 
 def recipe_timeseries_threshold(
@@ -486,4 +488,8 @@ Use the checklist below to help register a new recipe to MLD:
 
 Because custom recipes integrate seamlessly into the MLD pipeline, they are perfectly structured to be included as inbuilt recipes. If you have created an analysis that would be useful to others, you can submit it to the core repository, making it available for others to use.
 
-For full details on how to format, test, and submit your code via a pull request, please see the [Contributing Recipes](../../contributing/recipes/) guide.
+For full details on how to format, test, and submit your code via a pull request, please see the [Contributing Recipes](../pages/contributing/recipes.md) guide.
+
+---
+
+[Next: Built-in analysis recipes :material-arrow-right:](built_in_recipes_tutorial.md){ .md-button }

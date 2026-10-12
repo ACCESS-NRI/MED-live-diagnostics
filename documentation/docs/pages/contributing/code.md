@@ -27,3 +27,7 @@ Contributions to the code are welcome. If you would like to contribute, start by
 4. Commit your edits, including docstrings, documentation updates, and unit tests. Please follow [numpydoc style](https://numpydoc.readthedocs.io/en/latest/format.html) for docstrings where possible.
 
 5. Open a pull request against the `main` branch of the [MED-live-diagnostics repository](https://github.com/ACCESS-NRI/MED-live-diagnostics/pulls).
+
+---
+
+[Next: Contributing documentation :material-arrow-right:](docs.md){ .md-button }

@@ -78,3 +78,7 @@ Once your recipe and any tests pass:
 2. Open a pull request against the `main` branch of the [MED-live-diagnostics repository](https://github.com/ACCESS-NRI/MED-live-diagnostics/pulls). In the description, link the issue and include which models or grids you tested the recipe on, plus a screenshot of its plot.
 
 If `main` has moved on while you are working, update your branch with `git fetch upstream` followed by `git rebase upstream/main`.
+
+---
+
+[Next: Adding support for a new model type :material-arrow-right:](models.md){ .md-button }

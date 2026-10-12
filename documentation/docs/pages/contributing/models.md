@@ -46,26 +46,32 @@ Then add the model type to the `options` of `model_type_dropdown` in `UserInterf
 
 ## 2. Check the reference models
 
-`_load_access_nri_catalog()` in `data.py` filters the ACCESS-NRI Intake Catalog with:
+`_load_access_nri_catalog()` in `data.py` filters the ACCESS-NRI Intake Catalog to the exact model names listed for the model type in `CATALOG_MODEL_NAMES`, at the top of `data.py`:
 
 ```python
-catalog.search(model=f".*{model_type.upper()}.*")
+CATALOG_MODEL_NAMES = {
+    ...
+    "esm15": ["ACCESS-ESM1-5"],
+    "newmodel": ["ACCESS-NEWMODEL"],
+}
 ```
 
-Check that this regex matches the new model's entries in the catalog's `model` column, and doesn't pull in other models:
+Add an entry for the new model type, listing the names its reference runs have in the catalog's `model` column. To see the names in the catalog:
 
 ```python
 import intake
 
-cat = intake.cat.access_nri
-cat.search(model=".*NEWMODEL.*").df["model"].unique()
+intake.cat.access_nri.df["model"].unique()
 ```
 
-If it doesn't match (for example because the catalog spells the model differently from the model type), change the filter for that model type rather than renaming the model type. If the catalog has no experiments of the model yet, the reference model sections will be empty, but the user data and analysis sections still work.
+The names are matched exactly, so similar names (e.g. `GFDL-CM3` for `CM3`) are not picked up. A model type can list related models too: `om3` lists the ACCESS-OM2 and MOM6 runs, as there are no ACCESS-OM3 runs in the catalog yet. If there are no suitable runs, use an empty list; the reference model sections will be empty, but the user data and analysis sections still work.
 
 ## 3. Test it
 
-1. Add the new model type to the `parametrize` list of `test_build_new_catalog_valid_models` in `tests/test_data.py`, with its builder and expected `builder_kwargs`.
+1. In `tests/test_data.py`, add the new model type to:
+    - the `parametrize` list of `test_build_new_catalog_valid_models`, with its builder and expected `builder_kwargs`,
+    - the `parametrize` list of `test_load_access_nri_catalog_finds_only_its_models`, with the catalog models it should find (adding its names to `CATALOG_MODELS` if they aren't there),
+    - the list in `test_every_model_type_has_catalog_names`.
 2. Run the tests (see [Contributing code](code.md)).
 3. Start a session on real output of the model in ARE and check that the catalogue builds, datasets load and plot (including the **Years to load** options), reference models are listed, and the built-in recipes you'd expect to work on it do.
 

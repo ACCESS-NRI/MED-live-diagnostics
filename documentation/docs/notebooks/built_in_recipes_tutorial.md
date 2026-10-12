@@ -9,7 +9,7 @@ MLD comes with a set of built-in analysis recipes. They appear in the "Select an
 | OM3 timeseries suite (OM3 variable names) | `recipe_om3_timeseries` | 1 per field found | ACCESS-OM3 output |
 | OM3 timeseries suite (custom variable mapping) | `recipe_om3_timeseries_mapped` | 1 per field chosen | ACCESS ocean output on any grid |
 
-All of these functions live in `med_diagnostics.recipes`, along with helpers you can reuse in your own recipes (see the [API reference](../../api/#med_diagnostics.recipes)).
+All of these functions live in `med_diagnostics.recipes`, along with helpers you can reuse in your own recipes (see the [API reference](../pages/api.md#med_diagnostics.recipes)).
 
 !!! tip "Defaults and the loaded dataset"
     Each recipe's option dropdowns are filled in with its defaults (e.g. `tos`, `xt_ocean`) when these exist in the loaded dataset. If they don't, choose the matching variable or coordinate yourself before clicking "Plot data".
@@ -145,3 +145,7 @@ Notes:
 
 !!! tip "Writing your own recipes"
     You can add your own analyses to this section. See the [Adding custom analyses](adding_custom_analyses.md) tutorial. After registering a new recipe, click "Refresh analysis recipes" to add it to the dropdown.
+
+---
+
+[Next: API reference :material-arrow-right:](../pages/api.md){ .md-button }

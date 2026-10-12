@@ -65,10 +65,14 @@ Common triggers for these warnings include:
 
 -   **Invalid Plot Configurations:** Attempting to assign the same dimension to multiple axes, or selecting a complex plot type (like a Heatmap or Animation) for a dataset that lacks the required dimensions. In these cases, the UI will prompt you to fix the axes or automatically downgrade your selection to a Line plot.
 
--   **Missing Overlay Data:** When using the multiplot feature, you may load reference models that do not contain the matching dataset or the specific variable you are attempting to plot. The interface will warn you and automatically drop these incompatible models from the overlay.
+-   **Missing Overlay Data:** When using the **Overlay user and reference models** section, you may load reference models that do not contain the matching dataset or the specific variable you are attempting to plot. The interface will warn you and automatically drop these incompatible models from the overlay.
 
--   **Automated Plotting:** If a dataset only has one viable dimension for a Line plot, the UI will briefly warn you that it is bypassing the axis selection step to generate the plot automatically.
+-   **Automated Axis Selection:** If a variable only has one viable x-axis dimension for a Line plot, the UI selects it for you and says so in the warning bar. In the overlay section, it skips straight to the slice and "Plot data" step.
 
 -   **Analysis Recipe Failures** If a predefined recipe has an invalid configuration passed to it, or if there is an error in a user defined recipe, details will appear in the warning textbox in the analysis section.
  
 If a plot fails to generate, review the <span style="color:darkred">warning</span> bar and adjust your dropdown selections accordingly. The warning message will clear automatically once a valid plot is successfully generated.
+
+---
+
+[Next: Adding custom analyses :material-arrow-right:](adding_custom_analyses.md){ .md-button }
