@@ -1,4 +1,5 @@
 import datetime
+import time
 from unittest.mock import MagicMock, call, patch
 
 import cftime
@@ -52,8 +53,18 @@ def test_round_slice_val(input_value, expected_output):
     assert controller.round_slice_val(input_value) == expected_output
 
 
+@pytest.fixture
+def hobart_timezone(monkeypatch):
+    """Run the test in Hobart time, whatever the machine's own time zone."""
+    monkeypatch.setenv("TZ", "Australia/Hobart")
+    time.tzset()
+    yield
+    monkeypatch.undo()
+    time.tzset()
+
+
 @patch("med_diagnostics.controller.datetime")
-def test_get_current_time(mock_datetime):
+def test_get_current_time(mock_datetime, hobart_timezone):
     # Create a static datetime object
     frozen_time = datetime.datetime(
         2026, 9, 9, 14, 47, 14, tzinfo=datetime.timezone.utc
