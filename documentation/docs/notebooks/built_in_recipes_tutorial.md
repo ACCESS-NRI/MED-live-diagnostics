@@ -105,36 +105,36 @@ The suites cover 28 fields: global means of temperature and salinity (`thetaoga`
 
     Fields marked *max*/*min* plot the global maximum or minimum at each timestep. All others plot a volume-weighted global mean, using the dataset's `cell_measures` where available, otherwise cos(latitude) weighted by layer thickness.
 
-    | OM3 name | Plot title | Reduction |
-    | :--- | :--- | :--- |
-    | `masso` | Mass of liquid ocean | mean |
+    | OM3 name | Plot title | OM2 name | Reduction |
+    | :--- | :--- | :--- | :--- |
+    | `masso` | Mass of liquid ocean | | mean |
     | `soga` | Global Mean Ocean Salinity | `salt_global_ave` | mean |
     | `thetaoga` | Global Mean Ocean Potential Temperature | `temp_global_ave` | mean |
     | `tosga` | Sea Surface Temperature | `temp_surface_ave` | mean |
     | `sosga` | Global Mean Sea Surface Salinity | `salt_surface_ave` | mean |
-    | `speed_max` | Maximum Ocean Current Speed | max |
-    | `mlotst_max` | Maximum Ocean Mixed Layer Thickness | max |
-    | `tos_max` | Maximum Sea Surface Temperature | max |
-    | `tos_min` | Minimum Sea Surface Temperature | min |
-    | `sos_max` | Maximum Sea Surface Salinity | max |
-    | `sos_min` | Minimum Sea Surface Salinity | min |
-    | `zos_max` | Maximum Sea Surface Height | max |
-    | `zos_min` | Minimum Sea Surface Height | min |
-    | `total_salt_Flux_Added` | Total Salt Flux Added | mean |
-    | `total_salt_Flux_In` | Total Salt Flux In | mean |
-    | `total_salt_flux` | Total Salt Flux | mean |
-    | `net_fresh_water_global_adjustment` | Net Fresh Water Global Adjustment | mean |
-    | `salt_flux_global_restoring_adjustment` | Salt Flux Global Restoring Adjustment | mean |
-    | `total_wfo` | Total Water Flux Into Ocean | mean |
-    | `total_evs` | Total Evaporation | mean |
-    | `total_fsitherm` | Total Thermodynamic Sea Ice Flux | mean |
-    | `total_precip` | Total Precipitation | mean |
-    | `total_prsn` | Total Snowfall | mean |
-    | `total_lprec` | Total Liquid Precipitation | mean |
-    | `total_ficeberg` | Total Iceberg Melt | mean |
-    | `total_friver` | Total River Runoff | mean |
-    | `total_net_massout` | Total Net Mass Out | mean |
-    | `total_net_massin` | Total Net Mass In | mean |
+    | `speed_max` | Maximum Ocean Current Speed | | max |
+    | `mlotst_max` | Maximum Ocean Mixed Layer Thickness | | max |
+    | `tos_max` | Maximum Sea Surface Temperature | | max |
+    | `tos_min` | Minimum Sea Surface Temperature | | min |
+    | `sos_max` | Maximum Sea Surface Salinity | | max |
+    | `sos_min` | Minimum Sea Surface Salinity | | min |
+    | `zos_max` | Maximum Sea Surface Height | | max |
+    | `zos_min` | Minimum Sea Surface Height | | min |
+    | `total_salt_Flux_Added` | Total Salt Flux Added | | mean |
+    | `total_salt_Flux_In` | Total Salt Flux In | | mean |
+    | `total_salt_flux` | Total Salt Flux | | mean |
+    | `net_fresh_water_global_adjustment` | Net Fresh Water Global Adjustment | | mean |
+    | `salt_flux_global_restoring_adjustment` | Salt Flux Global Restoring Adjustment | | mean |
+    | `total_wfo` | Total Water Flux Into Ocean | | mean |
+    | `total_evs` | Total Evaporation | | mean |
+    | `total_fsitherm` | Total Thermodynamic Sea Ice Flux | | mean |
+    | `total_precip` | Total Precipitation | | mean |
+    | `total_prsn` | Total Snowfall | | mean |
+    | `total_lprec` | Total Liquid Precipitation | | mean |
+    | `total_ficeberg` | Total Iceberg Melt | | mean |
+    | `total_friver` | Total River Runoff | | mean |
+    | `total_net_massout` | Total Net Mass Out | | mean |
+    | `total_net_massin` | Total Net Mass In | | mean |
 
 Notes:
 

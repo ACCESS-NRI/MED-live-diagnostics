@@ -2,6 +2,10 @@
 
 The API reference is generated from the public Python modules and their docstrings.
 
+<!-- Re-enable once the code from exposeAPI is merged
+::: med_diagnostics.api
+-->
+
 ::: med_diagnostics.data
 
 ::: med_diagnostics.session

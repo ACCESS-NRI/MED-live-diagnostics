@@ -480,7 +480,7 @@ Use the checklist below to help register a new recipe to MLD:
 - <input type="checkbox"> Every other argument has a default value.
 - <input type="checkbox"> `"choice"` arguments include a `"choices"` list in the metadata dictionary (or use a `Literal[...]` type).
 - <input type="checkbox"> Optional dimensions are typed `str | None` with a default of `None`.
-- <input type="checkbox"> The docstring's first line states what the recipe computes, and its second paragraph details which grid or models it targets.
+- <input type="checkbox"> The docstring's first paragraph states what the recipe computes, and its second paragraph details which grid or models it targets.
 - <input type="checkbox"> The function returns either a `DataArray`, a tuple of `(DataArray, plot_kwargs)`, or a list of these for a suite of plots.
 - <input type="checkbox"> You have clicked **Refresh analysis recipes** in the UI after registering or updating your function.
 

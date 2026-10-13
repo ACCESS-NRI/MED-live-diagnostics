@@ -59,7 +59,7 @@ i) The reference model dropdown lists the catalogue's runs of models related to 
 
 ![Reference model dropdown](/assets/notebooks/tutorial_3-1_ref_model_dropdown.png)
 
-ii) Once the reference model loads, a second dropdown lists its datasets. Select the dataset you want to view and click "Load reference dataset".
+ii) Once the reference model loads, a second dropdown lists its datasets. Select the dataset you want to view and click "Load reference dataset". The dropdown shows 20 datasets at a time; choose ">> Show next datasets" or "<< Show previous datasets" to see the rest.
 
 ![Reference dataset dropdown](/assets/notebooks/tutorial_3-1_ref_dataset_dropdown.png)
 
@@ -77,7 +77,7 @@ Then click the <span style="color:green">"Select variable and plot type"</span> 
 
 ii) The axis options depend on the plot type. For a line plot, select the x-axis dimension (e.g. time); for an animated heatmap, assign dimensions to the X, Y and Z axes. Then click the <span style="color:green">"Select dimensions"</span> button.
 
-iii) If the variable has dimensions that aren't on an axis (e.g. ocean depth, or time), a slider appears for each so you can choose a slice. You can also type a value into the box beside each slider. Depending on the dataset and plot type, there may be none. Choose your slices and click the <span style="color:green">"Plot data"</span> button to load the plot.
+iii) If the variable has dimensions that aren't on an axis (e.g. ocean depth, or time), a slider appears for each so you can choose a slice. You can also type a value into the box under each slider. Depending on the dataset and plot type, there may be none. Choose your slices and click the <span style="color:green">"Plot data"</span> button to load the plot.
 
 ![Reference data UI](/assets/notebooks/tutorial_3-2_ref_plot_controls.png)
 
@@ -86,7 +86,7 @@ iii) If the variable has dimensions that aren't on an axis (e.g. ocean depth, or
 iv) Each plot has a <span style="color:darkred">"Remove Plot"</span> button beneath it, which removes that plot from the section.
 
 !!! tip "Optional"
-    Repeat this with as many datasets, variables and plot types as you like. Each new plot appears directly below the controls, above older plots. To add another plot of the same variable and plot type (e.g. with different slices), change the sliders and click "Plot data" again; to change the variable or plot type, choose it and click "Select variable and plot type" again. To switch to a different reference model, click "Clear reference model" and load a new one.
+    Repeat this with as many datasets, variables and plot types as you like. Each new plot appears directly below the controls, above older plots. To add another plot of the same variable and plot type (e.g. with different slices), change the sliders and click "Plot data" again; to change the variable or plot type, choose it and click "Select variable and plot type" again. To switch to a different reference model, choose it and click "Load reference model" again.
 
 When you are ready to move on to your own run, expand the **Start a model diagnostics session** section and click the <span style="color:darkred">"End Session"</span> button.
 
@@ -138,6 +138,9 @@ iv) Once the dataset loads, the plotting controls appear. Choosing a variable, p
 !!! tip "Optional"
     To monitor a different dataset, select it and click "Load dataset" again.
 
+!!! tip "Getting new output"
+    As your run writes new output, click <span style="color:green">"Refresh model data catalog"</span> to rebuild the catalogue, then reload your dataset to see the latest data.
+
 #### 4.2. Comparing user and reference models (optional)
 The **Overlay user and reference models** section compares your run with reference models, either as overlaid line plots or side-by-side heatmaps. It can also plot the difference between the user and reference datasets, to highlight where they differ.
 
@@ -180,7 +183,7 @@ ii) Choose a recipe from "Select analysis recipe" and click "Select recipe". A d
 ![Analysis section](/assets/notebooks/tutorial_4-3_analysis_section.png)
 
 iii) Fill in the options and click "Plot data". As with the other sections, each plot has a "Remove Plot" button. To run the recipe again with different options, change them and click "Plot data" again; the new plot appears above the older ones. If a recipe fails, the error is shown in the <span style="color:darkred">warning</span> box.
-ch removes that plot from the section.
+
 ![Analysis plot](/assets/notebooks/tutorial_4-3_analysis_plot.png)
 
 !!! tip "Running a suite of analyses"

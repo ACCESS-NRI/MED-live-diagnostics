@@ -26,7 +26,7 @@ Built-in recipes live in `src/med_diagnostics/recipes.py`. To turn a custom reci
 2. Name it with a `recipe_` prefix (e.g. `recipe_ocean_heat_content`). MLD finds built-in recipes by this prefix.
 3. Remove the `analysis.register_analysis()` call or `@analysis.register_analysis` decorator. These are only needed for recipes defined in a notebook.
 
-The first line of the docstring becomes the dropdown label (without the `Custom:` prefix), and the second paragraph is shown as the recipe's details.
+The first paragraph of the docstring becomes the dropdown label (without the `Custom:` prefix), and the second paragraph is shown as the recipe's details.
 
 ## Requirements
 
