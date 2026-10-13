@@ -249,26 +249,32 @@ def test_rolling_window_size(freq, periods, target_days, expected_steps):
 
 
 def test_calc_anomalies_removes_monthly_climatology():
-    """Test that anomalies are taken from each calendar month's mean.
+    """Test that anomalies are the difference from the usual value for that month, area weighted.
 
-    Two years share a seasonal cycle, but the second is 1 warmer, so each
-    month's anomaly is -0.5 in the first year and +0.5 in the second.
+    The anomaly is bigger at 60° than at the equator, but boxes there have half
+    the area, so the equator counts double.
     """
     seasonal_cycle = np.sin(2 * np.pi * np.arange(12) / 12)
-    temp = np.concatenate([seasonal_cycle, seasonal_cycle + 1])
+    second_year_warming = np.array([1.0, 4.0])  # at 0° and 60°
+    temp = np.concatenate(
+        [
+            np.broadcast_to(seasonal_cycle[:, None], (12, 2)),
+            seasonal_cycle[:, None] + second_year_warming[None, :],
+        ]
+    )
     ds = xr.Dataset(
         {
             "temp": (
                 ("time", "lat", "lon"),
-                np.broadcast_to(temp[:, None, None], (24, 2, 2)),
+                np.broadcast_to(temp[:, :, None], (24, 2, 2)),
             )
         },
-        coords={"time": _monthly_time(24), "lat": [0, 1], "lon": [0, 1]},
+        coords={"time": _monthly_time(24), "lat": [0.0, 60.0], "lon": [0, 1]},
     )
 
     anomalies = recipes.calc_anomalies(ds, "lon", "lat", "temp")
 
-    np.testing.assert_allclose(anomalies, np.repeat([-0.5, 0.5], 12))
+    np.testing.assert_allclose(anomalies, np.repeat([-1.0, 1.0], 12))
 
 
 # Grid checks
@@ -339,15 +345,17 @@ def test_find_axis_dim_skips_kept_dim_and_dims_without_coords():
 
 # Global means
 
-# Layers in _mom5_style_dataset are 10, 10 and 160 m thick
-MOM5_GLOBAL_MEAN_TEMP = (20 * 10 + 2 * 170) / 180
+# Each layer's mean counts the equator double, then layers are weighted by thickness
+MOM5_GLOBAL_MEAN_TEMP = (18 * 10 + 3 * 170) / 180
 MOM5_GLOBAL_MEAN_SALT = (34 * 20 + 35 * 160) / 180
 
 
 def _mom5_style_dataset():
-    """Small MOM5-style dataset: Kelvin temp, land NaNs and ``st_edges_ocean``."""
+    """Small MOM5-style dataset: Kelvin temp varying with latitude, land NaNs and ``st_edges_ocean``."""
     temp = np.full((24, 3, 2, 2), 273.15 + 2.0)
     temp[:, 0] = 273.15 + 20.0  # thin, warm surface layer
+    temp[:, 0, 1, :] = 273.15 + 14.0  # cooler surface at 60°
+    temp[:, 1:, 1, :] = 273.15 + 5.0  # warmer below at 60°
     salt = np.full((24, 3, 2, 2), 34.0)
     salt[:, 2] = 35.0  # thick, salty deep layer
     salt[:, :, 1, :] = np.nan  # some land
@@ -391,11 +399,10 @@ def test_layer_thickness_from_level_midpoints():
 
 
 def test_global_mean_weights_by_layer_thickness_and_converts_kelvin():
-    """Test that an unweighted mean would be wrong.
+    """Test that the mean is weighted by box area and layer thickness, and converted to degC.
 
-    A plain mean counts the thin surface layer as much as the thick deep one,
-    and leaves temperature in Kelvin, so OM2/ESM output can't be compared with
-    the OM3 references.
+    A plain mean would count the small 60° boxes as much as the equator, and
+    the thin surface layer as much as the thick deep one.
     """
     ds = _mom5_style_dataset()
     temp = recipes.global_mean(ds, "temp", "time")
@@ -407,20 +414,25 @@ def test_global_mean_weights_by_layer_thickness_and_converts_kelvin():
 
 
 def test_global_mean_uses_cf_bounds_and_cell_measures():
-    """Test the MOM6/CF route: ``bounds`` on depth and ``cell_measures`` for area."""
-    mom5 = _mom5_style_dataset()
+    """Test that the real box areas in ``areacello`` are used when the dataset has them.
+
+    The areas are uneven, so equal areas or the cos(latitude) estimate would
+    give a different answer.
+    """
+    layer = np.array([[34.0, 35.0], [36.0, 38.0]])
+    so = layer[None, None] + np.array([0.0, 0.0, 1.0])[None, :, None, None]
     ds = xr.Dataset(
         {
             "so": (
                 ("time", "zl", "yh", "xh"),
-                mom5["salt"].values,
+                np.broadcast_to(so, (24, 3, 2, 2)),
                 {"cell_measures": "area: areacello"},
             ),
-            "areacello": (("yh", "xh"), np.ones((2, 2))),
+            "areacello": (("yh", "xh"), [[1.0, 3.0], [2.0, 2.0]]),
             "zl_bnds": (("zl", "nv"), [[0.0, 10.0], [10.0, 20.0], [20.0, 180.0]]),
         },
         coords={
-            "time": mom5["time"],
+            "time": _monthly_time(24),
             "zl": ("zl", [5.0, 15.0, 100.0], {"axis": "Z", "bounds": "zl_bnds"}),
             "yh": ("yh", [0.0, 60.0], {"axis": "Y"}),
             "xh": ("xh", [0.0, 1.0], {"axis": "X"}),
@@ -428,7 +440,7 @@ def test_global_mean_uses_cf_bounds_and_cell_measures():
     )
 
     np.testing.assert_allclose(
-        recipes.global_mean(ds, "so", "time"), MOM5_GLOBAL_MEAN_SALT
+        recipes.global_mean(ds, "so", "time"), 35.875 + 160 / 180
     )
 
 
@@ -717,20 +729,27 @@ def test_load_om3_timeseries_var_reports_when_every_search_fails(capsys):
 
 # Niño 3.4
 
+# Area-weighted mean of the anomaly scaling used below
+NINO34_LATS = np.arange(-4.5, 5)
+NINO34_ANOMALY_SCALE = np.average(
+    1 + NINO34_LATS**2 / 10, weights=np.cos(np.deg2rad(NINO34_LATS))
+)
+
 
 def test_recipe_sst_anomaly_nino34():
     """Test the Niño 3.4 index on SST with a known anomaly.
 
-    SST in the region is a seasonal cycle plus a yearly anomaly of 0, +1, -1
-    and 0, with 100 outside the region so any leak shows.
-    The ~5-month centred rolling mean leaves two NaN months at each end.
+    Some years are warmer or cooler than usual, more so away from the equator,
+    so the area weighting changes the answer. SST outside the box is very
+    high, so any leak shows. Smoothing leaves NaN months at each end.
     """
     seasonal_cycle = 26 + 2 * np.sin(2 * np.pi * np.arange(48) / 12)
     yearly_anomaly = np.repeat([0.0, 1.0, -1.0, 0.0], 12)
     lon = np.arange(-279.5, 80)
     lat = np.arange(-9.5, 10)
     in_region = (np.abs(lat) < 5)[:, None] & ((lon > -170) & (lon < -120))[None, :]
-    tos = np.where(in_region, (seasonal_cycle + yearly_anomaly)[:, None, None], 100.0)
+    anomaly = yearly_anomaly[:, None, None] * (1 + lat**2 / 10)[None, :, None]
+    tos = np.where(in_region, seasonal_cycle[:, None, None] + anomaly, 100.0)
     ds = xr.Dataset(
         {"tos": (("time", "yt_ocean", "xt_ocean"), tos)},
         coords={
@@ -747,7 +766,9 @@ def test_recipe_sst_anomaly_nino34():
     assert index[-2:].isnull().all()
     july_each_year = [6, 18, 30, 42]
     np.testing.assert_allclose(
-        index.isel(time=july_each_year), [0, 1, -1, 0], atol=1e-10
+        index.isel(time=july_each_year),
+        [0, NINO34_ANOMALY_SCALE, -NINO34_ANOMALY_SCALE, 0],
+        atol=1e-10,
     )
     assert plot_kwargs["title"] == "Niño 3.4 Index"
     assert plot_kwargs["ax_kwargs"]["ylabel"] == "Niño 3.4 SST Anomaly (°C)"
