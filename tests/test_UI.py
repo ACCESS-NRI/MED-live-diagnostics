@@ -3968,6 +3968,28 @@ def test_reset_reference_only_session_then_full_session(uninitialised_ui):
     ]
 
 
+def test_restart_session_rebuilds_user_plot_row(ui, monkeypatch):
+    """Tests the first load after ending and restarting a session shows the user plot row.
+
+    Ending the session clears the cards, so a stale figure_exists would send the
+    load down the update path and leave the variable dropdown missing.
+    """
+    monkeypatch.setattr(
+        med_data, "_build_data_object", MagicMock(return_value=_CACHED_MOCK_DATASET)
+    )
+    ui._enable_widgets_after_catalog_load({"ocean": None}, {"model": None})
+    ui.keys_dropdown.value = "ocean"
+    ui._keys_dropdown_click()
+
+    ui._reset_session_ui()
+    ui._initialise_widgets()
+    ui._enable_widgets_after_catalog_load({"ocean": None}, {"model": None})
+    ui.keys_dropdown.value = "ocean"
+    ui._keys_dropdown_click()
+
+    assert any(obj is ui.plot_ui_row for obj in ui.user_widget_container)
+
+
 def test_restart_after_reference_only_session(uninitialised_ui):
     """Tests starting a full session after a reference-only one doesn't crash the years text.
 

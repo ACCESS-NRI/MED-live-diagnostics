@@ -712,6 +712,8 @@ class UserInterface:
             self.analysis_widget_container,
         ):
             container.clear()
+        # The plot rows went with the cards, so the next load must rebuild them
+        self.figure_exists, self.ref_figure_exists = False, False
         self.main_ui.objects = [self.session_start_widget_container]
         self.session_start_widget_container.collapsed = False
 
