@@ -1784,6 +1784,18 @@ class UserInterface:
         Triggers the plotting of the overlay data plot once the multiplot plot data button has been pressed. Private
         """
 
+        # A difference plot needs at least one reference to subtract from
+        analysis_choice = self.multiplot_analysis_choice_dropdown.value
+        if (
+            isinstance(analysis_choice, (AllAnalysis, DiffAnalysis))
+            and not self.multiplot_ref_dataset_dict
+        ):
+            controller.update_textbox_text(
+                self.multiplot_warning_textbox,
+                "Warning >> Load a reference dataset to plot a difference",
+            )
+            return
+
         controller.update_textbox_text(
             self.multiplot_status_textbox, "Overlay plot status >> Generating plot..."
         )
@@ -1802,7 +1814,6 @@ class UserInterface:
         )
 
         # Generate the figures based on the analysis choice
-        analysis_choice = self.multiplot_analysis_choice_dropdown.value
         fig, fig1, fig2 = None, None, None
 
         if isinstance(analysis_choice, AllAnalysis):

@@ -129,6 +129,8 @@ def load_dataset(model_catalog, key, years=None, from_start=False):
     ------
     FileNotFoundError
         If none of the catalogued files exist on disk.
+    ValueError
+        If ``years`` is less than 1.
     """
 
     return data._build_data_object(

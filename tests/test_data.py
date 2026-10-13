@@ -265,6 +265,16 @@ def test_select_year_files_keeps_undated_files():
     assert data._select_year_files(static, 1).equals(static)
 
 
+@pytest.mark.parametrize("years", [0, -1])
+def test_select_year_files_rejects_non_positive_years(years):
+    """Test that fewer than 1 year raises a clear error.
+
+    Otherwise nothing is selected and loading fails later with an IndexError.
+    """
+    with pytest.raises(ValueError, match="at least 1"):
+        data._select_year_files(_monthly_df(2000, 5), years)
+
+
 class _FakeDatastore:
     """Minimal intake-esm datastore holding one dataset made of ``df``'s files.
 

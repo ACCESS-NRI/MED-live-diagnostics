@@ -714,6 +714,8 @@ def test_plot_multiplot_data_button_click(
     ui.multiplot_plot_variable_dropdown.value = "data"
     ui.multiplot_analysis_choice_dropdown.value = analysis_type
     ui.multiplot_variable_toggle.value = False
+    # Difference plots need a reference loaded
+    ui.multiplot_ref_dataset_dict = {"ref": MagicMock()}
 
     # Configure multiplot slice widgets and establish expected slice values
     if slice_dict is None:
@@ -2625,6 +2627,29 @@ def test_multiplot_plot_data_button_click_all_analysis_modes(
     assert ui.multiplot_status_textbox.value == "Overlay plot status >> Plot created"
     assert ui.multiplot_warning_textbox.value == ""
     assert isinstance(ui.multiplot_widget_container[-1], pn.Column)
+
+
+@pytest.mark.parametrize("analysis_choice", [DiffAnalysis(), AllAnalysis()])
+@patch("med_diagnostics.ui.UserInterface._multiplot_plot_dataset_helper")
+def test_multiplot_difference_without_references_warns(
+    mock_helper, ui, analysis_choice
+):
+    """Test that a difference plot with no references warns instead of plotting.
+
+    Otherwise an empty plot is added, and the warning is cleared straight away.
+    """
+    ui.multiplot_ref_dataset_dict = {}
+    ui.multiplot_analysis_choice_dropdown.value = analysis_choice
+    container_before = len(ui.multiplot_widget_container)
+
+    ui._multiplot_plot_data_button_click()
+
+    assert (
+        ui.multiplot_warning_textbox.value
+        == "Warning >> Load a reference dataset to plot a difference"
+    )
+    mock_helper.assert_not_called()
+    assert len(ui.multiplot_widget_container) == container_before
 
 
 @pytest.mark.parametrize(

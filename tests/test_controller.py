@@ -701,6 +701,57 @@ def test_plot_multiplot_dataset(multiplot_datasets, monkeypatch, plot_diff):
     # User + A + 2 B members, or A diff + 2 B diffs + hline
     assert len(ax.lines) == 4
 
+    # Model A is 1.5 x user, so its difference (ref - user) is 0.5 x user
+    user_values = ds_user["data"].sel(lat=30).values
+    model_a = next(line for line in ax.lines if line.get_label() == "Model A")
+    expected = 0.5 * user_values if plot_diff else 1.5 * user_values
+    np.testing.assert_allclose(model_a.get_ydata(), expected)
+
+
+def _no_overlap_datasets():
+    """User data for 2000-2001 and a reference for 2010-2011, so no shared times."""
+    times = [cftime.DatetimeNoLeap(year, 1, 1) for year in (2000, 2001)]
+    ref_times = [cftime.DatetimeNoLeap(year, 1, 1) for year in (2010, 2011)]
+    ds_user = xr.Dataset(
+        {"data": (["time", "lat"], np.ones((2, 2)))},
+        coords={"time": times, "lat": [10, 20]},
+    )
+    ds_ref = ds_user.assign_coords(time=ref_times)
+    return ds_user, {"Late run": ds_ref}
+
+
+def test_plot_multiplot_dataset_difference_without_overlap(monkeypatch):
+    """Test that a reference sharing no times with the user data is named, not drawn.
+
+    Subtracting keeps only shared times, so runs over different years gave an
+    empty difference plot with no explanation.
+    """
+    ds_user, ref_dict = _no_overlap_datasets()
+    monkeypatch.setattr(
+        controller, "apply_standard_plot_formatting", lambda fig, **kwargs: fig
+    )
+
+    fig = controller.plot_multiplot_dataset(
+        ds_user, "data", ref_dict, {"lat": 10}, "time", None, None, plot_diff=True
+    )
+
+    ax = fig.axes[0]
+    assert [line.get_label() for line in ax.lines] == ["_child0"]
+    assert [text.get_text() for text in ax.texts] == ["No overlap with user data"]
+
+
+def test_plot_multiplot_heatmap_dataset_difference_without_overlap():
+    """Test that heatmap differences skip a reference sharing no times with the user data."""
+    ds_user, ref_dict = _no_overlap_datasets()
+
+    fig = controller.plot_multiplot_heatmap_dataset(
+        ds_user, "data", ref_dict, {}, "lat", "time", plot_diff=True
+    )
+
+    assert [text.get_text() for text in fig.axes[0].texts] == [
+        "No overlap with user data"
+    ]
+
 
 def _make_mock_da():
     mock_da = MagicMock()

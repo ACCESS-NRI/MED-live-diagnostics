@@ -152,8 +152,15 @@ def _select_year_files(df, years=None, from_start=False):
     ----------
     pandas.DataFrame
         The rows to load.
+
+    Raises
+    ------
+    ValueError
+        If ``years`` is less than 1.
     """
 
+    if years is not None and years < 1:
+        raise ValueError(f"Number of years must be at least 1, got {years}")
     if years is None or "start_date" not in df:
         return df
 
@@ -233,6 +240,8 @@ def _build_data_object(model_cat, key, years=None, from_start=False):
     ------
     FileNotFoundError
         If none of the catalogued files exist on disk.
+    ValueError
+        If ``years`` is less than 1.
     """
 
     # If the model_cat is an AliasedESMCatalog, unwrap it to get the raw esm_datastore (intake_esm.core.esm_datastore) object. Reference models are stored as AliasedESMCatalog objects, so this is necessary for loading reference model data.

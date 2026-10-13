@@ -652,13 +652,26 @@ def plot_multiplot_dataset(
     # Slice user data
     sliced_user_data = dataset.sel(**chosen_slices, method="nearest")
 
-    # Only plot the baseline user data as a black line if we are NOT doing a difference plot
+    # Only plot the baseline user data as a black line if we are not doing a difference plot
+    # If there are member values, loop through and plot each.
     if not plot_diff:
-        sliced_user_data[variable].plot(
-            label="User dataset", x=x_axis, ax=ax, linewidth=2, color="black"
-        )
+        if "member" in sliced_user_data.dims:
+            for mem in sliced_user_data.member.values:
+                sliced_user_data[variable].sel(member=mem).plot(
+                    label=f"User dataset (mem: {mem})",
+                    x=x_axis,
+                    ax=ax,
+                    linewidth=1,
+                    alpha=0.6,
+                )
+        else:
+            # Plot directly if no member dimension exists
+            sliced_user_data[variable].plot(
+                label="User dataset", x=x_axis, ax=ax, linewidth=2, color="black"
+            )
 
     # Loop through the dictionary adding each reference dataset
+    no_overlap = []
     for model_key, ref_dataset in ref_dict.items():
         # Apply slices if those dimensions exist in the reference dataset
         valid_slices = {
@@ -668,6 +681,11 @@ def plot_multiplot_dataset(
 
         # Determine the data to plot based on the diff flag
         plot_data = sliced_ref_data - sliced_user_data if plot_diff else sliced_ref_data
+
+        # Subtracting keeps only shared coordinates, so runs over different years give nothing
+        if plot_data[variable].size == 0:
+            no_overlap.append(model_key)
+            continue
 
         # Plot all model variants if multiple exist
         if "member" in plot_data.dims:
@@ -686,6 +704,16 @@ def plot_multiplot_dataset(
         ax.axhline(0, color="k")  # horizontal line at 0
     else:
         title_text = base_title
+
+    if no_overlap:
+        ax.text(
+            0.5,
+            0.95,
+            f"No overlap with user data: {', '.join(no_overlap)}",
+            transform=ax.transAxes,
+            ha="center",
+            va="top",
+        )
 
     ax.set_xlim(x_min, x_max)
 
@@ -725,20 +753,6 @@ def plot_multiplot_heatmap_dataset(
     matplotlib.figure.Figure
         A grid of heatmaps, two per row.
     """
-    num_refs = len(ref_dict)
-
-    # If not plotting the difference, add 1 to total_plots to accommodate the user dataset
-    total_plots = num_refs if plot_diff else num_refs + 1
-
-    if total_plots == 0:
-        fig, ax = plt.subplots(figsize=[6, 4])
-        ax.text(0.5, 0.5, "No models selected to plot", ha="center", va="center")
-        return fig
-
-    # Calculate grid dimensions
-    ncols = 2 if total_plots > 1 else 1
-    nrows = (total_plots + 1) // 2
-
     # Slice user data
     sliced_user_data = dataset.sel(**chosen_slices, method="nearest")
     user_member_title = ""
@@ -746,64 +760,12 @@ def plot_multiplot_heatmap_dataset(
         user_member_title = f" (mem: {sliced_user_data.member.values[0]})"
         sliced_user_data = sliced_user_data.isel(member=0)
 
-    # Initialise colour bounds
+    # Collect each panel's title and data, with the user data first if not plotting differences
+    panels = []
     if not plot_diff:
-        # If plotting all data, baseline the min/max using the user dataset
-        global_vmin = float(sliced_user_data[variable].min())
-        global_vmax = float(sliced_user_data[variable].max())
-    else:
-        # If only plotting differences, baseline using the first reference difference
-        _first_key, first_ref_ds = next(iter(ref_dict.items()))
-        valid_slices = {
-            dim: val for dim, val in chosen_slices.items() if dim in first_ref_ds.dims
-        }
-        sliced_first_ref = first_ref_ds.sel(**valid_slices, method="nearest")
-        if "member" in sliced_first_ref.dims:
-            sliced_first_ref = sliced_first_ref.isel(member=0)
+        panels.append((f"User Data{user_member_title}", sliced_user_data[variable]))
 
-        first_plot_data = sliced_first_ref - sliced_user_data
-        global_vmin = float(first_plot_data[variable].min())
-        global_vmax = float(first_plot_data[variable].max())
-
-    # Calculate min and max across all reference datasets to keep colour scales consistent
-    for ref_ds in ref_dict.values():
-        valid_slices = {
-            dim: val for dim, val in chosen_slices.items() if dim in ref_ds.dims
-        }
-        sliced_ref = ref_ds.sel(**valid_slices, method="nearest")
-        if "member" in sliced_ref.dims:
-            sliced_ref = sliced_ref.isel(member=0)
-
-        plot_data = (sliced_ref - sliced_user_data) if plot_diff else sliced_ref
-        global_vmin = min(global_vmin, float(plot_data[variable].min()))
-        global_vmax = max(global_vmax, float(plot_data[variable].max()))
-
-    # Make the difference scale symmetric so that 0 is always white
-    if plot_diff:
-        abs_max = max(abs(global_vmin), abs(global_vmax))
-        global_vmin, global_vmax = -abs_max, abs_max
-
-    # Create grid
-    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=[6 * ncols, 4 * nrows])
-    axes_flat = axes.flatten() if hasattr(axes, "flatten") else [axes]
-
-    ax_idx = 0
-
-    # Plot User Data first (if not plotting differences)
-    if not plot_diff:
-        sliced_user_data[variable].plot(
-            x=x_axis,
-            y=y_axis,
-            ax=axes_flat[ax_idx],
-            vmin=global_vmin,
-            vmax=global_vmax,
-            cmap="viridis",
-            cbar_kwargs={"label": variable},
-        )
-        axes_flat[ax_idx].set_title(f"User Data{user_member_title}")
-        ax_idx += 1
-
-    # Plot Reference Data (or Difference Data)
+    no_overlap = []
     for model_key, ref_ds in ref_dict.items():
         valid_slices = {
             dim: val for dim, val in chosen_slices.items() if dim in ref_ds.dims
@@ -816,24 +778,67 @@ def plot_multiplot_heatmap_dataset(
             sliced_ref = sliced_ref.isel(member=0)
 
         plot_data = (sliced_ref - sliced_user_data) if plot_diff else sliced_ref
-        title_prefix = "Ref. - User data: " if plot_diff else ""
 
-        chosen_heatmap = "RdBu_r" if plot_diff else "viridis"
-        plot_data[variable].plot(
+        # Subtracting keeps only shared coordinates, so runs over different years give nothing
+        if plot_data[variable].size == 0:
+            no_overlap.append(model_key)
+            continue
+
+        title_prefix = "Ref. - User data: " if plot_diff else ""
+        panels.append((f"{title_prefix}{model_key}{member_title}", plot_data[variable]))
+
+    no_overlap_text = (
+        f"No overlap with user data: {', '.join(no_overlap)}" if no_overlap else ""
+    )
+    total_plots = len(panels)
+
+    if total_plots == 0:
+        fig, ax = plt.subplots(figsize=[6, 4])
+        ax.text(
+            0.5,
+            0.5,
+            no_overlap_text or "No models selected to plot",
+            ha="center",
+            va="center",
+        )
+        return fig
+
+    # Calculate min and max across all panels to keep colour scales consistent
+    global_vmin = min(float(values.min()) for _, values in panels)
+    global_vmax = max(float(values.max()) for _, values in panels)
+
+    # Make the difference scale symmetric so that 0 is always white
+    if plot_diff:
+        abs_max = max(abs(global_vmin), abs(global_vmax))
+        global_vmin, global_vmax = -abs_max, abs_max
+
+    # Calculate grid dimensions
+    ncols = 2 if total_plots > 1 else 1
+    nrows = (total_plots + 1) // 2
+
+    # Create grid
+    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=[6 * ncols, 4 * nrows])
+    axes_flat = axes.flatten() if hasattr(axes, "flatten") else [axes]
+
+    chosen_heatmap = "RdBu_r" if plot_diff else "viridis"
+    for ax, (title, values) in zip(axes_flat, panels):
+        values.plot(
             x=x_axis,
             y=y_axis,
-            ax=axes_flat[ax_idx],
+            ax=ax,
             vmin=global_vmin,
             vmax=global_vmax,
             cmap=chosen_heatmap,
             cbar_kwargs={"label": f"Δ {variable}" if plot_diff else variable},
         )
-        axes_flat[ax_idx].set_title(f"{title_prefix}{model_key}{member_title}")
-        ax_idx += 1
+        ax.set_title(title)
 
     # Delete empty subplots remaining
     for i in range(total_plots, len(axes_flat)):
         fig.delaxes(axes_flat[i])
+
+    if no_overlap_text:
+        fig.suptitle(no_overlap_text, fontsize=10)
 
     # Add slice information to the caption text if sliced
     slice_str = ", ".join(
