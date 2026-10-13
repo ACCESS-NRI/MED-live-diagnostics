@@ -1,3 +1,4 @@
+import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
@@ -66,8 +67,27 @@ def test_shade_bottom_10pct():
 
 def test_nino_fills():
     fig, ax, data = init_fig_ax_data()
-    plot_customisations.nino_fills(ax, data - 4.5)
-    assert len(ax.collections) == 2
+    plot_customisations.nino_fills(ax, data - 4.5)  # -4.5 to 4.5 in steps of 1
+
+    red, blue = ax.collections  # El Niño fill first, then La Niña
+
+    # Colours
+    assert mcolors.to_hex(red.get_facecolor()[0]) == "#ff0000"
+    assert mcolors.to_hex(blue.get_facecolor()[0]) == "#0000ff"
+
+    # Each fill is a polygon; its corner points are in .vertices as (x, y) rows
+    red_xy = np.concatenate([p.vertices for p in red.get_paths()])
+    blue_xy = np.concatenate([p.vertices for p in blue.get_paths()])
+
+    # Red is shaded from the +0.4 line up to the data, blue from the data down to -0.4
+    assert red_xy[:, 1].min() == 0.4
+    assert red_xy[:, 1].max() == 4.5
+    assert blue_xy[:, 1].max() == -0.4
+    assert blue_xy[:, 1].min() == -4.5
+
+    # Shading only where the data is past the threshold: it crosses +0.4 at t=4.9 and -0.4 at t=4.1
+    assert red_xy[:, 0].min() == 4.9
+    assert blue_xy[:, 0].max() == 4.1
     plt.close(fig)
 
 

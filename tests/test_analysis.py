@@ -67,7 +67,22 @@ def test_reuploading_replaces_the_old_version():
     edited.__name__ = "my_mean"  # as if the notebook cell were edited and re-run
     analysis.register_analysis(edited)
     assert {"my_mean": edited} == analysis.REGISTERED_ANALYSES
-    assert list(analysis._list_recipes()).count("Custom: New version.") == 1
+    labels = analysis._list_recipes()
+    assert "Custom: New version." in labels
+    assert not any(label.startswith("Custom: Mean of a variable.") for label in labels)
+
+
+def test_recipes_with_the_same_summary_get_distinct_labels():
+    """Test that two different recipes with the same summary both appear in the dropdown."""
+
+    def other_mean(ds):
+        """Mean of a variable."""
+
+    analysis.register_analysis(my_mean)
+    analysis.register_analysis(other_mean)
+    labels = analysis._list_recipes()
+    assert labels["Custom: Mean of a variable."] is my_mean
+    assert labels["Custom: Mean of a variable. (other_mean)"] is other_mean
 
 
 @pytest.mark.parametrize(

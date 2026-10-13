@@ -66,7 +66,7 @@ def test_get_current_time(mock_datetime):
     result = controller.get_current_time()
 
     # Assert against the exact string we expect
-    expected_str = frozen_time.astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
+    expected_str = "2026-09-10 00:47:14 AEST"
     assert result == expected_str
 
 
@@ -327,77 +327,61 @@ def test_get_selected_variable(toggle_value, long_names):
         assert result == variable_dropdown_widget.value
 
 
+def _monthly_ds(calendar=None):
+    """Monthly data over 2000 (a leap year), with no time axis if calendar is None.
+
+    "numpy" gives datetime64 times, as xarray uses for standard calendars.
+    """
+    if calendar is None:
+        return xr.Dataset({"data": ("x", np.arange(3.0))})
+    if calendar == "numpy":
+        times = xr.date_range("2000-01-01", periods=12, freq="MS")
+    else:
+        times = xr.date_range(
+            "2000-01-01", periods=12, freq="MS", calendar=calendar, use_cftime=True
+        )
+    return xr.Dataset({"data": ("time", np.arange(12.0))}, coords={"time": times})
+
+
 @pytest.mark.parametrize(
-    "has_time, user_is_cftime, ref_is_cftime, user_cal, ref_cal, expect_convert",
+    "user_cal, ref_cal, expected_cal",
     [
-        (False, False, False, None, None, False),
-        (True, True, True, "noleap", "noleap", False),
-        (True, True, True, "noleap", "standard", True),
-        (True, False, True, "standard", "noleap", True),
+        # No time axis, or calendars already match: the reference is stored unchanged
+        (None, None, None),
+        ("noleap", "noleap", None),
+        # Mismatched calendars: the reference is converted to the user's calendar
+        ("noleap", "numpy", "noleap"),
+        ("noleap", "standard", "noleap"),
+        # A user datetime64 axis counts as standard, which xarray gives back as datetime64
+        ("numpy", "noleap", "proleptic_gregorian"),
+        # 360-day conversions need align_on, or xarray raises
+        ("noleap", "360_day", "noleap"),
+        ("360_day", "noleap", "360_day"),
     ],
 )
-def test_add_to_dataset_dict(
-    monkeypatch,
-    has_time,
-    user_is_cftime,
-    ref_is_cftime,
-    user_cal,
-    ref_cal,
-    expect_convert,
-):
-    # Mock data._build_data_object
-    mock_dataset = MagicMock()
-    monkeypatch.setattr(
-        med_data, "_build_data_object", MagicMock(return_value=mock_dataset)
-    )
+def test_add_to_dataset_dict(monkeypatch, user_cal, ref_cal, expected_cal):
+    """Test that a loaded reference is converted to the user's calendar when they differ."""
+    ref_ds = _monthly_ds(ref_cal)
+    monkeypatch.setattr(med_data, "_build_data_object", MagicMock(return_value=ref_ds))
+    dataset_dict = {"Existing": "kept"}
 
-    # Configure coords
-    mock_dataset.coords = ["time"] if has_time else []
-
-    mock_user_data = MagicMock()
-    mock_user_data.coords = ["time"] if has_time else []
-
-    # Configure indexes and calendars
-    mock_user_index = MagicMock()
-    mock_user_index.calendar = user_cal
-
-    mock_ref_index = MagicMock()
-    mock_ref_index.calendar = ref_cal
-
-    mock_user_data.indexes.get.return_value = mock_user_index
-    mock_dataset.indexes.get.return_value = mock_ref_index
-
-    # Mock isinstance to selectively return True for CFTimeIndex checks
-    original_isinstance = isinstance
-
-    def custom_isinstance(obj, classinfo):
-        if classinfo is xr.CFTimeIndex:
-            if obj == mock_user_index:
-                return user_is_cftime
-            if obj == mock_ref_index:
-                return ref_is_cftime
-            return False
-        return original_isinstance(obj, classinfo)
-
-    monkeypatch.setattr("builtins.isinstance", custom_isinstance)
-
-    dataset_dict = {}
     result = controller.add_to_dataset_dict(
         dataset_dict=dataset_dict,
         model="TestModel",
         catalog=MagicMock(),
         data_to_load={},
-        user_data=mock_user_data,
+        user_data=_monthly_ds(user_cal),
     )
 
-    # Assertions
-    assert "TestModel" in result
-    if expect_convert:
-        mock_dataset.convert_calendar.assert_called_once_with(
-            user_cal if user_is_cftime else "standard"
-        )
+    # The caller's dict is updated in place
+    assert result is dataset_dict
+    assert result["Existing"] == "kept"
+    loaded = result["TestModel"]
+    if expected_cal is None:
+        assert loaded is ref_ds
     else:
-        mock_dataset.convert_calendar.assert_not_called()
+        assert loaded.time.dt.calendar == expected_cal
+        assert loaded.time.dt.year.values.tolist() == [2000] * 12
 
 
 def test_get_metadata():
@@ -755,96 +739,77 @@ def test_plot_multiplot_heatmap_dataset_difference_without_overlap():
     ]
 
 
-def _make_mock_da():
-    mock_da = MagicMock()
-    mock_da.min.return_value = 0.0
-    mock_da.max.return_value = 10.0
-    return mock_da
+def _heatmap_ds(values, member=False):
+    """A temp field on a 2x3 lat/lon grid at lev 0 and 10, optionally with a member dim."""
+    data = np.array(values, dtype=float) + np.zeros((2, 2, 3))  # lev, lat, lon
+    dims = ("lev", "lat", "lon")
+    coords = {"lev": [0, 10], "lat": [0.0, 1.0], "lon": [0.0, 1.0, 2.0]}
+    if member:
+        # Member 1 holds the given values, member 2 is far off so using it would show
+        data = np.stack([data, data + 100])
+        dims = ("member",) + dims
+        coords["member"] = [1, 2]
+    return xr.Dataset({"temp": (dims, data)}, coords=coords)
 
 
-def _no_refs_case():
-    """total_plots == 0 -> returns fig with 'No reference models selected' text."""
-    return {"dataset": MagicMock(), "ref_dict": {}, "chosen_slices": {}}
+def _heatmap_axes(fig):
+    """The heatmap panels, i.e. every axis except the colour bars."""
+    return [ax for ax in fig.axes if ax.get_title()]
 
 
-def _no_refs_diff_case():
-    """total_plots == 0 -> returns fig with 'No reference models selected' text."""
-    return {
-        "dataset": MagicMock(),
-        "ref_dict": {},
-        "chosen_slices": {},
-        "plot_diff": True,
-    }
-
-
-def _delaxes_and_slices_case():
-    """Odd total_plots (triggers fig.delaxes) and non-empty chosen_slices (triggers bottom=0.15 adjust)."""
-    # 3 reference models forces a 2x2 grid, leaving 1 empty subplot
-    mock_da = _make_mock_da()
-
-    ref_ds = MagicMock(spec=xr.Dataset)
-    ref_ds.dims = {"lon": 10, "lat": 10}
-    ref_ds.sel.return_value = ref_ds
-    ref_ds.__getitem__.return_value = mock_da
-
-    user_ds = MagicMock()
-    user_ds.sel.return_value = user_ds
-    user_ds.__getitem__.return_value = mock_da
-
-    return {
-        "dataset": user_ds,
-        "ref_dict": {"model1": ref_ds, "model2": ref_ds, "model3": ref_ds},
-        "chosen_slices": {"lev": 5},  # non-empty to trigger slice_str and bottom=0.15
-    }
-
-
-def _member_dims_case():
-    """'member' in sliced_user_data.dims and 'member' in sliced_first_ref.dims."""
-    mock_da = _make_mock_da()
-
-    # Configure mock for sliced reference dataset after isel
-    sliced_ref_mock = MagicMock()
-    sliced_ref_mock.dims = {"lon": 10, "lat": 10}
-    sliced_ref_mock.__getitem__.return_value = mock_da
-    sliced_ref_mock.__sub__.return_value = (
-        sliced_ref_mock  # subtraction for plot_diff=True
-    )
-
-    # Not spec'd, so dynamic attributes like .member are allowed
-    ref_ds = MagicMock()
-    ref_ds.dims = {"lon": 10, "lat": 10, "member": 3}
-    ref_ds.member.values = [1]
-    ref_ds.sel.return_value = ref_ds
-    ref_ds.isel.return_value = sliced_ref_mock
-
-    # Configure mock for sliced user dataset after isel
-    sliced_user_mock = MagicMock()
-    sliced_user_mock.dims = {"lon": 10, "lat": 10}
-    sliced_user_mock.__getitem__.return_value = mock_da
-
-    user_ds = MagicMock()
-    user_ds.dims = {"lon": 10, "lat": 10, "member": 3}
-    user_ds.sel.return_value = user_ds
-    user_ds.isel.return_value = sliced_user_mock
-
-    return {
-        "dataset": user_ds,
-        "ref_dict": {"model1": ref_ds},
-        "chosen_slices": {},
-        "plot_diff": True,
-    }
-
-
-@pytest.mark.parametrize(
-    "build_kwargs",
-    [_no_refs_case, _delaxes_and_slices_case, _member_dims_case, _no_refs_diff_case],
-    ids=["no_refs", "delaxes_and_slices", "member_dims", "no_ref_diff"],
-)
-def test_plot_multiplot_heatmap_dataset(build_kwargs):
+def test_plot_multiplot_heatmap_dataset_user_only():
+    """With no references, the user data is plotted on its own."""
     fig = controller.plot_multiplot_heatmap_dataset(
-        variable="temp", x_axis="lon", y_axis="lat", **build_kwargs()
+        _heatmap_ds(1.0), "temp", {}, {"lev": 0}, "lon", "lat"
     )
-    assert fig is not None
+
+    assert [ax.get_title() for ax in _heatmap_axes(fig)] == ["User Data"]
+    assert not fig.axes[0].texts
+
+
+def test_plot_multiplot_heatmap_dataset_no_refs_diff():
+    """A difference plot with no references says so instead of drawing empty panels."""
+    fig = controller.plot_multiplot_heatmap_dataset(
+        _heatmap_ds(1.0), "temp", {}, {}, "lon", "lat", plot_diff=True
+    )
+
+    assert [text.get_text() for text in fig.axes[0].texts] == [
+        "No models selected to plot"
+    ]
+
+
+def test_plot_multiplot_heatmap_dataset_grid():
+    """User and references share one colour scale, and the spare grid cell is removed."""
+    ref_dict = {"model1": _heatmap_ds(2.0), "model2": _heatmap_ds(5.0)}
+
+    fig = controller.plot_multiplot_heatmap_dataset(
+        _heatmap_ds(1.0), "temp", ref_dict, {"lev": 0}, "lon", "lat"
+    )
+
+    # 3 panels in a 2x2 grid, so the fourth is deleted
+    heatmaps = _heatmap_axes(fig)
+    assert [ax.get_title() for ax in heatmaps] == ["User Data", "model1", "model2"]
+    assert len(fig.axes) == 6  # 3 heatmaps + 3 colour bars
+    for ax in heatmaps:
+        assert ax.collections[0].get_clim() == (1.0, 5.0)
+    assert [text.get_text() for text in fig.texts] == ["Sliced by: lev: 0.0"]
+
+
+def test_plot_multiplot_heatmap_dataset_member_diff():
+    """Ensemble data plots the first member, and the difference is ref minus user."""
+    fig = controller.plot_multiplot_heatmap_dataset(
+        _heatmap_ds(1.0, member=True),
+        "temp",
+        {"model1": _heatmap_ds(4.0, member=True)},
+        {"lev": 10},
+        "lon",
+        "lat",
+        plot_diff=True,
+    )
+
+    (ax,) = _heatmap_axes(fig)
+    assert ax.get_title() == "Ref. - User data: model1 (mem: 1)"
+    np.testing.assert_allclose(ax.collections[0].get_array(), 3.0)
 
 
 def test_plot_multiplot_heatmap_dataset_diff_scale_is_symmetric():
