@@ -1548,8 +1548,17 @@ SECTION_ATTRS = {
         (False, True, False, False),
         (False, False, True, False),
         (False, False, False, True),
+        (False, True, False, True),
+        (False, True, True, False),
     ],
-    ids=["valid", "requires_slice", "invalid_heatmap", "same_axes"],
+    ids=[
+        "valid",
+        "requires_slice",
+        "invalid_heatmap",
+        "same_axes",
+        "same_axes_with_slice",
+        "invalid_heatmap_with_slice",
+    ],
 )
 def test_select_dims_helper(
     ui,
@@ -1596,9 +1605,8 @@ def test_select_dims_helper(
     mock_plot_action.assert_not_called()
     warning = getattr(ui, attrs["warning"]).value
 
-    if plot_valid or requires_slice:
-        mock_display_slice_ui.assert_called_once_with(section=attrs["section"])
-    elif invalid_heatmap_data:
+    # Warnings take priority over showing the slice row
+    if invalid_heatmap_data:
         assert (
             warning
             == "Warning >> The dataset only has one plottable dimension. Defaulting to line plot"
@@ -1612,6 +1620,8 @@ def test_select_dims_helper(
             == "Warning >> Please ensure different values are selected for each axis"
         )
         mock_display_slice_ui.assert_not_called()
+    elif plot_valid or requires_slice:
+        mock_display_slice_ui.assert_called_once_with(section=attrs["section"])
 
 
 @pytest.mark.parametrize("section_name", ["user", "ref", "multiplot"])
