@@ -136,7 +136,7 @@ class CreateModelDiagnosticsSession:
         )
 
         # Load new catalog
-        self.model_cat = data._load_new_catalog()
+        self.model_cat = data._load_new_catalog(self.model_path)
 
     def _refresh_catalog(self, event):
         """

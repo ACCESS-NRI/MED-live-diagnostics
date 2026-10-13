@@ -1,4 +1,3 @@
-import os
 import re
 from unittest.mock import MagicMock
 
@@ -37,14 +36,14 @@ def test_build_new_catalog_valid_models(
     """Test that all valid model types map to the correct builders and kwargs."""
     mock_use_datastore = MagicMock(return_value="mock_datastore")
     monkeypatch.setattr(data, "use_datastore", mock_use_datastore)
-    monkeypatch.setattr(os, "getcwd", lambda: "/mock/working/dir")
+    monkeypatch.setattr(data, "_catalog_dir", lambda path: "/mock/catalog/dir")
 
     result = data._build_new_catalog("/mock/model/path", model_type)
 
     assert result == "mock_datastore"
     mock_use_datastore.assert_called_once_with(
         experiment_dir="/mock/model/path",
-        catalog_dir="/mock/working/dir",
+        catalog_dir="/mock/catalog/dir",
         builder=expected_builder,
         datastore_name="live_diagnostics_tmp_catalog",
         description="Temporary catalog for live diagnostics",
@@ -58,19 +57,33 @@ def test_build_new_catalog_invalid_model():
         data._build_new_catalog("/mock/model/path", "invalid")
 
 
-def test_load_new_catalog(monkeypatch):
-    """Test loading the temporary ESM datastore from the current working directory."""
+def test_load_new_catalog(monkeypatch, tmp_path):
+    """Test loading the temporary ESM datastore from the experiment's catalog folder."""
     mock_open_esm = MagicMock(return_value="mock_catalog")
     monkeypatch.setattr(data.intake, "open_esm_datastore", mock_open_esm)
-    monkeypatch.setattr(os, "getcwd", lambda: "/mock/working/dir")
+    monkeypatch.setattr(data, "_catalog_dir", lambda path: tmp_path)
 
-    result = data._load_new_catalog()
+    result = data._load_new_catalog("/mock/model/path")
 
     assert result == "mock_catalog"
     mock_open_esm.assert_called_once_with(
-        "/mock/working/dir/live_diagnostics_tmp_catalog.json",
+        tmp_path / "live_diagnostics_tmp_catalog.json",
         columns_with_iterables=["variable"],
     )
+
+
+def test_catalog_dir(monkeypatch, tmp_path):
+    """Test each experiment gets its own catalog folder, even with the same folder name."""
+    monkeypatch.setattr(data, "CATALOG_ROOT", tmp_path)
+
+    run_a = data._catalog_dir("/g/data/a/output")
+    run_b = data._catalog_dir("/g/data/b/output")
+
+    assert run_a.is_dir() and run_b.is_dir()
+    assert run_a.parent == tmp_path
+    assert run_a.name.startswith("output_")
+    assert run_a != run_b
+    assert data._catalog_dir("/g/data/a/output") == run_a
 
 
 @pytest.mark.parametrize("is_aliased", [True, False])

@@ -3,8 +3,10 @@
 
 """Data IO functions"""
 
+import hashlib
 import os
 import re
+from pathlib import Path
 
 import intake
 import pandas as pd
@@ -31,12 +33,38 @@ CATALOG_MODEL_NAMES = {
     "om3": ["ACCESS-OM2", "ACCESS-OM2-01", "ACCESS-OM2-025", "MOM6"],
 }
 
+# Each experiment's catalog gets its own small folder, as use_datastore searches the whole catalog_dir
+CATALOG_ROOT = Path.home() / ".med_diagnostics" / "catalogs"
+CATALOG_NAME = "live_diagnostics_tmp_catalog"
+
+
+def _catalog_dir(model_path):
+    """
+    Return the catalog folder for a model output path, creating it if needed. Private.
+
+    Parameters
+    ----------
+    model_path : str
+        Path to model output directory/files on Gadi.
+
+    Returns
+    -------
+    pathlib.Path
+        Folder holding this experiment's catalog files.
+    """
+    # The hash keeps runs with the same folder name (e.g. "output") apart
+    path = Path(model_path).expanduser().resolve()
+    path_hash = hashlib.sha1(str(path).encode()).hexdigest()[:8]
+    catalog_dir = CATALOG_ROOT / f"{path.name}_{path_hash}"
+    catalog_dir.mkdir(parents=True, exist_ok=True)
+    return catalog_dir
+
 
 def _build_new_catalog(model_path, model_type):
     """
     Build new intake ESM datastore from user model data found in model_path.
     Uses intake datastore builder for the specified model_type.
-    Saves new catalog file to the current working directory. Private.
+    Saves the catalog to this experiment's folder under CATALOG_ROOT. Private.
 
     Parameters
     ----------
@@ -75,20 +103,25 @@ def _build_new_catalog(model_path, model_type):
     else:
         builder_kwargs_set = {}
 
-    # Use the matched builder to build the new catalog in the users working directory.
+    # Use the matched builder to build the new catalog in this experiment's catalog folder.
     return use_datastore(
         experiment_dir=model_path,
-        catalog_dir=os.getcwd(),
+        catalog_dir=_catalog_dir(model_path),
         builder=model_type_builder,
-        datastore_name="live_diagnostics_tmp_catalog",
+        datastore_name=CATALOG_NAME,
         description="Temporary catalog for live diagnostics",
         builder_kwargs=builder_kwargs_set,
     )
 
 
-def _load_new_catalog():
+def _load_new_catalog(model_path):
     """
-    Load saved ESM datastore catalog file from the current working directory. Private.
+    Load the saved ESM datastore catalog for a model output path. Private.
+
+    Parameters
+    ----------
+    model_path : str
+        Path to model output directory/files on Gadi.
 
     Returns
     ----------
@@ -97,7 +130,7 @@ def _load_new_catalog():
     """
 
     return intake.open_esm_datastore(
-        os.path.join(os.getcwd(), "live_diagnostics_tmp_catalog.json"),
+        _catalog_dir(model_path) / f"{CATALOG_NAME}.json",
         columns_with_iterables=["variable"],
     )
 
