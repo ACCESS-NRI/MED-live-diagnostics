@@ -9,23 +9,23 @@ import xarray as xr
 from med_diagnostics import plot_customisations
 
 PREDEFINED_REGIONS = {
-    # ENSO Regions
+    # ENSO regions, from NOAA CPC: https://cpc.ncep.noaa.gov/products/CDB/Tropics/figt5.shtml
     "nino12": {"lat": (-10, 0), "lon": (-90, -80)},
     "nino3": {"lat": (-5, 5), "lon": (-150, -90)},
     "nino34": {"lat": (-5, 5), "lon": (-170, -120)},
     "nino4": {"lat": (-5, 5), "lon": (160, -150)},  # Note: crosses the 180 dateline
-    # Indian Ocean Dipole (IOD)
+    # Indian Ocean Dipole (IOD) poles, from Saji et al. (1999), doi:10.1038/43854
     "iod_west": {"lat": (-10, 10), "lon": (50, 70)},
     "iod_east": {"lat": (-10, 0), "lon": (90, 110)},
-    # Atlantic Indices
+    # Atlantic indices, from NOAA State of the Ocean (NOAA PSL's TNA box is slightly smaller): https://stateoftheocean.osmc.noaa.gov/sur/atl/tna.php
     "tna": {"lat": (5, 25), "lon": (-55, -15)},  # Tropical North Atlantic
     "tsa": {"lat": (-20, 0), "lon": (-30, 10)},  # Tropical South Atlantic
-    # Hemispheres & Global Bounds
+    # Hemispheres & Global Bounds (no single standard, e.g. tropics are often ±23.4°)
     "global": {"lat": (-90, 90), "lon": (-180, 180)},
     "nh": {"lat": (0, 90), "lon": (-180, 180)},  # Northern Hemisphere
     "sh": {"lat": (-90, 0), "lon": (-180, 180)},  # Southern Hemisphere
     "tropics": {"lat": (-20, 20), "lon": (-180, 180)},
-    # Continents & Specific Geographic Regions
+    # Continents & Specific Geographic Regions (hand-drawn boxes, not standard; polar edges are the polar circles)
     "tasmania": {"lat": (-44, -39), "lon": (143, 149)},
     "australia": {"lat": (-44, -10), "lon": (112, 154)},
     "maritime_continent": {"lat": (-10, 10), "lon": (90, 150)},

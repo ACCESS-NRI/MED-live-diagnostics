@@ -147,22 +147,54 @@ def _global_one_degree_grid(lon_start=0.5):
     )
 
 
+# Number of 1° latitude and longitude cells inside each predefined region
+REGION_SIZES = {
+    "nino12": (10, 10),
+    "nino3": (10, 60),
+    "nino34": (10, 50),
+    "nino4": (10, 50),
+    "iod_west": (20, 20),
+    "iod_east": (10, 20),
+    "tna": (20, 40),
+    "tsa": (20, 40),
+    "global": (180, 360),
+    "nh": (90, 360),
+    "sh": (90, 360),
+    "tropics": (40, 360),
+    "tasmania": (5, 6),
+    "australia": (34, 42),
+    "maritime_continent": (20, 60),
+    "southern_ocean": (40, 360),
+    "arctic": (24, 360),
+    "antarctic": (24, 360),
+}
+
+
+def test_region_sizes_cover_every_region():
+    """Test that a new region can't be added without an expected size."""
+    assert set(REGION_SIZES) == set(recipes.PREDEFINED_REGIONS)
+
+
 @pytest.mark.parametrize(
     "lon_start", [0.5, -179.5, -279.5], ids=["0-360", "-180-180", "mom5"]
 )
 @pytest.mark.parametrize("region", list(recipes.PREDEFINED_REGIONS))
-def test_every_region_selects_cells(region, lon_start):
-    """Test that every predefined region selects cells on common grids.
+def test_every_region_selects_the_right_cells(region, lon_start):
+    """Test that every predefined region selects the same cells on every longitude convention.
 
-    Full-width regions (e.g. "tropics") used to select no longitudes, giving an
-    all-NaN mean that only surfaced later as a confusing error in add_trend.
+    A region wrapped the wrong way around the globe would select the cells
+    outside it instead, and full-width regions used to select nothing.
     """
     subset = recipes.extract_region(_global_one_degree_grid(lon_start), region)
+    n_lat, n_lon = REGION_SIZES[region]
+    lat_south, _ = recipes.PREDEFINED_REGIONS[region]["lat"]
+    lon_west, _ = recipes.PREDEFINED_REGIONS[region]["lon"]
 
-    assert subset.sizes["lat"] > 0
-    assert subset.sizes["lon"] > 0
-    if region == "global":
-        assert subset.sizes["lon"] == 360
+    # Compare cell centres with each grid's longitudes converted to 0-360
+    expected_lats = np.ceil(lat_south - 0.5) + 0.5 + np.arange(n_lat)
+    expected_lons = np.sort((lon_west + 0.5 + np.arange(n_lon)) % 360)
+    np.testing.assert_allclose(subset["lat"], expected_lats)
+    np.testing.assert_allclose(np.sort(subset["lon"] % 360), expected_lons)
 
 
 def test_extract_region_by_name():
@@ -413,15 +445,11 @@ def test_global_mean_weights_by_layer_thickness_and_converts_kelvin():
     assert temp.attrs["units"] == "degC"
 
 
-def test_global_mean_uses_cf_bounds_and_cell_measures():
-    """Test that the real box areas in ``areacello`` are used when the dataset has them.
-
-    The areas are uneven, so equal areas or the cos(latitude) estimate would
-    give a different answer.
-    """
+def _mom6_style_dataset():
+    """Small MOM6/CF-style dataset: ``so`` varying across boxes, uneven ``areacello`` and depth ``bounds``."""
     layer = np.array([[34.0, 35.0], [36.0, 38.0]])
     so = layer[None, None] + np.array([0.0, 0.0, 1.0])[None, :, None, None]
-    ds = xr.Dataset(
+    return xr.Dataset(
         {
             "so": (
                 ("time", "zl", "yh", "xh"),
@@ -439,15 +467,39 @@ def test_global_mean_uses_cf_bounds_and_cell_measures():
         },
     )
 
+
+def test_global_mean_uses_cf_bounds_and_cell_measures():
+    """Test that the real box areas in ``areacello`` are used when the dataset has them.
+
+    The areas are uneven, so equal areas or the cos(latitude) estimate would
+    give a different answer.
+    """
     np.testing.assert_allclose(
-        recipes.global_mean(ds, "so", "time"), 35.875 + 160 / 180
+        recipes.global_mean(_mom6_style_dataset(), "so", "time"), 35.875 + 160 / 180
     )
 
 
-def test_global_mean_max():
-    """Test that ``how="max"`` takes the global maximum instead of the mean."""
+def test_global_mean_prefers_volcello():
+    """Test that the real box volumes in ``volcello`` are used ahead of area and thickness.
+
+    One deep box is much bigger than the rest, so using ``areacello`` and layer
+    thickness instead, or multiplying the volumes by thickness again, would
+    give a different answer.
+    """
+    ds = _mom6_style_dataset()
+    volcello = np.ones((3, 2, 2))
+    volcello[2, 1, 1] = 9.0
+    ds["volcello"] = (("zl", "yh", "xh"), volcello)
+    ds["so"].attrs["cell_measures"] = "area: areacello volume: volcello"
+
+    np.testing.assert_allclose(recipes.global_mean(ds, "so", "time"), 37.25)
+
+
+@pytest.mark.parametrize("how, expected", [("max", 20.0), ("min", 14.0)])
+def test_global_mean_max_and_min(how, expected):
+    """Test that ``how="max"``/``"min"`` take the global maximum/minimum instead of the mean."""
     np.testing.assert_allclose(
-        recipes.global_mean(_mom5_style_dataset(), "sst", "time", "max"), 20.0
+        recipes.global_mean(_mom5_style_dataset(), "sst", "time", how), expected
     )
 
 
@@ -458,9 +510,11 @@ def test_global_mean_passes_scalar_timeseries_through():
     np.testing.assert_allclose(recipes.global_mean(ds, "soga", "time"), [34.7, 34.71])
 
 
-@pytest.mark.parametrize("name, how", [("tos_max", "max"), ("soga", "mean")])
+@pytest.mark.parametrize(
+    "name, how", [("tos_max", "max"), ("tos_min", "min"), ("soga", "mean")]
+)
 def test_om3_timeseries_reduction(name, how):
-    """Test that ``*_max`` fields are reduced by max and everything else by mean."""
+    """Test that ``*_max``/``*_min`` fields are reduced by max/min and everything else by mean."""
     assert recipes._om3_timeseries_reduction(name) == how
 
 
@@ -764,12 +818,12 @@ def test_recipe_sst_anomaly_nino34():
     assert index.sizes["time"] == 48
     assert index[:2].isnull().all()
     assert index[-2:].isnull().all()
-    july_each_year = [6, 18, 30, 42]
-    np.testing.assert_allclose(
-        index.isel(time=july_each_year),
-        [0, NINO34_ANOMALY_SCALE, -NINO34_ANOMALY_SCALE, 0],
-        atol=1e-10,
-    )
+    expected = [0, NINO34_ANOMALY_SCALE, -NINO34_ANOMALY_SCALE, 0]
+    # In July the seasons average out, so April also checks they are removed
+    for month in [4, 7]:
+        np.testing.assert_allclose(
+            index.sel(time=index["time.month"] == month), expected, atol=1e-10
+        )
     assert plot_kwargs["title"] == "Niño 3.4 Index"
     assert plot_kwargs["ax_kwargs"]["ylabel"] == "Niño 3.4 SST Anomaly (°C)"
     assert plot_kwargs["customise"] == [
