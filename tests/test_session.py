@@ -57,7 +57,7 @@ def test_init_and_get_data(mock_session_deps):
 
     # Verify _get_data ran correctly
     mock_data._build_new_catalog.assert_called_once_with("/mock/path", "cm2")
-    mock_data._load_new_catalog.assert_called_once()
+    mock_data._load_new_catalog.assert_called_once_with("/mock/path")
     mock_data._load_access_nri_catalog.assert_called_once_with("cm2")
 
     assert mock_controller.update_textbox_text.call_count == 2

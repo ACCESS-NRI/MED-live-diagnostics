@@ -24,9 +24,6 @@ def build_catalog(model_path: str, model_type: str):
     Intake-ESM datastore object or None
         Intake catalog of user model data, if valid.
     """
-
-    print("Started Dask cluster, 1 thread per worker")
-
     print(
         "Building user data catalog for model type: "
         + model_type
