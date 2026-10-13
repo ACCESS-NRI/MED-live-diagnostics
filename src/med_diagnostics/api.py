@@ -32,7 +32,7 @@ def build_catalog(model_path: str, model_type: str):
         + model_type
         + " and model_path: "
         + model_path
-        + "\n This can take a few minutes."
+        + "\nThis can take a few minutes."
     )
     return data._build_new_catalog(model_path, model_type.lower())
 
