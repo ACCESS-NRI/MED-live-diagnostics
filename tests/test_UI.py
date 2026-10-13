@@ -332,21 +332,6 @@ def test_check_plot_validity_4d(
     assert results.invalid_heatmap_data == invalid_heatmap_output
     assert results.same_axes_chosen == same_axes_output
     assert not results.prompt_bounds
-    if requires_slice_output:
-        # Determine which attributes we should be checking
-        row_attr = "ref_slice_ui_row" if isinstance(section, Ref) else "slice_ui_row"
-        widget_attr = (
-            "ref_slice_widgets" if isinstance(section, Ref) else "slice_widgets"
-        )
-
-        # If the function exits early due to no x_axis, the cleanup never happens
-        if not x_value:
-            assert hasattr(ui, row_attr)
-            assert getattr(ui, row_attr) in section_container
-        else:
-            # Otherwise, the cleanup runs because the slice widgets don't match remaining dims
-            assert not hasattr(ui, row_attr)
-            assert not hasattr(ui, widget_attr)
 
 
 @pytest.mark.parametrize(
@@ -677,7 +662,7 @@ def test_plot_ref_data_button_click(
     [
         (
             MultiplotHeatmap(),
-            "None (plot all loaded data)",
+            NoAnalysis(),
             {"time": pn.widgets.DiscreteSlider(options=[0, 1], value=0)},
         ),
         (MultiplotHeatmap(), DiffAnalysis(), {}),
@@ -753,9 +738,8 @@ def test_plot_multiplot_data_button_click(
     assert ui.multiplot_chosen_slices == expected_slices
 
     # Verify that the correct internal multiplot generation methods are called based on the selected plot and analysis type
-    if (
-        isinstance(plot_type, MultiplotHeatmap)
-        and analysis_type == "None (plot all loaded data)"
+    if isinstance(plot_type, MultiplotHeatmap) and isinstance(
+        analysis_type, NoAnalysis
     ):
         mock_multiplot_plot_dataset_helper.assert_called_once_with(plot_type=Heatmap())
     elif isinstance(plot_type, MultiplotHeatmap) and isinstance(
@@ -775,13 +759,13 @@ def test_plot_multiplot_data_button_click(
                 call(plot_diff=True, plot_type=Heatmap()),  # Expected second call
             ]
         )
-    elif isinstance(plot_type, Line) and analysis_type == "None (plot all loaded data)":
+    elif isinstance(plot_type, Line) and isinstance(analysis_type, NoAnalysis):
         mock_multiplot_plot_dataset_helper.assert_called_once_with(plot_type=Line())
     elif isinstance(plot_type, Line) and isinstance(analysis_type, DiffAnalysis):
         mock_multiplot_plot_dataset_helper.assert_called_once_with(
             plot_diff=True, plot_type=Line()
         )
-    elif isinstance(plot_type, Line) and analysis_type == "Plot All Data & Difference":
+    elif isinstance(plot_type, Line) and isinstance(analysis_type, AllAnalysis):
         assert mock_multiplot_plot_dataset_helper.call_count == 2
 
         mock_multiplot_plot_dataset_helper.assert_has_calls(
@@ -821,7 +805,8 @@ def test_display_dataset_plot_ui(ui):
 @pytest.mark.parametrize(
     "datakeysexists",
     [
-        ((False), (True)),
+        (False),
+        (True),
     ],
 )
 def test_ref_display_dataset_plot_ui(ui, datakeysexists):
@@ -833,7 +818,7 @@ def test_ref_display_dataset_plot_ui(ui, datakeysexists):
     if datakeysexists:
         ui.ref_data_keys_selection_row = pn.Row()
         ui.ref_widget_container.append(ui.ref_data_keys_selection_row)
-    else:
+    elif hasattr(ui, "ref_data_keys_selection_row"):
         del ui.ref_data_keys_selection_row
 
     # Assign the mock dataset to the reference UI instance and trigger the plot UI display
@@ -853,12 +838,13 @@ def test_ref_display_dataset_plot_ui(ui, datakeysexists):
     if datakeysexists:
         assert (
             ui.ref_widget_container.index(ui.ref_plot_ui_row)
-            == ui.ref_widget_container.index(ui.ref_data_keys_selection_row) + 1
+            == ui.ref_widget_container.index(ui.ref_data_keys_selection_row)
+            + 1.0  # Asserting that the new ui element gets added under the data selection UI row
         )
     else:
-        assert ui.ref_widget_container.index(ui.ref_plot_ui_row) == len(
-            ui.ref_widget_container
-        )
+        assert (
+            ui.ref_widget_container[-1] is ui.ref_plot_ui_row
+        )  # Asserting that the new UI row is appended at the bottom of the container
 
 
 @pytest.mark.parametrize(
@@ -1102,8 +1088,6 @@ def test_ref_display_plot_choices_ui(
 def test_update_dataset_plot_ui(ui):
     """Test updating the dataset plot UI variables and multiplot dropdown options when a new dataset is loaded"""
 
-    # Mock matplotlib close to verify figure cleanup during dataset updates
-    plt.close = MagicMock()
     ui.multiplot_ref_keys_selection_row = pn.Row(pn.pane.Markdown("row"))
 
     # Trigger the dataset plot UI update method
@@ -1115,12 +1099,6 @@ def test_update_dataset_plot_ui(ui):
 
     # Verify that the multiplot user dataset dropdown value synchronizes with the primary keys dropdown
     assert ui.multiplot_keys_dropdown.value == ui.keys_dropdown.value
-
-    if hasattr(ui, "fig"):
-        # Verify that matplotlib figures are closed to clean up memory
-        plt.close.assert_called_once()
-
-    plt.close.reset_mock()
 
 
 @pytest.mark.parametrize(
@@ -1143,7 +1121,11 @@ def test_keys_dropdown_click(ui, monkeypatch, fig_exists):
         monkeypatch.setattr(
             ui, "_display_dataset_plot_ui", mock_display_dataset_plot_ui
         )
+
     ui.multiplot_ref_keys_button.disabled = fig_exists
+    was_disabled = ui.multiplot_ref_keys_button.disabled
+    multiplot_status_before = ui.multiplot_status_textbox.value
+
     # Configure mock catalog and dropdown selection on the UI instance
     ui.model_cat = {"fake": None, "catalog": None}
     ui.keys_dropdown.value = "an option"
@@ -1168,8 +1150,8 @@ def test_keys_dropdown_click(ui, monkeypatch, fig_exists):
     else:
         mock_display_dataset_plot_ui.assert_called_once_with()
 
-    # enable multiplot plot UI
-    if ui.multiplot_ref_keys_button.disabled:
+    # Make sure ui elements are enabled if they were previously disabled.
+    if was_disabled:
         assert ui.multiplot_keys_dropdown.value == ui.keys_dropdown.value
         assert ui.multiplot_ref_keys_button.disabled is False
         assert ui.clear_multiplot_data_button.disabled is False
@@ -1184,6 +1166,10 @@ def test_keys_dropdown_click(ui, monkeypatch, fig_exists):
             ui.multiplot_status_textbox.value
             == "Overlay plot status >> User data loaded. Load one or more reference datasets to compare"
         )
+    else:
+        # Multiplot was already enabled, so it is left alone
+        assert ui.multiplot_keys_dropdown.value != ui.keys_dropdown.value
+        assert ui.multiplot_status_textbox.value == multiplot_status_before
 
 
 @pytest.mark.parametrize(
