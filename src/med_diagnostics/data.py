@@ -22,7 +22,7 @@ from access_nri_intake.source.builders import (
     Mom6Builder,
 )
 
-# Exact ACCESS-NRI catalog model names per model type; CM3 and OM3 use MOM6 (unconfirmed)
+# Exact ACCESS-NRI catalog model names per model type; CM3 and OM3 use MOM6
 CATALOG_MODEL_NAMES = {
     "cm2": ["ACCESS-CM2"],
     "cm3": ["ACCESS-CM2", "MOM6"],

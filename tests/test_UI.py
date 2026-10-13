@@ -1121,16 +1121,6 @@ def test_update_dataset_plot_ui(ui):
     plt.close.reset_mock()
 
 
-def test_update_ref_dataset_keys_plot_ui(ui, monkeypatch):
-    """Test updating reference dataset key options and triggering reference dataset plot updates"""
-
-    # Trigger the reference dataset keys plot UI update method
-    ui._update_ref_dataset_keys_plot_ui()
-
-    # Verify that reference data keys dropdown options are updated and cleanup handlers are called
-    assert ui.ref_data_keys_dropdown.options == sorted(ui.ref_dataset.keys())
-
-
 @pytest.mark.parametrize(
     "fig_exists",
     [True, False],

@@ -1435,13 +1435,6 @@ class UserInterface:
             self.multiplot_keys_dropdown.value = self.keys_dropdown.value
             self._clear_multiplot_data()
 
-    def _update_ref_dataset_keys_plot_ui(self):
-        """
-        Update existing reference model dataset keys if new data are selected.
-        """
-
-        self.ref_data_keys_dropdown.options = sorted(self.ref_dataset.keys())
-
     def _update_multiplot_dataset(self):
         """
         Load a new user dataset based on the current dropdown selection and update UI components.

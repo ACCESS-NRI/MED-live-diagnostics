@@ -155,8 +155,6 @@ def plot_dataset(
         else:
             sliced_data[variable].plot(x=x_axis, ax=ax)
 
-    # Add the slice information to the title, if it is sliced data
-    ", ".join([f"{dim}: {round_slice_val(val)}" for dim, val in chosen_slices.items()])
     title_text = sliced_data[variable].attrs.get("long_name", variable)
 
     if is_ref:
