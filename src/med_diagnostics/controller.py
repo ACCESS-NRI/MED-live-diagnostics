@@ -532,8 +532,6 @@ def check_plot_validity(
 
 def check_dict_validity(variable, ref_dict=None):
     if ref_dict is None:
-        ref_dict = {}
-    if ref_dict is None:
         return {}, {}
 
     # Check if the variable is contained within each of the datasets. If it is not, remove them and inform the user

@@ -453,6 +453,40 @@ def _om3_timeseries_reduction(name):
     return name.rsplit("_", 1)[-1] if name.endswith(("_max", "_min")) else "mean"
 
 
+def _require_om3_totals_are_timeseries(ds, chosen, dim):
+    """
+    Helper to reject gridded variables chosen for the OM3 global-total fields.
+
+    ``masso`` and ``total_*`` are already global totals in OM3 output. Averaging a
+    gridded field instead would be off by roughly the ocean area.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Dataset containing the chosen variables.
+    chosen : dict
+        ``OM3_TIMESERIES_FIELDS`` name -> dataset variable.
+    dim : str
+        Time dimension of ``ds``.
+
+    Raises
+    ------
+    ValueError
+        If a total field's variable has a dimension longer than 1 other than ``dim``.
+    """
+    for name, variable in chosen.items():
+        if name != "masso" and not name.startswith("total_"):
+            continue
+        # Model scalars often keep a size-1 dim (MOM's scalar_axis), which is fine
+        da = ds[variable]
+        other_dims = [d for d in da.dims if d != dim and da.sizes[d] > 1]
+        if other_dims:
+            raise ValueError(
+                f"{name} is a global total, so it needs a timeseries that is already "
+                f"totalled; '{variable}' also has dimensions {tuple(other_dims)}"
+            )
+
+
 # Cached so a suite run opens the catalogs once, not once per variable
 @cache
 def _om3_timeseries_datastores():
@@ -660,13 +694,13 @@ def recipe_sst_anomaly_nino34(
     anomalies = anomalies.chunk({"time": -1})
     window = _rolling_window_size(anomalies["time"])
     rolling_mean = anomalies.rolling(time=window, center=True).mean()
-    index_plot = (rolling_mean / anomalies.std()).compute()
+    index_plot = rolling_mean.compute()
 
     plot_kwargs = {
         "title": "Niño 3.4 Index",
         "color": "black",
         "linewidth": 1.5,  # overrides the 1D default of 2 to match plain ax.plot
-        "ax_kwargs": {"xlabel": "Year", "ylabel": "Niño 3.4 SST Anomaly"},
+        "ax_kwargs": {"xlabel": "Year", "ylabel": "Niño 3.4 SST Anomaly (°C)"},
         "customise": [
             plot_customisations.nino_fills,
             plot_customisations.nino_reference_lines,
@@ -841,7 +875,8 @@ def recipe_om3_timeseries(
     Raises
     ------
     ValueError
-        If the dataset has none of the OM3 variable names.
+        If the dataset has none of the OM3 variable names, or ``masso`` or a
+        ``total_*`` variable is gridded (a dimension longer than 1 besides ``dim``).
     """
     names = [name for name in OM3_TIMESERIES_FIELDS if name in ds]
     if not names:
@@ -849,6 +884,7 @@ def recipe_om3_timeseries(
             "No OM3 variable names (e.g. soga, thetaoga) found in this dataset; "
             "use 'OM3 timeseries suite (custom variable mapping)' to choose them"
         )
+    _require_om3_totals_are_timeseries(ds, {name: name for name in names}, dim)
     return [_om3_timeseries(ds, name, name, dim, avg_window) for name in names]
 
 
@@ -1099,7 +1135,7 @@ def recipe_om3_timeseries_mapped(
     """
     OM3 timeseries suite (custom variable mapping)
 
-    For ACCESS ocean output of any grid, choosing which variable stands in for each OM3 name. Empty variable dropdowns will not be plotted. OM3 timeseries suite overlaid with select reference runs not currently available in the intake catalogue. Gridded datasets can also be plotted but takes significantly longer as global mean must be calculated. Part of the suite of analysis based on the timeseries plots generated for access-om3-paper-1-figures (https://access-om3-paper-1.readthedocs.io/).
+    For ACCESS ocean output of any grid, choosing which variable stands in for each OM3 name. Empty variable dropdowns will not be plotted. Mass and total_* fields need a variable that is already a global total over time, not a gridded field. OM3 timeseries suite overlaid with select reference runs not currently available in the intake catalogue. Gridded datasets can also be plotted but takes significantly longer as global mean must be calculated. Part of the suite of analysis based on the timeseries plots generated for access-om3-paper-1-figures (https://access-om3-paper-1.readthedocs.io/).
 
     Parameters
     ----------
@@ -1117,6 +1153,12 @@ def recipe_om3_timeseries_mapped(
     -------
     list of tuple of (xarray.DataArray, dict)
         One timeseries and its plot kwargs per chosen variable.
+
+    Raises
+    ------
+    ValueError
+        If the variable chosen for ``masso`` or a ``total_*`` field is
+        gridded (a dimension longer than 1 besides ``dim``).
     """
     chosen = {
         "masso": masso_var,
@@ -1148,8 +1190,10 @@ def recipe_om3_timeseries_mapped(
         "total_net_massout": total_net_massout_var,
         "total_net_massin": total_net_massin_var,
     }
+    chosen = {name: variable for name, variable in chosen.items() if variable}
+    # Checked up front so a bad choice fails before any slow global means
+    _require_om3_totals_are_timeseries(ds, chosen, dim)
     return [
         _om3_timeseries(ds, variable, name, dim, avg_window)
         for name, variable in chosen.items()
-        if variable
     ]

@@ -510,6 +510,54 @@ def test_om3_timeseries_mapped_reduces_gridded_data(fake_om3_references):
     assert fake_om3_references == ["soga"]
 
 
+@pytest.mark.parametrize("name", ["masso", "total_wfo"])
+def test_om3_timeseries_mapped_rejects_gridded_totals(fake_om3_references, name):
+    """Test that a gridded variable can't stand in for a global-total field.
+
+    Averaging a gridded flux and plotting it against reference totals would be
+    off by roughly the ocean area. Nothing should be loaded before the error.
+    """
+    with pytest.raises(ValueError, match=f"{name} is a global total"):
+        recipes.recipe_om3_timeseries_mapped(
+            _mom5_style_dataset(), soga_var="salt", **{f"{name}_var": "salt"}
+        )
+    assert fake_om3_references == []
+
+
+@pytest.mark.parametrize(
+    "dims, shape",
+    [
+        pytest.param(("time",), (24,), id="time-only"),
+        pytest.param(("time", "scalar_axis"), (24, 1), id="mom-scalar-axis"),
+    ],
+)
+def test_om3_timeseries_plots_timeseries_totals(fake_om3_references, dims, shape):
+    """Test that an already-totalled timeseries plots unchanged as a total field.
+
+    MOM writes its global scalars with a size-1 ``scalar_axis``, which must not
+    count as gridded.
+    """
+    ds = xr.Dataset(
+        {"total_wfo": (dims, np.arange(24.0).reshape(shape))},
+        coords={"time": _monthly_time(24)},
+    )
+
+    [(data, _plot_kwargs)] = recipes.recipe_om3_timeseries(ds)
+
+    np.testing.assert_allclose(data.squeeze(), np.arange(24.0))
+
+
+def test_om3_timeseries_rejects_gridded_totals(fake_om3_references):
+    """Test that the OM3-names recipe also rejects a gridded total field."""
+    ds = xr.Dataset(
+        {"masso": (("time", "x"), np.ones((24, 2)))},
+        coords={"time": _monthly_time(24)},
+    )
+
+    with pytest.raises(ValueError, match="masso is a global total"):
+        recipes.recipe_om3_timeseries(ds)
+
+
 # OM3 reference loading
 
 
@@ -674,8 +722,7 @@ def test_recipe_sst_anomaly_nino34():
     """Test the Niño 3.4 index on SST with a known anomaly.
 
     SST in the region is a seasonal cycle plus a yearly anomaly of 0, +1, -1
-    and 0, with 100 outside the region so any leak shows. The anomalies have
-    a standard deviation of sqrt(0.5), so mid-year the index is 0 or ±sqrt(2).
+    and 0, with 100 outside the region so any leak shows.
     The ~5-month centred rolling mean leaves two NaN months at each end.
     """
     seasonal_cycle = 26 + 2 * np.sin(2 * np.pi * np.arange(48) / 12)
@@ -700,9 +747,10 @@ def test_recipe_sst_anomaly_nino34():
     assert index[-2:].isnull().all()
     july_each_year = [6, 18, 30, 42]
     np.testing.assert_allclose(
-        index.isel(time=july_each_year), [0, np.sqrt(2), -np.sqrt(2), 0], atol=1e-10
+        index.isel(time=july_each_year), [0, 1, -1, 0], atol=1e-10
     )
     assert plot_kwargs["title"] == "Niño 3.4 Index"
+    assert plot_kwargs["ax_kwargs"]["ylabel"] == "Niño 3.4 SST Anomaly (°C)"
     assert plot_kwargs["customise"] == [
         recipes.plot_customisations.nino_fills,
         recipes.plot_customisations.nino_reference_lines,

@@ -358,7 +358,7 @@ class UserInterface:
             **self._STYLES.get("variable_toggle")
         )
 
-        self.figure_exists, self.ref_figure_exists = False, False
+        self.figure_exists = False
         self.long_names, self.ref_long_names, self.multiplot_long_names = {}, {}, {}
         self.analysis_long_names, self.analysis_variable_widgets = {}, []
 
@@ -713,7 +713,7 @@ class UserInterface:
         ):
             container.clear()
         # The plot rows went with the cards, so the next load must rebuild them
-        self.figure_exists, self.ref_figure_exists = False, False
+        self.figure_exists = False
         self.main_ui.objects = [self.session_start_widget_container]
         self.session_start_widget_container.collapsed = False
 
@@ -1399,8 +1399,6 @@ class UserInterface:
         # Remove reference data attributes
         self._safe_remove_widget_object(self.ref_widget_container, "ref_model_cat")
         self._safe_remove_widget_object(self.ref_widget_container, "ref_dataset")
-
-        self.ref_figure_exists = False
 
     def _ref_model_info_click(self):
         """
@@ -2306,7 +2304,6 @@ class UserInterface:
 
         # Set state attributes
         if is_ref:
-            self.ref_figure_exists = True
             self.ref_fig = figure
         else:
             self.figure_exists = True

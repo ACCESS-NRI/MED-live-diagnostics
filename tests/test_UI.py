@@ -1441,7 +1441,6 @@ def test_ref_dataset_dropdown_click(ui, monkeypatch, row_shown):
         ui, "_ref_display_dataset_plot_ui", mock_ref_display_dataset_plot_ui
     )
 
-    ui.ref_figure_exists = False
     old_rows = ["ref_plot_choices_row", "ref_slice_ui_row"]
     if row_shown:
         ui.ref_plot_ui_row = pn.Row()
@@ -2260,7 +2259,6 @@ def test_plot_dataset_helper(ui, monkeypatch, is_ref, expected_section, plot_typ
     ui.ref_x_axis_dropdown = MagicMock(value="ref_x_axis")
     ui.ref_y_axis_dropdown.value = "y"
     ui.ref_chosen_slices = {"ref_dim": 1}
-    ui.ref_figure_exists = False
 
     result = ui._plot_dataset_helper(is_ref=is_ref, plot_type=plot_type)
 
@@ -2271,7 +2269,6 @@ def test_plot_dataset_helper(ui, monkeypatch, is_ref, expected_section, plot_typ
         assert result == mock_animation
         if is_ref:
             # Verify state changes
-            assert ui.ref_figure_exists is True
             assert ui.ref_fig == mock_animation
 
             # Verify the controller was called with the exact reference attributes
@@ -2303,7 +2300,6 @@ def test_plot_dataset_helper(ui, monkeypatch, is_ref, expected_section, plot_typ
         assert result == mock_fig
         if is_ref:
             # Verify state changes
-            assert ui.ref_figure_exists is True
             assert ui.ref_fig == mock_fig
 
             # Verify the controller was called with the exact reference attributes

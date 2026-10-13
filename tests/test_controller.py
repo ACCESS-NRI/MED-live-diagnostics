@@ -737,7 +737,9 @@ def test_plot_multiplot_dataset_difference_without_overlap(monkeypatch):
 
     ax = fig.axes[0]
     assert [line.get_label() for line in ax.lines] == ["_child0"]
-    assert [text.get_text() for text in ax.texts] == ["No overlap with user data"]
+    assert [text.get_text() for text in ax.texts] == [
+        "No overlap with user data: Late run"
+    ]
 
 
 def test_plot_multiplot_heatmap_dataset_difference_without_overlap():
@@ -749,7 +751,7 @@ def test_plot_multiplot_heatmap_dataset_difference_without_overlap():
     )
 
     assert [text.get_text() for text in fig.axes[0].texts] == [
-        "No overlap with user data"
+        "No overlap with user data: Late run"
     ]
 
 
