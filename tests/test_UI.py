@@ -579,6 +579,15 @@ def test_plot_data_button_click(
     assert ui.plot_choices_row in ui.user_widget_container
     assert ui.slice_ui_row in ui.user_widget_container
 
+    # A second plot goes on top, directly under the plot row, above the first
+    items = list(ui.user_widget_container)
+    first_plot = items[items.index(ui.slice_ui_row) + 1]
+    ui._plot_data_button_click()
+    items = list(ui.user_widget_container)
+    below_row = items.index(ui.slice_ui_row) + 1
+    assert items[below_row] is not first_plot
+    assert items[below_row + 1] is first_plot
+
 
 @pytest.mark.parametrize(
     "plot_type, slice_dict",
@@ -655,6 +664,15 @@ def test_plot_ref_data_button_click(
     # Verify that reference plot choices and slice UI components stay so they can be changed
     assert ui.ref_plot_choices_row in ui.ref_widget_container
     assert ui.ref_slice_ui_row in ui.ref_widget_container
+
+    # A second plot goes on top, directly under the plot row, above the first
+    items = list(ui.ref_widget_container)
+    first_plot = items[items.index(ui.ref_slice_ui_row) + 1]
+    ui._ref_plot_data_button_click()
+    items = list(ui.ref_widget_container)
+    below_row = items.index(ui.ref_slice_ui_row) + 1
+    assert items[below_row] is not first_plot
+    assert items[below_row + 1] is first_plot
 
 
 @pytest.mark.parametrize(
@@ -1923,38 +1941,57 @@ def test_check_plot_validity_routing(
     mock_check_plot_validity = MagicMock(return_value=mock_return_value)
     monkeypatch.setattr(controller, "check_plot_validity", mock_check_plot_validity)
 
-    # Setup UI mocks based on section
-    ds = mock_dataset()
-    if isinstance(section, Ref):
-        ui.ref_dataset = ds
-        ui.ref_plot_type_dropdown.value = plot_type
-        ui.ref_x_axis_dropdown.value = "x"
-        ui.ref_y_axis_dropdown.value = "y"
-        ui.ref_animation_axis_dropdown.value = "z"
-    elif isinstance(section, Multiplot):
-        ui.dataset = ds
-        ui.multiplot_plot_type_dropdown.value = plot_type
-        ui.multiplot_x_axis_dropdown.value = "x"
-        ui.multiplot_y_axis_dropdown.value = "y"
-        ui.multiplot_ref_dataset_dict = {}
-    else:
-        ui.dataset = ds
-        ui.plot_type_dropdown.value = plot_type
-        ui.x_axis_dropdown.value = "x"
-        ui.y_axis_dropdown.value = "y"
-        ui.animation_axis_dropdown.value = "z"
+    # Every section gets its own dataset and axes, so reading another
+    # section's choices shows up as a wrong argument
+    user_ds, ref_ds = mock_dataset(), mock_dataset()
+    ui.dataset, ui.ref_dataset = user_ds, ref_ds
+    ui.multiplot_ref_dataset_dict = {}
+    ui.plot_type_dropdown.value = plot_type
+    ui.x_axis_dropdown.value = "user_x"
+    ui.y_axis_dropdown.value = "user_y"
+    ui.animation_axis_dropdown.value = "user_z"
+    ui.ref_plot_type_dropdown.value = plot_type
+    ui.ref_x_axis_dropdown.value = "ref_x"
+    ui.ref_y_axis_dropdown.value = "ref_y"
+    ui.ref_animation_axis_dropdown.value = "ref_z"
+    ui.multiplot_plot_type_dropdown.value = plot_type
+    ui.multiplot_x_axis_dropdown.value = "multi_x"
+    ui.multiplot_y_axis_dropdown.value = "multi_y"
 
     # Run the function
     results = ui._check_plot_validity_helper(section=section)
 
     mock_get_variable_helper.assert_called_once_with(section)
+    if isinstance(section, Ref):
+        expected_ds, expected = ref_ds, {"x": "ref_x", "y": "ref_y", "z": "ref_z"}
+    elif isinstance(section, Multiplot):
+        # Overlays plot the user data, can't animate, and check MultiplotHeatmap as Heatmap
+        expected_ds, expected = user_ds, {"x": "multi_x", "y": "multi_y", "z": None}
+    else:
+        expected_ds, expected = user_ds, {"x": "user_x", "y": "user_y", "z": "user_z"}
+    if isinstance(section, Multiplot):
+        expected_type = Heatmap() if isinstance(plot_type, MultiplotHeatmap) else Line()
+    else:
+        expected_type = plot_type
+    call_kwargs = mock_check_plot_validity.call_args.kwargs
+    # Datasets compare element by element, so == is always truthy; check identity
+    assert call_kwargs.pop("dataset") is expected_ds
+    assert call_kwargs == {
+        **expected,
+        "variable": "data",
+        "plot_type": expected_type,
+        "has_slice_widgets": False,
+    }
     mock_check_plot_validity.assert_called_once()
 
     # Determine expected outputs based on multiplot bounds logic
     expected_prompt_bounds = False
 
     if isinstance(section, Multiplot) and isinstance(plot_type, Line):
+        bounds_args = mock_multiplot_check_bounds.call_args.args
         mock_multiplot_check_bounds.assert_called_once()
+        assert bounds_args[0] is user_ds
+        assert bounds_args[1:] == ("multi_x", {})
         expected_prompt_bounds = bounds_return
 
     # Verify the final returned tuple. The bounds choice sits in the slice row, so it doesn't block plotting
@@ -2793,6 +2830,108 @@ def test_reproduce_live_multiplot_flow(ui, mock_multiplot_datasets):
     assert ui.multiplot_plot_button.name == "Plot data"
     assert ui.multiplot_select_dims_button.name == "Select dimensions"
 
+    # A second plot goes on top, directly under the plot row, above the first
+    items = list(ui.multiplot_widget_container)
+    first_plot = items[items.index(ui.multiplot_divider) + 1]
+    ui._multiplot_plot_button_click(None)
+    items = list(ui.multiplot_widget_container)
+    below_row = items.index(ui.multiplot_divider) + 1
+    assert items[below_row] is not first_plot
+    assert items[below_row + 1] is first_plot
+
+
+# Per section: (widget prefix, select-variable click, plot click, container)
+PLOT_SECTIONS = {
+    "user": (
+        "",
+        "_select_variable_button_click",
+        "_plot_button_click",
+        "user_widget_container",
+    ),
+    "ref": (
+        "ref_",
+        "_ref_select_variable_button_click",
+        "_ref_plot_button_click",
+        "ref_widget_container",
+    ),
+    "multiplot": (
+        "multiplot_",
+        "_multiplot_select_variable_button_click",
+        "_multiplot_plot_button_click",
+        "multiplot_widget_container",
+    ),
+}
+
+
+@pytest.fixture
+def two_variable_ui(ui):
+    """UI with a 1D dataset holding two variables that have long names.
+
+    The variables hold different values, so a plot shows which one was used.
+    """
+    ds = xr.Dataset(
+        {
+            "sss": ("time", np.full(10, 34.0), {"long_name": "Sea Surface Salinity"}),
+            "sst": (
+                "time",
+                np.full(10, 20.0),
+                {"long_name": "Sea Surface Temperature"},
+            ),
+        },
+        coords={"time": np.arange(10)},
+    )
+    ui.dataset = ui.ref_dataset = ds
+    ui.multiplot_ref_dataset_dict = {"ref_model_1": ds}
+    ui.keys_dropdown.options, ui.keys_dropdown.value = ["ocean.1mon"], "ocean.1mon"
+    ui.ref_keys_dropdown.options, ui.ref_keys_dropdown.value = ["ref_expt"], "ref_expt"
+    ui.ref_data_keys_dropdown.options = ["ocean.1mon"]
+    ui.ref_data_keys_dropdown.value = "ocean.1mon"
+    # Show the variable row, as loading a dataset does; the choices go below it
+    ui._display_dataset_plot_ui_helper(section=User())
+    ui._display_dataset_plot_ui_helper(section=Ref())
+    return ui
+
+
+def _plot_variable(ui, section, variable):
+    """Choose ``variable`` as a line plot in ``section``, plot it, and return the new plot group."""
+    prefix, select_click, plot_click, container_name = PLOT_SECTIONS[section]
+    getattr(ui, f"{prefix}plot_variable_dropdown").value = variable
+    getattr(ui, f"{prefix}plot_type_dropdown").value = Line()
+    getattr(ui, select_click)(None)
+    container = getattr(ui, container_name)
+    before = list(container)
+
+    getattr(ui, plot_click)(None)
+
+    assert getattr(ui, f"{prefix}warning_textbox").value == ""
+    (plot_group,) = [item for item in container if all(item is not b for b in before)]
+    return plot_group
+
+
+def _plotted_values(plot_group):
+    """The y values of the first line in a plot group's figure."""
+    return plot_group[0].object.axes[0].get_lines()[0].get_ydata()
+
+
+@pytest.mark.parametrize("section", list(PLOT_SECTIONS))
+def test_long_name_toggle_then_plot(two_variable_ui, section):
+    """Test that a variable chosen by its long name plots that variable's data.
+
+    The dropdown shows long names, but the dataset is indexed by short name,
+    so the choice must be mapped back before plotting.
+    """
+    ui = two_variable_ui
+    prefix = PLOT_SECTIONS[section][0]
+    getattr(ui, f"{prefix}variable_toggle").value = True
+    dropdown = getattr(ui, f"{prefix}plot_variable_dropdown")
+    assert "Sea Surface Temperature" in dropdown.options
+
+    plot_group = _plot_variable(ui, section, "Sea Surface Temperature")
+    plt.close("all")
+
+    # sst holds 20, sss holds 34
+    np.testing.assert_allclose(_plotted_values(plot_group), 20.0)
+
 
 def test_multiplot_plot_dataset_helper_reproduce(ui):
     # Use standard datetimes to bypass the local nc-time-axis requirement
@@ -2927,11 +3066,13 @@ def test_initialise_widgets_calls_all_sub_initialisers(uninitialised_ui, monkeyp
     mock_user = MagicMock()
     mock_ref = MagicMock()
     mock_multiplot = MagicMock()
+    mock_analysis = MagicMock()
     monkeypatch.setattr(uninitialised_ui, "_initialise_user_widgets", mock_user)
     monkeypatch.setattr(uninitialised_ui, "_initialise_ref_widgets", mock_ref)
     monkeypatch.setattr(
         uninitialised_ui, "_initialise_multiplot_widgets", mock_multiplot
     )
+    monkeypatch.setattr(uninitialised_ui, "_initialise_analysis_widgets", mock_analysis)
 
     uninitialised_ui._start_session_ui()
     uninitialised_ui._initialise_widgets()
@@ -2939,6 +3080,7 @@ def test_initialise_widgets_calls_all_sub_initialisers(uninitialised_ui, monkeyp
     mock_user.assert_called_once_with()
     mock_ref.assert_called_once_with()
     mock_multiplot.assert_called_once_with()
+    mock_analysis.assert_called_once_with()
 
 
 def test_initialise_user_widgets(uninitialised_ui):

@@ -651,21 +651,23 @@ def test_multiplot_check_bounds_numeric(ref_min_val, ref_max_val, expected_trigg
 
 
 @pytest.mark.parametrize(
-    "ref_start, ref_end, expected_triggered",
+    "ref_start, ref_end, expected_triggered, expected_min, expected_max",
     [
-        ((2000, 2, 1), (2000, 11, 30), False),
-        ((1999, 12, 1), (2000, 11, 30), True),
-        ((2000, 2, 1), (2001, 1, 1), True),
+        ((2000, 2, 1), (2000, 11, 30), False, (2000, 1, 1), (2000, 12, 31)),
+        ((1999, 12, 1), (2000, 11, 30), True, (1999, 12, 1), (2000, 12, 31)),
+        ((2000, 2, 1), (2001, 1, 1), True, (2000, 1, 1), (2001, 1, 1)),
     ],
 )
-def test_multiplot_check_bounds_calendar(ref_start, ref_end, expected_triggered):
+def test_multiplot_check_bounds_calendar(
+    ref_start, ref_end, expected_triggered, expected_min, expected_max
+):
     """Test calendar coordinate bounds checking across primary and reference datasets in multiplots"""
 
     # Create a primary dataset using NoLeap calendar bounds from Jan 1 2000 to Dec 31 2000
-    primary_times = [
-        cftime.DatetimeNoLeap(2000, 1, 1),
-        cftime.DatetimeNoLeap(2000, 12, 31),
-    ]
+    start = cftime.DatetimeNoLeap(2000, 1, 1)
+    end = cftime.DatetimeNoLeap(2000, 12, 31)
+
+    primary_times = [start, end]
     ds_primary = xr.Dataset(
         {"data": (["time"], [1, 2])}, coords={"time": primary_times}
     )
@@ -679,11 +681,21 @@ def test_multiplot_check_bounds_calendar(ref_start, ref_end, expected_triggered)
     ref_dict = {"ref1": ds_ref}
 
     # Execute the bounds check and verify if a bounds mismatch is triggered
-    result, _global_min, _global_max, _dataset_min, _dataset_max = (
-        controller.check_bounds(ds_primary, "time", ref_dict)
+    result, global_min, global_max, dataset_min, dataset_max = controller.check_bounds(
+        ds_primary, "time", ref_dict
     )
 
     assert result == expected_triggered
+
+    # The calendars differ, so compare dates rather than the cftime objects
+    def ymd(t):
+        return (t.year, t.month, t.day)
+
+    assert ymd(global_min) == expected_min
+    assert ymd(global_max) == expected_max
+
+    assert ymd(dataset_min) == (2000, 1, 1)
+    assert ymd(dataset_max) == (2000, 12, 31)
 
 
 def test_multiplot_check_bounds_mismatched_types():
@@ -985,15 +997,26 @@ def test_apply_standard_plot_formatting(
 
 
 @pytest.mark.parametrize(
-    "missing_x, missing_y, chosen_slices, expected_slice_text",
+    "missing_x, missing_y, chosen_slices, expected_slice_text, is_ref, model_text",
     [
-        (True, True, {}, False),
-        (False, False, {"lat": -35.0}, True),
+        (True, True, {}, False, False, "User model"),
+        (False, False, {"lat": -35.0}, True, True, "Reference model"),
     ],
 )
 def test_plot_animation(
-    monkeypatch, missing_x, missing_y, chosen_slices, expected_slice_text
+    monkeypatch,
+    missing_x,
+    missing_y,
+    chosen_slices,
+    expected_slice_text,
+    is_ref,
+    model_text,
 ):
+    """Test the animation steps through time on one fixed colour scale.
+
+    If the colour limits were left to each frame, colours would mean different
+    values from frame to frame, so a change over time would be hidden.
+    """
     # Mock dependencies
     monkeypatch.setattr(
         controller, "round_slice_val", lambda val: str(val), raising=False
@@ -1034,6 +1057,7 @@ def test_plot_animation(
         x_axis="lon",
         y_axis="lat",
         z_axis="time",
+        is_ref=is_ref,
     )
 
     # Assertions
@@ -1045,6 +1069,11 @@ def test_plot_animation(
         mock_plot_dataset.assign_coords.assert_not_called()
 
     mock_plot_dataset.hvplot.quadmesh.assert_called_once()
+    plot_kwargs = mock_plot_dataset.hvplot.quadmesh.call_args.kwargs
+    # One scrubber step per time, coloured from the data's overall min and max
+    assert plot_kwargs["groupby"] == "time"
+    assert plot_kwargs["clim"] == (0.0, 100.0)
+    assert (plot_kwargs["x"], plot_kwargs["y"]) == ("lon", "lat")
 
     # Check returned panel column structure
     assert isinstance(result, pn.Column)
@@ -1054,6 +1083,8 @@ def test_plot_animation(
     caption_pane = result[1]
     assert isinstance(caption_pane, pn.pane.HTML)
     assert "Variable: Temperature" in caption_pane.object
+    assert model_text in caption_pane.object
+    assert "Dataset: TestDataset" in caption_pane.object
     if expected_slice_text:
         assert "Sliced by: lat: -35.0" in caption_pane.object
 

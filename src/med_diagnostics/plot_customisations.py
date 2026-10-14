@@ -1,4 +1,4 @@
-import numpy as np
+import xarray as xr
 
 
 def shade_top_10pct(ax, data):
@@ -95,11 +95,11 @@ def add_trend(ax, data):
     """Overlay a least-squares linear trend."""
     # Smoothing leaves NaNs at the ends, which polyfit can't handle
     valid = data.dropna("time")
-    x = np.arange(valid.sizes["time"])
-    slope, intercept = np.polyfit(x, valid.values, 1)
+    # Fit against the times themselves, so gaps in the series are respected
+    coeffs = valid.polyfit("time", 1).polyfit_coefficients
     ax.plot(
         valid["time"].values,
-        slope * x + intercept,
+        xr.polyval(valid["time"], coeffs).values,
         color="grey",
         linestyle=":",
         label="Trend",

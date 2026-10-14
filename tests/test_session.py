@@ -131,16 +131,18 @@ def test_return_model_data_catalog(mock_session_deps):
 
 
 def test_refresh_catalog(mock_session_deps, monkeypatch):
-    """Tests the refresh catalog functionality."""
-    _, mock_ui, _, _ = mock_session_deps
+    """
+    Tests the refresh catalog functionality. Test that it
+    rebuilds the catalog, hands the new one to the ui and re-enables the button
+    """
+    _, mock_ui, mock_data, _ = mock_session_deps
     session = CreateModelDiagnosticsSession()
     session._start_session(model_type="CM2", model_path="/mock/path")
 
     mock_refresh_catalog = MagicMock()
     monkeypatch.setattr(mock_ui, "_refresh_catalog", mock_refresh_catalog)
 
-    mock_build_model_catalog = MagicMock()
-    monkeypatch.setattr(session, "_build_model_catalog", mock_build_model_catalog)
+    mock_data._load_new_catalog.return_value = "rebuilt_model_cat"
 
     mock_update_widgets_after_catalog_refresh = MagicMock()
     monkeypatch.setattr(
@@ -153,10 +155,29 @@ def test_refresh_catalog(mock_session_deps, monkeypatch):
     session._refresh_catalog(None)
 
     mock_refresh_catalog.assert_called_once()
-    # Verify that the model catalog was rebuilt and loaded
-    mock_build_model_catalog.assert_called_once()
-    mock_update_widgets_after_catalog_refresh.assert_called_once()
+    mock_update_widgets_after_catalog_refresh.assert_called_once_with(
+        "rebuilt_model_cat"
+    )
 
+    assert mock_ui.refresh_catalog_button.disabled is False
+
+
+def test_refresh_catalog_reenables_button_after_error(mock_session_deps, monkeypatch):
+    """Test the refresh button comes back if the rebuild fails, so the user can retry.
+
+    Otherwise it stays disabled until the session is restarted.
+    """
+    _, mock_ui, _, _ = mock_session_deps
+    session = CreateModelDiagnosticsSession()
+    session._start_session(model_type="CM2", model_path="/mock/path")
+    monkeypatch.setattr(
+        session, "_build_model_catalog", MagicMock(side_effect=OSError("disk"))
+    )
+    # Clicking refresh disables the button while the catalog rebuilds
+    mock_ui.refresh_catalog_button.disabled = True
+
+    with pytest.raises(OSError):
+        session._refresh_catalog(None)
     assert mock_ui.refresh_catalog_button.disabled is False
 
 

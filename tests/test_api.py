@@ -107,14 +107,15 @@ def test_plot_data_line_fills_slices(monkeypatch):
     mock_plot = MagicMock(return_value="fig")
     monkeypatch.setattr(api.controller, "plot_dataset", mock_plot)
     ds = make_dataset()
-
-    assert api.plot_data(ds, "temp", "time", slices={"st_ocean": 50.0}) == "fig"
+    slices = {"st_ocean": 50.0}
+    assert api.plot_data(ds, "temp", "time", slices=slices) == "fig"
 
     args, kwargs = mock_plot.call_args
     assert args[4] == {"st_ocean": 50.0, "yt_ocean": -10.0, "xt_ocean": 100.0}
     assert args[5] is False
     assert kwargs["model_name"] == "User"
     assert isinstance(kwargs["plot_type"], Line)
+    assert slices == {"st_ocean": 50.0}
 
 
 def test_plot_data_heatmap_reference(monkeypatch):
