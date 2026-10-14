@@ -103,6 +103,34 @@ def test_register_analysis_rejects_bad_functions(bad_func, error):
     assert analysis.REGISTERED_ANALYSES == {}
 
 
+def test_register_analysis_raises_error_bad_annotation():
+    """Test that metadata that isn't a dict fails at upload, saying what's wrong."""
+
+    def bad_annotation(ds, depth: Annotated[str, "data variable"] = "st_depth"):
+        """A title."""
+
+    with pytest.raises(TypeError, match="parameter 'depth'.*must be a dict"):
+        analysis.register_analysis(bad_annotation)
+    assert analysis.REGISTERED_ANALYSES == {}
+
+
+def test_register_analysis_rejects_misspelt_metadata_keys():
+    """Test that a misspelt metadata key fails at upload and suggests the fix.
+
+    Otherwise the key is silently ignored, e.g. a misspelt ``kind`` gives a
+    text box instead of a dropdown.
+    """
+
+    def misspelt(ds, var: Annotated[str, {"knid": "data variable"}] = "temp"):
+        """A title."""
+
+    with pytest.raises(
+        ValueError, match="unknown metadata key 'knid'. Did you mean 'kind'"
+    ):
+        analysis.register_analysis(misspelt)
+    assert analysis.REGISTERED_ANALYSES == {}
+
+
 def test_register_analysis_accepts_unannotated_parameters():
     """Test that parameters without ``Annotated`` metadata don't block an upload.
 

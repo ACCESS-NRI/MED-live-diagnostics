@@ -226,21 +226,26 @@ def _monthly_df(start_year, n_years):
 
 
 @pytest.mark.parametrize(
-    "years, from_start, expected_years",
+    "start_year, years, from_start, expected_years",
     [
-        pytest.param(2, False, [2003, 2004], id="most-recent"),
-        pytest.param(2, True, [2000, 2001], id="first"),
-        pytest.param(50, False, [2000, 2001, 2002, 2003, 2004], id="more-than-run"),
-        pytest.param(None, False, [2000, 2001, 2002, 2003, 2004], id="all-years"),
+        pytest.param(2000, 2, False, [2003, 2004], id="most-recent"),
+        pytest.param(2000, 2, True, [2000, 2001], id="first"),
+        pytest.param(101, 2, True, [101, 102], id="first-early-years"),
+        pytest.param(1, 200, True, [1, 2, 3, 4, 5], id="from-year-1-more-than-run"),
+        pytest.param(
+            2000, 50, False, [2000, 2001, 2002, 2003, 2004], id="more-than-run"
+        ),
+        pytest.param(2000, None, False, [2000, 2001, 2002, 2003, 2004], id="all-years"),
     ],
 )
-def test_select_year_files(years, from_start, expected_years):
+def test_select_year_files(start_year, years, from_start, expected_years):
     """Test that only the files starting in the chosen years are kept.
 
     Loading is slow because every file is opened, so the filter must drop
     whole files by their start year rather than trimming after loading.
+    Runs often start at year 1 or 101, so early years are checked too.
     """
-    selected = data._select_year_files(_monthly_df(2000, 5), years, from_start)
+    selected = data._select_year_files(_monthly_df(start_year, 5), years, from_start)
 
     selected_years = sorted({int(date[:4]) for date in selected["start_date"]})
     assert selected_years == expected_years
@@ -273,6 +278,24 @@ def test_select_year_files_rejects_non_positive_years(years):
     """
     with pytest.raises(ValueError, match="at least 1"):
         data._select_year_files(_monthly_df(2000, 5), years)
+
+
+def test_summarise_year_selection_without_start_date():
+    """Test that a catalog with no start_date column still gives file counts.
+
+    Some catalogs have no dates, so the summary must not crash; the UI then
+    shows the file count without a year range.
+    """
+    model_cat = {"ocean.1mon": MagicMock(df=pd.DataFrame({"path": [1, 2, 3]}))}
+
+    summary = data._summarise_year_selection(model_cat, "ocean.1mon", years=2)
+
+    assert summary == {
+        "n_files": 3,
+        "total_files": 3,
+        "first_year": None,
+        "last_year": None,
+    }
 
 
 class _FakeDatastore:

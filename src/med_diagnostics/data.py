@@ -204,9 +204,12 @@ def _summarise_year_selection(model_cat, key, years=None, from_start=False):
         return None
 
     selected = _select_year_files(df, years, from_start)
-    start_years = pd.to_numeric(
-        selected["start_date"].astype(str).str[:4], errors="coerce"
-    ).dropna()
+    if "start_date" in selected:
+        start_years = pd.to_numeric(
+            selected["start_date"].astype(str).str[:4], errors="coerce"
+        ).dropna()
+    else:
+        start_years = pd.Series(dtype=float)
     return {
         "n_files": len(selected),
         "total_files": len(df),

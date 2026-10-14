@@ -231,6 +231,31 @@ def test_extract_region_on_curvilinear_grid():
     assert box.sizes["x"] == 10
 
 
+def test_extract_region_on_curvilinear_grid_masks_cells_outside_region():
+    """Test that cells outside the region don't leak into a regional mean.
+
+    On a tilted grid the region isn't a rectangle of rows and columns, so the
+    kept rectangle includes cells outside it. They must be NaN, so the mean
+    only sees the in-region cells (10), never the outside ones (1000).
+    """
+    # Latitude tilts across each row, so only the diagonal is within ±5°
+    lat_2d = np.array([[0, 10, 20], [-10, 0, 10], [-20, -10, 0]])
+    lon_2d = np.array([[0, 10, 20]] * 3)
+    temp = np.where(np.eye(3, dtype=bool), 10.0, 1000.0)
+    ds = xr.Dataset(
+        {"temp": (("y", "x"), temp)},
+        coords={"lat": (("y", "x"), lat_2d), "lon": (("y", "x"), lon_2d)},
+    )
+
+    box = recipes.extract_region(ds, {"lat": (-5, 5), "lon": (0, 25)})
+
+    # Every row and column holds an in-region cell, so the whole grid is kept
+    assert box["temp"].shape == (3, 3)
+    assert np.isnan(box["temp"].values[~np.eye(3, dtype=bool)]).all()
+    weights = np.cos(np.deg2rad(box["lat"]))
+    assert float(box["temp"].weighted(weights).mean()) == 10.0
+
+
 def test_extract_region_rejects_unknown_regions():
     """Test that an unknown name or a dict without lat/lon bounds raises."""
     ds = _global_one_degree_grid()
@@ -265,13 +290,16 @@ def test_median_timestep_days(freq, expected_days):
         ("MS", 5, 61, 2),
         ("15D", 5, 30, 2),
         ("15D", 1, 30, 1),
+        ("MS", 5, 365, 5),
     ],
-    ids=["monthly", "15-daily", "single-timestep"],
+    ids=["monthly", "15-daily", "single-timestep", "window-longer-than-series"],
 )
 def test_rolling_window_size(freq, periods, target_days, expected_steps):
     """Test that a window length in days is converted to timesteps.
 
-    A single timestep can't be smoothed, so it always gives a window of 1.
+    A single timestep can't be smoothed, so it always gives a window of 1. A
+    window longer than the series is cut to its length, otherwise the rolling
+    mean is all NaN and its line silently vanishes.
     """
     time = xr.date_range("2000-01-01", periods=periods, freq=freq, use_cftime=True)
 
@@ -428,6 +456,32 @@ def test_layer_thickness_from_level_midpoints():
     np.testing.assert_allclose(
         recipes._layer_thickness(ds, "st_ocean"), [10.0, 47.5, 85.0]
     )
+
+
+def test_layer_thickness_top_layer_stops_at_surface():
+    """Test that the top layer stops at the surface (0 m).
+
+    Mirroring the first gap upwards puts the top boundary at -7 m, above the
+    sea surface, which would make the top layer 18 m thick instead of 11 m.
+    """
+    ds = xr.Dataset(coords={"depth": [2.0, 20.0, 40.0]})
+
+    # Boundaries [0, 11, 30, 50]
+    np.testing.assert_allclose(
+        recipes._layer_thickness(ds, "depth"), [11.0, 19.0, 20.0]
+    )
+
+
+def test_layer_thickness_negative_depths_are_not_clamped():
+    """Test that depths stored as negative numbers aren't clamped at 0.
+
+    Clamping at 0 only makes sense for positive-down depths; here it would
+    stretch the top layer up to 0.
+    """
+    ds = xr.Dataset(coords={"depth": [-2.0, -4.0, -8.0]})
+
+    # Boundaries [-1, -3, -6, -10]
+    np.testing.assert_allclose(recipes._layer_thickness(ds, "depth"), [2.0, 3.0, 4.0])
 
 
 def test_global_mean_weights_by_layer_thickness_and_converts_kelvin():
@@ -781,6 +835,80 @@ def test_load_om3_timeseries_var_reports_when_every_search_fails(capsys):
     assert "soga failed" in capsys.readouterr().out
 
 
+def test_om3_timeseries_datastores_skips_catalogs_that_fail(monkeypatch, capsys):
+    """Test that a missing reference catalog is reported and the rest still open.
+
+    The references live on /g/data/ol01, which not every user can read, so one
+    failing must not stop the whole suite.
+    """
+    monkeypatch.setattr(
+        recipes,
+        "OM3_TIMESERIES_REF_CATALOGS",
+        ["/g/data/refA/datastore.json", "/g/data/refB/datastore.json"],
+    )
+
+    def open_datastore(path, **kwargs):
+        if "refA" in path:
+            raise FileNotFoundError(path)
+        return path
+
+    monkeypatch.setattr(recipes.intake, "open_esm_datastore", open_datastore)
+    access_nri_catalog = MagicMock()
+    access_nri_catalog.access_nri = {}
+    monkeypatch.setattr(recipes.intake, "cat", access_nri_catalog)
+
+    recipes._om3_timeseries_datastores.cache_clear()
+    datastores, om2cat = recipes._om3_timeseries_datastores()
+    recipes._om3_timeseries_datastores.cache_clear()
+
+    assert datastores == {"refB": "/g/data/refB/datastore.json"}
+    assert om2cat is None
+    out = capsys.readouterr().out
+    assert "refA failed" in out
+    assert f"{recipes.OM3_TIMESERIES_OM2_EXPT} failed" in out
+
+
+def test_load_om3_timeseries_var_skips_datastores_that_fail(capsys):
+    """Test that one unreadable datastore is reported and the others still load."""
+    ds = _om3_scalar_timeseries("soga", [34.7])
+    broken = _mock_search_result(ds)
+    broken.to_dask.side_effect = OSError("corrupt file")
+    ref_a = _mock_datastore(broken)
+    ref_b = _mock_datastore(_mock_search_result(ds))
+
+    found = recipes._load_om3_timeseries_var({"refA": ref_a, "refB": ref_b}, "soga")
+
+    assert found == {"refB": ds}
+    assert "soga failed for refA: corrupt file" in capsys.readouterr().out
+
+
+def test_load_om3_timeseries_var_retries_only_the_ambiguous_datastore():
+    """Test that an ambiguous search in one datastore doesn't re-search the others."""
+    ds = _om3_scalar_timeseries("soga", [34.7])
+    ambiguous = _mock_datastore(ValueError("ambiguous"), _mock_search_result(ds))
+    plain = _mock_datastore(_mock_search_result(ds))
+
+    found = recipes._load_om3_timeseries_var({"refA": ambiguous, "refB": plain}, "soga")
+
+    assert found == {"refA": ds, "refB": ds}
+    plain.search.assert_called_once_with(variable="soga")
+
+
+def test_load_om3_timeseries_reference_skips_om2_when_it_fails(
+    fake_reference_sources, capsys
+):
+    """Test that the OM3 runs are still plotted if the OM2 run can't be loaded."""
+    om2cat, _ = fake_reference_sources
+    om2cat.search.return_value.to_dask.side_effect = OSError("no access")
+
+    reference = recipes._load_om3_timeseries_reference("soga")
+
+    assert list(reference) == ["refA"]
+    assert f"soga failed for {recipes.OM3_TIMESERIES_OM2_EXPT}" in (
+        capsys.readouterr().out
+    )
+
+
 # Niño 3.4
 
 # Area-weighted mean of the anomaly scaling used below
@@ -893,12 +1021,12 @@ SURFACE_MEAN = np.arange(6) + TASMANIA_MEAN_LAT
 def test_recipe_regional_mean_mom5_defaults():
     """Test the default: area-weighted surface mean with percentiles and trend."""
     timeseries, plot_kwargs = recipes.recipe_regional_mean_mom5(
-        _mom5_regional_dataset()
+        _mom5_regional_dataset(), depth=2
     )
 
     np.testing.assert_allclose(timeseries, SURFACE_MEAN)
     assert timeseries.name == "Tasmania mean temp"
-    assert plot_kwargs["title"] == "Tasmania mean temp (~0 m)"
+    assert plot_kwargs["title"] == "Tasmania mean temp (5 m)"
     assert plot_kwargs["ax_kwargs"]["ylabel"] == "temp (degC)"
     assert plot_kwargs["customise"] == [
         recipes.plot_customisations.shade_top_10pct,
@@ -953,3 +1081,44 @@ def test_recipe_regional_mean_mom5_rejects_other_grids():
     """Test that non-MOM5 dimension names fail with a readable message."""
     with pytest.raises(ValueError, match="expects MOM5 output"):
         recipes.recipe_regional_mean_mom5(_mom5_regional_dataset(), lat_dim="yh")
+
+
+@pytest.mark.parametrize(
+    "freq, periods, expected_window",
+    [("D", 3 * 365, 365), ("MS", 3 * 12, 12), ("YS", 3, 1)],
+    ids=["day", "month", "year"],
+)
+def test_rolling_window_days_consistent_OM3(
+    monkeypatch, freq, periods, expected_window
+):
+    """Test that each OM3 reference is smoothed over the same number of days.
+
+    The user data is monthly, so reusing its 12-step window on a daily
+    reference would smooth over 12 days, and on a yearly one over 12 years.
+    """
+    reference = xr.DataArray(
+        np.full(periods, 34.7),
+        coords={
+            "time": xr.date_range(
+                "2000-01-01", periods=periods, freq=freq, use_cftime=True
+            )
+        },
+    )
+    monkeypatch.setattr(
+        recipes, "_load_om3_timeseries_reference", lambda var: {"refA": reference}
+    )
+    add_references = MagicMock()
+    monkeypatch.setattr(
+        recipes.plot_customisations, "add_reference_timeseries", add_references
+    )
+    ds = xr.Dataset(
+        {"soga": ("time", np.full(36, 34.6))}, coords={"time": _monthly_time(36)}
+    )
+
+    data, plot_kwargs = recipes._om3_timeseries(ds, "soga", "soga", "time", 365)
+    # The references are only handed over when the plot is drawn
+    for customise in plot_kwargs["customise"]:
+        customise(MagicMock(), data)
+
+    references = add_references.call_args.args[1]
+    assert references["refA"][1] == expected_window

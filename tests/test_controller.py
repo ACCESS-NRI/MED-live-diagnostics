@@ -517,6 +517,76 @@ def test_get_metadata_missing_fields():
             {"time": 10, "lat": 10, "lon": 10},
             (False, False, True, False, ["lon"]),
         ),
+        # nv (bounds vertices) is never plotted or sliced
+        (
+            Line(),
+            "time",
+            None,
+            None,
+            False,
+            {"time": 10, "nv": 2},
+            (True, False, False, False, []),
+        ),
+        # nv doesn't count as a second axis for a heatmap
+        (
+            Heatmap(),
+            "time",
+            "nv",
+            None,
+            True,
+            {"time": 10, "nv": 2},
+            (False, False, True, False, []),
+        ),
+        # Size-1 dimensions have nothing to choose, so need no slice
+        (
+            Line(),
+            "time",
+            None,
+            None,
+            False,
+            {"time": 10, "depth": 1},
+            (True, False, False, False, []),
+        ),
+        # A size-1 dimension doesn't count as a second axis for a heatmap
+        (
+            Heatmap(),
+            "time",
+            "depth",
+            None,
+            True,
+            {"time": 10, "depth": 1},
+            (False, False, True, False, []),
+        ),
+        # Line plots draw one line per member, so member needs no slice
+        (
+            Line(),
+            "time",
+            None,
+            None,
+            False,
+            {"time": 10, "member": 3},
+            (True, False, False, False, []),
+        ),
+        # Heatmaps can't show members, so member must be sliced
+        (
+            Heatmap(),
+            "time",
+            "lat",
+            None,
+            False,
+            {"time": 10, "lat": 10, "member": 3},
+            (False, True, False, False, ["member"]),
+        ),
+        # Same for animations
+        (
+            Animation(),
+            "time",
+            "lat",
+            "lon",
+            False,
+            {"time": 10, "lat": 10, "lon": 10, "member": 3},
+            (False, True, False, False, ["member"]),
+        ),
     ],
 )
 def test_check_plot_validity(plot_type, x, y, z, has_slice, dim_sizes, expected):

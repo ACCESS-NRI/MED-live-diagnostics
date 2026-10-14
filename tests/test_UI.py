@@ -2165,6 +2165,35 @@ def test_display_slice_ui(
     )
 
 
+@pytest.mark.parametrize(
+    "values, expected_labels",
+    [
+        pytest.param([10.0, 20.5, 30.123], ["10.0", "20.5", "30.12"], id="distinct"),
+        pytest.param(
+            [1036.8, 1036.804, 1036.81],
+            ["1036.8", "1036.804", "1036.81"],
+            id="close-values",
+        ),
+    ],
+)
+def test_display_slice_ui_keeps_every_value(ui, values, expected_labels):
+    """Test that every coordinate value can still be chosen on the slider.
+
+    Labels are rounded to 2 decimal places, so closely spaced values (e.g.
+    density levels) would share a label and all but one would be lost.
+    """
+    ui.dataset = xr.Dataset({"data": ("sigma", np.arange(3))}, coords={"sigma": values})
+    ui.remaining_dims = ["sigma"]
+    ui.plot_choices_row = pn.Row()
+    ui.user_widget_container.append(ui.plot_choices_row)
+
+    ui._display_slice_ui(section=User())
+
+    slider = ui.slice_widgets["sigma"]
+    assert list(slider.options) == expected_labels
+    assert list(slider.options.values()) == values
+
+
 @pytest.mark.parametrize("prompt_bounds", [True, False])
 def test_display_slice_ui_without_slices(ui, prompt_bounds):
     """Test that the overlay plot row holds just the plot button, plus the bounds dropdown when needed."""
@@ -3493,7 +3522,7 @@ def test_analysis_plot_data_button_click(analysis_ui):
 
     plot_group = _newest_analysis_plot(ui)
     assert isinstance(plot_group[0], pn.pane.Matplotlib)
-    assert plot_group[0].object.axes[0].get_title() == "Nino34 mean o2 (~50 m)"
+    assert plot_group[0].object.axes[0].get_title() == "Nino34 mean o2 (50 m)"
     assert not hasattr(ui, "analysis_recipe_options_row")
     assert ui.analysis_status_textbox.value == "Analysis status >> Plot created"
     assert ui.analysis_warning_textbox.value == ""

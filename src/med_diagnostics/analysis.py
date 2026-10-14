@@ -1,3 +1,4 @@
+import difflib
 import inspect
 from collections.abc import Callable
 from typing import Any, Literal, get_args, get_type_hints
@@ -24,6 +25,49 @@ REGISTERED_ANALYSES: dict[str, Callable] = {}
 
 # Parameter kinds the UI knows how to build a widget for
 RECIPE_KINDS = {"data variable", "dimension", "choice", "float", "int", "str", "bool"}
+# Keys a parameter's Annotated metadata may use
+RECIPE_METADATA_KEYS = {"name", "kind", "choices", "units", "description"}
+
+
+def _did_you_mean(word, options):
+    """Suggest the closest of ``options`` to a misspelt ``word``, or nothing."""
+    match = difflib.get_close_matches(str(word), sorted(options), n=1)
+    return f" Did you mean '{match[0]}'?" if match else ""
+
+
+def _check_recipe_metadata(recipe, name, metadata):
+    """
+    Helper to raise a readable error for badly written ``Annotated`` metadata.
+
+    Parameters
+    ----------
+    recipe : callable
+        The recipe the parameter belongs to.
+    name : str
+        The parameter name.
+    metadata : object
+        The parameter's ``Annotated`` metadata.
+
+    Raises
+    ------
+    TypeError
+        If the metadata isn't a dict.
+    ValueError
+        If it has an unknown key, which would otherwise be silently ignored.
+    """
+    where = f"In {recipe.__name__}, parameter '{name}'"
+    if not isinstance(metadata, dict):
+        raise TypeError(
+            f"{where}: Annotated metadata must be a dict, "
+            f"e.g. Annotated[str, {{'kind': 'data variable'}}], got {metadata!r}"
+        )
+    for key in metadata:
+        if key not in RECIPE_METADATA_KEYS:
+            raise ValueError(
+                f"{where}: unknown metadata key '{key}'."
+                f"{_did_you_mean(key, RECIPE_METADATA_KEYS)} "
+                f"Allowed keys: {sorted(RECIPE_METADATA_KEYS)}"
+            )
 
 
 def _list_recipes():
@@ -114,6 +158,7 @@ def _get_recipe_kwarg_options(recipe, ds=None):
             )
             # Fallback for base type across Python versions
             base_type = getattr(hint, "__origin__", hint)
+            _check_recipe_metadata(recipe, name, metadata)
 
         has_default = param.default is not inspect.Parameter.empty
         choices = metadata.get("choices")
@@ -261,7 +306,10 @@ def register_analysis(recipe_func):
     Raises
     ------
     TypeError
-        If ``recipe_func`` can't take the dataset as its first argument.
+        If ``recipe_func`` can't take the dataset as its first argument, or an
+        argument's ``Annotated`` metadata isn't a dict.
+    ValueError
+        If an argument's metadata has a misspelt key.
     """
     # Check that the passed in function is actually a function, and takes arguments.
     if not callable(recipe_func) or not inspect.signature(recipe_func).parameters:

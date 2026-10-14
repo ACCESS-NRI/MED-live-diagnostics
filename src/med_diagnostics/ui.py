@@ -2158,9 +2158,11 @@ class UserInterface:
         for dimension in remaining_dims:
             # Extract coordinate values as options
             coord_values = list(dataset[dimension].values)
-            options_dict = {
-                controller.round_slice_val(val): val for val in coord_values
-            }
+            labels = [controller.round_slice_val(val) for val in coord_values]
+            # Closely spaced values (e.g. density levels) would merge, so show them in full
+            if len(set(labels)) < len(coord_values):
+                labels = [str(val) for val in coord_values]
+            options_dict = dict(zip(labels, coord_values))
             slider = pn.widgets.DiscreteSlider(
                 name=f"Slice {dimension} at:", options=options_dict
             )

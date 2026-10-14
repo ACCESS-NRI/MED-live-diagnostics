@@ -495,17 +495,26 @@ def _om3_timeseries_datastores():
 
     Returns
     -------
-    tuple of (dict, intake_esm.esm_datastore)
+    tuple of (dict, intake_esm.esm_datastore or None)
         The OM3 reference datastores as {experiment: datastore}, and the OM2
-        comparison experiment from the ACCESS-NRI catalogue.
+        comparison experiment from the ACCESS-NRI catalogue. Any that can't be
+        opened are reported and left out, so the rest are still plotted.
     """
-    datastores = {
-        Path(c).parent.name: intake.open_esm_datastore(
-            c, columns_with_iterables=["variable"]
-        )
-        for c in OM3_TIMESERIES_REF_CATALOGS
-    }
-    return datastores, intake.cat.access_nri[OM3_TIMESERIES_OM2_EXPT]
+    datastores = {}
+    for c in OM3_TIMESERIES_REF_CATALOGS:
+        name = Path(c).parent.name
+        try:
+            datastores[name] = intake.open_esm_datastore(
+                c, columns_with_iterables=["variable"]
+            )
+        except Exception as err:  # noqa: BLE001
+            print(f"{name} failed: {err}")
+    try:
+        om2cat = intake.cat.access_nri[OM3_TIMESERIES_OM2_EXPT]
+    except Exception as err:  # noqa: BLE001
+        print(f"{OM3_TIMESERIES_OM2_EXPT} failed: {err}")
+        om2cat = None
+    return datastores, om2cat
 
 
 def _load_om3_timeseries_var(datastores, var):
@@ -522,25 +531,28 @@ def _load_om3_timeseries_var(datastores, var):
     Returns
     -------
     dict
-        {experiment: xarray.Dataset} for the datastores that have ``var``, or
-        an empty dict if none could be opened.
+        {experiment: xarray.Dataset} for the datastores that have ``var``.
+        Datastores that fail are reported and left out.
     """
-    for extra in OM3_TIMESERIES_REF_SEARCHES:
-        try:
-            found = {
-                n: cat.search(variable=var, **extra) for n, cat in datastores.items()
-            }
-            return {
-                n: s.to_dask(
-                    xarray_combine_by_coords_kwargs=OM3_TIMESERIES_COMBINE_KWARGS
-                )
-                for n, s in found.items()
-                if len(s)
-            }
-        except ValueError:
-            continue
-    print(f"{var} failed")
-    return {}
+    found = {}
+    for n, cat in datastores.items():
+        for extra in OM3_TIMESERIES_REF_SEARCHES:
+            try:
+                s = cat.search(variable=var, **extra)
+                if len(s):
+                    found[n] = s.to_dask(
+                        xarray_combine_by_coords_kwargs=OM3_TIMESERIES_COMBINE_KWARGS
+                    )
+                break
+            except ValueError:
+                # Matched several datasets, so try the next, narrower search
+                continue
+            except Exception as err:  # noqa: BLE001
+                print(f"{var} failed for {n}: {err}")
+                break
+        else:
+            print(f"{var} failed for {n}")
+    return found
 
 
 def _load_om3_timeseries_reference(var):
@@ -563,15 +575,18 @@ def _load_om3_timeseries_reference(var):
     if not d:
         return {}
     om2_var = OM3_TIMESERIES_FIELDS[var][0]
-    if om2_var:
+    if om2_var and om2cat is not None:
         # Match OM2's frequency to OM3's, otherwise the search finds two datasets
         freq = next(iter(d.values())).attrs["intake_esm_attrs:frequency"]
-        om2 = (
-            om2cat.search(variable=om2_var, frequency=freq)
-            .to_dask()
-            .rename({om2_var: var})
-        )
-        d = {OM3_TIMESERIES_OM2_EXPT: om2} | d
+        try:
+            om2 = (
+                om2cat.search(variable=om2_var, frequency=freq)
+                .to_dask()
+                .rename({om2_var: var})
+            )
+            d = {OM3_TIMESERIES_OM2_EXPT: om2} | d
+        except Exception as err:  # noqa: BLE001
+            print(f"{var} failed for {OM3_TIMESERIES_OM2_EXPT}: {err}")
     if OM3_TIMESERIES_IAF:
         d = {
             n: ds.convert_calendar("proleptic_gregorian", use_cftime=True)
@@ -789,11 +804,12 @@ def recipe_regional_mean_mom5(
     """
     # Fail with a readable message if this isn't the grid we expect
     require_coords(ds, variable, [lat_dim, lon_dim], "MOM5")
-
+    used_depth = None
     data = ds[variable]
     # Surface fields have no depth to select
     if lvl_dim is not None and lvl_dim in data.dims:
         data = data.sel({lvl_dim: depth}, method="nearest")
+        used_depth = float(data[lvl_dim])
 
     data = extract_region(data, region, lon_dim=lon_dim, lat_dim=lat_dim)
     weights = np.cos(np.deg2rad(data[lat_dim]))
@@ -819,9 +835,11 @@ def recipe_regional_mean_mom5(
             return plot_customisations.add_threshold(ax, value=float(threshold))
 
         customise.append(threshold_wrapper)
-
+    title = timeseries.name
+    if used_depth is not None:
+        title += f" ({used_depth:g} m)"
     plot_kwargs = {
-        "title": f"{timeseries.name} (~{depth:g} m)",
+        "title": title,
         "color": "black",
         "linewidth": 1,
         "ax_kwargs": {
