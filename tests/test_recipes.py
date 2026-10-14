@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 import xarray as xr
+from intake_esm.source import ESMDataSourceError
 
 from med_diagnostics import analysis, recipes
 
@@ -872,7 +873,7 @@ def test_load_om3_timeseries_var_skips_datastores_that_fail(capsys):
     """Test that one unreadable datastore is reported and the others still load."""
     ds = _om3_scalar_timeseries("soga", [34.7])
     broken = _mock_search_result(ds)
-    broken.to_dask.side_effect = OSError("corrupt file")
+    broken.to_dask.side_effect = ESMDataSourceError("corrupt file")
     ref_a = _mock_datastore(broken)
     ref_b = _mock_datastore(_mock_search_result(ds))
 
@@ -899,7 +900,7 @@ def test_load_om3_timeseries_reference_skips_om2_when_it_fails(
 ):
     """Test that the OM3 runs are still plotted if the OM2 run can't be loaded."""
     om2cat, _ = fake_reference_sources
-    om2cat.search.return_value.to_dask.side_effect = OSError("no access")
+    om2cat.search.return_value.to_dask.side_effect = ESMDataSourceError("no access")
 
     reference = recipes._load_om3_timeseries_reference("soga")
 

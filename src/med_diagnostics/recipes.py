@@ -5,6 +5,7 @@ from typing import Annotated
 import intake
 import numpy as np
 import xarray as xr
+from intake_esm.source import ESMDataSourceError
 
 from med_diagnostics import plot_customisations
 
@@ -507,10 +508,12 @@ def _om3_timeseries_datastores():
             datastores[name] = intake.open_esm_datastore(
                 c, columns_with_iterables=["variable"]
             )
-        except Exception as err:  # noqa: BLE001
+        # Missing or unreadable file (OSError), or a malformed catalog (ValueError)
+        except (OSError, ValueError) as err:
             print(f"{name} failed: {err}")
     try:
         om2cat = intake.cat.access_nri[OM3_TIMESERIES_OM2_EXPT]
+    # Left broad: how the catalogue fails off Gadi depends on the access-nri-intake version
     except Exception as err:  # noqa: BLE001
         print(f"{OM3_TIMESERIES_OM2_EXPT} failed: {err}")
         om2cat = None
@@ -547,7 +550,8 @@ def _load_om3_timeseries_var(datastores, var):
             except ValueError:
                 # Matched several datasets, so try the next, narrower search
                 continue
-            except Exception as err:  # noqa: BLE001
+            # intake-esm re-raises any failure to open the files as this
+            except ESMDataSourceError as err:
                 print(f"{var} failed for {n}: {err}")
                 break
         else:
@@ -585,7 +589,8 @@ def _load_om3_timeseries_reference(var):
                 .rename({om2_var: var})
             )
             d = {OM3_TIMESERIES_OM2_EXPT: om2} | d
-        except Exception as err:  # noqa: BLE001
+        # Ambiguous search or variable missing (ValueError), or files failed to open
+        except (ValueError, ESMDataSourceError) as err:
             print(f"{var} failed for {OM3_TIMESERIES_OM2_EXPT}: {err}")
     if OM3_TIMESERIES_IAF:
         d = {
