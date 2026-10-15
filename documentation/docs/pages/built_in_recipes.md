@@ -22,9 +22,9 @@ Plots the Niño 3.4 index, the standard measure of the El Niño–Southern Oscil
 
 1. The SST is cut to the Niño 3.4 region (5°S–5°N, 170°W–120°W). Longitudes in either −180–180 or 0–360 are handled.
 2. Monthly anomalies are taken from the dataset's own monthly climatology, then averaged over the region weighted by cos(latitude).
-3. The anomalies are smoothed with a centred rolling mean of about 5 months (150 days, converted to timesteps from the data's own output frequency), then divided by the standard deviation of the unsmoothed anomalies.
+3. The anomalies are smoothed with a centred rolling mean of about 5 months (150 days, converted to timesteps from the data's own output frequency).
 
-The index is drawn in black with reference lines at 0 and ±0.4. Periods above +0.4 (El Niño) are shaded red and periods below −0.4 (La Niña) are shaded blue.
+The index is the smoothed SST anomaly in °C. It is drawn in black with reference lines at 0 and ±0.4. Periods above +0.4 (El Niño) are shaded red and periods below −0.4 (La Niña) are shaded blue.
 
 | Option | Default | Description |
 | :--- | :--- | :--- |
@@ -89,25 +89,28 @@ Notes:
 
 ## OM3 timeseries suites
 
-Two built-in suites reproduce the timeseries plots from the [ACCESS-OM3 paper 1 figures](https://access-om3-paper-1.readthedocs.io/mc_25km_jra_iafwombatlite-test4-d28e0359-2026.07.000/experiments/MC_25km_jra_iaf%2Bwombatlite-test4-d28e0359/timeseries/). Each plot shows a global timeseries of your data with its rolling mean (thicker line), overlaid on the same timeseries from the paper's reference runs:
+Two built-in suites reproduce the timeseries plots from the [ACCESS-OM3 paper 1 figures](https://access-om3-paper-1.readthedocs.io/mc_25km_jra_iafwombatlite-test4-d28e0359-2026.07.000/experiments/MC_25km_jra_iaf%2Bwombatlite-test4-d28e0359/timeseries/). Each plot shows a global timeseries of your data with its calendar-year means (thicker line), overlaid on the same timeseries from the paper's reference runs:
 
 - Three ACCESS-OM3 25 km runs (`MC_25km_jra_iaf-1.0-beta-5165c0f8`, `MC_25km_jra_iaf+wombatlite-test3v2-00532b88` and `MC_25km_jra_iaf+wombatlite-test4-d28e0359`), which are not yet in the intake catalogue.
+- The ACCESS-OM3 100 km repeat-year forcing (RYF) spin-up run `MC_100km_jra_ryf+wombatlite-1e74abf-11f9df5c`, shifted to start in the first year of your data.
 - The ACCESS-OM2 0.25° run `025deg_jra55_iaf_omip2_cycle1` from the ACCESS-NRI intake catalogue, for the fields OM2 also outputs (`soga`, `thetaoga`, `tosga` and `sosga`).
+
+The reference runs are only shown over your data's time range. A reference with no data in that range is left out of the plot.
 
 The suites cover 28 fields: global means of temperature and salinity (`thetaoga`, `soga`, `tosga`, `sosga`) and ocean mass (`masso`), the global maximum/minimum of surface fields (`tos_max`, `tos_min`, `sos_max`, `sos_min`, `zos_max`, `zos_min`, `speed_max`, `mlotst_max`), and global totals of salt and freshwater fluxes (e.g. `total_wfo`, `total_precip`, `total_friver`).
 
 | Recipe | Use it when | Options |
 | :--- | :--- | :--- |
-| OM3 timeseries suite (OM3 variable names) | Your dataset uses the OM3 names above, e.g. ACCESS-OM3 output. Every field found in the dataset is plotted. | Time dimension; rolling-mean window (days, default 365) |
-| OM3 timeseries suite (custom variable mapping) | Your dataset uses other names, e.g. ACCESS-OM2 (`temp_global_ave` for `thetaoga`) or another grid. | One dropdown per field to choose the variable that stands in for it (leave as None to skip it); time dimension; rolling-mean window |
+| OM3 timeseries suite (OM3 variable names) | Your dataset uses the OM3 names above, e.g. ACCESS-OM3 output. Every field found in the dataset is plotted. | Time dimension |
+| OM3 timeseries suite (custom variable mapping) | Your dataset uses other names, e.g. ACCESS-OM2 (`temp_global_ave` for `thetaoga`) or another grid. | One dropdown per field to choose the variable that stands in for it (leave as None to skip it); time dimension. For `masso` and the `total_*` fields, choose a variable that is already a global total over time. |
 
 ??? info "View all 28 fields"
 
-    Fields marked *max*/*min* plot the global maximum or minimum at each timestep. All others plot a volume-weighted global mean, using the dataset's `cell_measures` where available, otherwise cos(latitude) weighted by layer thickness.
+    Fields marked *max*/*min* plot the global maximum or minimum at each timestep, and fields marked *mean* plot the global mean, weighted by cell area. Fields marked *already a total* must be a timeseries that is already totalled over the globe. Scalar data is plotted as it is.
 
     | OM3 name | Plot title | OM2 name | Reduction |
     | :--- | :--- | :--- | :--- |
-    | `masso` | Mass of liquid ocean | | mean |
+    | `masso` | Mass of liquid ocean | | already a total |
     | `soga` | Global Mean Ocean Salinity | `salt_global_ave` | mean |
     | `thetaoga` | Global Mean Ocean Potential Temperature | `temp_global_ave` | mean |
     | `tosga` | Sea Surface Temperature | `temp_surface_ave` | mean |
@@ -120,28 +123,30 @@ The suites cover 28 fields: global means of temperature and salinity (`thetaoga`
     | `sos_min` | Minimum Sea Surface Salinity | | min |
     | `zos_max` | Maximum Sea Surface Height | | max |
     | `zos_min` | Minimum Sea Surface Height | | min |
-    | `total_salt_Flux_Added` | Total Salt Flux Added | | mean |
-    | `total_salt_Flux_In` | Total Salt Flux In | | mean |
-    | `total_salt_flux` | Total Salt Flux | | mean |
+    | `total_salt_Flux_Added` | Total Salt Flux Added | | already a total |
+    | `total_salt_Flux_In` | Total Salt Flux In | | already a total |
+    | `total_salt_flux` | Total Salt Flux | | already a total |
     | `net_fresh_water_global_adjustment` | Net Fresh Water Global Adjustment | | mean |
     | `salt_flux_global_restoring_adjustment` | Salt Flux Global Restoring Adjustment | | mean |
-    | `total_wfo` | Total Water Flux Into Ocean | | mean |
-    | `total_evs` | Total Evaporation | | mean |
-    | `total_fsitherm` | Total Thermodynamic Sea Ice Flux | | mean |
-    | `total_precip` | Total Precipitation | | mean |
-    | `total_prsn` | Total Snowfall | | mean |
-    | `total_lprec` | Total Liquid Precipitation | | mean |
-    | `total_ficeberg` | Total Iceberg Melt | | mean |
-    | `total_friver` | Total River Runoff | | mean |
-    | `total_net_massout` | Total Net Mass Out | | mean |
-    | `total_net_massin` | Total Net Mass In | | mean |
+    | `total_wfo` | Total Water Flux Into Ocean | | already a total |
+    | `total_evs` | Total Evaporation | | already a total |
+    | `total_fsitherm` | Total Thermodynamic Sea Ice Flux | | already a total |
+    | `total_precip` | Total Precipitation | | already a total |
+    | `total_prsn` | Total Snowfall | | already a total |
+    | `total_lprec` | Total Liquid Precipitation | | already a total |
+    | `total_ficeberg` | Total Iceberg Melt | | already a total |
+    | `total_friver` | Total River Runoff | | already a total |
+    | `total_net_massout` | Total Net Mass Out | | already a total |
+    | `total_net_massin` | Total Net Mass In | | already a total |
 
 Notes:
 
 - These analyses can be quite slow to run, as they load a number of other reference datasets.
-- The rolling mean is taken over the same number of days for your data and every reference run, whatever their output frequency.
-- The analyses are primarily intended for scalar datasets. Gridded data also works, but the global mean (or max/min) must be calculated first, which takes much longer. Temperatures in Kelvin are converted to °C.
-- The reference runs are read from `/g/data/ol01`, so your ARE session needs access to the `ol01` project (add `gdata/ol01` to its storage). If a reference field can't be found, a message such as `soga failed` is printed and the plot is drawn without it.
+- The yearly means are calendar-year means for your data and every reference run, whatever their output frequency.
+- The analyses are primarily intended for scalar datasets. Gridded 2D data also works, but the global mean (or max/min) must be calculated first, which takes much longer. 3D fields aren't supported.
+- For gridded data, the variable's `cell_methods` decide whether its time mean, max or min is plotted, as in the paper. If this doesn't match the field (e.g. a time mean chosen for `tos_max`), a warning is shown and the `cell_methods` choice is used. In the OM3 variable names suite, a gridded variable with no time mean, max or min is skipped with a warning; plot it with the custom variable mapping suite instead.
+- The cell area comes from the variable's `cell_measures` (or `areacello`), and is read from the run's grid file if it isn't in the dataset. If no cell area is found, the mean is unweighted and a warning is shown.
+- The reference runs are read from `/g/data/ol01`, so your ARE session needs access to the `ol01` project (add `gdata/ol01` to its storage). If a reference field can't be found, a warning such as `soga failed` is shown and the plot is drawn without it.
 
 !!! tip "Writing your own recipes"
     You can add your own analyses to this section. See the [Adding custom analyses](adding_custom_analyses.md) tutorial. After registering a new recipe, click "Refresh analysis recipes" to add it to the dropdown.

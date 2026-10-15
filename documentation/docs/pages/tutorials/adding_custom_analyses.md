@@ -463,6 +463,36 @@ The built-in [OM3 timeseries suites](built_in_recipes_tutorial.md#om3-timeseries
 !!! tip "Optional variables in a suite"
     To let users skip parts of a suite, type an argument `str | None` with a default of `None`, as you would for an optional dimension. The dropdown then includes a `None` entry, and the recipe can leave out the plots whose variable is `None`.
 
+### Reporting problems
+
+To tell the user about a problem without stopping the recipe, call `warnings.warn("message")`. Each message is shown in the Analysis <span style="color:darkred">warning</span> box as `Warning >> message`, and the plots are still drawn. To stop the recipe instead, raise an error: its message is shown in the same box, and no plot is drawn.
+
+```python
+import warnings
+from typing import Annotated
+
+import xarray as xr
+from med_diagnostics import analysis
+
+
+def recipe_global_mean_checked(
+    ds: xr.Dataset,
+    variable: Annotated[str, {"kind": "data variable"}] = "temp",
+):
+    """Global mean timeseries of a variable."""
+    if variable not in ds:
+        raise KeyError(f"Variable '{variable}' not found in the dataset")
+    if "units" not in ds[variable].attrs:
+        warnings.warn(f"'{variable}' has no units attribute")
+    other_dims = [d for d in ds[variable].dims if d != "time"]
+    return ds[variable].mean(other_dims)
+
+
+analysis.register_analysis(recipe_global_mean_checked)
+```
+
+In a suite, warning and then leaving out one plot (rather than raising) lets the rest of the suite still draw. Only plain `warnings.warn` messages (`UserWarning`) are shown, so warnings from other libraries stay out of the box.
+
 ## Checklist
 
 Use the checklist below to help register a new recipe to MLD:
@@ -474,6 +504,7 @@ Use the checklist below to help register a new recipe to MLD:
 - <input type="checkbox"> Optional dimensions are typed `str | None` with a default of `None`.
 - <input type="checkbox"> The docstring's first paragraph states what the recipe computes, and its second paragraph details which grid or models it targets.
 - <input type="checkbox"> The function returns either a `DataArray`, a tuple of `(DataArray, plot_kwargs)`, or a list of these for a suite of plots.
+- <input type="checkbox"> Problems the user should know about are reported with `warnings.warn("message")`, and problems that stop the recipe raise an error.
 - <input type="checkbox"> You have clicked **Refresh analysis recipes** in the UI after registering or updating your function.
 
 ## Contributing a recipe
