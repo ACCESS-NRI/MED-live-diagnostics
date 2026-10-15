@@ -3,6 +3,7 @@ from typing import Annotated, Literal
 from unittest.mock import MagicMock
 
 import numpy as np
+import pandas as pd
 import pytest
 import xarray as xr
 from intake_esm.source import ESMDataSourceError
@@ -376,33 +377,30 @@ def test_require_coords_rejects_missing_variable(lat_lon_dataset):
 
 # Global means
 
-# Each layer's mean counts the equator double, then every layer counts equally
-MOM5_GLOBAL_MEAN_TEMP = (18 + 2 * (8 / 3)) / 3
-MOM5_UNWEIGHTED_MEAN_TEMP = (20 + 14 + 2 + 4 + 2 + 4) / 6
-MOM5_GLOBAL_MEAN_SALT = (34 + 34 + 35) / 3
+# The equator boxes have double the area, and land at 60° is skipped
+MOM5_GLOBAL_MEAN_TEMP = (2 * 20 + 14) / 3
+MOM5_UNWEIGHTED_MEAN_TEMP = (20 + 14) / 2
+MOM5_GLOBAL_MEAN_SALT = (34 + 35) / 2
 MOM5_UNWEIGHTED_MEAN_SST = (20 + 14) / 2
 
 
 def _mom5_style_dataset():
-    """Small MOM5-style dataset: temp varying with latitude, land NaNs and an ``area_t`` cell measure."""
-    temp = np.full((24, 3, 2, 2), 2.0)
-    temp[:, 0] = 20.0  # thin, warm surface layer
-    temp[:, 0, 1, :] = 14.0  # cooler surface at 60°
-    temp[:, 1:, 1, :] = 4.0  # warmer below at 60°
-    salt = np.full((24, 3, 2, 2), 34.0)
-    salt[:, 2] = 35.0  # thick, salty deep layer
-    salt[:, :, 1, :] = np.nan  # some land
-    dims = ("time", "st_ocean", "yt_ocean", "xt_ocean")
+    """Small 2D MOM5-style dataset: temp varying with latitude, land NaNs and an ``area_t`` cell measure."""
+    temp = np.full((24, 2, 2), 20.0)
+    temp[:, 1, :] = 14.0  # cooler at 60°
+    salt = np.full((24, 2, 2), 34.0)
+    salt[:, 0, 1] = 35.0
+    salt[:, 1, :] = np.nan  # land at 60°
+    dims = ("time", "yt_ocean", "xt_ocean")
     return xr.Dataset(
         {
             "temp": (dims, temp, {"units": "degC", "cell_measures": "area: area_t"}),
             "salt": (dims, salt, {"units": "psu", "cell_measures": "area: area_t"}),
-            "sst": (dims[:1] + dims[2:], temp[:, 0], {"units": "degC"}),
-            "area_t": (dims[2:], [[2.0, 2.0], [1.0, 1.0]]),
+            "sst": (dims, temp, {"units": "degC"}),
+            "area_t": (dims[1:], [[2.0, 2.0], [1.0, 1.0]]),
         },
         coords={
             "time": _monthly_time(24),
-            "st_ocean": [5.0, 15.0, 100.0],
             "yt_ocean": [0.0, 60.0],
             "xt_ocean": [0.0, 1.0],
         },
@@ -410,10 +408,9 @@ def _mom5_style_dataset():
 
 
 def test_global_mean_weights_by_cell_area():
-    """Test that the mean is weighted by the ``cell_measures`` area.
+    """Test that the mean is weighted by the ``cell_measures`` area, skipping land.
 
-    A plain mean would count the small 60° boxes as much as the equator. Like the
-    paper's ``grid.average``, every depth layer counts equally.
+    A plain mean would count the small 60° boxes as much as the equator.
     """
     ds = _mom5_style_dataset()
     temp = recipes.global_mean(ds, "temp", "time")
@@ -433,24 +430,29 @@ def test_global_mean_keeps_kelvin():
     np.testing.assert_allclose(temp, MOM5_GLOBAL_MEAN_TEMP + 273.15)
 
 
+@pytest.mark.parametrize("how", ["mean", "max", "min"])
+def test_global_mean_rejects_3d_data(how):
+    """Test that 3D data fails readably, since area weights alone would overweight thin surface layers."""
+    ds = xr.Dataset(
+        {"thetao": (("time", "zl", "yh", "xh"), np.ones((2, 3, 2, 2)))},
+        coords={"time": [0, 1]},
+    )
+
+    with pytest.raises(ValueError, match="only support scalar or 2D"):
+        recipes.global_mean(ds, "thetao", "time", how)
+
+
 def _mom6_style_dataset():
-    """Small MOM6/CF-style dataset: ``so`` varying across boxes, with uneven ``areacello``."""
-    layer = np.array([[34.0, 35.0], [36.0, 38.0]])
-    so = layer[None, None] + np.array([0.0, 0.0, 1.0])[None, :, None, None]
-    volcello = np.ones((3, 2, 2))
-    volcello[2, 1, 1] = 9.0
+    """Small 2D MOM6/CF-style dataset: ``sos`` varying across boxes, with uneven ``areacello``."""
     return xr.Dataset(
         {
-            "so": (("time", "zl", "yh", "xh"), np.broadcast_to(so, (24, 3, 2, 2))),
+            "sos": (
+                ("time", "yh", "xh"),
+                np.broadcast_to([[34.0, 35.0], [36.0, 38.0]], (24, 2, 2)),
+            ),
             "areacello": (("yh", "xh"), [[1.0, 3.0], [2.0, 2.0]]),
-            "volcello": (("zl", "yh", "xh"), volcello),
         },
-        coords={
-            "time": _monthly_time(24),
-            "zl": [5.0, 15.0, 100.0],
-            "yh": [0.0, 60.0],
-            "xh": [0.0, 1.0],
-        },
+        coords={"time": _monthly_time(24), "yh": [0.0, 60.0], "xh": [0.0, 1.0]},
     )
 
 
@@ -459,20 +461,18 @@ def _mom6_style_dataset():
     [
         pytest.param(None, id="areacello-without-cell-measures"),
         pytest.param("area: areacello", id="cell-measures"),
-        pytest.param("area: areacello volume: volcello", id="volcello-ignored"),
     ],
 )
 def test_global_mean_weights_by_areacello(cell_measures):
-    """Test that the real box areas in ``areacello`` are used, and never ``volcello``.
+    """Test that the real box areas in ``areacello`` are used, named in ``cell_measures`` or not.
 
-    The areas are uneven, so equal weights would give a different answer. One deep
-    box has a much bigger volume, so weighting by ``volcello`` would too.
+    The areas are uneven, so equal weights would give a different answer.
     """
     ds = _mom6_style_dataset()
     if cell_measures:
-        ds["so"].attrs["cell_measures"] = cell_measures
+        ds["sos"].attrs["cell_measures"] = cell_measures
 
-    np.testing.assert_allclose(recipes.global_mean(ds, "so", "time"), 35.875 + 1 / 3)
+    np.testing.assert_allclose(recipes.global_mean(ds, "sos", "time"), 35.875)
 
 
 def test_global_mean_without_cell_area_is_unweighted_and_says_so(recwarn):
@@ -677,6 +677,26 @@ def test_om3_timeseries_skips_grid_without_time_method(fake_om3_references, recw
     assert "custom variable mapping" in warning
 
 
+def test_om3_timeseries_suites_refuse_3d_data(fake_om3_references, recwarn):
+    """Test that 3D data is skipped by the automated suite and stops the mapped one."""
+    ds = xr.Dataset(
+        {
+            "thetaoga": (("time", "zl", "yh", "xh"), np.ones((24, 3, 2, 2))),
+            "soga": ("time", np.full(24, 34.6)),
+        },
+        coords={"time": _monthly_time(24)},
+    )
+
+    results = recipes.recipe_om3_timeseries(ds)
+
+    assert [plot_kwargs["title"] for _, plot_kwargs in results] == [
+        "soga: Global Mean Ocean Salinity"
+    ]
+    assert "thetaoga skipped" in _user_warnings(recwarn)
+    with pytest.raises(ValueError, match="only support scalar or 2D"):
+        recipes.recipe_om3_timeseries_mapped(ds, thetaoga_var="thetaoga")
+
+
 def test_om3_timeseries_raises_when_every_plot_is_skipped(fake_om3_references):
     """Test that a suite with nothing left to plot fails, rather than reporting no plots as a success."""
     ds = _om3_dataset_with_unplottable_grid().drop_vars("soga")
@@ -849,6 +869,7 @@ def fake_reference_sources(monkeypatch):
     per-datastore loader, which finds ``soga`` in run "refA".
     """
     om2cat = MagicMock()
+    om2cat.search.return_value.__len__.return_value = 1
     om2cat.search.return_value.to_dask.return_value = _om3_scalar_timeseries(
         "salt_global_ave", [34.60, 34.61, 34.62]
     )
@@ -907,7 +928,9 @@ def test_load_om3_timeseries_var_keeps_datastores_with_the_variable():
     ref_a = _mock_datastore(match)
     ref_b = _mock_datastore(_mock_search_result(None))
 
-    found = recipes._load_om3_timeseries_var({"refA": ref_a, "refB": ref_b}, "soga")
+    found = recipes._load_om3_timeseries_var(
+        {"refA": ref_a, "refB": ref_b}, "soga", 2000, 2000
+    )
 
     assert found == {"refA": ds}
     ref_a.search.assert_called_once_with(variable="soga")
@@ -921,7 +944,9 @@ def test_load_om3_timeseries_var_retries_ambiguous_searches():
     ds = _om3_scalar_timeseries("soga", [34.7])
     ref = _mock_datastore(ValueError("ambiguous"), _mock_search_result(ds))
 
-    assert recipes._load_om3_timeseries_var({"ref": ref}, "soga") == {"ref": ds}
+    assert recipes._load_om3_timeseries_var({"ref": ref}, "soga", 2000, 2000) == {
+        "ref": ds
+    }
     ref.search.assert_called_with(
         variable="soga", **recipes.OM3_TIMESERIES_REF_SEARCHES[1]
     )
@@ -932,7 +957,7 @@ def test_load_om3_timeseries_var_reports_when_every_search_fails(recwarn):
     ref = MagicMock()
     ref.search.side_effect = ValueError("ambiguous")
 
-    assert recipes._load_om3_timeseries_var({"ref": ref}, "soga") == {}
+    assert recipes._load_om3_timeseries_var({"ref": ref}, "soga", 2000, 2000) == {}
     assert ref.search.call_count == len(recipes.OM3_TIMESERIES_REF_SEARCHES)
     assert "soga failed" in _user_warnings(recwarn)
 
@@ -978,22 +1003,117 @@ def test_load_om3_timeseries_var_skips_datastores_that_fail(recwarn):
     ref_a = _mock_datastore(broken)
     ref_b = _mock_datastore(_mock_search_result(ds))
 
-    found = recipes._load_om3_timeseries_var({"refA": ref_a, "refB": ref_b}, "soga")
+    found = recipes._load_om3_timeseries_var(
+        {"refA": ref_a, "refB": ref_b}, "soga", 2000, 2000
+    )
 
     assert found == {"refB": ds}
     assert "soga failed for refA: corrupt file" in _user_warnings(recwarn)
 
 
-def test_load_om3_timeseries_var_retries_only_the_ambiguous_datastore():
-    """Test that an ambiguous search in one datastore doesn't re-search the others."""
+class _FakeSearch:
+    """Minimal intake-esm search result over the files in ``df``.
+
+    Like the real one, it can be rebuilt from ``{"esmcat", "df"}``, and opening it
+    returns the rows it would load.
+    """
+
+    def __init__(self, spec):
+        self.df = spec["df"]
+        self.esmcat = MagicMock()
+
+    def __len__(self):
+        return int(len(self.df) > 0)
+
+    def to_dask(self, **kwargs):
+        return self.df
+
+
+def _yearly_files(*spans):
+    """Catalog rows with ACCESS-NRI style dates, one per (start year, end year) span, or None for undated."""
+    return pd.DataFrame(
+        {
+            "start_date": [
+                None if s is None else f"{s[0]}-01-01, 00:00:00" for s in spans
+            ],
+            "end_date": [
+                None if s is None else f"{s[1]}-01-01, 00:00:00" for s in spans
+            ],
+        }
+    )
+
+
+def test_search_in_years_keeps_files_overlapping_the_years():
+    """Test that files overlapping the years are kept, including ones that span them and undated ones."""
+    search = _FakeSearch(
+        {
+            "df": _yearly_files(
+                (1990, 1995), (1995, 2005), (2000, 2001), (2003, 2004), None
+            )
+        }
+    )
+
+    kept = recipes._search_in_years(search, 2000, 2000)
+
+    assert kept.df["start_date"].str[:4].tolist() == ["1995", "2000", None]
+
+
+def test_search_in_years_keeps_catalogs_without_dates():
+    """Test that a catalog with no dates is opened whole rather than emptied."""
+    search = _FakeSearch({"df": pd.DataFrame({"path": ["a.nc"]})})
+
+    assert recipes._search_in_years(search, 2000, 2000) is search
+
+
+def test_load_om3_timeseries_var_opens_ryf_years_from_its_own_start(monkeypatch):
+    """Test that an RYF run opens as many years as the user data, counted from its own made-up start."""
+    monkeypatch.setattr(recipes, "OM3_TIMESERIES_RYF_EXPTS", ["ryf"])
+    files = _yearly_files(*[(y, y + 1) for y in range(1900, 1906)])
+    ryf = _mock_datastore(_FakeSearch({"df": files}))
+
+    found = recipes._load_om3_timeseries_var({"ryf": ryf}, "masso", 2000, 2001)
+
+    assert found["ryf"]["start_date"].str[:4].tolist() == ["1900", "1901"]
+
+
+def test_load_om3_timeseries_var_spots_ambiguity_before_opening():
+    """Test that an ambiguous search moves on before any datastore is opened, as opening is slow."""
     ds = _om3_scalar_timeseries("soga", [34.7])
-    ambiguous = _mock_datastore(ValueError("ambiguous"), _mock_search_result(ds))
-    plain = _mock_datastore(_mock_search_result(ds))
+    plain_first = _mock_search_result(ds)
+    ambiguous = MagicMock()
+    ambiguous.__len__.return_value = 2
+    plain = _mock_datastore(plain_first, _mock_search_result(ds))
+    other = _mock_datastore(ambiguous, _mock_search_result(ds))
 
-    found = recipes._load_om3_timeseries_var({"refA": ambiguous, "refB": plain}, "soga")
+    recipes._load_om3_timeseries_var({"refA": plain, "refB": other}, "soga", 2000, 2000)
 
-    assert found == {"refA": ds, "refB": ds}
-    plain.search.assert_called_once_with(variable="soga")
+    plain_first.to_dask.assert_not_called()
+    ambiguous.to_dask.assert_not_called()
+
+
+def test_load_om3_timeseries_var_narrows_all_datastores_together():
+    """Test that one ambiguous datastore moves every datastore to the narrower search, as in the paper.
+
+    Otherwise the unambiguous one keeps its first match, which may be a different
+    dataset (e.g. a daily snapshot) from the one the paper plots.
+    """
+    first_match = _om3_scalar_timeseries("soga", [1.0])
+    monthly_mean = _om3_scalar_timeseries("soga", [34.7])
+    plain = _mock_datastore(
+        _mock_search_result(first_match), _mock_search_result(monthly_mean)
+    )
+    ambiguous = _mock_datastore(
+        ValueError("ambiguous"), _mock_search_result(monthly_mean)
+    )
+
+    found = recipes._load_om3_timeseries_var(
+        {"refA": plain, "refB": ambiguous}, "soga", 2000, 2000
+    )
+
+    assert found == {"refA": monthly_mean, "refB": monthly_mean}
+    plain.search.assert_called_with(
+        variable="soga", **recipes.OM3_TIMESERIES_REF_SEARCHES[1]
+    )
 
 
 def test_load_om3_timeseries_reference_cuts_to_user_range(fake_reference_sources):

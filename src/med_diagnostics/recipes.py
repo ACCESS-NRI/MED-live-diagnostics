@@ -5,6 +5,7 @@ from typing import Annotated
 
 import intake
 import numpy as np
+import pandas as pd
 import xarray as xr
 from intake_esm.source import ESMDataSourceError
 
@@ -302,7 +303,7 @@ def _cell_area(ds, da):
 
 def global_mean(ds, variable, dim, how="mean"):
     """
-    Helper to reduce ``ds[variable]`` to a timeseries over ``dim``, in its own units.
+    Helper to reduce a scalar or 2D ``ds[variable]`` to a timeseries over ``dim``, in its own units.
 
     Parameters
     ----------
@@ -319,13 +320,25 @@ def global_mean(ds, variable, dim, how="mean"):
     -------
     xarray.DataArray
         The computed timeseries. Already-scalar data is returned as is.
+
+    Raises
+    ------
+    ValueError
+        If ``ds[variable]`` is gridded in more than two dimensions besides ``dim``.
     """
     da = ds[variable]
 
     other_dims = [d for d in da.dims if d != dim]
     # Size-1 dims, like MOM's scalar_axis, aren't a grid
-    if all(da.sizes[d] == 1 for d in other_dims):
+    gridded = [d for d in other_dims if da.sizes[d] > 1]
+    if not gridded:
         return da.squeeze(other_dims, drop=True).compute()
+    # Area weights only suit 2D fields, as in the OM3 paper notebook
+    if len(gridded) > 2:
+        raise ValueError(
+            f"'{variable}' is gridded in {len(gridded)} dimensions {tuple(gridded)}, "
+            "but global means only support scalar or 2D fields"
+        )
     if how in ("max", "min"):
         return getattr(da, how)(other_dims).compute()
 
@@ -469,9 +482,53 @@ def _om3_timeseries_datastores():
     return datastores, om2cat
 
 
-def _load_om3_timeseries_var(datastores, var):
+def _catalog_years(dates):
     """
-    Helper to open one variable from each OM3 reference datastore.
+    Helper to read the years from a catalog date column.
+
+    Parameters
+    ----------
+    dates : pandas.Series
+        Catalog ``start_date`` or ``end_date`` values, e.g. "1958-01-01, 00:00:00".
+
+    Returns
+    -------
+    pandas.Series
+        The years, NaN where a file has no date.
+    """
+    return pd.to_numeric(dates.astype(str).str[:4], errors="coerce")
+
+
+def _search_in_years(search, first, last):
+    """
+    Helper to keep only the files of an intake-esm search that overlap the years ``first`` to ``last``.
+
+    Parameters
+    ----------
+    search : intake_esm.esm_datastore
+        Search result to narrow.
+    first, last : int
+        First and last years to keep.
+
+    Returns
+    -------
+    intake_esm.esm_datastore
+        The narrowed search, or ``search`` as is if its catalog has no dates.
+    """
+    df = search.df
+    if "start_date" not in df:
+        return search
+    start = _catalog_years(df["start_date"])
+    end = _catalog_years(df["end_date"]).fillna(start) if "end_date" in df else start
+    # Undated files (e.g. static grid data) are kept, as in data._select_year_files
+    keep = ((start <= last) & (end >= first)) | start.isna()
+    # Same subset construction as intake-esm's search, so the dataset key still matches
+    return search.__class__({"esmcat": search.esmcat.model_dump(), "df": df[keep]})
+
+
+def _load_om3_timeseries_var(datastores, var, first, last):
+    """
+    Helper to open one variable from each OM3 reference datastore, over the user data's years.
 
     Parameters
     ----------
@@ -479,33 +536,55 @@ def _load_om3_timeseries_var(datastores, var):
         OM3 reference datastores, as {experiment: datastore}.
     var : str
         Variable to open.
+    first, last : int
+        First and last years of the user data. RYF runs open the same number of
+        years from their own start.
 
     Returns
     -------
     dict
-        {experiment: xarray.Dataset} for the datastores that have ``var``.
-        Datastores that fail are reported and left out.
+        {experiment: xarray.Dataset} for the datastores that have ``var`` in those
+        years. Datastores that fail to open are reported and left out.
     """
-    found = {}
-    for n, cat in datastores.items():
-        for extra in OM3_TIMESERIES_REF_SEARCHES:
-            try:
-                s = cat.search(variable=var, **extra)
-                if len(s):
+    datastores = dict(datastores)
+    for extra in OM3_TIMESERIES_REF_SEARCHES:
+        try:
+            searches = {
+                n: cat.search(variable=var, **extra) for n, cat in datastores.items()
+            }
+            # As in the paper notebook, one ambiguous datastore moves all to the next search
+            if any(len(s) > 1 for s in searches.values()):
+                continue
+            found = {}
+            for n, s in searches.items():
+                if not len(s):
+                    continue
+                years = (first, last)
+                if n in OM3_TIMESERIES_RYF_EXPTS and "start_date" in s.df:
+                    ryf_first = int(_catalog_years(s.df["start_date"]).min())
+                    years = (ryf_first, ryf_first + last - first)
+                # Only the user data's years are opened, as whole runs are slow to open
+                s = _search_in_years(s, *years)
+                if not len(s):
+                    warnings.warn(
+                        f"{var} reference {n} has no data in the user data's time range",
+                        stacklevel=2,
+                    )
+                    continue
+                try:
                     found[n] = s.to_dask(
                         xarray_combine_by_coords_kwargs=OM3_TIMESERIES_COMBINE_KWARGS
                     )
-                break
-            except ValueError:
-                # Matched several datasets, so try the next, narrower search
-                continue
-            # intake-esm re-raises any failure to open the files as this
-            except ESMDataSourceError as err:
-                warnings.warn(f"{var} failed for {n}: {err}", stacklevel=2)
-                break
-        else:
-            warnings.warn(f"{var} failed for {n}", stacklevel=2)
-    return found
+                # intake-esm re-raises any failure to open the files as this
+                except ESMDataSourceError as err:
+                    warnings.warn(f"{var} failed for {n}: {err}", stacklevel=2)
+                    del datastores[n]
+        # Searches that still match several datasets when opened also move on
+        except ValueError:
+            continue
+        return found
+    warnings.warn(f"{var} failed", stacklevel=2)
+    return {}
 
 
 def _load_om3_timeseries_reference(var, start, end):
@@ -526,7 +605,7 @@ def _load_om3_timeseries_reference(var, start, end):
         it has a matching variable. References with no data in the range are left out.
     """
     datastores, om2cat = _om3_timeseries_datastores()
-    d = _load_om3_timeseries_var(datastores, var)
+    d = _load_om3_timeseries_var(datastores, var, start[0], end[0])
     if not d:
         return {}
     om2_var = OM3_TIMESERIES_FIELDS[var][0]
@@ -534,12 +613,18 @@ def _load_om3_timeseries_reference(var, start, end):
         # Match OM2's frequency to OM3's, otherwise the search finds two datasets
         freq = next(iter(d.values())).attrs["intake_esm_attrs:frequency"]
         try:
-            om2 = (
-                om2cat.search(variable=om2_var, frequency=freq)
-                .to_dask()
-                .rename({om2_var: var})
+            om2 = _search_in_years(
+                om2cat.search(variable=om2_var, frequency=freq), start[0], end[0]
             )
-            d = {OM3_TIMESERIES_OM2_EXPT: om2} | d
+            if len(om2):
+                om2 = om2.to_dask().rename({om2_var: var})
+                d = {OM3_TIMESERIES_OM2_EXPT: om2} | d
+            else:
+                warnings.warn(
+                    f"{var} reference {OM3_TIMESERIES_OM2_EXPT} has no data in the "
+                    "user data's time range",
+                    stacklevel=2,
+                )
         # Ambiguous search or variable missing (ValueError), or files failed to open
         except (ValueError, ESMDataSourceError) as err:
             warnings.warn(
