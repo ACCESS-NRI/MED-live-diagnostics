@@ -2,20 +2,6 @@
 
 Learn how to create and integrate custom analyses into the Model Live Diagnostics (MLD) package. By the end of this tutorial, you will know how to implement a custom analysis that automatically generates interactive UI controls based on user selection. Any analysis that can be computed with `xarray` and plotted via `matplotlib.pyplot` can be integrated into the analysis section.
 
-## Prerequisites
-Before starting, ensure you have:
-
-* Started an MLD session in your current notebook or kernel (your custom recipes must be written in this same environment)
-
-* Loaded a catalogue and dataset.
-
-* Add the following imports to the top of a cell in your notebook:
-
-```python
-from med_diagnostics import analysis
-import xarray as xr
-```
-
 For setup guidance, refer to the [Getting Started Tutorial](getting_started_tutorial.md).
 
 ---
@@ -24,12 +10,18 @@ For setup guidance, refer to the [Getting Started Tutorial](getting_started_tuto
 
 The **Run analysis recipes** section provides a dropdown menu of predefined analyses (and user-defined analyses once they are added!). Selecting an analysis dynamically populates the interface with the required input widgets. 
 
-<img src="/assets/notebooks/Analysis_section.png" alt="Model Live Diagnostics Analysis Section Interface" style="width: 100%; height: auto;">
+<img src="../../assets/tutorials/Analysis_section.png" alt="Model Live Diagnostics Analysis Section Interface" style="width: 100%; height: auto;">
 
 ## Building a custom analysis
 The MLD package is designed to require minimal modifications to a typical analysis written for an `xarray.Dataset`. To add a custom analysis to the current MLD session, define a function that takes an `xarray.Dataset` as input, and returns an `xr.DataArray` as output, and register it in the session using `analysis.register_analysis(your_defined_function)`.
 
 ### The Minimum Recipe
+Import the following packages to enable adding custom analyses to MLD:
+
+```python
+from med_diagnostics import analysis
+import xarray as xr
+```
 
 If your analysis hardcodes specific variables or dimensions and you are happy with the default plotting style, your recipe can be a simple, standard Python function. 
 
@@ -48,11 +40,11 @@ Once your function is defined, click the **Refresh analysis recipes** button in 
 
 Your new analysis will now appear in the dropdown menu, as shown below:
 
-<img src="/assets/notebooks/Analysis_minimal_recipe_load.png" alt="Model Live Diagnostics custom analysis loaded" style="width: 80%; height: auto;">
+<img src="/assets/tutorials/Analysis_minimal_recipe_load.png" alt="Model Live Diagnostics custom analysis loaded" style="width: 80%; height: auto;">
 
 Click **Select recipe** and then **Plot data**. The analysis will run and display using MLD's default plot settings.
 
-<img src="/assets/notebooks/Analysis_minimal_recipe_plot.png" alt="Model Live Diagnostics custom analysis plot output" style="width: 100%; height: auto;">
+<img src="/assets/tutorials/Analysis_minimal_recipe_plot.png" alt="Model Live Diagnostics custom analysis plot output" style="width: 100%; height: auto;">
 
 !!! tip "Re-registering Recipes"
     Recipes are stored by function name. If you edit the cell and run it again, the new version replaces the old one. Click **Refresh analysis recipes** again to pick up the change.
@@ -162,11 +154,11 @@ When you choose your new analysis in the **Select analysis recipe** dropdown and
 
 Now, rather than being restricted to just a timeseries, this single function allows us to plot the average of *any* variable along *any* dimension. For example:
 
-<img src="/assets/notebooks/Analysis_widgets_created.png" alt="Model Live Diagnostics custom analysis with dynamically generated UI widgets" style="width: 100%; height: auto;">
+<img src="/assets/tutorials/Analysis_widgets_created.png" alt="Model Live Diagnostics custom analysis with dynamically generated UI widgets" style="width: 100%; height: auto;">
 
 Click **Plot data** to view the resulting analysis:
 
-<img src="/assets/notebooks/Analysis_widget_recipe_plot.png" alt="Plot output from the dynamically generated custom analysis" style="width: 100%; height: auto;">
+<img src="/assets/tutorials/Analysis_widget_recipe_plot.png" alt="Plot output from the dynamically generated custom analysis" style="width: 100%; height: auto;">
 
 ??? info "View a complete example using every widget kind"
 
@@ -219,7 +211,7 @@ Click **Plot data** to view the resulting analysis:
     ```
     This function generates the following fully populated interface:
 
-    <img src="/assets/notebooks/Analysis_every_widget.png" alt="Model Live Diagnostics UI showing every available widget type" style="width: 100%; height: auto;">
+    <img src="/assets/tutorials/Analysis_every_widget.png" alt="Model Live Diagnostics UI showing every available widget type" style="width: 100%; height: auto;">
 
 ### Customising the plot
 
@@ -268,7 +260,7 @@ analysis.register_analysis(recipe_custom_plot)
 
 And the resultant plot:
 
-<img src="/assets/notebooks/Analysis_custom_plot_kwargs.png" alt="Model Live Diagnostics plot with custom formatting applied" style="width: 100%; height: auto;">
+<img src="/assets/tutorials/Analysis_custom_plot_kwargs.png" alt="Model Live Diagnostics plot with custom formatting applied" style="width: 100%; height: auto;">
 
 #### Advanced plot customisation
 
@@ -361,11 +353,11 @@ analysis.register_analysis(recipe_add_box)
 
 The resultant plot from adding this customisation: 
 
-<img src="/assets/notebooks/Analysis_customise_plot.png" alt="Heatmap with a red bounding box and a custom text annotation pointing to it" style="width: 100%; height: auto;">
+<img src="/assets/tutorials/Analysis_customise_plot.png" alt="Heatmap with a red bounding box and a custom text annotation pointing to it" style="width: 100%; height: auto;">
 
 #### Ready-made customisations
 
-MLD provides several built-in customisation functions for common meteorological and oceanographic visualisations in the `med_diagnostics.plot_customisations` module. These will be updated as the package is developed, and full details can be found in the [API Reference](../pages/api.md#med_diagnostics.plot_customisations).
+MLD provides several built-in customisation functions for common meteorological and oceanographic visualisations in the `med_diagnostics.plot_customisations` module. These will be updated as the package is developed, and full details can be found in the [API Reference](../api.md#med_diagnostics.plot_customisations).
 
 #### Passing extra arguments to a customise function
 
@@ -488,8 +480,8 @@ Use the checklist below to help register a new recipe to MLD:
 
 Because custom recipes integrate seamlessly into the MLD pipeline, they are perfectly structured to be included as inbuilt recipes. If you have created an analysis that would be useful to others, you can submit it to the core repository, making it available for others to use.
 
-For full details on how to format, test, and submit your code via a pull request, please see the [Contributing Recipes](../pages/contributing/recipes.md) guide.
+For full details on how to format, test, and submit your code via a pull request, please see the [Contributing Recipes](../contributing/recipes.md) guide.
 
 ---
 
-[Next: Built-in analysis recipes :material-arrow-right:](built_in_recipes_tutorial.md){ .md-button }
+[Next: Advanced usage :material-arrow-right:](advanced_usage.md){ .md-button }

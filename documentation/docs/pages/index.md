@@ -2,7 +2,7 @@
 
 Welcome to the documentation and reference guide for the [ACCESS-NRI](https://www.access-nri.org.au/) Model Live Diagnostics (MLD) package, developed by the Model Evaluation and Diagnostics (MED) team. The package is installed as `med-diagnostics` and imported in Python as `med_diagnostics`. Model Live Diagnostics provides practical Jupyter-based tools for interactive monitoring and diagnostic analysis of currently running, or "live", ACCESS climate models on the Australian NCI supercomputer Gadi.
 
-The framework is intended for use in the [Australian Research Environment (ARE)](https://are.nci.org.au/) and is still under active development. Please report bugs and suggestions through the [GitHub issue tracker](https://github.com/ACCESS-NRI/MED-live-diagnostics/issues).
+The framework is intended for use in the [Australian Research Environment (ARE)](https://are.nci.org.au/) and is still under active development.
 
 ## What does this package do?
 
@@ -13,14 +13,7 @@ A session opens an interactive interface in your notebook with four collapsible 
 - **Load and plot user data.** Builds an intake catalogue from your live model output, so you can load any of its datasets and plot a variable as a line plot, heatmap, or animation over time. Sliders let you slice through extra dimensions such as ocean depth.
 - **Load and plot reference models.** Loads any model of the same type from the [ACCESS-NRI Intake Catalogue](https://github.com/ACCESS-NRI/access-nri-intake-catalog) and plots its data with the same controls.
 - **Overlay user and reference models.** Overlays line plots or shows heatmaps side by side for your run and as many reference models as you like, and can plot the difference between them to highlight discrepancies.
-- **Run analysis recipes.** Runs ready-made analyses on your data, such as the Niño 3.4 index, area-weighted regional mean timeseries, and the ACCESS-OM3 timeseries suites, which make a whole set of plots in one click. See [Built-in analysis recipes](../notebooks/built_in_recipes_tutorial.md).
-
-You can also:
-
-- **Explore reference models without a run of your own**, by leaving the model output path blank when starting a session. Only the reference models section is shown, which is a good way to learn the plotting controls (see [Getting started](../notebooks/getting_started_tutorial.md)).
-- **Choose how many years to load** (most recent, first, or all years) to keep load times and memory use down.
-- **Write your own analysis recipes**, with their own options, plot customisations, and suites of plots, and have them appear in the interface. See [Adding custom analyses](../notebooks/adding_custom_analyses.md).
-- **Work with the data directly** in Python, for example by retrieving the catalogue or a loaded dataset. See [Advanced usage](../notebooks/advanced_usage.md).
+- **Run analysis recipes.** Runs ready-made analyses on your data, such as the Niño 3.4 index or area-weighted regional mean timeseries, or apply your own custom analyses.
 
 ## Quick-start guide
 
@@ -51,7 +44,7 @@ Before starting, make sure you:
    | Modules | `conda/access-med` |
 
 2. Start the session with the [ACCESS-NRI MED conda environment](https://github.com/ACCESS-NRI/MED-condaenv).
-3. Follow the [Getting started tutorial](../notebooks/getting_started_tutorial.md) to begin a Model Live Diagnostics session.
+3. Follow the [Getting started tutorial](tutorials/getting_started_tutorial.md) to begin a Model Live Diagnostics session.
 
 ### Install the package directly
 
@@ -68,6 +61,9 @@ The package is pre-installed in the ACCESS-NRI MED conda environment. Alternativ
     ```bash
     pip install med-diagnostics
     ```
+
+---
+The package is still a work in progress. We value your feedback, especially in the form of reporting issues/bugs or suggesting ways to improve the framework. To do so, please open an issue [here](https://github.com/ACCESS-NRI/MED-live-diagnostics/issues).
 
 ---
 

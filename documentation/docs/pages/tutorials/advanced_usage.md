@@ -3,7 +3,7 @@
 To get started with model live diagnostics, please see the [getting started tutorial](getting_started_tutorial.md). The following guide provides further information about the options available within the package.
 
 ### 1. Create live model session
-`CreateModelDiagnosticsSession()` takes no arguments. It shows a start section where you enter the model output path and model type, then click "Start Session" (see the [getting started tutorial](getting_started_tutorial.md#2-create-live-model-session)). The path is optional: leave it blank to start a session with reference models only. In that case no user catalogue is built, only the **Load and plot reference models** section is shown, and `session.return_model_data_catalog()` returns `None`.
+`CreateModelDiagnosticsSession()` takes no arguments. It shows a start section where you enter the model output path and model type, then click "Start Session" (see the [getting started tutorial](getting_started_tutorial.md#2-start-a-live-model-diagnostic-session)). The path is optional: leave it blank to start a session with reference models only. In that case no user catalogue is built, only the **Load and plot reference models** section is shown, and `session.return_model_data_catalog()` returns `None`.
 
 Starting a session triggers the following tasks in the background:
 
@@ -11,7 +11,7 @@ Starting a session triggers the following tasks in the background:
 - If a model output path was entered, retrieve the most up-to-date nominated model data and build a new ESM datastore, using the [ACCESS-NRI intake catalog](https://github.com/ACCESS-NRI/access-nri-intake-catalog.git). N.B. This is saved as a compressed *.csv in its own folder for each run under `~/.med_diagnostics/catalogs` (named after the output folder plus a short hash of its full path). If a catalog for that path already exists, and is valid and up to date, the datastore is not overwritten. 
 - Initialise the [HoloViz Panel](https://panel.holoviz.org/) widget, and create the <span style="color:orange">catalog</span>, <span style="color:lightblue">status</span>, and <span style="color:darkred">warning</span> information boxes.
 
-![Model Live Diagnostics widget on startup](/assets/notebooks/AdvUsage_Widget_startup.png)
+![Model Live Diagnostics widget on startup](/assets/tutorials/AdvUsage_Widget_startup.png)
 
 ### 2. Access to Data
 While the UI provides a quick way to visualise your model runs, advanced users may wish to interact directly with the underlying data structures for custom analysis in their Jupyter Notebook. 
@@ -27,7 +27,7 @@ datastore = session.return_model_data_catalog()
 datastore
 ```
 
-![Data catalogue output](/assets/notebooks/AdvUsage_catalog_output.png){ width="70%" }
+![Data catalogue output](/assets/tutorials/AdvUsage_catalog_output.png){ width="70%" }
 
 #### Retrieve a loaded Dataset
 You can extract the loaded dataset object directly from your session. 
@@ -40,7 +40,7 @@ dataset = session.return_loaded_dataset()
 dataset
 ```
 
-![Loaded dataset output](/assets/notebooks/AdvUsage_dataset_output.png){ width="80%" }
+![Loaded dataset output](/assets/tutorials/AdvUsage_dataset_output.png){ width="80%" }
 
 !!! warning "Load a dataset first"
     `return_loaded_dataset()` raises an `AttributeError` if no dataset has been loaded yet. Select a dataset and click "Load dataset" in the interface before calling it.
@@ -192,7 +192,7 @@ api.register_analysis(
 
 A recipe without a docstring is listed under its function name. With a docstring, its first paragraph is used instead.
 
-See the [API reference](../pages/api.md#med_diagnostics.api) for every function and its arguments.
+See the [API reference](../api.md#med_diagnostics.api) for every function and its arguments.
 
 ### 6. Troubleshooting and UI Warnings
 The interface features built-in error handling to prevent crashes from invalid visualisations or missing data. When an issue occurs or the interface automates a step, a message appears in that section's <span style="color:darkred">warning</span> box. 
@@ -211,4 +211,4 @@ If a plot fails to generate, review the <span style="color:darkred">warning</spa
 
 ---
 
-[Next: Adding custom analyses :material-arrow-right:](adding_custom_analyses.md){ .md-button }
+[Next: API reference :material-arrow-right:](../api.md){ .md-button }

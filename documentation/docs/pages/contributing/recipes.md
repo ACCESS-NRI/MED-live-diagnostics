@@ -2,7 +2,7 @@
 
 If you have written a custom analysis that would be useful to others, you can contribute it as a built-in recipe. Built-in recipes appear in the analysis dropdown for every user, without needing to be registered.
 
-Before starting, read the [Adding custom analyses](../../notebooks/adding_custom_analyses.md) tutorial. A built-in recipe follows exactly the same rules as a custom one.
+Before starting, read the [Adding custom analyses](../tutorials/adding_custom_analyses.md) tutorial. A built-in recipe follows exactly the same rules as a custom one.
 
 ## Before you start
 
@@ -30,7 +30,7 @@ The first paragraph of the docstring becomes the dropdown label (without the `Cu
 
 ## Requirements
 
-On top of the [checklist](../../notebooks/adding_custom_analyses.md#checklist) in the tutorial, a built-in recipe must:
+On top of the [checklist](../tutorials/adding_custom_analyses.md#checklist) in the tutorial, a built-in recipe must:
 
 - Give every argument a `"kind"` and a `"description"`. This is checked by `tests/test_recipes.py`.
 - State in the docstring's second paragraph which model or grid it targets (e.g. `For MOM5 output (ACCESS-OM2, ACCESS-ESM1.6).`).
@@ -42,7 +42,7 @@ On top of the [checklist](../../notebooks/adding_custom_analyses.md#checklist) i
 
 ## Documenting your recipe
 
-Every built-in recipe must be documented on the [Built-in analysis recipes](../../notebooks/built_in_recipes_tutorial.md) page, in `documentation/docs/notebooks/built_in_recipes_tutorial.md`. When you add a recipe:
+Every built-in recipe must be documented on the [Built-in analysis recipes](../tutorials/built_in_recipes_tutorial.md) page, in `documentation/docs/pages/tutorials/built_in_recipes_tutorial.md`. When you add a recipe:
 
 1. Add a row for it to the summary table at the top of the page, giving its dropdown label, function name, number of plots and the model or grid it targets.
 2. Add a section for it below the existing recipes, covering:
@@ -70,7 +70,7 @@ Once your recipe and any tests pass:
 1. Commit your changes (including the documentation) and push the branch to your fork:
 
     ```bash
-    git add src/med_diagnostics/recipes.py tests/test_recipes.py documentation/docs/notebooks/built_in_recipes_tutorial.md
+    git add src/med_diagnostics/recipes.py tests/test_recipes.py documentation/docs/pages/tutorials/built_in_recipes_tutorial.md
     git commit -m "Add <recipe name> recipe"
     git push origin <issue#_recipe_name>
     ```

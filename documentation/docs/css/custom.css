@@ -1025,6 +1025,10 @@ pre>nav {
 pre > button:is(:hover,:focus).md-clipboard {
   color: var(--md-primary-fg-color--dark) !important;
 }
+/* Dark blue is too dark on the dark code background, so use the lighter blue */
+[data-md-color-scheme="custom-dark"] pre > button:is(:hover,:focus).md-clipboard {
+  color: var(--nri-blue) !important;
+}
 
 /* =============================================================== 
   Jupyter Notebooks code blocks
@@ -1394,4 +1398,29 @@ img.intro-img {
   margin-right: 0.5em;
   font-size: 1.5rem;
   width: 1.5rem;
+}
+
+/* ===============================================================
+  Buttons (In markdown --> `[Text](link){ .md-button }`)
+  Material colours these with --md-primary-fg-color, which is the near-black
+  banner colour in both schemes, so they vanish in dark mode. Use the page
+  text colour instead, which follows the light/dark toggle.
+*/
+.md-typeset .md-button {
+  color: var(--md-default-fg-color);
+  border-color: var(--md-default-fg-color);
+}
+
+/* Dark text, as light text is hard to read on the light NRI blue */
+.md-typeset .md-button:is(:hover,:focus) {
+  color: var(--md-primary-fg-color);
+  background-color: var(--md-accent-fg-color);
+  border-color: var(--md-accent-fg-color);
+}
+
+/* Filled buttons (`{ .md-button .md-button--primary }`) */
+.md-typeset .md-button--primary {
+  color: var(--md-primary-fg-color);
+  background-color: var(--nri-blue);
+  border-color: var(--nri-blue);
 }

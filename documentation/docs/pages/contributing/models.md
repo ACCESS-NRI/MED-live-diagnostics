@@ -80,9 +80,8 @@ The names are matched exactly, so similar names (e.g. `GFDL-CM3` for `CM3`) are 
 Add the new model type everywhere the supported model types are listed:
 
 - the `model_type` docstrings in `session.py` and `data.py`
-- the supported model types in [Getting started](../../notebooks/getting_started_tutorial.md) (section 2)
 - the supported models sentence in "What does this package do?" on the [home page](../index.md)
 
-If built-in recipes support the new model, say so in their **Targets** column and notes in [Built-in analysis recipes](../../notebooks/built_in_recipes_tutorial.md).
+If built-in recipes support the new model, say so in their **Targets** column and notes in [Built-in analysis recipes](../tutorials/built_in_recipes_tutorial.md).
 
 Then open a pull request as described in [Contributing code](code.md).
