@@ -42,7 +42,10 @@ OM3_TIMESERIES_REF_CATALOGS = [
     "/g/data/ol01/outputs/access-om3-25km/MC_25km_jra_iaf-1.0-beta-5165c0f8/datastore.json",
     "/g/data/ol01/outputs/access-om3-25km/MC_25km_jra_iaf+wombatlite-test3v2-00532b88/datastore.json",
     "/g/data/ol01/outputs/access-om3-25km/MC_25km_jra_iaf+wombatlite-test4-d28e0359/datastore.json",
+    "/g/data/ol01/outputs/access-om3-100km/MC_100km_jra_ryf+wombatlite-1e74abf-11f9df5c/experiment_datastore.json",
 ]
+# RYF runs have made-up years, so they're moved to start in the user data's first year
+OM3_TIMESERIES_RYF_EXPTS = ["MC_100km_jra_ryf+wombatlite-1e74abf-11f9df5c"]
 # Use "025deg_jra55_ryf9091_gadi" for RYF runs
 OM3_TIMESERIES_OM2_EXPT = "025deg_jra55_iaf_omip2_cycle1"
 OM3_TIMESERIES_IAF = True
@@ -505,20 +508,22 @@ def _load_om3_timeseries_var(datastores, var):
     return found
 
 
-def _load_om3_timeseries_reference(var):
+def _load_om3_timeseries_reference(var, start, end):
     """
-    Helper to load the reference timeseries for one OM3 variable.
+    Helper to load the reference timeseries for one OM3 variable, over the user data's time range.
 
     Parameters
     ----------
     var : str
         ``OM3_TIMESERIES_FIELDS`` name to load.
+    start, end : tuple of (int, int)
+        (year, month) of the user data's first and last timesteps.
 
     Returns
     -------
     dict
         {experiment: xarray.DataArray} of global timeseries, including OM2 where
-        it has a matching variable. Empty if no reference has ``var``.
+        it has a matching variable. References with no data in the range are left out.
     """
     datastores, om2cat = _om3_timeseries_datastores()
     d = _load_om3_timeseries_var(datastores, var)
@@ -545,13 +550,28 @@ def _load_om3_timeseries_reference(var):
             n: ds.convert_calendar("proleptic_gregorian", use_cftime=True)
             for n, ds in d.items()
         }
-    return {
-        n: global_mean(ds, var, "time", _om3_timeseries_reduction(ds[var], var, "time"))
-        for n, ds in d.items()
-    }
+    window = slice(f"{start[0]:04d}-{start[1]:02d}", f"{end[0]:04d}-{end[1]:02d}")
+    references = {}
+    for n, ds in d.items():
+        if n in OM3_TIMESERIES_RYF_EXPTS:
+            years = start[0] - int(ds["time"].dt.year[0])
+            ds = ds.assign_coords(
+                time=[t.replace(year=t.year + years) for t in ds.indexes["time"]]
+            )
+        # Cut before reducing, so only the user data's years are read
+        ds = ds.sel(time=window)
+        if not ds.sizes["time"]:
+            warnings.warn(
+                f"{var} reference {n} has no data in the user data's time range",
+                stacklevel=2,
+            )
+            continue
+        how = _om3_timeseries_reduction(ds[var], var, "time")
+        references[n] = global_mean(ds, var, "time", how)
+    return references
 
 
-def _om3_timeseries(ds, variable, name, dim, avg_window, strict=False):
+def _om3_timeseries(ds, variable, name, dim, strict=False):
     """
     Helper to build one OM3 timeseries plot, overlaid on the reference runs.
 
@@ -565,8 +585,6 @@ def _om3_timeseries(ds, variable, name, dim, avg_window, strict=False):
         The ``OM3_TIMESERIES_FIELDS`` name it stands in for.
     dim : str
         Time dimension of ``ds``.
-    avg_window : int
-        Rolling-mean window in days.
     strict : bool, default False
         Passed to ``_om3_timeseries_reduction``.
 
@@ -579,21 +597,25 @@ def _om3_timeseries(ds, variable, name, dim, avg_window, strict=False):
     label = OM3_TIMESERIES_FIELDS[name][1]
     how = _om3_timeseries_reduction(ds[variable], name, dim, strict)
     data = global_mean(ds, variable, dim, how)
-    window = _rolling_window_size(data[dim], avg_window)
-    # Each reference is smoothed over the same number of days at its own timestep
-    references = {
-        expt: (ref, _rolling_window_size(ref["time"], avg_window))
-        for expt, ref in _load_om3_timeseries_reference(name).items()
-    }
+    try:
+        years, months = data[dim].dt.year.values, data[dim].dt.month.values
+    except AttributeError as err:
+        raise ValueError(
+            f"'{dim}' must hold dates to compare with the reference runs"
+        ) from err
+    references = _load_om3_timeseries_reference(
+        name, (years[0], months[0]), (years[-1], months[-1])
+    )
 
+    # Styled as in the OM3 paper notebook: thin raw lines, labelled yearly means
     plot_kwargs = {
-        "figsize": (11, 4),
+        "figsize": (10, 5),
         "title": f"{name}: {label}",
-        "alpha": 0.6,
-        "label": "User data",
+        "linewidth": 0.7,
+        "ax_kwargs": {"xlabel": ""},
         "customise": [
-            lambda ax, data: plot_customisations.add_rolling_mean(
-                ax, data, window, dim
+            lambda ax, data: plot_customisations.add_yearly_mean(
+                ax, data, dim, label="User data"
             ),
             lambda ax, data: plot_customisations.add_reference_timeseries(
                 ax, references
@@ -817,15 +839,6 @@ def recipe_om3_timeseries(
             "description": "Dimension to display on the x-axis, associated with time, taking the mean over all remaining dimensions",
         },
     ] = "time",
-    avg_window: Annotated[
-        int,
-        {
-            "kind": "int",
-            "name": "Select window for rolling average",
-            "description": "Window for the rolling average to be taken over",
-            "units": "Days",
-        },
-    ] = 365,
 ):
     """
     OM3 timeseries suite (OM3 variable names)
@@ -838,8 +851,6 @@ def recipe_om3_timeseries(
         Model output with OM3 variable names.
     dim : str, default "time"
         Time dimension; every other dimension is averaged over.
-    avg_window : int, default 365
-        Rolling-mean window in days.
 
     Returns
     -------
@@ -867,9 +878,7 @@ def recipe_om3_timeseries(
     for name in names:
         try:
             _require_om3_totals_are_timeseries(ds, {name: name}, dim)
-            results.append(
-                _om3_timeseries(ds, name, name, dim, avg_window, strict=True)
-            )
+            results.append(_om3_timeseries(ds, name, name, dim, strict=True))
         # Skip just this plot, so the rest of the suite still draws
         except ValueError as err:
             warnings.warn(f"{name} skipped: {err}", stacklevel=2)
@@ -1112,15 +1121,6 @@ def recipe_om3_timeseries_mapped(
             "description": "Dimension to display on the x-axis, associated with time, taking the mean over all remaining dimensions",
         },
     ] = "time",
-    avg_window: Annotated[
-        int,
-        {
-            "kind": "int",
-            "name": "Select window for rolling average",
-            "description": "Window for the rolling average to be taken over",
-            "units": "Days",
-        },
-    ] = 365,
 ):
     """
     OM3 timeseries suite (custom variable mapping)
@@ -1136,8 +1136,6 @@ def recipe_om3_timeseries_mapped(
         (the parameter name minus ``_var``). None skips that plot.
     dim : str, default "time"
         Time dimension; every other dimension is averaged over.
-    avg_window : int, default 365
-        Rolling-mean window in days.
 
     Returns
     -------
@@ -1184,6 +1182,5 @@ def recipe_om3_timeseries_mapped(
     # Checked up front so a bad choice fails before any slow global means
     _require_om3_totals_are_timeseries(ds, chosen, dim)
     return [
-        _om3_timeseries(ds, variable, name, dim, avg_window)
-        for name, variable in chosen.items()
+        _om3_timeseries(ds, variable, name, dim) for name, variable in chosen.items()
     ]

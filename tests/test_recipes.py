@@ -603,7 +603,7 @@ def fake_om3_references(monkeypatch):
     """
     loaded = []
 
-    def fake(var):
+    def fake(var, start, end):
         loaded.append(var)
         return {
             "refA": xr.DataArray(np.full(24, 34.7), coords={"time": _monthly_time(24)})
@@ -837,6 +837,10 @@ def _om3_scalar_timeseries(name, values, calendar="noleap"):
     )
 
 
+# (year, month) range covering the fake references below
+YEAR_2000 = ((2000, 1), (2000, 12))
+
+
 @pytest.fixture
 def fake_reference_sources(monkeypatch):
     """Replace the reference catalogs with an OM2 catalog and one OM3 run.
@@ -866,7 +870,7 @@ def test_load_om3_timeseries_reference_adds_om2(fake_reference_sources):
     """
     om2cat, _ = fake_reference_sources
 
-    reference = recipes._load_om3_timeseries_reference("soga")
+    reference = recipes._load_om3_timeseries_reference("soga", *YEAR_2000)
 
     assert list(reference) == [recipes.OM3_TIMESERIES_OM2_EXPT, "refA"]
     om2cat.search.assert_called_once_with(variable="salt_global_ave", frequency="1mon")
@@ -884,7 +888,7 @@ def test_load_om3_timeseries_reference_without_om2_equivalent(fake_reference_sou
     om2cat, load_var = fake_reference_sources
     load_var.return_value = {"refA": _om3_scalar_timeseries("masso", [1.0])}
 
-    assert list(recipes._load_om3_timeseries_reference("masso")) == ["refA"]
+    assert list(recipes._load_om3_timeseries_reference("masso", *YEAR_2000)) == ["refA"]
     om2cat.search.assert_not_called()
 
 
@@ -893,7 +897,7 @@ def test_load_om3_timeseries_reference_found_nowhere(fake_reference_sources):
     _, load_var = fake_reference_sources
     load_var.return_value = {}
 
-    assert recipes._load_om3_timeseries_reference("soga") == {}
+    assert recipes._load_om3_timeseries_reference("soga", *YEAR_2000) == {}
 
 
 def test_load_om3_timeseries_var_keeps_datastores_with_the_variable():
@@ -992,6 +996,86 @@ def test_load_om3_timeseries_var_retries_only_the_ambiguous_datastore():
     plain.search.assert_called_once_with(variable="soga")
 
 
+def test_load_om3_timeseries_reference_cuts_to_user_range(fake_reference_sources):
+    """Test that references only keep the months the user data covers."""
+    reference = recipes._load_om3_timeseries_reference("soga", (2000, 2), (2000, 3))
+
+    np.testing.assert_allclose(reference["refA"], [34.71, 34.72])
+    np.testing.assert_allclose(
+        reference[recipes.OM3_TIMESERIES_OM2_EXPT], [34.61, 34.62]
+    )
+
+
+def test_load_om3_timeseries_reference_leaves_out_runs_outside_user_range(
+    fake_reference_sources, recwarn
+):
+    """Test that a reference with no data in the user's years is left out, with a warning."""
+    reference = recipes._load_om3_timeseries_reference("masso", (1958, 1), (1967, 12))
+
+    assert reference == {}
+    assert "masso reference refA has no data" in _user_warnings(recwarn)
+
+
+def test_load_om3_timeseries_reference_moves_ryf_run_to_user_start(
+    fake_reference_sources, monkeypatch
+):
+    """Test that an RYF run's made-up years are moved to start in the user data's first year.
+
+    Its months stay as they are, and it's cut at the end of the user data.
+    """
+    _, load_var = fake_reference_sources
+    load_var.return_value = {
+        "ryf": xr.Dataset(
+            {"masso": ("time", [1.0, 2.0, 3.0, 4.0])},
+            coords={
+                "time": xr.date_range(
+                    "1900-01-01",
+                    periods=4,
+                    freq="MS",
+                    calendar="noleap",
+                    use_cftime=True,
+                )
+            },
+        )
+    }
+    monkeypatch.setattr(recipes, "OM3_TIMESERIES_RYF_EXPTS", ["ryf"])
+
+    reference = recipes._load_om3_timeseries_reference("masso", (1958, 1), (1958, 3))
+
+    ryf = reference["ryf"]
+    np.testing.assert_allclose(ryf, [1.0, 2.0, 3.0])
+    assert [(t.year, t.month) for t in ryf.indexes["time"]] == [
+        (1958, 1),
+        (1958, 2),
+        (1958, 3),
+    ]
+
+
+def test_om3_timeseries_rejects_time_dim_without_dates():
+    """Test that a time dimension without dates fails readably, so the suite can skip it."""
+    ds = xr.Dataset({"soga": ("step", np.full(5, 34.6))}, coords={"step": np.arange(5)})
+
+    with pytest.raises(ValueError, match="must hold dates"):
+        recipes._om3_timeseries(ds, "soga", "soga", "step")
+
+
+def test_om3_timeseries_asks_for_references_over_user_range(monkeypatch):
+    """Test that the user data's first and last (year, month) are passed to the reference loader."""
+    asked = []
+    monkeypatch.setattr(
+        recipes,
+        "_load_om3_timeseries_reference",
+        lambda var, start, end: asked.append((var, start, end)) or {},
+    )
+    ds = xr.Dataset(
+        {"soga": ("time", np.full(14, 34.6))}, coords={"time": _monthly_time(14)}
+    )
+
+    recipes._om3_timeseries(ds, "soga", "soga", "time")
+
+    assert asked == [("soga", (2000, 1), (2001, 2))]
+
+
 def test_load_om3_timeseries_reference_skips_om2_when_it_fails(
     fake_reference_sources, recwarn
 ):
@@ -999,7 +1083,7 @@ def test_load_om3_timeseries_reference_skips_om2_when_it_fails(
     om2cat, _ = fake_reference_sources
     om2cat.search.return_value.to_dask.side_effect = ESMDataSourceError("no access")
 
-    reference = recipes._load_om3_timeseries_reference("soga")
+    reference = recipes._load_om3_timeseries_reference("soga", *YEAR_2000)
 
     assert list(reference) == ["refA"]
     assert f"soga failed for {recipes.OM3_TIMESERIES_OM2_EXPT}" in _user_warnings(
@@ -1181,42 +1265,40 @@ def test_recipe_regional_mean_mom5_rejects_other_grids():
         recipes.recipe_regional_mean_mom5(_mom5_regional_dataset(), lat_dim="yh")
 
 
-@pytest.mark.parametrize(
-    "freq, periods, expected_window",
-    [("D", 3 * 365, 365), ("MS", 3 * 12, 12), ("YS", 3, 1)],
-    ids=["day", "month", "year"],
-)
-def test_rolling_window_days_consistent_OM3(
-    monkeypatch, freq, periods, expected_window
-):
-    """Test that each OM3 reference is smoothed over the same number of days.
+def test_om3_timeseries_smooths_user_and_references_by_calendar_year(monkeypatch):
+    """Test that the user data and each reference get calendar-year means, as in the paper.
 
-    The user data is monthly, so reusing its 12-step window on a daily
-    reference would smooth over 12 days, and on a yearly one over 12 years.
+    The reference is daily and the user data monthly, so a fixed window of
+    timesteps would smooth them over different spans.
     """
-    reference = xr.DataArray(
-        np.full(periods, 34.7),
-        coords={
-            "time": xr.date_range(
-                "2000-01-01", periods=periods, freq=freq, use_cftime=True
-            )
-        },
-    )
+    days = xr.date_range("2000-01-01", "2002-12-31", freq="D", use_cftime=True)
+    reference = xr.DataArray(days.year - 2000.0, coords={"time": days}, dims="time")
     monkeypatch.setattr(
-        recipes, "_load_om3_timeseries_reference", lambda var: {"refA": reference}
-    )
-    add_references = MagicMock()
-    monkeypatch.setattr(
-        recipes.plot_customisations, "add_reference_timeseries", add_references
+        recipes,
+        "_load_om3_timeseries_reference",
+        lambda var, start, end: {"refA": reference},
     )
     ds = xr.Dataset(
-        {"soga": ("time", np.full(36, 34.6))}, coords={"time": _monthly_time(36)}
+        {"soga": ("time", np.arange(36.0))}, coords={"time": _monthly_time(36)}
     )
 
-    data, plot_kwargs = recipes._om3_timeseries(ds, "soga", "soga", "time", 365)
-    # The references are only handed over when the plot is drawn
-    for customise in plot_kwargs["customise"]:
-        customise(MagicMock(), data)
+    [fig] = analysis._analyse_and_plot(ds, recipes.recipe_om3_timeseries)
 
-    references = add_references.call_args.args[1]
-    assert references["refA"][1] == expected_window
+    _, user_yearly, _, ref_yearly = fig.axes[0].get_lines()
+    np.testing.assert_allclose(user_yearly.get_ydata(), [5.5, 17.5, 29.5])
+    np.testing.assert_allclose(ref_yearly.get_ydata(), [0.0, 1.0, 2.0])
+
+
+def test_om3_timeseries_matches_paper_styling(fake_om3_references):
+    """Test the paper's styling: thin raw lines, thick labelled yearly means, no x label."""
+    ds = xr.Dataset(
+        {"soga": ("time", np.full(24, 34.6))}, coords={"time": _monthly_time(24)}
+    )
+
+    [fig] = analysis._analyse_and_plot(ds, recipes.recipe_om3_timeseries)
+
+    ax = fig.axes[0]
+    assert [line.get_linewidth() for line in ax.get_lines()] == [0.7, 2, 0.7, 2]
+    assert [t.get_text() for t in ax.get_legend().get_texts()] == ["User data", "refA"]
+    assert ax.get_xlabel() == ""
+    assert tuple(fig.get_size_inches()) == (10, 5)

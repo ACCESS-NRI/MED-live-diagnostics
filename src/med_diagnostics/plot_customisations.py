@@ -112,16 +112,18 @@ def add_threshold(ax, value):
     ax.axhline(y=value, color="red", linestyle="--")
 
 
-def add_rolling_mean(ax, data, window, dim="time"):
-    """Overlay a centred rolling mean of ``window`` timesteps, in the colour of the last line drawn."""
-    smoothed = data.rolling({dim: window}, center=True).mean().dropna(dim)
+def add_yearly_mean(ax, data, dim="time", label=None):
+    """Overlay the calendar-year mean, in the colour of the last line drawn."""
+    # Same smoothing as the OM3 paper notebook, each point at its year's end
+    yearly = data.resample({dim: "1YE"}).mean()
     color = ax.get_lines()[-1].get_color()
-    ax.plot(smoothed[dim].values, smoothed.values, color=color, linewidth=2)
+    ax.plot(yearly[dim].values, yearly.values, color=color, linewidth=2, label=label)
 
 
 def add_reference_timeseries(ax, references):
-    """Overlay reference timeseries ``{label: (data, window)}``, each with its rolling mean."""
-    for label, (ref, window) in references.items():
-        ax.plot(ref["time"].values, ref.values, alpha=0.6, linewidth=1, label=label)
-        add_rolling_mean(ax, ref, window)
-    ax.legend(loc="center left", bbox_to_anchor=(1.05, 0.5))
+    """Overlay reference timeseries ``{label: data}`` in the OM3 paper's style, then add the legend."""
+    for label, ref in references.items():
+        ax.plot(ref["time"].values, ref.values, linewidth=0.7)
+        add_yearly_mean(ax, ref, label=label)
+    ax.legend()
+    ax.autoscale(enable=True, axis="x", tight=True)

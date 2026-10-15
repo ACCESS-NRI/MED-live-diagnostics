@@ -148,28 +148,34 @@ def test_add_threshold():
     plt.close(fig)
 
 
-def test_add_rolling_mean():
-    """Test that each smoothed value sits at the centre of its window.
+def _monthly_series():
+    """Two years of monthly cftime data counting up from 0."""
+    time = xr.date_range("2000-01-01", periods=24, freq="MS", use_cftime=True)
+    return xr.DataArray(np.arange(24.0), coords={"time": time}, dims="time")
 
-    Curved data is used because on a straight line a window that isn't
-    centred gives the same values, just shifted sideways.
-    """
-    t = np.arange(10)
-    data = xr.DataArray(t**2.0, coords={"time": t})
+
+def test_add_yearly_mean():
+    """Test that each smoothed point is the mean of one calendar year, in the line's colour."""
+    data = _monthly_series()
     fig, ax = plt.subplots()
-    ax.plot(data["time"], data)
+    data.plot(ax=ax)
 
-    plot_customisations.add_rolling_mean(ax, data, 3)
+    plot_customisations.add_yearly_mean(ax, data)
 
-    np.testing.assert_allclose(ax.lines[1].get_xdata(), t[1:-1])
-    np.testing.assert_allclose(ax.lines[1].get_ydata(), t[1:-1] ** 2 + 2 / 3)
+    np.testing.assert_allclose(ax.lines[1].get_ydata(), [5.5, 17.5])
     assert ax.lines[1].get_color() == ax.lines[0].get_color()
     plt.close(fig)
 
 
 def test_add_reference_timeseries():
-    fig, ax, data = init_fig_ax_data()
-    plot_customisations.add_reference_timeseries(ax, {"ref": (data, 3)})
-    assert len(ax.lines) == 2
+    """Test that each reference gets a raw line, a yearly mean line and a legend entry."""
+    data = _monthly_series()
+    fig, ax = plt.subplots()
+    data.plot(ax=ax)
+
+    plot_customisations.add_reference_timeseries(ax, {"ref": data})
+
+    assert len(ax.lines) == 3
+    np.testing.assert_allclose(ax.lines[2].get_ydata(), [5.5, 17.5])
     assert [t.get_text() for t in ax.get_legend().get_texts()] == ["ref"]
     plt.close(fig)
