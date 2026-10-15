@@ -15,6 +15,9 @@ DEFAULT_PLOT_KWARGS: dict[int, dict[str, Any]] = {
     3: {"figsize": (6, 4)},
 }
 
+# Cell area variable -> grid file holding it: MOM6 (OM3) and MOM5 (OM2)
+CELL_AREA_GRID_FILES = {"areacello": ".*mom6.static.nc", "area_t": ".*ocean_grid.nc"}
+
 # Custom recipes registered from a notebook with `register_analysis`, by function name
 REGISTERED_ANALYSES: dict[str, Callable] = {}
 
@@ -209,7 +212,7 @@ def _dataset_choices(ds, kind):
 
 
 def _analyse_and_plot(
-    dataset: xr.Dataset, recipe_func, **recipe_kwargs
+    dataset: xr.Dataset, recipe_func, catalog=None, **recipe_kwargs
 ) -> list[plt.Figure]:
     """
     Run a recipe on the dataset and plot each result.
@@ -224,6 +227,9 @@ def _analyse_and_plot(
         for one plot each (e.g. a suite recipe calling other recipes).
         ``plot_kwargs`` may include ``customise``, a ``func(ax, data)`` or list
         of them, run in order after plotting.
+    catalog : Intake-ESM datastore object, optional
+        Catalog the dataset was loaded from, searched for a cell area the
+        data's ``cell_measures`` name but the dataset lacks.
     **recipe_kwargs
         Extra arguments for the recipe (e.g. variable or depth).
 
@@ -232,12 +238,49 @@ def _analyse_and_plot(
     list of matplotlib.figure.Figure
         One figure per result, in the order the recipe returned them.
     """
+    # Recipes only get the dataset, so area weights they may need are added here
+    if catalog is not None:
+        dataset = _add_cell_area(catalog, dataset)
+
     # Execute the chosen recipe function, unpacking any extra arguments
     result = recipe_func(dataset, **recipe_kwargs)
 
     # A suite recipe returns a list of results, one plot each
     results = result if isinstance(result, list) else [result]
     return [_plot_result(item) for item in results]
+
+
+def _add_cell_area(catalog, dataset):
+    """
+    Helper to add the cell area from the run's grid file, if the data names it but the dataset lacks it.
+
+    Parameters
+    ----------
+    catalog : Intake-ESM datastore object
+        Catalog the dataset was loaded from.
+    dataset : xarray.Dataset
+        Dataset passed to the recipe.
+
+    Returns
+    -------
+    xarray.Dataset
+        The dataset, with the area added as a coordinate if one was found on its grid.
+    """
+    cell_measures = " ".join(
+        da.attrs.get("cell_measures", "") for da in dataset.data_vars.values()
+    )
+    for name, grid_file in CELL_AREA_GRID_FILES.items():
+        if name in dataset or name not in cell_measures:
+            continue
+        try:
+            # As in the OM3 paper notebook, the area is only written to the grid file
+            path = catalog.search(filename=grid_file).df["path"].iloc[0]
+            area = xr.open_dataset(path)[name].squeeze(drop=True)
+        except (KeyError, IndexError, OSError):
+            continue
+        if all(dataset.sizes.get(d) == n for d, n in area.sizes.items()):
+            dataset = dataset.assign_coords({name: (area.dims, area.values)})
+    return dataset
 
 
 def _plot_result(result) -> plt.Figure:

@@ -1,7 +1,9 @@
 from typing import Annotated
+from unittest.mock import MagicMock
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import pytest
 import xarray as xr
 
@@ -195,3 +197,103 @@ def test_plot_result():
     fig = analysis._plot_result((da, {"customise": random_plot_customisation}))
     assert fig.axes[0].get_title() == "Customised Plot"
     plt.close(fig)
+
+
+@pytest.mark.parametrize(
+    "catalog", [None, "user_catalog"], ids=["no-catalog", "catalog"]
+)
+def test_analyse_and_plot_adds_missing_cell_areas_from_catalog(monkeypatch, catalog):
+    """Test that the recipe gets the dataset with missing cell areas added, only when a catalog is given.
+
+    Recipes only receive the dataset, so they can't fetch ``areacello`` themselves.
+    """
+    loaded = xr.Dataset({"zos": ("time", [0.0, 1.0])})
+    with_area = loaded.assign_coords(areacello=1.0)
+    add_areas = MagicMock(return_value=with_area)
+    monkeypatch.setattr(analysis, "_add_cell_area", add_areas)
+    seen = []
+
+    analysis._analyse_and_plot(
+        loaded, lambda ds: seen.append(ds) or ds["zos"], catalog=catalog
+    )
+
+    if catalog is None:
+        add_areas.assert_not_called()
+        assert seen[0] is loaded
+    else:
+        assert add_areas.call_args.args[0] == catalog
+        assert seen[0] is with_area
+    plt.close("all")
+
+
+AREA = [[1.0, 3.0], [2.0, 2.0]]
+
+
+def _grid_catalog(tmp_path, name="areacello", dims=("yh", "xh")):
+    """Mock catalog whose search finds one grid file holding ``name``, with MOM6's size-1 time dim."""
+    path = tmp_path / "grid.nc"
+    xr.Dataset({name: (("time", *dims), [AREA])}).to_netcdf(path)
+    catalog = MagicMock()
+    catalog.search.return_value.df = pd.DataFrame({"path": [str(path)]})
+    return catalog
+
+
+def _gridded(cell_measures="area: areacello", dims=("time", "yh", "xh")):
+    """2D monthly field naming its area in ``cell_measures`` without including it."""
+    return xr.Dataset(
+        {"zos": (dims, np.zeros((3, 2, 2)), {"cell_measures": cell_measures})}
+    )
+
+
+@pytest.mark.parametrize(
+    "name, grid_file, dims",
+    [
+        pytest.param("areacello", ".*mom6.static.nc", ("yh", "xh"), id="mom6"),
+        pytest.param("area_t", ".*ocean_grid.nc", ("yt_ocean", "xt_ocean"), id="mom5"),
+    ],
+)
+def test_add_cell_area_loads_area_from_grid_file(tmp_path, name, grid_file, dims):
+    """Test that the area named in ``cell_measures`` is loaded from the model's grid file, as a coordinate.
+
+    As a coordinate it doesn't show up as a variable to plot.
+    """
+    catalog = _grid_catalog(tmp_path, name, dims)
+    ds = _gridded(f"area: {name}", ("time", *dims))
+
+    ds = analysis._add_cell_area(catalog, ds)
+
+    np.testing.assert_allclose(ds[name], AREA)
+    assert name not in ds.data_vars
+    catalog.search.assert_called_once_with(filename=grid_file)
+
+
+@pytest.mark.parametrize(
+    "cell_measures",
+    [pytest.param("", id="none-named"), pytest.param("area: zos", id="present")],
+)
+def test_add_cell_area_only_searches_for_missing_areas(tmp_path, cell_measures):
+    """Test that no grid file is searched for unless the data names an area it lacks, e.g. scalar data."""
+    catalog = _grid_catalog(tmp_path)
+
+    analysis._add_cell_area(catalog, _gridded(cell_measures))
+
+    catalog.search.assert_not_called()
+
+
+def test_add_cell_area_skips_area_on_another_grid(tmp_path):
+    """Test that an area that doesn't fit the dataset's grid isn't added."""
+    catalog = _grid_catalog(tmp_path, dims=("yq", "xq"))
+
+    ds = analysis._add_cell_area(catalog, _gridded())
+
+    assert "areacello" not in ds
+
+
+def test_add_cell_area_without_grid_file_leaves_dataset():
+    """Test that a catalog with no grid file leaves the dataset as is, so the recipe can warn."""
+    catalog = MagicMock()
+    catalog.search.return_value.df = pd.DataFrame({"path": []})
+
+    ds = analysis._add_cell_area(catalog, _gridded())
+
+    assert "areacello" not in ds

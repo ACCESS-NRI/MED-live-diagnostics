@@ -907,7 +907,7 @@ def check_bounds(dataset, x_axis, ref_dict):
     return bounds_widened, global_min, global_max, dataset_min, dataset_max
 
 
-def plot_recipe(dataset, recipe, recipe_kwargs):
+def plot_recipe(dataset, recipe, recipe_kwargs, catalog=None):
     """
     Run an analysis recipe on a dataset and return its figures.
 
@@ -919,10 +919,12 @@ def plot_recipe(dataset, recipe, recipe_kwargs):
         A recipe from ``med_diagnostics.recipes``, or a user's own.
     recipe_kwargs : dict
         The options chosen in the UI, passed to the recipe.
+    catalog : Intake-ESM datastore object, optional
+        Catalog the dataset was loaded from, passed to ``analysis._analyse_and_plot``.
 
     Returns
     -------
     list of matplotlib.figure.Figure
         One figure per recipe result, from ``analysis._analyse_and_plot``.
     """
-    return analysis._analyse_and_plot(dataset, recipe, **recipe_kwargs)
+    return analysis._analyse_and_plot(dataset, recipe, catalog=catalog, **recipe_kwargs)

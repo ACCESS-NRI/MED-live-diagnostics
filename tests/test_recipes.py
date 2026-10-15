@@ -463,12 +463,17 @@ def _mom6_style_dataset():
         pytest.param("area: areacello", id="cell-measures"),
     ],
 )
-def test_global_mean_weights_by_areacello(cell_measures):
+@pytest.mark.parametrize("as_coord", [False, True], ids=["variable", "coordinate"])
+def test_global_mean_weights_by_areacello(cell_measures, as_coord):
     """Test that the real box areas in ``areacello`` are used, named in ``cell_measures`` or not.
+
+    MLD loads a missing ``areacello`` from the grid file as a coordinate, so that works too.
 
     The areas are uneven, so equal weights would give a different answer.
     """
     ds = _mom6_style_dataset()
+    if as_coord:
+        ds = ds.set_coords("areacello")
     if cell_measures:
         ds["sos"].attrs["cell_measures"] = cell_measures
 

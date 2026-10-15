@@ -2652,7 +2652,9 @@ class UserInterface:
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             try:
-                figs = controller.plot_recipe(self.dataset, recipe, recipe_kwargs)
+                figs = controller.plot_recipe(
+                    self.dataset, recipe, recipe_kwargs, catalog=self.model_cat
+                )
             except Exception as err:  # noqa: BLE001
                 figs = None
                 failure = f"{type(err).__name__}: {err}"

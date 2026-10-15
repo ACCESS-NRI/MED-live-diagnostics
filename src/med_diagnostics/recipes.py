@@ -928,7 +928,7 @@ def recipe_om3_timeseries(
     """
     OM3 timeseries suite (OM3 variable names)
 
-    For ACCESS-OM3 output that uses OM3 variable names (e.g. soga, thetaoga). Automatically plots every variable in ``OM3_TIMESERIES_FIELDS`` found in the dataset, overlaid with select reference runs not currently available in the intake catalogue. Gridded datasets can also be plotted but takes significantly longer as global mean must be calculated. Part of the suite of analysis based on the timeseries plots generated for access-om3-paper-1-figures (https://access-om3-paper-1.readthedocs.io/). Analysis adapted from analysis created by Andrew Kiss, Christopher Bull, ezhilsabareesh8.
+    For ACCESS-OM3 output that uses OM3 variable names (e.g. soga, thetaoga). Automatically plots every variable in ``OM3_TIMESERIES_FIELDS`` found in the dataset, overlaid with select reference runs not currently available in the intake catalogue. Gridded datasets can also be plotted but takes significantly longer as global mean must be calculated. Part of the suite of analysis based on the timeseries plots generated for access-om3-paper-1-figures (https://access-om3-paper-1.readthedocs.io/). Analysis adapted from analysis created by Andrew Kiss, Christopher Bull.
 
     Parameters
     ----------
