@@ -23,7 +23,7 @@ A session opens an interactive interface in your notebook with four collapsible 
 * **Load and plot user data.** Builds an intake catalogue from your live model output, so you can load any of its datasets and plot a variable as a line plot, heatmap, or animation over time. Sliders let you slice through extra dimensions such as ocean depth.
 * **Load and plot reference models.** Loads any model of the same type from the `ACCESS-NRI Intake Catalogue <https://github.com/ACCESS-NRI/access-nri-intake-catalog>`_ and plots its data with the same controls.
 * **Overlay user and reference models.** Overlays line plots or shows heatmaps side by side for your run and as many reference models as you like, and can plot the difference between them to highlight discrepancies.
-* **Run analysis recipes.** Runs ready-made analyses on your data, such as the Niño 3.4 index, area-weighted regional mean timeseries, and the ACCESS-OM3 timeseries suites, which make a whole set of plots in one click.
+* **Run analysis recipes.** Runs ready-made analyses on your data, such as the Niño 3.4 index, area-weighted regional mean timeseries, or optionally load your own custom analyses.
 
 You can also choose how many years of output to load, write your own analysis recipes and have them appear in the interface, and work with the loaded data directly in Python.
 
