@@ -875,7 +875,16 @@ def recipe_regional_mean_mom5(
         used_depth = float(data[lvl_dim])
 
     data = extract_region(data, region, lon_dim=lon_dim, lat_dim=lat_dim)
-    weights = np.cos(np.deg2rad(data[lat_dim]))
+    area = _cell_area(ds, ds[variable])
+    if area is not None:
+        weights = extract_region(area, region, lon_dim=lon_dim, lat_dim=lat_dim)
+        weights = weights.fillna(0)
+    else:
+        warnings.warn(
+            f"No cell area found for '{variable}', so it is weighted by cos(latitude)",
+            stacklevel=2,
+        )
+        weights = np.cos(np.deg2rad(data[lat_dim]))
     timeseries = data.weighted(weights).mean(dim=[lat_dim, lon_dim])
 
     if smooth_steps > 1:

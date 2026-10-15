@@ -1384,6 +1384,38 @@ def test_recipe_regional_mean_mom5_surface_field():
     np.testing.assert_allclose(timeseries, SURFACE_MEAN)
 
 
+def _with_area_on_one_row(ds, lat=-42.5):
+    """Add an ``area_t`` cell measure that is 1 on one latitude row and 0 elsewhere.
+
+    The cell-area mean is then just that row, which cos(latitude) weights can't give.
+    """
+    area = xr.where(ds["yt_ocean"] == lat, 1.0, 0.0) * xr.ones_like(ds["xt_ocean"])
+    ds = ds.assign_coords(area_t=area.transpose("yt_ocean", "xt_ocean"))
+    ds["temp"].attrs["cell_measures"] = "area: area_t"
+    return ds
+
+
+def test_recipe_regional_mean_mom5_weights_by_cell_area(recwarn):
+    """Test that the default weights by the ``cell_measures`` area, without a warning."""
+    timeseries, _ = recipes.recipe_regional_mean_mom5(
+        _with_area_on_one_row(_mom5_regional_dataset())
+    )
+
+    np.testing.assert_allclose(timeseries, np.arange(6) - 42.5)
+    assert "No cell area found" not in _user_warnings(recwarn)
+
+
+def test_recipe_regional_mean_mom5_without_cell_area_uses_cos_latitude(recwarn):
+    """Test that data with no cell area falls back to cos(latitude), with a message saying so."""
+    timeseries, _ = recipes.recipe_regional_mean_mom5(_mom5_regional_dataset())
+
+    np.testing.assert_allclose(timeseries, SURFACE_MEAN)
+    assert (
+        "No cell area found for 'temp', so it is weighted by cos(latitude)"
+        in _user_warnings(recwarn)
+    )
+
+
 def test_recipe_regional_mean_mom5_rejects_other_grids():
     """Test that non-MOM5 dimension names fail with a readable message."""
     with pytest.raises(ValueError, match="expects MOM5 output"):

@@ -3526,7 +3526,9 @@ def test_analysis_variable_toggle_shows_long_names(analysis_ui):
     assert "st_ocean" in ui.analysis_recipe_widgets["lvl_dim"].options
     ui.analysis_recipe_widgets["region"].value = "nino34"
     ui._analysis_plot_data_button_click()
-    assert ui.analysis_warning_textbox.value == ""
+    assert ui.analysis_warning_textbox.value == (
+        "Warning >> No cell area found for 'o2', so it is weighted by cos(latitude)"
+    )
     assert "o2" in _newest_analysis_plot(ui)[0].object.axes[0].get_title()
     plt.close("all")
 
@@ -3668,7 +3670,10 @@ def test_analysis_plot_data_button_click(analysis_ui):
     assert plot_group[0].object.axes[0].get_title() == "Nino34 mean o2 (50 m)"
     assert not hasattr(ui, "analysis_recipe_options_row")
     assert ui.analysis_status_textbox.value == "Analysis status >> Plot created"
-    assert ui.analysis_warning_textbox.value == ""
+    # The mock dataset has no cell area, and the recipe's warning shows beside the plot
+    assert ui.analysis_warning_textbox.value == (
+        "Warning >> No cell area found for 'o2', so it is weighted by cos(latitude)"
+    )
     plt.close("all")
 
 
