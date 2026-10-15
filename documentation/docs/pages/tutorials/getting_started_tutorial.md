@@ -159,7 +159,7 @@ Choose your slices (and bounds, if asked) and click the <span style="color:green
 ![Comparison difference heatmap](../../assets/tutorials/tutorial_5_difference_heatmap.png)
 
 ### 6. Running analysis recipes
-The **Run analysis recipes** section runs predefined analyses ("recipes") on your user dataset, such as the Niño 3.4 sea surface temperature anomaly (`recipe_sst_anomaly_nino34`), a regional mean on the MOM5 grid (`recipe_regional_mean_mom5`), or the OM3 timeseries suites (`recipe_om3_timeseries` and `recipe_om3_timeseries_mapped`). See [Built-in analysis recipes](built_in_recipes_tutorial.md) for what each one does and the options it takes. You can also write your own recipes; see [Adding custom analyses](adding_custom_analyses.md).
+The **Run analysis recipes** section runs predefined analyses ("recipes") on your user dataset, such as the Niño 3.4 sea surface temperature anomaly (`recipe_sst_anomaly_nino34`) or a regional mean on the MOM5 grid (`recipe_regional_mean_mom5`). See [Built-in analysis recipes](built_in_recipes_tutorial.md) for what each one does and the options it takes. You can also write your own recipes; see [Adding custom analyses](adding_custom_analyses.md).
 
 i) Select the dataset in "Select dataset to analyse", set the years to load, and click "Load dataset". If you already loaded a user dataset in section 4.1 or 4.2, it is selected here automatically.
 
