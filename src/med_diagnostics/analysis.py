@@ -275,11 +275,12 @@ def _add_cell_area(catalog, dataset):
         try:
             # As in the OM3 paper notebook, the area is only written to the grid file
             path = catalog.search(filename=grid_file).df["path"].iloc[0]
-            area = xr.open_dataset(path)[name].squeeze(drop=True)
+            # Lazy, so Dask reads it from the file rather than copying it into every task
+            area = xr.open_dataset(path, chunks={})[name].squeeze(drop=True)
         except (KeyError, IndexError, OSError):
             continue
         if all(dataset.sizes.get(d) == n for d, n in area.sizes.items()):
-            dataset = dataset.assign_coords({name: (area.dims, area.values)})
+            dataset = dataset.assign_coords({name: (area.dims, area.data)})
     return dataset
 
 
