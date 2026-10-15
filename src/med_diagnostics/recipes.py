@@ -1,3 +1,4 @@
+import warnings
 from functools import cache
 from pathlib import Path
 from typing import Annotated
@@ -35,8 +36,6 @@ PREDEFINED_REGIONS = {
     "antarctic": {"lat": (-90, -66.5), "lon": (-180, 180)},
 }
 
-# Unit strings `global_mean` converts from Kelvin to degC
-KELVIN_UNITS = {"k", "kelvin", "degk", "deg_k", "degrees_k", "degrees k"}
 
 # Reference runs from https://github.com/ACCESS-Community-Hub/access-om3-paper-1/blob/main/notebooks/timeseries.ipynb
 OM3_TIMESERIES_REF_CATALOGS = [
@@ -274,119 +273,33 @@ def require_coords(ds, variable, coords, grid):
         )
 
 
-def _find_axis_dim(ds, da, axis, skip):
+def _cell_area(ds, da):
     """
-    Helper to find which dimension of ``da`` is the X, Y or Z axis, from coordinate attributes.
+    Helper to return the cell area of ``da``, from its ``cell_measures`` or ``areacello``.
 
     Parameters
     ----------
     ds : xarray.Dataset
-        Dataset holding the coordinates of ``da``.
-    da : xarray.DataArray
-        Variable whose dimensions are searched.
-    axis : {"X", "Y", "Z"}
-        Axis to look for.
-    skip : str
-        Dimension to ignore, usually the time dimension being kept.
-
-    Returns
-    -------
-    str or None
-        Name of the matching dimension, or None if none match.
-    """
-    # Dim names differ between models, so match on attributes
-    for d in da.dims:
-        if d == skip or d not in ds.coords:
-            continue
-        attrs = ds[d].attrs
-        units = attrs.get("units", "").lower()
-        # CF uses `axis`, MOM5 uses `cartesian_axis`
-        if str(attrs.get("axis", attrs.get("cartesian_axis", ""))).upper() == axis:
-            return d
-        if axis == "Y" and (
-            attrs.get("standard_name") == "latitude" or "north" in units
-        ):
-            return d
-        if axis == "Z" and (
-            attrs.get("positive") in ("up", "down")
-            or attrs.get("standard_name") == "depth"
-        ):
-            return d
-    return None
-
-
-def _cell_measure(ds, da, measure):
-    """
-    Helper to return the cell area or volume variable named in ``da``'s ``cell_measures``.
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        Dataset that should hold the cell measure variable.
+        Dataset that should hold the cell area variable.
     da : xarray.DataArray
         Variable whose ``cell_measures`` attribute is read.
-    measure : {"area", "volume"}
-        Cell measure to look for.
 
     Returns
     -------
     xarray.DataArray or None
-        The cell measure, or None if it isn't named or isn't in ``ds``.
+        The cell area, or None if the dataset has none.
     """
     # e.g. cell_measures = "area: area_t volume: volcello"
     parts = da.attrs.get("cell_measures", "").replace(":", " ").split()
     for key, name in zip(parts[::2], parts[1::2], strict=False):
-        if key == measure and name in ds:
+        if key == "area" and name in ds:
             return ds[name]
-    return None
-
-
-def _layer_thickness(ds, z):
-    """
-    Helper to return the thickness of each depth layer along ``z``.
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        Dataset holding the depth coordinate and any edges/bounds variable.
-    z : str
-        Depth dimension.
-
-    Returns
-    -------
-    xarray.DataArray
-        Layer thickness along ``z``, from the edges/bounds if present, otherwise
-        from the midpoints between levels.
-    """
-    levels = ds[z]
-    edges_name = levels.attrs.get("edges") or levels.attrs.get("bounds")  # MOM5 / CF
-    if edges_name in ds:
-        edges = ds[edges_name]
-        if edges.ndim == 2:  # CF bounds, shape (z, 2)
-            thickness = abs(
-                edges.isel({edges.dims[1]: 1}) - edges.isel({edges.dims[1]: 0})
-            )
-        else:  # MOM5 edges, one longer than the levels
-            thickness = np.abs(np.diff(edges.values))
-            thickness = xr.DataArray(thickness, dims=[z], coords={z: levels})
-        return thickness.drop_vars([c for c in thickness.coords if c != z])
-    # No edges: place layer boundaries halfway between levels
-    values = levels.values.astype(float)
-    mids = (values[1:] + values[:-1]) / 2
-    bounds = np.concatenate(
-        [
-            [values[0] - (mids[0] - values[0])],
-            mids,
-            [values[-1] + (values[-1] - mids[-1])],
-        ]
-    )
-    bounds[0] = max(bounds[0], 0) if values[0] >= 0 else bounds[0]
-    return xr.DataArray(np.abs(np.diff(bounds)), dims=[z], coords={z: levels})
+    return ds.get("areacello")
 
 
 def global_mean(ds, variable, dim, how="mean"):
     """
-    Helper to reduce ``ds[variable]`` to a timeseries over ``dim``, in degC if it was in Kelvin.
+    Helper to reduce ``ds[variable]`` to a timeseries over ``dim``, in its own units.
 
     Parameters
     ----------
@@ -397,7 +310,7 @@ def global_mean(ds, variable, dim, how="mean"):
     dim : str
         Dimension to keep, usually time.
     how : {"mean", "max", "min"}, default "mean"
-        Volume-weighted mean, or the global maximum/minimum.
+        Mean weighted by cell area, or the global maximum/minimum.
 
     Returns
     -------
@@ -405,30 +318,22 @@ def global_mean(ds, variable, dim, how="mean"):
         The computed timeseries. Already-scalar data is returned as is.
     """
     da = ds[variable]
-    if da.attrs.get("units", "").strip().lower() in KELVIN_UNITS:
-        da = (da - 273.15).assign_attrs(da.attrs, units="degC")
 
     other_dims = [d for d in da.dims if d != dim]
-    if not other_dims:
-        return da.compute()
+    # Size-1 dims, like MOM's scalar_axis, aren't a grid
+    if all(da.sizes[d] == 1 for d in other_dims):
+        return da.squeeze(other_dims, drop=True).compute()
     if how in ("max", "min"):
         return getattr(da, how)(other_dims).compute()
 
-    # Use cell measures if present, else cos(latitude) for area and layer thickness for depth
-    weights = _cell_measure(ds, da, "volume")
+    # Area weights only, matching xgcm's grid.average in the OM3 paper notebook
+    weights = _cell_area(ds, da)
     if weights is None:
-        weights = _cell_measure(ds, da, "area")
-        if weights is None:
-            y = _find_axis_dim(ds, da, "Y", dim)
-            weights = (
-                np.cos(np.deg2rad(ds[y]))
-                if y
-                else xr.ones_like(da.isel({dim: 0}, drop=True))
-            )
-        z = _find_axis_dim(ds, da, "Z", dim)
-        if z:
-            weights = weights * _layer_thickness(ds, z)
-
+        warnings.warn(
+            f"No cell area found for '{variable}', so its mean is unweighted",
+            stacklevel=2,
+        )
+        return da.mean(other_dims).compute()
     return da.weighted(weights.fillna(0)).mean(other_dims).compute()
 
 
@@ -437,21 +342,62 @@ def global_mean(ds, variable, dim, how="mean"):
 # --------------------------------------------------------------------------
 
 
-def _om3_timeseries_reduction(name):
+def _om3_timeseries_reduction(da, name, dim, strict=False):
     """
-    Helper to choose how to reduce an OM3 timeseries field.
+    Helper to choose how to reduce an OM3 timeseries field, from its ``cell_methods``.
 
     Parameters
     ----------
+    da : xarray.DataArray
+        Data to be reduced.
     name : str
-        ``OM3_TIMESERIES_FIELDS`` name, e.g. "soga" or "tos_max".
+        ``OM3_TIMESERIES_FIELDS`` name it stands in for, e.g. "soga" or "tos_max".
+    dim : str
+        Time dimension of ``da``.
+    strict : bool, default False
+        Raise, rather than warn and use the mean, when gridded data has no time
+        mean, max or min.
 
     Returns
     -------
     {"mean", "max", "min"}
-        "max"/"min" for the paper's ``*_max``/``*_min`` fields, otherwise "mean".
+        The time method in ``cell_methods``, as the paper uses. Without
+        ``cell_methods``, "max"/"min" for ``*_max``/``*_min`` fields, otherwise "mean".
+
+    Raises
+    ------
+    ValueError
+        If ``strict`` and gridded data has no time mean, max or min.
     """
-    return name.rsplit("_", 1)[-1] if name.endswith(("_max", "_min")) else "mean"
+    expected = name.rsplit("_", 1)[-1] if name.endswith(("_max", "_min")) else "mean"
+    cell_methods = da.attrs.get("cell_methods")
+    # Scalars aren't reduced, so there is nothing to choose or warn about
+    if cell_methods is None or all(da.sizes[d] == 1 for d in da.dims if d != dim):
+        return expected
+    # Same order as the paper notebook
+    how = next(
+        (h for h in ("mean", "max", "min") if f"time: {h}" in cell_methods), None
+    )
+    if how is None and strict:
+        raise ValueError(
+            f"'{da.name}' is gridded but has cell_methods '{cell_methods}', with no "
+            "time mean, max or min, so it can't be reduced to a timeseries. Use "
+            "'OM3 timeseries suite (custom variable mapping)' to plot its spatial mean"
+        )
+    if how is None:
+        warnings.warn(
+            f"'{da.name}' has cell_methods '{cell_methods}', with no time mean, max "
+            "or min, so its spatial mean is plotted",
+            stacklevel=2,
+        )
+        return "mean"
+    if how != expected:
+        warnings.warn(
+            f"{name} is a spatial {expected}, but '{da.name}' has cell_methods "
+            f"'{cell_methods}', so its spatial {how} is plotted",
+            stacklevel=2,
+        )
+    return how
 
 
 def _require_om3_totals_are_timeseries(ds, chosen, dim):
@@ -510,12 +456,12 @@ def _om3_timeseries_datastores():
             )
         # Missing or unreadable file (OSError), or a malformed catalog (ValueError)
         except (OSError, ValueError) as err:
-            print(f"{name} failed: {err}")
+            warnings.warn(f"{name} failed: {err}", stacklevel=2)
     try:
         om2cat = intake.cat.access_nri[OM3_TIMESERIES_OM2_EXPT]
     # Left broad: how the catalogue fails off Gadi depends on the access-nri-intake version
     except Exception as err:  # noqa: BLE001
-        print(f"{OM3_TIMESERIES_OM2_EXPT} failed: {err}")
+        warnings.warn(f"{OM3_TIMESERIES_OM2_EXPT} failed: {err}", stacklevel=2)
         om2cat = None
     return datastores, om2cat
 
@@ -552,10 +498,10 @@ def _load_om3_timeseries_var(datastores, var):
                 continue
             # intake-esm re-raises any failure to open the files as this
             except ESMDataSourceError as err:
-                print(f"{var} failed for {n}: {err}")
+                warnings.warn(f"{var} failed for {n}: {err}", stacklevel=2)
                 break
         else:
-            print(f"{var} failed for {n}")
+            warnings.warn(f"{var} failed for {n}", stacklevel=2)
     return found
 
 
@@ -591,19 +537,21 @@ def _load_om3_timeseries_reference(var):
             d = {OM3_TIMESERIES_OM2_EXPT: om2} | d
         # Ambiguous search or variable missing (ValueError), or files failed to open
         except (ValueError, ESMDataSourceError) as err:
-            print(f"{var} failed for {OM3_TIMESERIES_OM2_EXPT}: {err}")
+            warnings.warn(
+                f"{var} failed for {OM3_TIMESERIES_OM2_EXPT}: {err}", stacklevel=2
+            )
     if OM3_TIMESERIES_IAF:
         d = {
             n: ds.convert_calendar("proleptic_gregorian", use_cftime=True)
             for n, ds in d.items()
         }
     return {
-        n: global_mean(ds, var, "time", _om3_timeseries_reduction(var))
+        n: global_mean(ds, var, "time", _om3_timeseries_reduction(ds[var], var, "time"))
         for n, ds in d.items()
     }
 
 
-def _om3_timeseries(ds, variable, name, dim, avg_window):
+def _om3_timeseries(ds, variable, name, dim, avg_window, strict=False):
     """
     Helper to build one OM3 timeseries plot, overlaid on the reference runs.
 
@@ -619,6 +567,8 @@ def _om3_timeseries(ds, variable, name, dim, avg_window):
         Time dimension of ``ds``.
     avg_window : int
         Rolling-mean window in days.
+    strict : bool, default False
+        Passed to ``_om3_timeseries_reduction``.
 
     Returns
     -------
@@ -627,7 +577,8 @@ def _om3_timeseries(ds, variable, name, dim, avg_window):
     """
     require_coords(ds, variable, [dim], "time-varying")
     label = OM3_TIMESERIES_FIELDS[name][1]
-    data = global_mean(ds, variable, dim, _om3_timeseries_reduction(name))
+    how = _om3_timeseries_reduction(ds[variable], name, dim, strict)
+    data = global_mean(ds, variable, dim, how)
     window = _rolling_window_size(data[dim], avg_window)
     # Each reference is smoothed over the same number of days at its own timestep
     references = {
@@ -898,8 +849,13 @@ def recipe_om3_timeseries(
     Raises
     ------
     ValueError
-        If the dataset has none of the OM3 variable names, or ``masso`` or a
-        ``total_*`` variable is gridded (a dimension longer than 1 besides ``dim``).
+        If the dataset has none of the OM3 variable names, or every variable is skipped.
+
+    Warns
+    -----
+    UserWarning
+        For each variable skipped, e.g. a gridded ``masso`` or ``total_*`` variable,
+        or a grid with no time mean, max or min.
     """
     names = [name for name in OM3_TIMESERIES_FIELDS if name in ds]
     if not names:
@@ -907,8 +863,19 @@ def recipe_om3_timeseries(
             "No OM3 variable names (e.g. soga, thetaoga) found in this dataset; "
             "use 'OM3 timeseries suite (custom variable mapping)' to choose them"
         )
-    _require_om3_totals_are_timeseries(ds, {name: name for name in names}, dim)
-    return [_om3_timeseries(ds, name, name, dim, avg_window) for name in names]
+    results = []
+    for name in names:
+        try:
+            _require_om3_totals_are_timeseries(ds, {name: name}, dim)
+            results.append(
+                _om3_timeseries(ds, name, name, dim, avg_window, strict=True)
+            )
+        # Skip just this plot, so the rest of the suite still draws
+        except ValueError as err:
+            warnings.warn(f"{name} skipped: {err}", stacklevel=2)
+    if not results:
+        raise ValueError("None of the OM3 variables in this dataset could be plotted")
+    return results
 
 
 def recipe_om3_timeseries_mapped(

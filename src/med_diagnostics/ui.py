@@ -4,6 +4,7 @@
 """UI class and functions"""
 
 import functools
+import warnings
 from typing import ClassVar
 
 import panel as pn
@@ -2647,13 +2648,23 @@ class UserInterface:
             else:
                 recipe_kwargs[name] = widget.value
 
-        try:
-            figs = controller.plot_recipe(self.dataset, recipe, recipe_kwargs)
-        except Exception as err:  # noqa: BLE001
-            controller.update_textbox_text(
-                self.analysis_warning_textbox,
-                f"Warning >> {type(err).__name__}: {err}",
-            )
+        # Recipes report problems with warnings.warn, which a callback can't print
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            try:
+                figs = controller.plot_recipe(self.dataset, recipe, recipe_kwargs)
+            except Exception as err:  # noqa: BLE001
+                figs = None
+                failure = f"{type(err).__name__}: {err}"
+        # Only plain UserWarnings, so library deprecation noise stays out of the box
+        messages = [str(w.message) for w in caught if w.category is UserWarning]
+        if figs is None:
+            messages.append(failure)
+        controller.update_textbox_text(
+            self.analysis_warning_textbox,
+            "<br>".join(f"Warning >> {m}" for m in dict.fromkeys(messages)),
+        )
+        if figs is None:
             controller.update_textbox_text(
                 self.analysis_status_textbox, "Analysis status >> Recipe failed"
             )

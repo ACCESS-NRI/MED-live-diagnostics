@@ -22,6 +22,11 @@ def _monthly_time(periods, **kwargs):
     return xr.date_range("2000-01-01", periods=periods, freq="MS", **kwargs)
 
 
+def _user_warnings(recwarn):
+    """Messages of the plain UserWarnings a test raised, which the UI shows, joined."""
+    return "\n".join(str(w.message) for w in recwarn if w.category is UserWarning)
+
+
 def _options_by_name(recipe, ds=None):
     """The UI options for ``recipe``, keyed by parameter name."""
     return {o["name"]: o for o in analysis._get_recipe_kwarg_options(recipe, ds)}
@@ -369,127 +374,46 @@ def test_require_coords_rejects_missing_variable(lat_lon_dataset):
         recipes.require_coords(lat_lon_dataset, "missing", ["time"], "MOM5")
 
 
-@pytest.mark.parametrize(
-    "attrs, axis, expected",
-    [
-        pytest.param({"cartesian_axis": "Y"}, "Y", "dim", id="mom5"),
-        pytest.param({"axis": "Z"}, "Z", "dim", id="cf"),
-        pytest.param({"axis": "x"}, "X", "dim", id="case-insensitive"),
-        pytest.param({"standard_name": "latitude"}, "Y", "dim", id="standard-name-lat"),
-        pytest.param({"units": "degrees_north"}, "Y", "dim", id="units"),
-        pytest.param({"positive": "down"}, "Z", "dim", id="positive"),
-        pytest.param({"standard_name": "depth"}, "Z", "dim", id="standard-name-depth"),
-        pytest.param({"axis": "Y"}, "Z", None, id="wrong-axis"),
-        pytest.param({}, "Y", None, id="no-attributes"),
-    ],
-)
-def test_find_axis_dim(attrs, axis, expected):
-    """Test that each attribute convention identifies the right axis."""
-    ds = xr.Dataset(
-        {"var": (("time", "dim"), np.ones((2, 3)))},
-        coords={"time": [0, 1], "dim": ("dim", [0.0, 1.0, 2.0], attrs)},
-    )
-
-    assert recipes._find_axis_dim(ds, ds["var"], axis, skip="time") == expected
-
-
-def test_find_axis_dim_skips_kept_dim_and_dims_without_coords():
-    """Test that the skipped dim and dims with no coordinate are never returned."""
-    ds = xr.Dataset(
-        {"var": (("time", "nocoord"), np.ones((2, 3)))},
-        coords={"time": ("time", [0, 1], {"axis": "Y"})},
-    )
-
-    assert recipes._find_axis_dim(ds, ds["var"], "Y", skip="time") is None
-    assert recipes._find_axis_dim(ds, ds["var"], "Z", skip="time") is None
-
-
 # Global means
 
-# Each layer's mean counts the equator double, then layers are weighted by thickness
-MOM5_GLOBAL_MEAN_TEMP = (18 * 10 + 3 * 170) / 180
-MOM5_GLOBAL_MEAN_SALT = (34 * 20 + 35 * 160) / 180
+# Each layer's mean counts the equator double, then every layer counts equally
+MOM5_GLOBAL_MEAN_TEMP = (18 + 2 * (8 / 3)) / 3
+MOM5_UNWEIGHTED_MEAN_TEMP = (20 + 14 + 2 + 4 + 2 + 4) / 6
+MOM5_GLOBAL_MEAN_SALT = (34 + 34 + 35) / 3
+MOM5_UNWEIGHTED_MEAN_SST = (20 + 14) / 2
 
 
 def _mom5_style_dataset():
-    """Small MOM5-style dataset: Kelvin temp varying with latitude, land NaNs and ``st_edges_ocean``."""
-    temp = np.full((24, 3, 2, 2), 273.15 + 2.0)
-    temp[:, 0] = 273.15 + 20.0  # thin, warm surface layer
-    temp[:, 0, 1, :] = 273.15 + 14.0  # cooler surface at 60°
-    temp[:, 1:, 1, :] = 273.15 + 5.0  # warmer below at 60°
+    """Small MOM5-style dataset: temp varying with latitude, land NaNs and an ``area_t`` cell measure."""
+    temp = np.full((24, 3, 2, 2), 2.0)
+    temp[:, 0] = 20.0  # thin, warm surface layer
+    temp[:, 0, 1, :] = 14.0  # cooler surface at 60°
+    temp[:, 1:, 1, :] = 4.0  # warmer below at 60°
     salt = np.full((24, 3, 2, 2), 34.0)
     salt[:, 2] = 35.0  # thick, salty deep layer
     salt[:, :, 1, :] = np.nan  # some land
     dims = ("time", "st_ocean", "yt_ocean", "xt_ocean")
     return xr.Dataset(
         {
-            "temp": (dims, temp, {"units": "K"}),
-            "salt": (dims, salt, {"units": "psu"}),
-            "sst": (dims[:1] + dims[2:], temp[:, 0], {"units": "K"}),
+            "temp": (dims, temp, {"units": "degC", "cell_measures": "area: area_t"}),
+            "salt": (dims, salt, {"units": "psu", "cell_measures": "area: area_t"}),
+            "sst": (dims[:1] + dims[2:], temp[:, 0], {"units": "degC"}),
+            "area_t": (dims[2:], [[2.0, 2.0], [1.0, 1.0]]),
         },
         coords={
             "time": _monthly_time(24),
-            "st_ocean": (
-                "st_ocean",
-                [5.0, 15.0, 100.0],
-                {"cartesian_axis": "Z", "edges": "st_edges_ocean", "positive": "down"},
-            ),
-            "st_edges_ocean": ("st_edges_ocean", [0.0, 10.0, 20.0, 180.0]),
-            "yt_ocean": ("yt_ocean", [0.0, 60.0], {"cartesian_axis": "Y"}),
-            "xt_ocean": ("xt_ocean", [0.0, 1.0], {"cartesian_axis": "X"}),
+            "st_ocean": [5.0, 15.0, 100.0],
+            "yt_ocean": [0.0, 60.0],
+            "xt_ocean": [0.0, 1.0],
         },
     )
 
 
-def test_layer_thickness_from_edges():
-    """Test that thickness comes from the edges variable when there is one."""
-    ds = _mom5_style_dataset()
+def test_global_mean_weights_by_cell_area():
+    """Test that the mean is weighted by the ``cell_measures`` area.
 
-    np.testing.assert_allclose(
-        recipes._layer_thickness(ds, "st_ocean"), [10.0, 10.0, 160.0]
-    )
-
-
-def test_layer_thickness_from_level_midpoints():
-    """Test that missing edges fall back to boundaries halfway between levels."""
-    ds = _mom5_style_dataset().drop_vars("st_edges_ocean")
-
-    np.testing.assert_allclose(
-        recipes._layer_thickness(ds, "st_ocean"), [10.0, 47.5, 85.0]
-    )
-
-
-def test_layer_thickness_top_layer_stops_at_surface():
-    """Test that the top layer stops at the surface (0 m).
-
-    Mirroring the first gap upwards puts the top boundary at -7 m, above the
-    sea surface, which would make the top layer 18 m thick instead of 11 m.
-    """
-    ds = xr.Dataset(coords={"depth": [2.0, 20.0, 40.0]})
-
-    # Boundaries [0, 11, 30, 50]
-    np.testing.assert_allclose(
-        recipes._layer_thickness(ds, "depth"), [11.0, 19.0, 20.0]
-    )
-
-
-def test_layer_thickness_negative_depths_are_not_clamped():
-    """Test that depths stored as negative numbers aren't clamped at 0.
-
-    Clamping at 0 only makes sense for positive-down depths; here it would
-    stretch the top layer up to 0.
-    """
-    ds = xr.Dataset(coords={"depth": [-2.0, -4.0, -8.0]})
-
-    # Boundaries [-1, -3, -6, -10]
-    np.testing.assert_allclose(recipes._layer_thickness(ds, "depth"), [2.0, 3.0, 4.0])
-
-
-def test_global_mean_weights_by_layer_thickness_and_converts_kelvin():
-    """Test that the mean is weighted by box area and layer thickness, and converted to degC.
-
-    A plain mean would count the small 60° boxes as much as the equator, and
-    the thin surface layer as much as the thick deep one.
+    A plain mean would count the small 60° boxes as much as the equator. Like the
+    paper's ``grid.average``, every depth layer counts equally.
     """
     ds = _mom5_style_dataset()
     temp = recipes.global_mean(ds, "temp", "time")
@@ -497,57 +421,68 @@ def test_global_mean_weights_by_layer_thickness_and_converts_kelvin():
 
     np.testing.assert_allclose(temp, MOM5_GLOBAL_MEAN_TEMP)
     np.testing.assert_allclose(salt, MOM5_GLOBAL_MEAN_SALT)
-    assert temp.attrs["units"] == "degC"
+
+
+def test_global_mean_keeps_kelvin():
+    """Test that Kelvin data stays in Kelvin, as in the paper, which plots each run in its own units."""
+    ds = _mom5_style_dataset()
+    ds["temp"] = (ds["temp"] + 273.15).assign_attrs(ds["temp"].attrs, units="K")
+
+    temp = recipes.global_mean(ds, "temp", "time")
+
+    np.testing.assert_allclose(temp, MOM5_GLOBAL_MEAN_TEMP + 273.15)
 
 
 def _mom6_style_dataset():
-    """Small MOM6/CF-style dataset: ``so`` varying across boxes, uneven ``areacello`` and depth ``bounds``."""
+    """Small MOM6/CF-style dataset: ``so`` varying across boxes, with uneven ``areacello``."""
     layer = np.array([[34.0, 35.0], [36.0, 38.0]])
     so = layer[None, None] + np.array([0.0, 0.0, 1.0])[None, :, None, None]
+    volcello = np.ones((3, 2, 2))
+    volcello[2, 1, 1] = 9.0
     return xr.Dataset(
         {
-            "so": (
-                ("time", "zl", "yh", "xh"),
-                np.broadcast_to(so, (24, 3, 2, 2)),
-                {"cell_measures": "area: areacello"},
-            ),
+            "so": (("time", "zl", "yh", "xh"), np.broadcast_to(so, (24, 3, 2, 2))),
             "areacello": (("yh", "xh"), [[1.0, 3.0], [2.0, 2.0]]),
-            "zl_bnds": (("zl", "nv"), [[0.0, 10.0], [10.0, 20.0], [20.0, 180.0]]),
+            "volcello": (("zl", "yh", "xh"), volcello),
         },
         coords={
             "time": _monthly_time(24),
-            "zl": ("zl", [5.0, 15.0, 100.0], {"axis": "Z", "bounds": "zl_bnds"}),
-            "yh": ("yh", [0.0, 60.0], {"axis": "Y"}),
-            "xh": ("xh", [0.0, 1.0], {"axis": "X"}),
+            "zl": [5.0, 15.0, 100.0],
+            "yh": [0.0, 60.0],
+            "xh": [0.0, 1.0],
         },
     )
 
 
-def test_global_mean_uses_cf_bounds_and_cell_measures():
-    """Test that the real box areas in ``areacello`` are used when the dataset has them.
+@pytest.mark.parametrize(
+    "cell_measures",
+    [
+        pytest.param(None, id="areacello-without-cell-measures"),
+        pytest.param("area: areacello", id="cell-measures"),
+        pytest.param("area: areacello volume: volcello", id="volcello-ignored"),
+    ],
+)
+def test_global_mean_weights_by_areacello(cell_measures):
+    """Test that the real box areas in ``areacello`` are used, and never ``volcello``.
 
-    The areas are uneven, so equal areas or the cos(latitude) estimate would
-    give a different answer.
-    """
-    np.testing.assert_allclose(
-        recipes.global_mean(_mom6_style_dataset(), "so", "time"), 35.875 + 160 / 180
-    )
-
-
-def test_global_mean_prefers_volcello():
-    """Test that the real box volumes in ``volcello`` are used ahead of area and thickness.
-
-    One deep box is much bigger than the rest, so using ``areacello`` and layer
-    thickness instead, or multiplying the volumes by thickness again, would
-    give a different answer.
+    The areas are uneven, so equal weights would give a different answer. One deep
+    box has a much bigger volume, so weighting by ``volcello`` would too.
     """
     ds = _mom6_style_dataset()
-    volcello = np.ones((3, 2, 2))
-    volcello[2, 1, 1] = 9.0
-    ds["volcello"] = (("zl", "yh", "xh"), volcello)
-    ds["so"].attrs["cell_measures"] = "area: areacello volume: volcello"
+    if cell_measures:
+        ds["so"].attrs["cell_measures"] = cell_measures
 
-    np.testing.assert_allclose(recipes.global_mean(ds, "so", "time"), 37.25)
+    np.testing.assert_allclose(recipes.global_mean(ds, "so", "time"), 35.875 + 1 / 3)
+
+
+def test_global_mean_without_cell_area_is_unweighted_and_says_so(recwarn):
+    """Test that data with no cell area still gets a plain mean, with a message saying so."""
+    ds = _mom5_style_dataset().drop_vars("area_t")
+
+    np.testing.assert_allclose(
+        recipes.global_mean(ds, "temp", "time"), MOM5_UNWEIGHTED_MEAN_TEMP
+    )
+    assert "No cell area found for 'temp'" in _user_warnings(recwarn)
 
 
 @pytest.mark.parametrize("how, expected", [("max", 20.0), ("min", 14.0)])
@@ -558,6 +493,21 @@ def test_global_mean_max_and_min(how, expected):
     )
 
 
+def test_global_mean_passes_size_one_dims_through_unweighted_without_warning(
+    recwarn,
+):
+    """Test that MOM's size-1 ``scalar_axis`` is dropped, not treated as a grid with no cell area."""
+    ds = xr.Dataset(
+        {"soga": (("time", "scalar_axis"), [[34.7], [34.71]])}, coords={"time": [0, 1]}
+    )
+
+    result = recipes.global_mean(ds, "soga", "time")
+
+    np.testing.assert_allclose(result, [34.7, 34.71])
+    assert result.dims == ("time",)
+    assert _user_warnings(recwarn) == ""
+
+
 def test_global_mean_passes_scalar_timeseries_through():
     """Test that data with only a time dimension is returned unchanged."""
     ds = xr.Dataset({"soga": ("time", [34.7, 34.71])}, coords={"time": [0, 1]})
@@ -565,12 +515,81 @@ def test_global_mean_passes_scalar_timeseries_through():
     np.testing.assert_allclose(recipes.global_mean(ds, "soga", "time"), [34.7, 34.71])
 
 
+def _gridded_sst(cell_methods=None):
+    """Gridded ``sst`` DataArray, with ``cell_methods`` if given."""
+    attrs = {} if cell_methods is None else {"cell_methods": cell_methods}
+    return xr.DataArray(np.ones((2, 3)), dims=("time", "xh"), name="sst", attrs=attrs)
+
+
 @pytest.mark.parametrize(
     "name, how", [("tos_max", "max"), ("tos_min", "min"), ("soga", "mean")]
 )
-def test_om3_timeseries_reduction(name, how):
+def test_om3_timeseries_reduction_without_cell_methods_uses_field_name(name, how):
     """Test that ``*_max``/``*_min`` fields are reduced by max/min and everything else by mean."""
-    assert recipes._om3_timeseries_reduction(name) == how
+    assert recipes._om3_timeseries_reduction(_gridded_sst(), name, "time") == how
+
+
+@pytest.mark.parametrize(
+    "cell_methods, name, how",
+    [
+        ("area: mean time: mean", "tos", "mean"),
+        ("area: mean time: max", "tos_max", "max"),
+        ("time: min", "tos_min", "min"),
+    ],
+)
+def test_om3_timeseries_reduction_follows_cell_methods(
+    cell_methods, name, how, recwarn
+):
+    """Test that the time method in ``cell_methods`` picks the reduction, with no warning when it matches."""
+    da = _gridded_sst(cell_methods)
+
+    assert recipes._om3_timeseries_reduction(da, name, "time") == how
+    assert _user_warnings(recwarn) == ""
+
+
+def test_om3_timeseries_reduction_prefers_cell_methods_to_field_name(recwarn):
+    """Test that a time-mean variable mapped to a ``*_max`` field is averaged, with a warning.
+
+    The paper goes by ``cell_methods``, and the user may plot whatever they map.
+    """
+    da = _gridded_sst("time: mean")
+
+    assert recipes._om3_timeseries_reduction(da, "tos_max", "time") == "mean"
+    assert "tos_max is a spatial max, but 'sst'" in _user_warnings(recwarn)
+
+
+def test_om3_timeseries_reduction_without_time_method_falls_back_to_mean(recwarn):
+    """Test that gridded data with no time mean, max or min is averaged, with a warning.
+
+    The paper leaves such data as is, which would leave a grid that can't be plotted
+    as a timeseries.
+    """
+    da = _gridded_sst("time: point")
+
+    assert recipes._om3_timeseries_reduction(da, "tos_max", "time") == "mean"
+    assert "no time mean, max or min" in _user_warnings(recwarn)
+
+
+def test_om3_timeseries_reduction_strict_rejects_grid_without_time_method():
+    """Test that the automated recipe's strict mode raises instead of plotting a mean."""
+    with pytest.raises(ValueError, match="no time mean, max or min"):
+        recipes._om3_timeseries_reduction(
+            _gridded_sst("time: point"), "tos_max", "time", strict=True
+        )
+
+
+def test_om3_timeseries_reduction_ignores_cell_methods_on_scalars(recwarn):
+    """Test that scalars, which aren't reduced, give no warning whatever their ``cell_methods``."""
+    da = xr.DataArray(
+        np.ones((2, 1)),
+        dims=("time", "scalar_axis"),
+        name="soga",
+        attrs={"cell_methods": "time: point"},
+    )
+
+    recipes._om3_timeseries_reduction(da, "tos_max", "time")
+
+    assert _user_warnings(recwarn) == ""
 
 
 # OM3 timeseries recipes
@@ -631,6 +650,73 @@ def test_om3_timeseries_mapped_reduces_gridded_data(fake_om3_references):
     assert fake_om3_references == ["soga"]
 
 
+def _om3_dataset_with_unplottable_grid():
+    """OM3-named dataset: a plottable ``soga`` and a gridded ``tos_max`` with no time method."""
+    return xr.Dataset(
+        {
+            "soga": ("time", np.full(24, 34.6)),
+            "tos_max": (
+                ("time", "xh"),
+                np.ones((24, 3)),
+                {"cell_methods": "time: point"},
+            ),
+        },
+        coords={"time": _monthly_time(24)},
+    )
+
+
+def test_om3_timeseries_skips_grid_without_time_method(fake_om3_references, recwarn):
+    """Test that the automated recipe skips only that plot, with a warning pointing to the mapped recipe."""
+    results = recipes.recipe_om3_timeseries(_om3_dataset_with_unplottable_grid())
+
+    assert [plot_kwargs["title"] for _, plot_kwargs in results] == [
+        "soga: Global Mean Ocean Salinity"
+    ]
+    warning = _user_warnings(recwarn)
+    assert "tos_max skipped" in warning
+    assert "custom variable mapping" in warning
+
+
+def test_om3_timeseries_raises_when_every_plot_is_skipped(fake_om3_references):
+    """Test that a suite with nothing left to plot fails, rather than reporting no plots as a success."""
+    ds = _om3_dataset_with_unplottable_grid().drop_vars("soga")
+
+    with pytest.raises(ValueError, match="could be plotted"):
+        recipes.recipe_om3_timeseries(ds)
+
+
+def test_om3_timeseries_mapped_plots_grid_without_time_method_with_warning(
+    fake_om3_references, recwarn
+):
+    """Test that the mapped recipe plots the spatial mean of such data, with a warning."""
+    ds = _mom5_style_dataset()
+    ds["sst"].attrs["cell_methods"] = "time: point"
+
+    figs = analysis._analyse_and_plot(
+        ds, recipes.recipe_om3_timeseries_mapped, tos_max_var="sst"
+    )
+
+    user_line = figs[0].axes[0].get_lines()[0]
+    np.testing.assert_allclose(user_line.get_ydata(), MOM5_UNWEIGHTED_MEAN_SST)
+    assert "no time mean, max or min" in _user_warnings(recwarn)
+
+
+def test_om3_timeseries_mapped_plots_mismatched_variable_with_warning(
+    fake_om3_references, recwarn
+):
+    """Test that mapping a time-mean SST to ``tos_max`` still plots, as its mean, with a warning."""
+    ds = _mom5_style_dataset()
+    ds["sst"].attrs["cell_methods"] = "time: mean"
+
+    figs = analysis._analyse_and_plot(
+        ds, recipes.recipe_om3_timeseries_mapped, tos_max_var="sst"
+    )
+
+    user_line = figs[0].axes[0].get_lines()[0]
+    np.testing.assert_allclose(user_line.get_ydata(), MOM5_UNWEIGHTED_MEAN_SST)
+    assert "tos_max is a spatial max, but 'sst'" in _user_warnings(recwarn)
+
+
 @pytest.mark.parametrize("name", ["masso", "total_wfo"])
 def test_om3_timeseries_mapped_rejects_gridded_totals(fake_om3_references, name):
     """Test that a gridded variable can't stand in for a global-total field.
@@ -668,15 +754,26 @@ def test_om3_timeseries_plots_timeseries_totals(fake_om3_references, dims, shape
     np.testing.assert_allclose(data.squeeze(), np.arange(24.0))
 
 
-def test_om3_timeseries_rejects_gridded_totals(fake_om3_references):
-    """Test that the OM3-names recipe also rejects a gridded total field."""
+def test_om3_timeseries_skips_gridded_totals(fake_om3_references, recwarn):
+    """Test that the OM3-names recipe skips a gridded total field, with a warning, and plots the rest.
+
+    Its references shouldn't be loaded either, since each load reads from /g/data.
+    """
     ds = xr.Dataset(
-        {"masso": (("time", "x"), np.ones((24, 2)))},
+        {
+            "masso": (("time", "x"), np.ones((24, 2))),
+            "soga": ("time", np.full(24, 34.6)),
+        },
         coords={"time": _monthly_time(24)},
     )
 
-    with pytest.raises(ValueError, match="masso is a global total"):
-        recipes.recipe_om3_timeseries(ds)
+    results = recipes.recipe_om3_timeseries(ds)
+
+    assert [plot_kwargs["title"] for _, plot_kwargs in results] == [
+        "soga: Global Mean Ocean Salinity"
+    ]
+    assert "masso skipped: masso is a global total" in _user_warnings(recwarn)
+    assert fake_om3_references == ["soga"]
 
 
 # OM3 reference loading
@@ -826,17 +923,17 @@ def test_load_om3_timeseries_var_retries_ambiguous_searches():
     )
 
 
-def test_load_om3_timeseries_var_reports_when_every_search_fails(capsys):
+def test_load_om3_timeseries_var_reports_when_every_search_fails(recwarn):
     """Test that a datastore with no usable search is reported and skipped."""
     ref = MagicMock()
     ref.search.side_effect = ValueError("ambiguous")
 
     assert recipes._load_om3_timeseries_var({"ref": ref}, "soga") == {}
     assert ref.search.call_count == len(recipes.OM3_TIMESERIES_REF_SEARCHES)
-    assert "soga failed" in capsys.readouterr().out
+    assert "soga failed" in _user_warnings(recwarn)
 
 
-def test_om3_timeseries_datastores_skips_catalogs_that_fail(monkeypatch, capsys):
+def test_om3_timeseries_datastores_skips_catalogs_that_fail(monkeypatch, recwarn):
     """Test that a missing reference catalog is reported and the rest still open.
 
     The references live on /g/data/ol01, which not every user can read, so one
@@ -864,12 +961,12 @@ def test_om3_timeseries_datastores_skips_catalogs_that_fail(monkeypatch, capsys)
 
     assert datastores == {"refB": "/g/data/refB/datastore.json"}
     assert om2cat is None
-    out = capsys.readouterr().out
+    out = _user_warnings(recwarn)
     assert "refA failed" in out
     assert f"{recipes.OM3_TIMESERIES_OM2_EXPT} failed" in out
 
 
-def test_load_om3_timeseries_var_skips_datastores_that_fail(capsys):
+def test_load_om3_timeseries_var_skips_datastores_that_fail(recwarn):
     """Test that one unreadable datastore is reported and the others still load."""
     ds = _om3_scalar_timeseries("soga", [34.7])
     broken = _mock_search_result(ds)
@@ -880,7 +977,7 @@ def test_load_om3_timeseries_var_skips_datastores_that_fail(capsys):
     found = recipes._load_om3_timeseries_var({"refA": ref_a, "refB": ref_b}, "soga")
 
     assert found == {"refB": ds}
-    assert "soga failed for refA: corrupt file" in capsys.readouterr().out
+    assert "soga failed for refA: corrupt file" in _user_warnings(recwarn)
 
 
 def test_load_om3_timeseries_var_retries_only_the_ambiguous_datastore():
@@ -896,7 +993,7 @@ def test_load_om3_timeseries_var_retries_only_the_ambiguous_datastore():
 
 
 def test_load_om3_timeseries_reference_skips_om2_when_it_fails(
-    fake_reference_sources, capsys
+    fake_reference_sources, recwarn
 ):
     """Test that the OM3 runs are still plotted if the OM2 run can't be loaded."""
     om2cat, _ = fake_reference_sources
@@ -905,8 +1002,8 @@ def test_load_om3_timeseries_reference_skips_om2_when_it_fails(
     reference = recipes._load_om3_timeseries_reference("soga")
 
     assert list(reference) == ["refA"]
-    assert f"soga failed for {recipes.OM3_TIMESERIES_OM2_EXPT}" in (
-        capsys.readouterr().out
+    assert f"soga failed for {recipes.OM3_TIMESERIES_OM2_EXPT}" in _user_warnings(
+        recwarn
     )
 
 

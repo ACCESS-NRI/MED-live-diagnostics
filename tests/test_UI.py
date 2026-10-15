@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+import warnings
 from typing import Annotated
 from unittest.mock import MagicMock, call, patch
 
@@ -3722,6 +3723,59 @@ def test_uploaded_analysis_runs_from_ui(analysis_ui, empty_uploads):
     assert isinstance(_newest_analysis_plot(ui)[0], pn.pane.Matplotlib)
     assert ui.analysis_warning_textbox.value == ""
     plt.close("all")
+
+
+def test_recipe_warnings_show_in_warning_box(analysis_ui, empty_uploads):
+    """Test that a recipe's warnings reach the warning box and the plot still draws.
+
+    Printing from a callback doesn't reliably reach the notebook, so the box is
+    the only place the user sees them. Library deprecation warnings stay out.
+    """
+
+    def warning_recipe(ds):
+        """Recipe that warns."""
+        warnings.warn("first problem", stacklevel=1)
+        warnings.warn("second problem", stacklevel=1)
+        warnings.warn("second problem", stacklevel=1)
+        warnings.warn("library noise", DeprecationWarning, stacklevel=1)
+        return custom_recipe(ds)
+
+    ui = analysis_ui
+    analysis.register_analysis(warning_recipe)
+    ui._analysis_refresh_click()
+    ui.analysis_recipe_dropdown.value = warning_recipe
+    ui._display_analysis_recipe_options_ui()
+    ui._analysis_plot_data_button_click()
+
+    assert isinstance(_newest_analysis_plot(ui)[0], pn.pane.Matplotlib)
+    assert ui.analysis_status_textbox.value == "Analysis status >> Plot created"
+    assert (
+        ui.analysis_warning_textbox.value
+        == "Warning >> first problem<br>Warning >> second problem"
+    )
+    plt.close("all")
+
+
+def test_recipe_warnings_show_before_its_error(analysis_ui, empty_uploads):
+    """Test that warnings raised before a recipe fails are shown along with the error."""
+
+    def failing_recipe(ds):
+        """Recipe that warns, then fails."""
+        warnings.warn("reference failed", stacklevel=1)
+        raise ValueError("nothing to plot")
+
+    ui = analysis_ui
+    analysis.register_analysis(failing_recipe)
+    ui._analysis_refresh_click()
+    ui.analysis_recipe_dropdown.value = failing_recipe
+    ui._display_analysis_recipe_options_ui()
+    ui._analysis_plot_data_button_click()
+
+    assert ui.analysis_status_textbox.value == "Analysis status >> Recipe failed"
+    assert (
+        ui.analysis_warning_textbox.value
+        == "Warning >> reference failed<br>Warning >> ValueError: nothing to plot"
+    )
 
 
 def test_suite_recipe_adds_one_plot_per_result(analysis_ui, empty_uploads):
