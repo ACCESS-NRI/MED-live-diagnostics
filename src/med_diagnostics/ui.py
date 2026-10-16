@@ -967,7 +967,7 @@ class UserInterface:
         # Assign argument to class-accessible variables
         self.model_cat = model_cat
         self.access_nri_cat = access_nri_cat
-        if not self.access_nri_cat.keys():
+        if not len(self.access_nri_cat):
             ref_status = (
                 "No reference models in the ACCESS-NRI catalog for this model type"
             )

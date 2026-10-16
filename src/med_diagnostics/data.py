@@ -301,7 +301,8 @@ def _load_access_nri_catalog(model_type, filter=True):
 
     catalog = intake.cat.access_nri
 
-    if not filter:
+    # Off Gadi this is an empty placeholder catalog that can't be searched
+    if not filter or not len(catalog):
         return catalog
 
     # Exact model names for this model type; an empty list matches none

@@ -1,6 +1,7 @@
 import re
 from unittest.mock import MagicMock
 
+import intake
 import pandas as pd
 import pytest
 from access_nri_intake.aliases import AliasedESMCatalog
@@ -172,6 +173,9 @@ class _FakeAccessNriCatalog:
     def search(self, model):
         return [name for name in self.models if re.search(model, name)]
 
+    def __len__(self):
+        return len(self.models)
+
 
 @pytest.mark.parametrize(
     "model_type, expected_models",
@@ -213,6 +217,14 @@ def test_load_access_nri_catalog_unfiltered(monkeypatch):
 
     assert data._load_access_nri_catalog("cm2", filter=False) is mock_access_nri_cat
     mock_access_nri_cat.search.assert_not_called()
+
+
+def test_load_access_nri_catalog_off_gadi(monkeypatch):
+    """Off Gadi the empty placeholder catalog is returned instead of failing to search."""
+    placeholder = intake.catalog.Catalog()
+    monkeypatch.setattr(data.intake, "cat", MagicMock(access_nri=placeholder))
+
+    assert data._load_access_nri_catalog("om2") is placeholder
 
 
 def _monthly_df(start_year, n_years):

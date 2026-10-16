@@ -1278,6 +1278,21 @@ def test_recipe_sst_anomaly_nino34_rejects_wrong_grid():
         recipes.recipe_sst_anomaly_nino34(ds)
 
 
+def test_recipe_sst_anomaly_nino34_rejects_one_year():
+    """Test that a single year, which has no anomalies, gives a readable error."""
+    ds = xr.Dataset(
+        {"tos": (("time", "yt_ocean", "xt_ocean"), np.zeros((12, 2, 2)))},
+        coords={
+            "time": _monthly_time(12),
+            "yt_ocean": [0, 1],
+            "xt_ocean": [-150, -140],
+        },
+    )
+
+    with pytest.raises(ValueError, match="at least 2 years"):
+        recipes.recipe_sst_anomaly_nino34(ds)
+
+
 # Regional mean (MOM5)
 
 # Tasmania's 1° latitude centres, weighted by cos(latitude)

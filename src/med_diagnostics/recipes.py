@@ -764,6 +764,12 @@ def recipe_sst_anomaly_nino34(
         The Niño 3.4 index and its plot kwargs.
     """
     require_coords(dataset, var, [y_dim, x_dim, "time"], "lat/lon gridded")
+    # With one year each month is its own climatology, so every anomaly is zero
+    if np.unique(dataset["time"].dt.year).size < 2:
+        raise ValueError(
+            "The Niño 3.4 index needs at least 2 years of data to compare each "
+            "month against its average. Load more years."
+        )
 
     nino34_ds = extract_region(dataset, "nino34", x_dim, y_dim)
     anomalies = calc_anomalies(nino34_ds, x_dim, y_dim, var)
