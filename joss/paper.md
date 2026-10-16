@@ -27,19 +27,19 @@ bibliography: paper.bib
 ---
 
 # Summary
-Climate model simulations can run for days to months on high-performance computing systems and produce large volumes of output. This makes it both vital and difficult to check whether a simulation is behaving as expected while it is still running. Model Live Diagnostics (MLD) is a Python package that addresses this by providing interactive tools for inspecting model output during a run. It allows researchers and model developers to monitor, evaluate and troubleshoot simulations as they progress, so that problems are identified earlier, less compute time is wasted, and model development is more efficient.
+Climate model simulations can run for days to months on high-performance computing systems and produce large volumes of output. This makes it both vital and difficult to check whether a simulation is behaving as expected while it is still running. Model Live Diagnostics (MLD) is a Python package for inspecting climate model output during a run, so that problems can be identified earlier, less compute time is wasted, and model development is more efficient.
 
-MLD can be installed with pip or conda and provides a graphical interface, built with Panel [@panel], that runs in Jupyter notebooks. It is available in the Australian Research Environment (ARE) on Gadi, the supercomputer operated by Australia's National Computational Infrastructure (NCI).
+MLD can be installed with pip or conda and provides a graphical interface, built with Panel [ref], that runs in Jupyter notebooks [ref]. It is available in the Australian Research Environment (ARE) on Gadi, the supercomputer operated by Australia's National Computational Infrastructure (NCI) [ref?].
 
+MLD builds a catalogue of a simulation's output directory as the model writes to it, and provides three core capabilities: plotting live output as customisable plots; comparing it against reference simulations from the ACCESS-NRI Intake catalogue [ref]; and running analysis recipes, which are either built in or defined by the user. Because recipes are plain Python functions, users can apply the same analyses to a running simulation as they would to completed output.
 
+MLD is developed by ACCESS-NRI for anyone running the Australian Community Climate and Earth System Simulator (ACCESS) models [ref], from model developers to researchers analysing simulations. Little programming is required: an import statement and a single function call open the interface, while experienced users can call the Python API directly or write their own analysis recipes.
 
 # Statement of need
 
 # State of the field                                                                                                                  
 
-
 # Software design
-
 
 # Research impact statement
 
