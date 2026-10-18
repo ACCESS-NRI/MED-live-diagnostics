@@ -169,7 +169,7 @@ class UserInterface:
         )
         self.model_type_dropdown = pn.widgets.Select(
             name="Select model type",
-            options=["CM2", "CM3", "ESM15", "ESM16", "MOM6", "OM2", "OM3"],
+            options=["CM2", "CM3", "ESM15", "ESM16", "MOM6", "OM2", "OM3", "AM3"],
             value="OM2",
         )
         self.start_session_button = pn.widgets.Button(

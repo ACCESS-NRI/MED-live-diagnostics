@@ -13,6 +13,7 @@ import pandas as pd
 from access_nri_intake.aliases import AliasedESMCatalog
 from access_nri_intake.experiment import use_datastore
 from access_nri_intake.source.builders import (
+    AccessAm3Builder,
     AccessCm2Builder,
     AccessCm3Builder,
     AccessEsm15Builder,
@@ -22,7 +23,7 @@ from access_nri_intake.source.builders import (
     Mom6Builder,
 )
 
-# Exact ACCESS-NRI catalog model names per model type; CM3 and OM3 use MOM6
+# Exact ACCESS-NRI catalog model names per model type
 CATALOG_MODEL_NAMES = {
     "cm2": ["ACCESS-CM2"],
     "cm3": ["ACCESS-CM2", "MOM6"],
@@ -31,6 +32,7 @@ CATALOG_MODEL_NAMES = {
     "mom6": ["MOM6"],
     "om2": ["ACCESS-OM2", "ACCESS-OM2-01", "ACCESS-OM2-025"],
     "om3": ["ACCESS-OM2", "ACCESS-OM2-01", "ACCESS-OM2-025", "MOM6"],
+    "am3": ["ACCESS-CM2", "ACCESS-ESM1-5", "ACCESS-ESM1.6"],
 }
 
 # Each experiment's catalog gets its own small folder, as use_datastore searches the whole catalog_dir
@@ -90,6 +92,8 @@ def _build_new_catalog(model_path, model_type):
             model_type_builder = AccessEsm16Builder
         case "mom6":
             model_type_builder = Mom6Builder
+        case "am3":
+            model_type_builder = AccessAm3Builder
         case _:
             raise ValueError(f"Unsupported model_type: {model_type!r}")
     # Set builder kwargs based on model type, if model_type is one of the builders that requires the ensemble argument, set it to False, otherwise set it to an empty dictionary.

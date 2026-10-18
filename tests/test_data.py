@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 from access_nri_intake.aliases import AliasedESMCatalog
 from access_nri_intake.source.builders import (
+    AccessAm3Builder,
     AccessCm2Builder,
     AccessCm3Builder,
     AccessEsm15Builder,
@@ -29,6 +30,7 @@ from med_diagnostics import data
         ("esm15", AccessEsm15Builder, {"ensemble": False}),
         ("esm16", AccessEsm16Builder, {"ensemble": False}),
         ("mom6", Mom6Builder, {}),
+        ("am3", AccessAm3Builder, {}),
     ],
 )
 def test_build_new_catalog_valid_models(
@@ -187,6 +189,7 @@ class _FakeAccessNriCatalog:
         ("MOM6", ["MOM6"]),
         ("OM2", ["ACCESS-OM2", "ACCESS-OM2-01", "ACCESS-OM2-025"]),
         ("OM3", ["ACCESS-OM2", "ACCESS-OM2-01", "ACCESS-OM2-025", "MOM6"]),
+        ("AM3", ["ACCESS-CM2", "ACCESS-ESM1-5", "ACCESS-ESM1.6"]),
     ],
 )
 def test_load_access_nri_catalog_finds_only_its_models(
@@ -206,7 +209,7 @@ def test_load_access_nri_catalog_finds_only_its_models(
 
 def test_every_model_type_has_catalog_names():
     """Every model type that can build a user catalog can also filter the reference catalog."""
-    for model_type in ["cm2", "cm3", "esm15", "esm16", "mom6", "om2", "om3"]:
+    for model_type in ["cm2", "cm3", "esm15", "esm16", "mom6", "om2", "om3", "am3"]:
         assert model_type in data.CATALOG_MODEL_NAMES
 
 
