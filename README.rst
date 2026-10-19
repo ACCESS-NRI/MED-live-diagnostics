@@ -16,7 +16,7 @@ What does this package do?
 ===========================
 
 This package is actively developed within the Model Evaluation Team at `Australia's climate simulator (ACCESS-NRI) <https://www.access-nri.org.au/>`_.
-It supports ACCESS-CM2, ACCESS-CM3, ACCESS-OM2, ACCESS-OM3, ACCESS-ESM1.5, ACCESS-ESM1.6, ACCESS-rAM3 and MOM6 output.
+It supports ACCESS-CM2, ACCESS-CM3, ACCESS-OM2, ACCESS-OM3, ACCESS-ESM1.5, ACCESS-ESM1.6, ACCESS-AM3 and MOM6 output.
 
 A session opens an interactive interface in your notebook with four collapsible sections:
 
