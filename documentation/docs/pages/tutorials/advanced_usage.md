@@ -211,4 +211,4 @@ If a plot fails to generate, review the <span style="color:darkred">warning</spa
 
 ---
 
-[Next: API reference :material-arrow-right:](../api.md){ .md-button }
+[Next: Built-in recipes :material-arrow-right:](../built_in_recipes.md){ .md-button }

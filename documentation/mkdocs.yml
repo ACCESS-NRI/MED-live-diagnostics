@@ -27,7 +27,6 @@ nav:
   - Tutorials:
     - pages/tutorials/index.md
     - Getting started: pages/tutorials/getting_started_tutorial.md
-    - Built-in analysis recipes: pages/tutorials/built_in_recipes_tutorial.md
     - Adding custom analyses: pages/tutorials/adding_custom_analyses.md
     - Advanced usage: pages/tutorials/advanced_usage.md
   - Built-in recipes: pages/built_in_recipes.md

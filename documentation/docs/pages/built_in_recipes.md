@@ -153,4 +153,4 @@ Notes:
 
 ---
 
-[Next: Adding custom analyses :material-arrow-right:](adding_custom_analyses.md){ .md-button }
+[Next: API reference :material-arrow-right:](api.md){ .md-button }

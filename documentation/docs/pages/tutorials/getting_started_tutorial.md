@@ -186,4 +186,4 @@ This closes the Dask client and removes the session's sections, freeing up compu
 
 ---
 
-[Next: Built-in analysis recipes :material-arrow-right:](built_in_recipes_tutorial.md){ .md-button }
+[Next: Adding custom analyses :material-arrow-right:](adding_custom_analyses.md){ .md-button }
