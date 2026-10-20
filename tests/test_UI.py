@@ -954,7 +954,7 @@ def test_display_plot_choices_ui(
     elif expected_outcome == "fail_dim_check_animation":
         assert (
             ui.warning_textbox.value
-            == "Warning >> Not enough dimensions available for this variable to plot an animation"
+            == "Warning >> Not enough dimensions available for this variable to plot an interactive heatmap"
         )
         assert isinstance(ui.plot_type_dropdown.value, Line)
         assert not hasattr(ui, "plot_choices_row")
@@ -1076,7 +1076,7 @@ def test_ref_display_plot_choices_ui(
     elif expected_outcome == "fail_dim_check_animation":
         assert (
             ui.ref_warning_textbox.value
-            == "Warning >> Not enough dimensions available for this variable to plot an animation"
+            == "Warning >> Not enough dimensions available for this variable to plot an interactive heatmap"
         )
         assert isinstance(ui.ref_plot_type_dropdown.value, Line)
         assert not hasattr(ui, "ref_plot_choices_row")
@@ -2186,9 +2186,11 @@ def test_display_slice_ui(
         assert isinstance(widgets_dict[dim], pn.widgets.DiscreteSlider)
         assert widgets_dict[dim].name == f"Slice {dim} at:"
 
-    # Verify the layout row was built
-    assert isinstance(ui_row, pn.Row)
-    assert len(ui_row) == len(expected_dims) + 1  # +1 for the plot button
+    # Verify the sliders share one line and the plot button sits on its own line below
+    assert isinstance(ui_row, pn.Column)
+    assert len(ui_row[0]) == len(expected_dims)
+    # The button is a mock here, so Panel wraps it in a pane
+    assert ui_row[-1][1].object is btn
 
     # Verify layout integration
     mock_safe_add.assert_called_once_with(
@@ -2243,14 +2245,13 @@ def test_display_slice_ui_without_slices(ui, prompt_bounds):
 
     ui._display_slice_ui(section=Multiplot())
 
+    *other_rows, button_row = ui.multiplot_slice_ui_row
+    assert ui.multiplot_plot_button in button_row
     if prompt_bounds:
-        assert list(ui.multiplot_slice_ui_row) == [
-            ui.prompt_bounds_dropdown,
-            ui.multiplot_plot_button,
-        ]
+        assert other_rows == [ui.prompt_bounds_dropdown]
         assert ui.prompt_bounds_dropdown.options == ui.prompt_bounds_mapping
     else:
-        assert list(ui.multiplot_slice_ui_row) == [ui.multiplot_plot_button]
+        assert other_rows == []
     assert ui.multiplot_slice_widgets == {}
 
     # The plot row sits directly below the axis row, which stays on screen
@@ -2813,7 +2814,8 @@ def test_reproduce_live_multiplot_flow(ui, mock_multiplot_datasets):
     assert ui.multiplot_select_dims_button.name == "Select dimensions"
 
     # time is the only dimension, so the plot row is shown straight away
-    assert list(ui.multiplot_slice_ui_row) == [ui.multiplot_plot_button]
+    assert len(ui.multiplot_slice_ui_row) == 1
+    assert ui.multiplot_plot_button in ui.multiplot_slice_ui_row[0]
     assert ui.multiplot_plot_button.name == "Plot data"
 
     # Simulate clicking "Plot data"

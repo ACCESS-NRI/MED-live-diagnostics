@@ -1634,7 +1634,7 @@ class UserInterface:
             if len(viable_dims) < 2:
                 controller.update_textbox_text(
                     warning_textbox,
-                    "Warning >> Not enough dimensions available for this variable to plot an animation",
+                    "Warning >> Not enough dimensions available for this variable to plot an interactive heatmap",
                 )
                 plot_type_dropdown.value = Line()
             else:
@@ -2132,8 +2132,8 @@ class UserInterface:
         Generate the slice and plot row below the plot choices.
 
         Creates a discrete slider for each remaining unselected dimension, followed by the
-        bounds dropdown when the overlay needs one, and the section's plot button. With
-        nothing to slice, the row holds just the plot button.
+        bounds dropdown when the overlay needs one, and the section's plot button centred
+        on its own line. With nothing to slice, the row holds just the plot button.
 
         Parameters
         ----------
@@ -2187,8 +2187,10 @@ class UserInterface:
             column = pn.Column(slider, text)
             ui_components.append(column)
 
-        # Group them into a row
-        slice_ui_row = pn.Row(*ui_components)
+        # Sliders share one line, with the bounds dropdown and plot button on lines below
+        slice_ui_row = pn.Column(sizing_mode="stretch_width")
+        if ui_components:
+            slice_ui_row.append(pn.Row(*ui_components))
 
         if isinstance(section, Multiplot):
             self.multiplot_slice_widgets = slice_widgets
@@ -2224,7 +2226,7 @@ class UserInterface:
             slice_ui_row.append(self.prompt_bounds_dropdown)
 
         button.name = "Plot data"
-        slice_ui_row.append(button)
+        slice_ui_row.append(pn.Row(pn.HSpacer(), button, pn.HSpacer()))
 
         # Insert the slice UI below the plot choices row
         self._safe_add_to_widget(widget_container, position, slice_ui_row, append=True)

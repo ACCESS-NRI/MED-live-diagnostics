@@ -776,7 +776,10 @@ def test_plot_multiplot_dataset(multiplot_datasets, monkeypatch, plot_diff):
     assert ax.get_xlim() == (1, 5)
 
     # User + A + 2 B members, or A diff + 2 B diffs + hline
-    assert len(ax.lines) == 4
+    if plot_diff:
+        assert len(ax.lines) == 3
+    else:
+        assert len(ax.lines) == 4
 
     # Model A is 1.5 x user, so its difference (ref - user) is 0.5 x user
     user_values = ds_user["data"].sel(lat=30).values
@@ -813,7 +816,7 @@ def test_plot_multiplot_dataset_difference_without_overlap(monkeypatch):
     )
 
     ax = fig.axes[0]
-    assert [line.get_label() for line in ax.lines] == ["_child0"]
+    assert not ax.lines
     assert [text.get_text() for text in ax.texts] == [
         "No overlap with user data: Late run"
     ]

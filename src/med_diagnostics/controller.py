@@ -431,7 +431,7 @@ def check_plot_validity(
     variable : str
         The target variable key within the dataset.
     plot_type : str
-        The selected type of plot (e.g., "Line", "Heatmap", "Animation").
+        The selected type of plot (e.g., "Line", "Heatmap", "Interactive Heatmap").
     x : str
         The primary axis selection.
     y : str, optional
@@ -547,7 +547,7 @@ def plot_animation(
     dataset, dataset_name, variable, chosen_slices, x_axis, y_axis, z_axis, is_ref=False
 ):
     """
-    Generate an interactive animated 2D quadmesh plot with a scrubber widget.
+    Generate an interactive heatmap plot with a slider.
 
     Parameters
     ----------
@@ -599,7 +599,6 @@ def plot_animation(
         groupby=z_axis,
         dynamic=True,
         rasterize=True,
-        widget_type="scrubber",
         widget_location="bottom",
         clim=(vmin, vmax),
         cmap="viridis",
@@ -699,7 +698,6 @@ def plot_multiplot_dataset(
     base_title = sliced_user_data[variable].attrs.get("long_name", variable)
     if plot_diff:
         title_text = f"Δ {base_title} (Ref. - User data)"
-        ax.axhline(0, color="k")  # horizontal line at 0
     else:
         title_text = base_title
 

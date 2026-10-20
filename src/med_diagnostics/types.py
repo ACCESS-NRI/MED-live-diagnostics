@@ -125,10 +125,10 @@ class Animation(PlotType):
     Attributes
     ----------
     value : str
-        The string representation of the plot type, defaults to "Animation".
+        The string representation of the plot type, defaults to "Interactive Heatmap".
     """
 
-    value = "Animation"
+    value = "Interactive Heatmap"
 
 
 @dataclass
