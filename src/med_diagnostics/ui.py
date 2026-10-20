@@ -2192,7 +2192,7 @@ class UserInterface:
             ui_components.append(column)
 
         # Sliders share one line, with the bounds dropdown and plot button on lines below
-        slice_ui_row = pn.Column(sizing_mode="stretch_width")
+        slice_ui_row = pn.Column()
         if ui_components:
             slice_ui_row.append(pn.Row(*ui_components))
 
@@ -2236,7 +2236,7 @@ class UserInterface:
             slice_ui_row.append(self.prompt_bounds_dropdown)
 
         button.name = "Plot data"
-        slice_ui_row.append(pn.Row(pn.HSpacer(), button, pn.HSpacer()))
+        slice_ui_row.append(button)
 
         # Insert the slice UI below the plot choices row
         self._safe_add_to_widget(widget_container, position, slice_ui_row, append=True)
