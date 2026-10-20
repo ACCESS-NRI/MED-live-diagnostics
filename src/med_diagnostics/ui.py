@@ -1995,9 +1995,13 @@ class UserInterface:
 
         validity = self._check_plot_validity_helper(section=section)
 
-        # The bounds dropdown is only in the slice row if the bounds were checked when it was built
+        is_diff = isinstance(
+            self.multiplot_analysis_choice_dropdown.value, DiffAnalysis
+        )
+        # The bounds dropdown is only in the slice row if the bounds were checked when it was built, and is not a diff plot.
         bounds_missing = isinstance(section, Multiplot) and (
             validity.prompt_bounds
+            and not is_diff
             and self.prompt_bounds_dropdown
             not in getattr(self, "multiplot_slice_ui_row", [])
         )
@@ -2218,7 +2222,13 @@ class UserInterface:
             widget_container = self.user_widget_container
 
         # The overlay asks how to constrain the x-axis when the datasets' ranges differ
-        if isinstance(section, Multiplot) and self.multiplot_prompt_bounds:
+        if (
+            isinstance(section, Multiplot)
+            and self.multiplot_prompt_bounds
+            and not isinstance(
+                self.multiplot_analysis_choice_dropdown.value, DiffAnalysis
+            )
+        ):
             self.prompt_bounds_dropdown.name = (
                 "Choose how to constrain the x-axis bounds"
             )
@@ -2353,7 +2363,9 @@ class UserInterface:
             )
 
             # Set x_min and x_max using the newly unpacked variables
-            if isinstance(self.prompt_bounds_dropdown.value, ConstrainToUser):
+            if plot_diff or isinstance(
+                self.prompt_bounds_dropdown.value, ConstrainToUser
+            ):
                 x_min = self.dataset_min
                 x_max = self.dataset_max
             else:

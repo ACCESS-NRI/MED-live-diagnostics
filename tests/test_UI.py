@@ -2515,7 +2515,7 @@ def test_display_multiplot_plot_choices_ui(
         # Line plot, no diff, constrain to user bounds
         (Line(), False, ConstrainToUser(), 2, 8),
         # Line plot, diff, use global bounds (simulating "Expand bounds to fit all" or similar)
-        (Line(), True, ConstrainToRef(), 0, 10),
+        (Line(), True, ConstrainToRef(), 2, 8),
         # Heatmap, no diff (bounds don't matter)
         (MultiplotHeatmap(), False, ConstrainToUser(), None, None),
         # Heatmap, diff (bounds don't matter)
