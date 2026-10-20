@@ -1762,10 +1762,6 @@ class UserInterface:
             append=True,
         )
 
-        # There is nothing to choose, so go straight to the slice and plot row
-        if isinstance(plot_type, Line) and len(viable_dims) == 1:
-            self._select_dims_helper(section=Multiplot())
-
     def _plot_data_button_click(self):
         """
         Triggers plotting of the user dataset after the plot data button is clicked

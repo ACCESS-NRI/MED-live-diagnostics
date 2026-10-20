@@ -2501,12 +2501,10 @@ def test_display_multiplot_plot_choices_ui(
         append=True,
     )
 
-    # A line plot with one dimension has nothing to choose, so the plot row is shown straight away
+    # The only dimension is chosen as the x-axis, but the user still picks the analysis type before the plot row is shown
     if expected_scenario == "line_1dim":
         assert ui.multiplot_x_axis_dropdown.value == viable_dims[0]
-        mock_select_dims_helper.assert_called_once_with(section=Multiplot())
-    else:
-        mock_select_dims_helper.assert_not_called()
+    mock_select_dims_helper.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -2813,7 +2811,8 @@ def test_reproduce_live_multiplot_flow(ui, mock_multiplot_datasets):
     assert ui.multiplot_x_axis_dropdown.value == "time"
     assert ui.multiplot_select_dims_button.name == "Select dimensions"
 
-    # time is the only dimension, so the plot row is shown straight away
+    # Simulate clicking "Select dimensions"; time is the only dimension, so the row holds just the plot button
+    ui._multiplot_select_dims_button_click(None)
     assert len(ui.multiplot_slice_ui_row) == 1
     assert ui.multiplot_slice_ui_row[0] is ui.multiplot_plot_button
     assert ui.multiplot_plot_button.name == "Plot data"
