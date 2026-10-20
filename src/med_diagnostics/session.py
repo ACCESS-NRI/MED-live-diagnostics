@@ -7,8 +7,6 @@
 import os
 import intake
 import panel as pn
-
-from apscheduler.schedulers.background import BackgroundScheduler
 from med_diagnostics import data, ui
 from distributed import Client
 
@@ -68,7 +66,7 @@ class CreateModelDiagnosticsSession():
         self.ui._display_status_text()
         
         # Start data scheduler
-        self._start_scheduler()
+        #self._start_scheduler()
         
         # Get initial model data
         self._get_data()
