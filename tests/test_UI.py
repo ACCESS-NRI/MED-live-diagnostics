@@ -2190,7 +2190,7 @@ def test_display_slice_ui(
     assert isinstance(ui_row, pn.Column)
     assert len(ui_row[0]) == len(expected_dims)
     # The button is a mock here, so Panel wraps it in a pane
-    assert ui_row[-1][1].object is btn
+    assert ui_row[-1].object is btn
 
     # Verify layout integration
     mock_safe_add.assert_called_once_with(
@@ -2245,8 +2245,8 @@ def test_display_slice_ui_without_slices(ui, prompt_bounds):
 
     ui._display_slice_ui(section=Multiplot())
 
-    *other_rows, button_row = ui.multiplot_slice_ui_row
-    assert ui.multiplot_plot_button in button_row
+    *other_rows, button = ui.multiplot_slice_ui_row
+    assert button is ui.multiplot_plot_button
     if prompt_bounds:
         assert other_rows == [ui.prompt_bounds_dropdown]
         assert ui.prompt_bounds_dropdown.options == ui.prompt_bounds_mapping
@@ -2815,7 +2815,7 @@ def test_reproduce_live_multiplot_flow(ui, mock_multiplot_datasets):
 
     # time is the only dimension, so the plot row is shown straight away
     assert len(ui.multiplot_slice_ui_row) == 1
-    assert ui.multiplot_plot_button in ui.multiplot_slice_ui_row[0]
+    assert ui.multiplot_slice_ui_row[0] is ui.multiplot_plot_button
     assert ui.multiplot_plot_button.name == "Plot data"
 
     # Simulate clicking "Plot data"
