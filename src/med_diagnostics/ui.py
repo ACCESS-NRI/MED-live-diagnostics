@@ -2221,6 +2221,8 @@ class UserInterface:
             status_prefix = "User model status"
             widget_container = self.user_widget_container
 
+        # change the margins of this button so it is not entirely left aligned
+        button.margin = (5, 10, 10, 10)
         # The overlay asks how to constrain the x-axis when the datasets' ranges differ
         if (
             isinstance(section, Multiplot)
