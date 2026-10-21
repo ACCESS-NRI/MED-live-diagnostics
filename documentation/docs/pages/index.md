@@ -10,7 +10,7 @@ Model Live Diagnostics helps the ACCESS modelling community check, monitor, visu
 
 A session opens an interactive interface in your notebook with four collapsible sections:
 
-- **Load and plot user data.** Builds an intake catalogue from your live model output, so you can load any of its datasets and plot a variable as a line plot, heatmap, or animation over time. Sliders let you slice through extra dimensions such as ocean depth.
+- **Load and plot user data.** Builds an intake catalogue from your live model output, so you can load any of its datasets and plot a variable as a line plot, heatmap, or an interactive heatmap. Sliders let you slice through extra dimensions such as ocean depth.
 - **Load and plot reference models.** Loads any model of the same type from the [ACCESS-NRI Intake Catalogue](https://github.com/ACCESS-NRI/access-nri-intake-catalog) and plots its data with the same controls.
 - **Overlay user and reference models.** Overlays line plots or shows heatmaps side by side for your run and as many reference models as you like, and can plot the difference between them to highlight discrepancies.
 - **Run analysis recipes.** Runs ready-made analyses on your data, such as the Niño 3.4 index or area-weighted regional mean timeseries, or apply your own custom analyses.

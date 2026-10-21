@@ -28,7 +28,7 @@ nav:
     - pages/tutorials/index.md
     - Getting started: pages/tutorials/getting_started_tutorial.md
     - Adding custom analyses: pages/tutorials/adding_custom_analyses.md
-    - Advanced usage: pages/tutorials/advanced_usage.md
+    - Diagnostics without the GUI: pages/tutorials/diagnostics_without_the_gui.md
   - Built-in recipes: pages/built_in_recipes.md
   - API reference: pages/api.md
   - Contributing:

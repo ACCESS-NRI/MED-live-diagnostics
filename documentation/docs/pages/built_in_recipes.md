@@ -1,6 +1,6 @@
 # Built-in Analysis Recipes
 
-MLD comes with a set of built-in analysis recipes. They appear in the "Select analysis recipe" dropdown of the **Run analysis recipes** section for every user, without needing to be registered. This page describes what each recipe does, which data it expects, and the options it offers. For how to run a recipe, see [Running Analysis Recipes](getting_started_tutorial.md#6-running-analysis-recipes) in the Getting started tutorial.
+MLD comes with a set of built-in analysis recipes. They appear in the "Select analysis recipe" dropdown of the **Run analysis recipes** section for every user, without needing to be registered. This page describes what each recipe does, which data it expects, and the options it offers. For how to run a recipe, see [Running Analysis Recipes](tutorials/getting_started_tutorial.md#6-running-analysis-recipes) in the Getting started tutorial.
 
 | Dropdown label | Function | Plots | Targets |
 | :--- | :--- | :--- | :--- |
@@ -9,7 +9,7 @@ MLD comes with a set of built-in analysis recipes. They appear in the "Select an
 | OM3 timeseries suite (OM3 variable names) | `recipe_om3_timeseries` | 1 per field found | ACCESS-OM3 output |
 | OM3 timeseries suite (custom variable mapping) | `recipe_om3_timeseries_mapped` | 1 per field chosen | ACCESS ocean output on any grid |
 
-All of these functions live in `med_diagnostics.recipes`, along with helpers you can reuse in your own recipes (see the [API reference](../api.md#med_diagnostics.recipes)).
+All of these functions live in `med_diagnostics.recipes`, along with helpers you can reuse in your own recipes (see the [API reference](api.md#med_diagnostics.recipes)).
 
 !!! tip "Defaults and the loaded dataset"
     Each recipe's option dropdowns are filled in with its defaults (e.g. `tos`, `xt_ocean`) when these exist in the loaded dataset. If they don't, choose the matching variable or coordinate yourself before clicking "Plot data".
@@ -149,7 +149,7 @@ Notes:
 - The reference runs are read from `/g/data/ol01`, so your ARE session needs access to the `ol01` project (add `gdata/ol01` to its storage). If a reference field can't be found, a warning such as `soga failed` is shown and the plot is drawn without it.
 
 !!! tip "Writing your own recipes"
-    You can add your own analyses to this section. See the [Adding custom analyses](adding_custom_analyses.md) tutorial. After registering a new recipe, click "Refresh analysis recipes" to add it to the dropdown.
+    You can add your own analyses to this section. See the [Adding custom analyses](tutorials/adding_custom_analyses.md) tutorial. After registering a new recipe, click "Refresh analysis recipes" to add it to the dropdown.
 
 ---
 

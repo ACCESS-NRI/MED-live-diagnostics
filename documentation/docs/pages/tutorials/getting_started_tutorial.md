@@ -36,6 +36,9 @@ This starts the model diagnostics session, which initially should look like:
 
 ![Session start](../../assets/tutorials/tutorial_2_session_start.png)
 
+!!! warning "Reopened notebooks"
+    A notebook saved in an earlier session can still show the previous sessions start section, but it won't work. Run the `CreateModelDiagnosticsSession()` cell again to start a new session.
+
 Now we are ready to load our model data and begin analysing it.
 
 ### 3. Monitor your own run
@@ -81,15 +84,17 @@ iii) The dropdown lists every dataset in your model output. Select the dataset y
 
     The text beside the button shows how many files and which years your selection will load, e.g. "Loads 10 of 120 files, 1991–2000". The user dataset is shared by all sections, so loading it in one section loads it (and its year selection) in the others too.
 
-Once the dataset loads, the plotting controls appear. From here, you can:
+Once the dataset loads, the plotting controls appear. From here, you must:
 
 - **Select a variable**: choose a model variable from the dropdown.
-- **Choose a plot type**: Line, Heatmap or Animation. Datasets with fewer dimensions may only support line plots.
-- **Toggle variable names**: use the "Display Variable Long Names" checkbox to show long or short names, if the defaults are unclear.
+- **Choose a plot type**: Line, Heatmap or Interactive Heatmap. Datasets with fewer dimensions may only support line plots.
 
 Then click the <span style="color:green">"Select variable and plot type"</span> button.
 
-The axis options depend on the plot type. For a line plot, select the x-axis dimension (e.g. time); for an animated heatmap, assign dimensions to the X, Y and Z axes. Then click the <span style="color:green">"Select dimensions"</span> button.
+!!! tip "Toggle variable names"
+    Use the "Display Variable Long Names" checkbox to show long or short names, if the defaults are unclear.
+    
+The axis options depend on the plot type. For a line plot, select the x-axis dimension (e.g. time); for an interactive heatmap, assign dimensions to the X, Y and Z axes. Then click the <span style="color:green">"Select dimensions"</span> button.
 
 If the variable has dimensions that aren't on an axis (e.g. ocean depth, or time), a slider appears for each so you can choose a slice. You can also type a value into the box under each slider. Depending on the dataset and plot type, there may be none. Choose your slices and click the <span style="color:green">"Plot data"</span> button to load the plot. 
 
@@ -159,7 +164,7 @@ Choose your slices (and bounds, if asked) and click the <span style="color:green
 ![Comparison difference heatmap](../../assets/tutorials/tutorial_5_difference_heatmap.png)
 
 ### 6. Running analysis recipes
-The **Run analysis recipes** section runs predefined analyses ("recipes") on your user dataset, such as the Niño 3.4 sea surface temperature anomaly (`recipe_sst_anomaly_nino34`) or a regional mean on the MOM5 grid (`recipe_regional_mean_mom5`). See [Built-in analysis recipes](built_in_recipes_tutorial.md) for what each one does and the options it takes. You can also write your own recipes; see [Adding custom analyses](adding_custom_analyses.md).
+The **Run analysis recipes** section runs predefined analyses ("recipes") on your user dataset, such as the Niño 3.4 sea surface temperature anomaly (`recipe_sst_anomaly_nino34`) or a regional mean on the MOM5 grid (`recipe_regional_mean_mom5`). See [Built-in analysis recipes](../built_in_recipes.md) for what each one does and the options it takes.
 
 i) Select the dataset in "Select dataset to analyse", set the years to load, and click "Load dataset". If you already loaded a user dataset in section 4.1 or 4.2, it is selected here automatically.
 
@@ -173,6 +178,8 @@ iii) Fill in the options and click "Plot data". As with the other sections, each
 
 !!! tip "Running a suite of analyses"
     Some recipes are **suites**: one click of "Plot data" runs several analyses and adds one plot for each, in order. The status box then reads "Plots created". Each plot gets its own "Remove Plot" button, so you can remove the ones you don't need. Any recipe can be a suite, including your own (see [Running a suite of analyses](adding_custom_analyses.md#running-a-suite-of-analyses)).
+
+If none of the predefined analyses suit your purpose, you can [write your own recipes](adding_custom_analyses.md).
 
 ### 7. End live model session
 

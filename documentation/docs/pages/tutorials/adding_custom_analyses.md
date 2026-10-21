@@ -47,7 +47,7 @@ Click **Select recipe** and then **Plot data**. The analysis will run and displa
 <img src="/assets/tutorials/Analysis_minimal_recipe_plot.png" alt="Model Live Diagnostics custom analysis plot output" style="width: 100%; height: auto;">
 
 !!! tip "Re-registering Recipes"
-    Recipes are stored by function name. If you edit the cell and run it again, the new version replaces the old one. Click **Refresh analysis recipes** again to pick up the change.
+    Recipes are stored by function name. Re-run the cell and click **Refresh analysis recipes** again to pick up any changes.
 
 
 ### Building a Recipe That Takes Arguments
@@ -68,7 +68,7 @@ name: Annotated[<python type>, {<metadata>}] = <default>
     | :--- | :--- | :--- |
     | `"kind"` | Recommended | Chooses the widget (see the table below). If you leave it out, you get a plain text box and your recipe receives a string. |
     | `"name"` | Recommended | The label shown on the widget (e.g., `"Select Depth Slice"`). If you leave it out, the label defaults to the argument name (e.g., `lvl_dim`). |
-    | `"description"` | Recommended | Shown as the widget's tooltip. *(Note: Checkboxes cannot display tooltips).* |
+    | <code style="white-space: nowrap">"description"</code> | Recommended | Shown as the widget's tooltip. *(Note: Checkboxes cannot display tooltips).* |
     | `"units"` | Optional | Appended to the widget label (e.g., `Select Depth Slice (m)`). |
     | `"choices"` | Only for `"kind": "choice"` | The list of options for the dropdown menu. |
 
@@ -92,6 +92,8 @@ name: Annotated[<python type>, {<metadata>}] = <default>
 For example, a complete argument definition to generate a UI widget for selecting a dimension would look like this:
 
 ```python
+from med_diagnostics import analysis
+import xarray as xr
 from typing import Annotated
 
 dim: Annotated[
@@ -108,6 +110,8 @@ dim: Annotated[
 Here is the minimum recipe, refactored to accept any variable or dimension:
 
 ```python
+from med_diagnostics import analysis
+import xarray as xr
 from typing import Annotated
 
 
@@ -233,6 +237,10 @@ Here is an example of a recipe returning custom plot settings:
 ```python
 from typing import Annotated
 
+import xarray as xr
+
+from med_diagnostics import analysis
+
 
 def recipe_custom_plot(
     ds: xr.Dataset, variable: Annotated[str, {"kind": "data variable"}] = "temp"
@@ -267,7 +275,9 @@ And the resultant plot:
 While `plot_kwargs` handles standard `xarray` plotting arguments, you may want to add features like shaded bands, reference lines, annotations, a second axis, or a custom legend. You can achieve this by passing custom Matplotlib functions to the `"customise"` key in your `plot_kwargs` dictionary.
 
 Any function you pass to `"customise"` must accept exactly two positional arguments:
+
 1. `ax`: The `matplotlib.axes.Axes` object MLD generated for the plot (note: `ax.figure` accesses the whole Figure).
+
 2. `data`: The exact `xarray.DataArray` returned by your recipe.
 
 They run in list order, after `ax_kwargs`, so they can override anything.
@@ -368,7 +378,9 @@ If your custom function requires external settings (like a specific threshold va
 ```python
 from typing import Annotated
 
-from med_diagnostics import plot_customisations
+import xarray as xr
+
+from med_diagnostics import analysis, plot_customisations
 
 
 def recipe_timeseries_threshold(
@@ -441,6 +453,15 @@ analysis.register_analysis(recipe_timeseries_threshold)
 A recipe can also return a **list** of results to make a suite of plots in one go. Each item can be a `DataArray` or a `(DataArray, plot_kwargs)` tuple, and MLD draws one plot per item, in list order, each with its own **Remove Plot** button. This is a quick way to bundle the checks you run on every new experiment into one dropdown entry, and suites can simply call other recipes:
 
 ```python
+from typing import Annotated
+
+import xarray as xr
+
+from med_diagnostics import analysis
+
+# recipe_timeseries_threshold and recipe_global_mean_dynamic are the recipes defined earlier on this page
+
+
 def recipe_ocean_health_check(
     ds: xr.Dataset,
     temp_var: Annotated[str, {"kind": "data variable"}] = "temp",
@@ -458,7 +479,7 @@ analysis.register_analysis(recipe_ocean_health_check)
 
 The UI only shows widgets for the suite's own arguments, so pass the other recipes anything that shouldn't be left at its default.
 
-The built-in [OM3 timeseries suites](built_in_recipes_tutorial.md#om3-timeseries-suites) (`recipe_om3_timeseries` and `recipe_om3_timeseries_mapped` in `med_diagnostics.recipes`) are a larger example: they build one `(DataArray, plot_kwargs)` per variable found and return them all as a list.
+The built-in [OM3 timeseries suites](../built_in_recipes.md#om3-timeseries-suites) (`recipe_om3_timeseries` and `recipe_om3_timeseries_mapped` in `med_diagnostics.recipes`) are a larger example: they build one `(DataArray, plot_kwargs)` per variable found and return them all as a list.
 
 !!! tip "Optional variables in a suite"
     To let users skip parts of a suite, type an argument `str | None` with a default of `None`, as you would for an optional dimension. The dropdown then includes a `None` entry, and the recipe can leave out the plots whose variable is `None`.
@@ -515,4 +536,4 @@ For full details on how to format, test, and submit your code via a pull request
 
 ---
 
-[Next: Advanced usage :material-arrow-right:](advanced_usage.md){ .md-button }
+[Next: Diagnostics without the GUI :material-arrow-right:](diagnostics_without_the_gui.md){ .md-button }
