@@ -1,11 +1,12 @@
 # Diagnostics without the GUI
 
-### 1. Access to Data
-While the UI provides a quick way to visualise your model runs, advanced users may wish to interact directly with the underlying data structures for custom analysis in their Jupyter Notebook, or switch from using the GUI to using the API. 
+While the graphical interface provides a quick way to visualise your model runs, advanced users may wish to interact directly with the underlying data structures for custom analysis in their Jupyter Notebook, or switch from using the interface to using the API. 
 
-#### Retrieve the Data Catalogue
+### 1. Getting data out of a session
+
+#### Retrieve the data catalogue
 You can extract the active Intake-ESM datastore object directly from your session. 
-- A convenience function to return the currently loaded live model data catalogue.
+
 - **Returns:** An Intake catalogue containing the user's model data.
 - **Return type:** `intake-esm` datastore object.
 
@@ -16,9 +17,10 @@ datastore
 
 ![Data catalogue output](/assets/tutorials/AdvUsage_catalog_output.png){ width="70%" }
 
-#### Retrieve a loaded Dataset
+#### Retrieve a loaded dataset
+
 You can extract the loaded dataset object directly from your session. 
-- A convenience function to return the currently loaded dataset.
+
 - **Returns:** An `xarray` dataset containing the user's model data.
 - **Return type:** `xarray` dataset. 
 
@@ -32,7 +34,7 @@ dataset
 !!! warning "Load a dataset first"
     `return_loaded_dataset()` raises an `AttributeError` if no dataset has been loaded yet. Select a dataset and click "Load dataset" in the interface before calling it.
 
-### 2. Using MLD without the interface
+### 2. Using the API
 Everything the interface does can also be done in code with `med_diagnostics.api`. This is useful for scripts, batch jobs, or notebooks where you want to save or customise plots yourself. No session is needed.
 
 ```python

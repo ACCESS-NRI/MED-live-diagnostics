@@ -11,12 +11,26 @@ This tutorial walks through using Model Live Diagnostics (MLD) to:
 
 ### 1. Start an ARE session
 
-Start an [ARE JupyterLab session](https://are.nci.org.au/pun/sys/dashboard/batch_connect/sys/jupyter/ncigadi/session_contexts/new) using the ACCESS-NRI MED conda environment (`conda/access-med`), which has the `med_diagnostics` package pre-installed.
-To follow this tutorial, you need to be a member of these NCI projects, and add them to the ARE **Storage** setting (e.g. `gdata/xp65+gdata/ik11`):
+Start an [ARE JupyterLab session](https://are.nci.org.au/pun/sys/dashboard/batch_connect/sys/jupyter/ncigadi/session_contexts/new) using the [ACCESS-NRI Analysis3 conda environment](https://docs.access-hive.org.au/getting_started/environments/), which has the `med_diagnostics` package pre-installed.
+To follow this tutorial, you need to be a member of these NCI projects:
 
-- `xp65`: For the ACCESS-NRI MED conda environment and the [ACCESS-NRI Intake Catalogue](https://github.com/ACCESS-NRI/access-nri-intake-catalog).
-- `ik11`: For the ACCESS-OM2 reference model runs used in this tutorial.
-- The project containing your model output, if you want to use it for this tutorial. (e.g. `gdata/<project>` or `scratch/<project>`).
+- `xp65`: For the Analysis3 conda environment and the [ACCESS-NRI Intake Catalogue](https://github.com/ACCESS-NRI/access-nri-intake-catalog).
+- `ik11`: For the example ACCESS-OM2 run and the reference model runs used in this tutorial.
+- Optionally, the project containing your own model output, if you want to use it instead of the example run.
+
+Use the following settings:
+
+| Setting | Recommendation |
+| --- | --- |
+| Compute size | XX-Large (28 CPUs, 126 GB memory) |
+| Storage | `gdata/xp65+gdata/ik11`, plus `+gdata/<project>` or `+scratch/<project>` if using your own run |
+
+In **Advanced options**, use:
+
+| Setting | Value |
+| --- | --- |
+| Module directories | `/g/data/xp65/public/modules` |
+| Modules | `conda/analysis3` |
 
 ### 2. Start a live model diagnostic session
 
