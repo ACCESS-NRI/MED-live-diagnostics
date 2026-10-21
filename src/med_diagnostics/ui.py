@@ -694,7 +694,7 @@ class UserInterface:
         self.main_ui = pn.Column(
             self.session_start_widget_container,
             styles={"gap": "15px"},
-            loading=pn.state.param.busy,
+            # loading=pn.state.param.busy,
         )
         # Printing from a callback doesn't reliably reach the cell, so the session
         # banner is shown above the UI and updated in place on each start and end
