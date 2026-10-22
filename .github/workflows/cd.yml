@@ -4,7 +4,6 @@ on:
   push:
     tags:
       - '**'
-  pull_request:
 env:
   ARTIFACT_DIR: dist_artifact
 
@@ -34,61 +33,58 @@ jobs:
   publish-python-package:
     name: Publish Python Package
     uses: access-nri/actions/.github/workflows/publish-python-package.yml@main
-    with:
-        dry-run: true
     needs: test
     secrets: inherit
     permissions:
       actions: write
 
+  create-github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [get-package-name, publish-python-package]
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.publish-python-package.outputs.artifact-name }}
+          merge-multiple: true
+          path: ${{ env.ARTIFACT_DIR }}
 
-  # create-github-release:
-  #   name: Create GitHub Release
-  #   runs-on: ubuntu-latest
-  #   needs: [get-package-name, publish-python-package]
-  #   permissions:
-  #     contents: write
-  #   steps:
-  #     - name: Download artifact
-  #       uses: actions/download-artifact@v8
-  #       with:
-  #         name: ${{ needs.publish-python-package.outputs.artifact-name }}
-  #         merge-multiple: true
-  #         path: ${{ env.ARTIFACT_DIR }}
-
-  #     - name: Create Release
-  #       uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 #v3.0.3
-  #       with:
-  #         tag_name: ${{ github.ref_name }}
-  #         name: ${{ needs.get-package-name.outputs.package-name }} ${{ github.ref_name }}
-  #         generate_release_notes: true
-  #         fail_on_unmatched_files: true
-  #         files: ${{ env.ARTIFACT_DIR }}/*
-
-  # cleanup-on-failure:
-  #   name: Cleanup on failure
-  #   runs-on: ubuntu-latest
-  #   needs: create-github-release
-  #   # Run this job if any of the previous jobs failed, or if the workflow was cancelled
-  #   if: ${{ ( always() && failure() ) || cancelled() }}
-  #   permissions:
-  #     contents: write
-  #   env:
-  #     GH_TOKEN: ${{ github.token }}
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v7
-  #       with:
-  #         fetch-tags: true
-  #         fetch-depth: 0
-
-  #     # Delete newly created tag
-  #     - name: Cleanup tag
-  #       run: |
-  #         git push origin ':${{ github.ref }}'
-  #         echo "A job in the current workflow failed. Tag '${{ github.ref }}' was deleted."
-
-  #     # Delete newly created GitHub release
-  #     - name: Cleanup GitHub release
-  #       run: |
-  #          gh release delete '${{ github.ref_name }}' && echo "GitHub release was deleted." || echo "No GitHub release '${{ github.ref_name }}' to delete."
+      - name: Create Release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 #v3.0.3
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ needs.get-package-name.outputs.package-name }} ${{ github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: ${{ env.ARTIFACT_DIR }}/*
+    
+  cleanup-on-failure:
+    name: Cleanup on failure
+    runs-on: ubuntu-latest
+    needs: create-github-release
+    # Run this job if any of the previous jobs failed, or if the workflow was cancelled
+    if: ${{ ( always() && failure() ) || cancelled() }}
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-tags: true
+          fetch-depth: 0 
+      
+      # Delete newly created tag
+      - name: Cleanup tag
+        run: |
+          git push origin ':${{ github.ref }}'
+          echo "A job in the current workflow failed. Tag '${{ github.ref }}' was deleted."
+      
+      # Delete newly created GitHub release
+      - name: Cleanup GitHub release
+        run: |
+           gh release delete '${{ github.ref_name }}' && echo "GitHub release was deleted." || echo "No GitHub release '${{ github.ref_name }}' to delete."
