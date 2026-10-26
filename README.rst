@@ -1,5 +1,5 @@
 =========================================
-ACCESS-NRI Model Live Diagnostics v1.1
+ACCESS-NRI Model Live Diagnostics v1.1.0
 =========================================
 
 **Framework for interactive monitoring and diagnostic analyses of the ACCESS model suite.**
@@ -55,7 +55,7 @@ Getting started
 To use the med-diagnostics package use: ``import med_diagnostics``        
 
 
-The full documentation, including tutorials on getting started, the built-in analysis recipes, adding custom analyses and advanced usage, is available from `readthedocs <https://model-live-diagnostics.readthedocs.io/en/latest/>`_.
+The full documentation, including tutorials on getting started, the built-in analysis recipes, adding custom analyses and advanced usage, is available from `readthedocs <https://med-live-diagnostics.readthedocs.io/en/latest/>`_.
 The tutorial sources are in the `documentation/docs/notebooks <https://github.com/ACCESS-NRI/MED-live-diagnostics/tree/main/documentation/docs/notebooks>`_ directory.
 
 ------------

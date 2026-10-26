@@ -79,13 +79,13 @@ fig = api.plot_data(
 )
 ```
 
+`slices` picks the value of other dimensions to plot, using the nearest value. Dimensions you don't plot or slice use their first value. Use `dataset[variable].dims` to see which dimensions you can plot.
+
 An interactive heatmap returns a Panel layout, so put it on the last line of its own cell:
 
 ```python
 api.plot_data(dataset, "sst", x_axis="xt_ocean", y_axis="yt_ocean", animate_over="time")
 ```
-
-`slices` picks the value of other dimensions to plot, using the nearest value. Dimensions you don't plot or slice use their first value. Use `dataset[variable].dims` to see which dimensions you can plot.
 
 !!! tip "Showing figures"
     Assign plots to a variable (`fig = ...`), otherwise they show twice in a notebook.
