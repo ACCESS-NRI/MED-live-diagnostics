@@ -887,7 +887,6 @@ class UserInterface:
         )
 
         self.multiplot_ref_keys_selection_row = pn.Row(
-            self.multiplot_plot_variable_dropdown,
             self.multiplot_ref_keys_dropdown,
             self.multiplot_ref_keys_button,
             self.clear_multiplot_data_button,
@@ -895,7 +894,9 @@ class UserInterface:
         )
 
         self.multiplot_type_selection_row = pn.Row(
-            self.multiplot_plot_type_dropdown, self.multiplot_select_variable_button
+            self.multiplot_plot_variable_dropdown,
+            self.multiplot_plot_type_dropdown,
+            self.multiplot_select_variable_button,
         )
 
         # Add ref_keys_selection_row to widget_container
@@ -903,7 +904,6 @@ class UserInterface:
             self.multiplot_user_dataset_keys_selection_row
         )
         self.multiplot_widget_container.append(self.multiplot_ref_keys_selection_row)
-        self.multiplot_widget_container.append(self.multiplot_type_selection_row)
 
         # Add horizontal line divider to widget_container
         self.multiplot_divider = pn.layout.Divider(styles={"color": "white"})
@@ -1326,6 +1326,13 @@ class UserInterface:
                     self.multiplot_ref_dataset_dict[model_value]
                 ),
             )
+            if not self.multiplot_type_selection_row in self.multiplot_widget_container:
+                self._safe_add_to_widget(
+                    self.multiplot_widget_container,
+                    ["multiplot_ref_keys_selection_row"],
+                    self.multiplot_type_selection_row,
+                )
+
         elif self.multiplot_ref_keys_dropdown.value in self.multiplot_ref_dataset_dict:
             controller.update_textbox_text(
                 self.multiplot_warning_textbox,
@@ -1493,6 +1500,8 @@ class UserInterface:
             self.multiplot_status_textbox,
             "Overlay plot status >> Cleared loaded reference models",
         )
+        if self.multiplot_type_selection_row in self.multiplot_widget_container:
+            self.multiplot_widget_container.remove(self.multiplot_type_selection_row)
 
     def _display_dataset_plot_ui(self):
         """

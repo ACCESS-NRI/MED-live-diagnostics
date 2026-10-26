@@ -3226,27 +3226,26 @@ def test_initialise_multiplot_widgets(uninitialised_ui):
         ui.multiplot_years_files_text,
     ]
     assert list(ui.multiplot_ref_keys_selection_row) == [
-        ui.multiplot_plot_variable_dropdown,
         ui.multiplot_ref_keys_dropdown,
         ui.multiplot_ref_keys_button,
         ui.clear_multiplot_data_button,
         ui.multiplot_variable_toggle,
     ]
     assert list(ui.multiplot_type_selection_row) == [
+        ui.multiplot_plot_variable_dropdown,
         ui.multiplot_plot_type_dropdown,
         ui.multiplot_select_variable_button,
     ]
 
     # Verify all multiplot widgets were added to the container in the expected order
     container_items = list(ui.multiplot_widget_container)
-    assert container_items[:5] == [
+    assert container_items[:4] == [
         ui.multiplot_status_textbox,
         ui.multiplot_warning_textbox,
         ui.multiplot_user_dataset_keys_selection_row,
         ui.multiplot_ref_keys_selection_row,
-        ui.multiplot_type_selection_row,
     ]
-    assert isinstance(container_items[5], pn.layout.Divider)
+    assert isinstance(container_items[4], pn.layout.Divider)
 
 
 def test_enable_widgets_after_catalog_load(ui):
