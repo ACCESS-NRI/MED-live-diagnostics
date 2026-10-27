@@ -26,6 +26,10 @@ from med_diagnostics.types import (
     User,
 )
 
+# Hide Panel's name/button_type deprecation warnings triggered by MLD widgets
+for _category in (DeprecationWarning, PendingDeprecationWarning):
+    warnings.filterwarnings("ignore", category=_category, module=r"med_diagnostics\.")
+
 
 def _shows_errors(prefix):
     """
