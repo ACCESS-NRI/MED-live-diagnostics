@@ -423,7 +423,7 @@ def test_display_dataset_selection_ui(ui):
     # Verify that the dropdown options match the sorted catalog keys and button properties are set
     assert ui.keys_dropdown.options == sorted(ui.model_cat.keys())
     assert ui.keys_button.label == "Load dataset"
-    assert ui.keys_button.button_type == "primary"
+    assert ui.keys_button.color == "primary"
 
 
 @pytest.mark.parametrize(
@@ -469,7 +469,7 @@ def test_display_reference_dataset_selection_ui(
     )
     assert list(ui.ref_data_keys_dropdown.options) == sorted(ui.ref_model_cat.keys())
     assert ui.ref_data_keys_button.label == "Load reference dataset"
-    assert ui.ref_data_keys_button.button_type == "success"
+    assert ui.ref_data_keys_button.color == "success"
     assert hasattr(ui, "ref_data_keys_dropdown")
     assert hasattr(ui, "ref_data_keys_button")
 
@@ -3139,16 +3139,16 @@ def test_initialise_ref_widgets(uninitialised_ui):
 
     # Verify the reference model widgets are correctly labelled, styled and disabled by default
     assert ui.ref_keys_button.label == "Load reference model"
-    assert ui.ref_keys_button.button_type == "success"
+    assert ui.ref_keys_button.color == "success"
     assert ui.ref_keys_button.disabled is True
 
     assert ui.clear_ref_model_data_button.label == "Clear reference model"
-    assert ui.clear_ref_model_data_button.button_type == "danger"
+    assert ui.clear_ref_model_data_button.color == "danger"
     assert ui.clear_ref_model_data_button.disabled is True
     assert ui.ref_keys_dropdown.disabled is True
 
     assert ui.ref_model_info_button.label == "Reference model information"
-    assert ui.ref_model_info_button.button_type == "primary"
+    assert ui.ref_model_info_button.color == "primary"
     assert ui.ref_model_info_button.disabled is True
 
     assert list(ui.ref_keys_selection_row) == [

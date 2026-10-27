@@ -87,17 +87,17 @@ class UserInterface:
         "primary_button": {
             "styles": {},
             "margin": (23, 0, 0, 0),
-            "button_type": "primary",
+            "color": "primary",
         },
         "danger_button": {
             "styles": {},
             "margin": (23, 0, 0, 0),
-            "button_type": "danger",
+            "color": "danger",
         },
         "green_button": {
             "styles": {},
             "margin": (23, 0, 0, 0),
-            "button_type": "success",
+            "color": "success",
         },
         "years_mode": {
             "options": ["Most recent", "First", "All years"],
@@ -113,7 +113,7 @@ class UserInterface:
         "years_files_text": {"margin": (28, 0, 0, 10)},
         "remove_button": {
             "label": "Remove the above plot",
-            "button_type": "danger",
+            "color": "danger",
             "margin": (23, 0, 0, 10),
         },
         "variable_toggle": {
@@ -798,15 +798,15 @@ class UserInterface:
         self.ref_keys_dropdown.label = "2. Select reference model (optional):"
         self.ref_keys_dropdown.disabled = True
         self.ref_keys_button.label = "Load reference model"
-        self.ref_keys_button.button_type = "success"
+        self.ref_keys_button.color = "success"
         self.ref_keys_button.disabled = True
 
         self.clear_ref_model_data_button.label = "Clear reference model"
-        self.clear_ref_model_data_button.button_type = "danger"
+        self.clear_ref_model_data_button.color = "danger"
         self.clear_ref_model_data_button.disabled = True
 
         self.ref_model_info_button.label = "Reference model information"
-        self.ref_model_info_button.button_type = "primary"
+        self.ref_model_info_button.color = "primary"
         self.ref_model_info_button.disabled = True
 
         # Build reference selection row cleanly
@@ -1076,7 +1076,7 @@ class UserInterface:
         self.keys_dropdown.label = "1. Please select a dataset to monitor:"
         self.keys_dropdown.options = sorted(self.model_cat.keys())
         self.keys_button.label = "Load dataset"
-        self.keys_button.button_type = "primary"
+        self.keys_button.color = "primary"
 
         # Unhide the widgets via property updates rather than structural appends
         self.div_1.visible = True
@@ -1092,7 +1092,7 @@ class UserInterface:
         self.ref_data_keys_dropdown.label = "2.1. Select reference dataset (optional):"
         self._set_ref_data_keys(sorted(self.ref_model_cat.keys()))
         self.ref_data_keys_button.label = "Load reference dataset"
-        self.ref_data_keys_button.button_type = "success"
+        self.ref_data_keys_button.color = "success"
 
         # Add reference/comparison widgets to ref_data_keys_selection_row
         self.ref_data_keys_selection_row = pn.Row(
