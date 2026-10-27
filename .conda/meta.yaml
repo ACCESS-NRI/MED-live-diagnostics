@@ -22,9 +22,11 @@ requirements:
   run:
     - python >=3.10
     - access-nri-intake
-    - apscheduler
     - panel
     - matplotlib
+    - nc-time-axis
+    - hvplot
+    - datashader
 
 about:
   home: https://github.com/ACCESS-NRI/med-live-diagnostics
