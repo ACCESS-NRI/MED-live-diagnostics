@@ -104,10 +104,15 @@ class UserInterface:
             "value": "Most recent",
             "margin": (23, 0, 0, 10),
         },
-        "years_input": {"name": "Years to load", "start": 1, "value": 10, "width": 110},
+        "years_input": {
+            "label": "Years to load",
+            "start": 1,
+            "value": 10,
+            "width": 110,
+        },
         "years_files_text": {"margin": (28, 0, 0, 10)},
         "remove_button": {
-            "name": "Remove the above plot",
+            "label": "Remove the above plot",
             "button_type": "danger",
             "margin": (23, 0, 0, 10),
         },
@@ -163,20 +168,20 @@ class UserInterface:
         )
         # Build initial session start widgets
         self.live_model_path = pn.widgets.TextInput(
-            name="Path to model output directory/files on Gadi",
+            label="Path to model output directory/files on Gadi",
             placeholder="Enter path here, or leave blank to only view reference models",
             width=500,
         )
         self.model_type_dropdown = pn.widgets.Select(
-            name="Select model type",
+            label="Select model type",
             options=["CM2", "CM3", "ESM15", "ESM16", "MOM6", "OM2", "OM3", "AM3"],
             value="OM2",
         )
         self.start_session_button = pn.widgets.Button(
-            name="Start Session", **self._STYLES.get("green_button")
+            label="Start Session", **self._STYLES.get("green_button")
         )
         self.end_session_button = pn.widgets.Button(
-            name="End Session", disabled=True, **self._STYLES.get("danger_button")
+            label="End Session", disabled=True, **self._STYLES.get("danger_button")
         )
         self.session_status_textbox = pn.widgets.StaticText(
             **self._STYLES.get("status_text")
@@ -2174,7 +2179,7 @@ class UserInterface:
                 labels = [str(val) for val in coord_values]
             options_dict = dict(zip(labels, coord_values))
             slider = pn.widgets.DiscreteSlider(
-                name=f"Slice {dimension} at:", options=options_dict
+                label=f"Slice {dimension} at:", options=options_dict
             )
             labels = list(options_dict)
             text = pn.widgets.AutocompleteInput(
@@ -2619,12 +2624,12 @@ class UserInterface:
         panel.widgets.Widget
             A widget whose ``value`` is passed to the recipe as that parameter.
         """
-        # Options without a label fall back to the parameter name
+        # Options without a label fall back to the parameter label
         label = option.get("label") or option["name"]
         if option["units"]:
             label += f" ({option['units']})"
         kind, default = option["kind"], option["default"]
-        widget_kwargs = {"name": label}
+        widget_kwargs = {"label": label}
 
         if kind in ("data variable", "dimension", "choice"):
             choices = list(option["choices"] or [])
