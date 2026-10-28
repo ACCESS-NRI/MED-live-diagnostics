@@ -1,11 +1,11 @@
 =========================================
-ACCESS-NRI Model Live Diagnostics v1.1.0
+ACCESS-NRI Model Live Diagnostics v2.0.0
 =========================================
 
 **Framework for interactive monitoring and diagnostic analyses of the ACCESS model suite.**
 
 The ACCESS-NRI Model Live Diagnostics framework is designed to provide useful and practical Jupyter-based tools for interactive monitoring and diagnostic 
-analyses of currently running (aka 'live') ACCESS climate models on the `Australian NCI supercomputer Gadi <https://nci.org.au/our-systems/hpc-systems>`_.
+analyses of currently running (aka 'live') ACCESS climate models on the `Australian NCI supercomputer Gadi <https://nci.org.au/infrastructure/hpc-systems>`_.
 
 The primary purpose of the ACCESS-NRI Model Live Diagnostics package is to provide a simple, easy to use and accessible framework for the 
 ACCESS modelling community to check, monitor, visualise and evaluate model behaviour and progress on currently running or ‘live’ ACCESS 
@@ -56,7 +56,7 @@ To use the med-diagnostics package use: ``import med_diagnostics``
 
 
 The full documentation, including tutorials on getting started, the built-in analysis recipes, adding custom analyses and advanced usage, is available from `readthedocs <https://med-live-diagnostics.readthedocs.io/en/latest/>`_.
-The tutorial sources are in the `documentation/docs/notebooks <https://github.com/ACCESS-NRI/MED-live-diagnostics/tree/main/documentation/docs/pages/tutorials>`_ directory.
+The tutorial sources are in the `documentation/docs/pages/tutorials <https://github.com/ACCESS-NRI/MED-live-diagnostics/tree/main/documentation/docs/pages/tutorials>`_ directory.
 
 ------------
 
