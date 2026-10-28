@@ -422,8 +422,8 @@ def test_display_dataset_selection_ui(ui):
 
     # Verify that the dropdown options match the sorted catalog keys and button properties are set
     assert ui.keys_dropdown.options == sorted(ui.model_cat.keys())
-    assert ui.keys_button.name == "Load dataset"
-    assert ui.keys_button.button_type == "primary"
+    assert ui.keys_button.label == "Load dataset"
+    assert ui.keys_button.color == "primary"
 
 
 @pytest.mark.parametrize(
@@ -464,10 +464,12 @@ def test_display_reference_dataset_selection_ui(
         ui._display_reference_dataset_selection_ui()
 
     # Verify that the reference dataset dropdown and button properties are correctly configured
-    assert ui.ref_data_keys_dropdown.name == "2.1. Select reference dataset (optional):"
+    assert (
+        ui.ref_data_keys_dropdown.label == "2.1. Select reference dataset (optional):"
+    )
     assert list(ui.ref_data_keys_dropdown.options) == sorted(ui.ref_model_cat.keys())
-    assert ui.ref_data_keys_button.name == "Load reference dataset"
-    assert ui.ref_data_keys_button.button_type == "success"
+    assert ui.ref_data_keys_button.label == "Load reference dataset"
+    assert ui.ref_data_keys_button.color == "success"
     assert hasattr(ui, "ref_data_keys_dropdown")
     assert hasattr(ui, "ref_data_keys_button")
 
@@ -557,13 +559,13 @@ def test_plot_data_button_click(
         ui.x_axis_dropdown,
         ui.y_axis_dropdown,
     ]
-    names_before = [widget.name for widget in widgets]
+    names_before = [widget.label for widget in widgets]
 
     # Trigger the plot generation callback
     ui._plot_data_button_click()
 
     # Verify that widget labels stay fixed and the status text is updated
-    assert [widget.name for widget in widgets] == names_before
+    assert [widget.label for widget in widgets] == names_before
     assert ui.status_textbox.value == "User model status >> Plot created"
 
     assert ui.chosen_slices == expected_slices
@@ -641,13 +643,13 @@ def test_plot_ref_data_button_click(
         ui.ref_x_axis_dropdown,
         ui.ref_y_axis_dropdown,
     ]
-    names_before = [widget.name for widget in widgets]
+    names_before = [widget.label for widget in widgets]
 
     # Trigger the reference plot generation callback
     ui._ref_plot_data_button_click()
 
     # Verify that widget labels stay fixed and the status text is updated
-    assert [widget.name for widget in widgets] == names_before
+    assert [widget.label for widget in widgets] == names_before
     assert ui.ref_status_textbox.value == "Reference model status >> Plot created"
 
     assert ui.ref_chosen_slices == expected_slices
@@ -745,13 +747,13 @@ def test_plot_multiplot_data_button_click(
         ui.multiplot_x_axis_dropdown,
         ui.multiplot_y_axis_dropdown,
     ]
-    names_before = [widget.name for widget in widgets]
+    names_before = [widget.label for widget in widgets]
 
     # Trigger the multiplot plot generation callback
     ui._multiplot_plot_data_button_click()
 
     # Verify that widget labels stay fixed and the status text is updated
-    assert [widget.name for widget in widgets] == names_before
+    assert [widget.label for widget in widgets] == names_before
     assert ui.multiplot_status_textbox.value == "Overlay plot status >> Plot created"
 
     assert ui.multiplot_chosen_slices == expected_slices
@@ -810,12 +812,12 @@ def test_display_dataset_plot_ui(ui):
     ui._display_dataset_plot_ui()
 
     # Verify that the plot variable and type dropdowns, toggle, and buttons are correctly initialized
-    assert ui.plot_variable_dropdown.name == "Available variables"
+    assert ui.plot_variable_dropdown.label == "Available variables"
     assert ui.plot_variable_dropdown.options == sorted(dataset.keys())
-    assert ui.plot_type_dropdown.name == "Select plot type"
+    assert ui.plot_type_dropdown.label == "Select plot type"
     assert ui.plot_type_dropdown.options == ui.plot_type_mapping
     assert not ui.variable_toggle.value
-    assert ui.select_variable_button.name == "Select variable and plot type"
+    assert ui.select_variable_button.label == "Select variable and plot type"
 
     # Verify that the plot UI selection row is attached to the UI instance
     assert hasattr(ui, "plot_ui_row")
@@ -845,12 +847,12 @@ def test_ref_display_dataset_plot_ui(ui, datakeysexists):
     ui._ref_display_dataset_plot_ui()
 
     # Verify that the reference plot variable and type dropdowns, toggle, and buttons are correctly initialized
-    assert ui.ref_plot_variable_dropdown.name == "Available variables"
+    assert ui.ref_plot_variable_dropdown.label == "Available variables"
     assert ui.ref_plot_variable_dropdown.options == sorted(dataset.keys())
-    assert ui.ref_plot_type_dropdown.name == "Select plot type"
+    assert ui.ref_plot_type_dropdown.label == "Select plot type"
     assert ui.ref_plot_type_dropdown.options == ui.plot_type_mapping
     assert not ui.ref_variable_toggle.value
-    assert ui.ref_select_variable_button.name == "Select variable and plot type"
+    assert ui.ref_select_variable_button.label == "Select variable and plot type"
     assert hasattr(ui, "ref_plot_ui_row")
 
     # Verify that the reference plot UI row is positioned correctly within the widget container based on prior UI state
@@ -925,8 +927,8 @@ def test_display_plot_choices_ui(
     ui._display_plot_choices_ui()
 
     # Verify that the X-axis dropdown and select dimensions button names are correctly set
-    assert ui.x_axis_dropdown.name == "Select X-Axis dimension"
-    assert ui.select_dims_button.name == "Select dimensions"
+    assert ui.x_axis_dropdown.label == "Select X-Axis dimension"
+    assert ui.select_dims_button.label == "Select dimensions"
 
     # Verify that previous plot choice rows are successfully cleaned up from the container
     if has_existing_row:
@@ -969,13 +971,13 @@ def test_display_plot_choices_ui(
             )
 
         if expected_outcome == "success_heatmap":
-            assert ui.y_axis_dropdown.name == "Select Y-Axis dimension"
+            assert ui.y_axis_dropdown.label == "Select Y-Axis dimension"
             assert len(ui.plot_choices_row) == 3  # x, y, button
         elif expected_outcome == "success_line":
             assert len(ui.plot_choices_row) == 2  # x, button
         elif expected_outcome == "success_animation":
-            assert ui.y_axis_dropdown.name == "Select Y-Axis dimension"
-            assert ui.animation_axis_dropdown.name == "Select Z-Axis dimension"
+            assert ui.y_axis_dropdown.label == "Select Y-Axis dimension"
+            assert ui.animation_axis_dropdown.label == "Select Z-Axis dimension"
             assert len(ui.plot_choices_row) == 4  # x, y, z, button
 
     assert not hasattr(ui.user_widget_container, "plot_choices_row")
@@ -1043,8 +1045,8 @@ def test_ref_display_plot_choices_ui(
     ui._ref_display_plot_choices_ui()
 
     # Verify that the reference X-axis dropdown and select dimensions button names are correctly set
-    assert ui.ref_x_axis_dropdown.name == "Select X-Axis dimension"
-    assert ui.ref_select_dims_button.name == "Select dimensions"
+    assert ui.ref_x_axis_dropdown.label == "Select X-Axis dimension"
+    assert ui.ref_select_dims_button.label == "Select dimensions"
 
     # Verify that previous reference plot choice rows are successfully cleaned up from the container
     if has_existing_row:
@@ -1091,13 +1093,13 @@ def test_ref_display_plot_choices_ui(
             )
 
         if expected_outcome == "success_heatmap":
-            assert ui.ref_y_axis_dropdown.name == "Select Y-Axis dimension"
+            assert ui.ref_y_axis_dropdown.label == "Select Y-Axis dimension"
             assert len(ui.ref_plot_choices_row) == 3  # x, y, button
         elif expected_outcome == "success_line":
             assert len(ui.ref_plot_choices_row) == 2  # x, button
         elif expected_outcome == "success_animation":
-            assert ui.ref_y_axis_dropdown.name == "Select Y-Axis dimension"
-            assert ui.ref_animation_axis_dropdown.name == "Select Z-Axis dimension"
+            assert ui.ref_y_axis_dropdown.label == "Select Y-Axis dimension"
+            assert ui.ref_animation_axis_dropdown.label == "Select Z-Axis dimension"
             assert len(ui.ref_plot_choices_row) == 4  # x, y, z, button
     assert not hasattr(ui.ref_widget_container, "ref_plot_choices_row")
     assert not hasattr(ui.ref_widget_container, "ref_slice_widgets")
@@ -1150,7 +1152,7 @@ def test_keys_dropdown_click(ui, monkeypatch, fig_exists):
     ui.keys_dropdown.value = "an option"
 
     # Trigger the keys dropdown selection click handler
-    name_before = ui.keys_button.name
+    name_before = ui.keys_button.label
     ui._keys_dropdown_click()
 
     # Verify that the dataset builder is called with correct arguments
@@ -1161,7 +1163,7 @@ def test_keys_dropdown_click(ui, monkeypatch, fig_exists):
     # Verify that loaded dataset tracking, status message, and button properties are updated correctly
     assert ui.loaded_dataset_key == ui.keys_dropdown.value
     assert ui.status_textbox.value == "User model status >> Data successfully loaded"
-    assert ui.keys_button.name == name_before
+    assert ui.keys_button.label == name_before
 
     # Verify that either the dataset plot UI update or initial display method is called appropriately
     if fig_exists:
@@ -2184,7 +2186,7 @@ def test_display_slice_ui(
     assert list(widgets_dict.keys()) == expected_dims
     for dim in expected_dims:
         assert isinstance(widgets_dict[dim], pn.widgets.DiscreteSlider)
-        assert widgets_dict[dim].name == f"Slice {dim} at:"
+        assert widgets_dict[dim].label == f"Slice {dim} at:"
 
     # Verify the sliders share one line and the plot button sits on its own line below
     assert isinstance(ui_row, pn.Column)
@@ -2198,7 +2200,7 @@ def test_display_slice_ui(
     )
 
     # Verify status and button text updates
-    assert btn.name == "Plot data"
+    assert btn.label == "Plot data"
     mock_update_text.assert_called_once_with(
         txt,
         f"{expected_status_prefix} >> Action required: Select slice values and click Plot data",
@@ -2454,9 +2456,9 @@ def test_display_multiplot_plot_choices_ui(
     ui._display_multiplot_plot_choices_ui()
 
     # Base Assertions
-    assert ui.multiplot_x_axis_dropdown.name == "Select X-Axis dimension"
-    assert ui.multiplot_analysis_choice_dropdown.name == "Select analysis type"
-    assert ui.multiplot_select_dims_button.name == "Select dimensions"
+    assert ui.multiplot_x_axis_dropdown.label == "Select X-Axis dimension"
+    assert ui.multiplot_analysis_choice_dropdown.label == "Select analysis type"
+    assert ui.multiplot_select_dims_button.label == "Select dimensions"
 
     assert (
         ui.multiplot_analysis_choice_dropdown.options == ui.multiplot_analysis_mapping
@@ -2477,7 +2479,7 @@ def test_display_multiplot_plot_choices_ui(
         return
 
     if expected_scenario.startswith("heatmap_valid"):
-        assert ui.multiplot_y_axis_dropdown.name == "Select Y-Axis dimension"
+        assert ui.multiplot_y_axis_dropdown.label == "Select Y-Axis dimension"
         assert ui.multiplot_y_axis_dropdown.options == viable_dims
         # Y defaults to a different dimension from X
         expected_y = (
@@ -2638,7 +2640,7 @@ def test_multiplot_plot_data_button_click_line(ui, mock_multiplot_datasets):
     initial_widget_count = len(ui.multiplot_widget_container)
 
     # Execute button click directly
-    name_before = ui.multiplot_plot_button.name
+    name_before = ui.multiplot_plot_button.label
     ui._multiplot_plot_data_button_click()
 
     # Assert status text updated to final state
@@ -2655,7 +2657,7 @@ def test_multiplot_plot_data_button_click_line(ui, mock_multiplot_datasets):
     assert isinstance(plot_pane, pn.pane.Matplotlib)
     assert isinstance(plot_pane.object, plt.Figure)
 
-    assert ui.multiplot_plot_button.name == name_before
+    assert ui.multiplot_plot_button.label == name_before
 
 
 @pytest.mark.parametrize(
@@ -2809,13 +2811,13 @@ def test_reproduce_live_multiplot_flow(ui, mock_multiplot_datasets):
     assert hasattr(ui, "multiplot_plot_choices_row")
     assert ui.multiplot_plot_choices_row in ui.multiplot_widget_container
     assert ui.multiplot_x_axis_dropdown.value == "time"
-    assert ui.multiplot_select_dims_button.name == "Select dimensions"
+    assert ui.multiplot_select_dims_button.label == "Select dimensions"
 
     # Simulate clicking "Select dimensions"; time is the only dimension, so the row holds just the plot button
     ui._multiplot_select_dims_button_click(None)
     assert len(ui.multiplot_slice_ui_row) == 1
     assert ui.multiplot_slice_ui_row[0] is ui.multiplot_plot_button
-    assert ui.multiplot_plot_button.name == "Plot data"
+    assert ui.multiplot_plot_button.label == "Plot data"
 
     # Simulate clicking "Plot data"
     initial_widget_count = len(ui.multiplot_widget_container)
@@ -2829,8 +2831,8 @@ def test_reproduce_live_multiplot_flow(ui, mock_multiplot_datasets):
     # The choices stay on screen, so they can be changed and plotted again
     assert ui.multiplot_plot_choices_row in ui.multiplot_widget_container
     assert ui.multiplot_slice_ui_row in ui.multiplot_widget_container
-    assert ui.multiplot_plot_button.name == "Plot data"
-    assert ui.multiplot_select_dims_button.name == "Select dimensions"
+    assert ui.multiplot_plot_button.label == "Plot data"
+    assert ui.multiplot_select_dims_button.label == "Select dimensions"
 
     # A second plot goes on top, directly under the plot row, above the first
     items = list(ui.multiplot_widget_container)
@@ -3133,20 +3135,20 @@ def test_initialise_ref_widgets(uninitialised_ui):
         ui.ref_status_textbox.value == "Waiting for user model catalog to be built..."
     )
 
-    assert ui.ref_keys_dropdown.name == "2. Select reference model (optional):"
+    assert ui.ref_keys_dropdown.label == "2. Select reference model (optional):"
 
     # Verify the reference model widgets are correctly labelled, styled and disabled by default
-    assert ui.ref_keys_button.name == "Load reference model"
-    assert ui.ref_keys_button.button_type == "success"
+    assert ui.ref_keys_button.label == "Load reference model"
+    assert ui.ref_keys_button.color == "success"
     assert ui.ref_keys_button.disabled is True
 
-    assert ui.clear_ref_model_data_button.name == "Clear reference model"
-    assert ui.clear_ref_model_data_button.button_type == "danger"
+    assert ui.clear_ref_model_data_button.label == "Clear reference model"
+    assert ui.clear_ref_model_data_button.color == "danger"
     assert ui.clear_ref_model_data_button.disabled is True
     assert ui.ref_keys_dropdown.disabled is True
 
-    assert ui.ref_model_info_button.name == "Reference model information"
-    assert ui.ref_model_info_button.button_type == "primary"
+    assert ui.ref_model_info_button.label == "Reference model information"
+    assert ui.ref_model_info_button.color == "primary"
     assert ui.ref_model_info_button.disabled is True
 
     assert list(ui.ref_keys_selection_row) == [
@@ -3183,25 +3185,25 @@ def test_initialise_multiplot_widgets(uninitialised_ui):
     )
 
     assert (
-        ui.multiplot_ref_keys_dropdown.name
+        ui.multiplot_ref_keys_dropdown.label
         == "Select one or more reference models to overlay (optional):"
     )
 
     # Verify the multiplot widgets are correctly labelled and disabled by default
-    assert ui.multiplot_ref_keys_button.name == "Add reference model"
+    assert ui.multiplot_ref_keys_button.label == "Add reference model"
     assert ui.multiplot_ref_keys_button.disabled is True
 
-    assert ui.clear_multiplot_data_button.name == "Clear loaded data"
+    assert ui.clear_multiplot_data_button.label == "Clear loaded data"
     assert ui.clear_multiplot_data_button.disabled is True
 
-    assert ui.multiplot_select_variable_button.name == "Select variable and plot type"
+    assert ui.multiplot_select_variable_button.label == "Select variable and plot type"
     assert ui.multiplot_select_variable_button.disabled is True
 
     # Verify the user dataset/variable dropdowns mirror the primary tab's selections
-    assert ui.multiplot_keys_dropdown.name == "Select user dataset"
+    assert ui.multiplot_keys_dropdown.label == "Select user dataset"
     assert ui.multiplot_keys_dropdown.value == ui.keys_dropdown.value
 
-    assert ui.multiplot_keys_update_button.name == "Load dataset"
+    assert ui.multiplot_keys_update_button.label == "Load dataset"
     assert ui.multiplot_keys_update_button.disabled is True
     assert ui.multiplot_variable_toggle.disabled is True
 
@@ -3209,12 +3211,12 @@ def test_initialise_multiplot_widgets(uninitialised_ui):
     assert ui.multiplot_ref_keys_dropdown.disabled is True
     assert ui.multiplot_plot_type_dropdown.disabled is True
 
-    assert ui.multiplot_plot_variable_dropdown.name == "Variable selection"
+    assert ui.multiplot_plot_variable_dropdown.label == "Variable selection"
     assert ui.multiplot_plot_variable_dropdown.options == sorted(
         ui.plot_variable_dropdown.options
     )
 
-    assert ui.multiplot_plot_type_dropdown.name == "Select plot type"
+    assert ui.multiplot_plot_type_dropdown.label == "Select plot type"
     assert ui.multiplot_plot_type_dropdown.options == ui.multiplot_type_mapping
 
     # Verify the selection rows group the correct widgets together
@@ -3484,7 +3486,7 @@ def test_display_analysis_recipe_options_ui(analysis_ui, monkeypatch):
     assert widgets["variable"].value == "o2"
     assert widgets["lvl_dim"].value == "st_ocean"
     assert isinstance(widgets["depth"], pn.widgets.FloatInput)
-    assert widgets["depth"].name == "depth (m)"
+    assert widgets["depth"].label == "depth (m)"
     assert ui.analysis_recipe_info.value == (
         "For MOM5 output (ACCESS-OM2, ACCESS-ESM1.6)."
     )
@@ -3641,7 +3643,7 @@ def test_recipe_option_widget_label(ui, extra, expected):
         "description": None,
         **extra,
     }
-    assert ui._build_recipe_option_widget(option).name == expected
+    assert ui._build_recipe_option_widget(option).label == expected
 
 
 def _newest_analysis_plot(ui):

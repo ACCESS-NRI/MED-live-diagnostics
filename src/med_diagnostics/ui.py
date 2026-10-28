@@ -87,28 +87,33 @@ class UserInterface:
         "primary_button": {
             "styles": {},
             "margin": (23, 0, 0, 0),
-            "button_type": "primary",
+            "color": "primary",
         },
         "danger_button": {
             "styles": {},
             "margin": (23, 0, 0, 0),
-            "button_type": "danger",
+            "color": "danger",
         },
         "green_button": {
             "styles": {},
             "margin": (23, 0, 0, 0),
-            "button_type": "success",
+            "color": "success",
         },
         "years_mode": {
             "options": ["Most recent", "First", "All years"],
             "value": "Most recent",
             "margin": (23, 0, 0, 10),
         },
-        "years_input": {"name": "Years to load", "start": 1, "value": 10, "width": 110},
+        "years_input": {
+            "label": "Years to load",
+            "start": 1,
+            "value": 10,
+            "width": 110,
+        },
         "years_files_text": {"margin": (28, 0, 0, 10)},
         "remove_button": {
-            "name": "Remove the above plot",
-            "button_type": "danger",
+            "label": "Remove the above plot",
+            "color": "danger",
             "margin": (23, 0, 0, 10),
         },
         "variable_toggle": {
@@ -163,20 +168,20 @@ class UserInterface:
         )
         # Build initial session start widgets
         self.live_model_path = pn.widgets.TextInput(
-            name="Path to model output directory/files on Gadi",
+            label="Path to model output directory/files on Gadi",
             placeholder="Enter path here, or leave blank to only view reference models",
             width=500,
         )
         self.model_type_dropdown = pn.widgets.Select(
-            name="Select model type",
+            label="Select model type",
             options=["CM2", "CM3", "ESM15", "ESM16", "MOM6", "OM2", "OM3", "AM3"],
             value="OM2",
         )
         self.start_session_button = pn.widgets.Button(
-            name="Start Session", **self._STYLES.get("green_button")
+            label="Start Session", **self._STYLES.get("green_button")
         )
         self.end_session_button = pn.widgets.Button(
-            name="End Session", disabled=True, **self._STYLES.get("danger_button")
+            label="End Session", disabled=True, **self._STYLES.get("danger_button")
         )
         self.session_status_textbox = pn.widgets.StaticText(
             **self._STYLES.get("status_text")
@@ -770,7 +775,7 @@ class UserInterface:
         )
         self.user_widget_container.append(widgets_to_add)
 
-        self.refresh_catalog_button.name = "Refresh model data catalog"
+        self.refresh_catalog_button.label = "Refresh model data catalog"
         self.refresh_catalog_button.disabled = True
 
         controller.update_textbox_text(
@@ -790,18 +795,18 @@ class UserInterface:
         )
 
         # Populate reference/comparison model widgets
-        self.ref_keys_dropdown.name = "2. Select reference model (optional):"
+        self.ref_keys_dropdown.label = "2. Select reference model (optional):"
         self.ref_keys_dropdown.disabled = True
-        self.ref_keys_button.name = "Load reference model"
-        self.ref_keys_button.button_type = "success"
+        self.ref_keys_button.label = "Load reference model"
+        self.ref_keys_button.color = "success"
         self.ref_keys_button.disabled = True
 
-        self.clear_ref_model_data_button.name = "Clear reference model"
-        self.clear_ref_model_data_button.button_type = "danger"
+        self.clear_ref_model_data_button.label = "Clear reference model"
+        self.clear_ref_model_data_button.color = "danger"
         self.clear_ref_model_data_button.disabled = True
 
-        self.ref_model_info_button.name = "Reference model information"
-        self.ref_model_info_button.button_type = "primary"
+        self.ref_model_info_button.label = "Reference model information"
+        self.ref_model_info_button.color = "primary"
         self.ref_model_info_button.disabled = True
 
         # Build reference selection row cleanly
@@ -839,26 +844,26 @@ class UserInterface:
         )
 
         # Populate reference/comparison model widgets
-        self.multiplot_ref_keys_dropdown.name = (
+        self.multiplot_ref_keys_dropdown.label = (
             "Select one or more reference models to overlay (optional):"
         )
         self.multiplot_ref_keys_dropdown.options = ["Waiting for model to load"]
-        self.multiplot_ref_keys_button.name = "Add reference model"
+        self.multiplot_ref_keys_button.label = "Add reference model"
         self.multiplot_ref_keys_button.disabled = True
         self.multiplot_years_mode.disabled = True
         self.multiplot_years_input.disabled = True
 
-        self.clear_multiplot_data_button.name = "Clear loaded data"
+        self.clear_multiplot_data_button.label = "Clear loaded data"
         self.clear_multiplot_data_button.disabled = True
 
-        self.multiplot_select_variable_button.name = "Select variable and plot type"
+        self.multiplot_select_variable_button.label = "Select variable and plot type"
         self.multiplot_select_variable_button.disabled = True
 
-        self.multiplot_keys_dropdown.name = "Select user dataset"
+        self.multiplot_keys_dropdown.label = "Select user dataset"
         self.multiplot_keys_dropdown.options = ["Waiting for model to load"]
         self.multiplot_keys_dropdown.value = self.keys_dropdown.value
 
-        self.multiplot_keys_update_button.name = "Load dataset"
+        self.multiplot_keys_update_button.label = "Load dataset"
         self.multiplot_keys_update_button.disabled = True
         self.multiplot_keys_dropdown.disabled = True
 
@@ -868,14 +873,14 @@ class UserInterface:
         self.multiplot_ref_keys_dropdown.disabled = True
         self.multiplot_plot_type_dropdown.disabled = True
 
-        self.multiplot_plot_variable_dropdown.name = "Variable selection"
+        self.multiplot_plot_variable_dropdown.label = "Variable selection"
         self.multiplot_plot_variable_dropdown.options = sorted(
             self.plot_variable_dropdown.options
         )
         self.multiplot_plot_variable_dropdown.value = self._get_variable_helper(
             section=User()
         )
-        self.multiplot_plot_type_dropdown.name = "Select plot type"
+        self.multiplot_plot_type_dropdown.label = "Select plot type"
         self.multiplot_plot_type_dropdown.options = self.multiplot_type_mapping
 
         self.multiplot_user_dataset_keys_selection_row = pn.Row(
@@ -923,22 +928,22 @@ class UserInterface:
         )
 
         # Populate dataset selection widgets
-        self.analysis_keys_dropdown.name = "Select dataset to analyse"
+        self.analysis_keys_dropdown.label = "Select dataset to analyse"
         self.analysis_keys_dropdown.options = ["Waiting for model to load"]
         self.analysis_keys_dropdown.disabled = True
-        self.analysis_keys_button.name = "Load dataset"
+        self.analysis_keys_button.label = "Load dataset"
         self.analysis_keys_button.disabled = True
         self.analysis_years_mode.disabled = True
         self.analysis_years_input.disabled = True
 
         # Populate recipe selection widgets
-        self.analysis_recipe_dropdown.name = "Select analysis recipe"
+        self.analysis_recipe_dropdown.label = "Select analysis recipe"
         self._refresh_analysis_recipes()
         self.analysis_recipe_dropdown.disabled = True
-        self.analysis_select_recipe_button.name = "Select recipe"
+        self.analysis_select_recipe_button.label = "Select recipe"
         self.analysis_select_recipe_button.disabled = True
 
-        self.analysis_refresh_button.name = "Refresh analysis recipes"
+        self.analysis_refresh_button.label = "Refresh analysis recipes"
         self.analysis_refresh_button.disabled = True
 
         self.analysis_keys_selection_row = pn.Row(
@@ -1068,10 +1073,10 @@ class UserInterface:
         """
 
         # Populate user model widgets
-        self.keys_dropdown.name = "1. Please select a dataset to monitor:"
+        self.keys_dropdown.label = "1. Please select a dataset to monitor:"
         self.keys_dropdown.options = sorted(self.model_cat.keys())
-        self.keys_button.name = "Load dataset"
-        self.keys_button.button_type = "primary"
+        self.keys_button.label = "Load dataset"
+        self.keys_button.color = "primary"
 
         # Unhide the widgets via property updates rather than structural appends
         self.div_1.visible = True
@@ -1084,10 +1089,10 @@ class UserInterface:
 
         """
         # Populate reference/comparison dataset widgets
-        self.ref_data_keys_dropdown.name = "2.1. Select reference dataset (optional):"
+        self.ref_data_keys_dropdown.label = "2.1. Select reference dataset (optional):"
         self._set_ref_data_keys(sorted(self.ref_model_cat.keys()))
-        self.ref_data_keys_button.name = "Load reference dataset"
-        self.ref_data_keys_button.button_type = "success"
+        self.ref_data_keys_button.label = "Load reference dataset"
+        self.ref_data_keys_button.color = "success"
 
         # Add reference/comparison widgets to ref_data_keys_selection_row
         self.ref_data_keys_selection_row = pn.Row(
@@ -1533,14 +1538,14 @@ class UserInterface:
             select_variable_button = self.ref_select_variable_button
             dataset = self.ref_dataset
 
-        plot_variable_dropdown.name = "Available variables"
+        plot_variable_dropdown.label = "Available variables"
         plot_variable_dropdown.options = sorted(dataset.keys())
 
-        plot_type_dropdown.name = "Select plot type"
+        plot_type_dropdown.label = "Select plot type"
         plot_type_dropdown.options = self.plot_type_mapping
         variable_toggle.value = False
 
-        select_variable_button.name = "Select variable and plot type"
+        select_variable_button.label = "Select variable and plot type"
 
         plot_ui_row = pn.Row(
             plot_variable_dropdown,
@@ -1610,9 +1615,9 @@ class UserInterface:
             dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"
         ]
 
-        x_dropdown.name = "Select X-Axis dimension"
+        x_dropdown.label = "Select X-Axis dimension"
         x_dropdown.options = sorted(viable_dims)
-        select_dims_button.name = "Select dimensions"
+        select_dims_button.label = "Select dimensions"
         only_one_dim = False
 
         # If the user chooses to plot a heatmap, allow them to choose the Y-axis
@@ -1625,7 +1630,7 @@ class UserInterface:
                 )
                 plot_type_dropdown.value = Line()
             else:
-                y_dropdown.name = "Select Y-Axis dimension"
+                y_dropdown.label = "Select Y-Axis dimension"
                 y_dropdown.options = sorted(viable_dims)
                 plot_choices_row = pn.Row(x_dropdown, y_dropdown, select_dims_button)
         elif isinstance(plot_type_dropdown.value, Line):
@@ -1647,9 +1652,9 @@ class UserInterface:
                 )
                 plot_type_dropdown.value = Line()
             else:
-                y_dropdown.name = "Select Y-Axis dimension"
+                y_dropdown.label = "Select Y-Axis dimension"
                 y_dropdown.options = sorted(viable_dims)
-                animation_dropdown.name = "Select Z-Axis dimension"
+                animation_dropdown.label = "Select Z-Axis dimension"
                 animation_dropdown.options = sorted(viable_dims)
                 plot_choices_row = pn.Row(
                     x_dropdown,
@@ -1712,7 +1717,7 @@ class UserInterface:
             [dim for dim, size in dim_sizes.items() if size > 1 and dim != "nv"]
         )
 
-        self.multiplot_x_axis_dropdown.name = "Select X-Axis dimension"
+        self.multiplot_x_axis_dropdown.label = "Select X-Axis dimension"
         self.multiplot_x_axis_dropdown.options = viable_dims
 
         # Ensure x_axis has a valid default selection if viable dims exist
@@ -1722,11 +1727,11 @@ class UserInterface:
         else:
             self.multiplot_x_axis_dropdown.value = None
 
-        self.multiplot_analysis_choice_dropdown.name = "Select analysis type"
+        self.multiplot_analysis_choice_dropdown.label = "Select analysis type"
         self.multiplot_analysis_choice_dropdown.options = (
             self.multiplot_analysis_mapping
         )
-        self.multiplot_select_dims_button.name = "Select dimensions"
+        self.multiplot_select_dims_button.label = "Select dimensions"
 
         plot_type = self.multiplot_plot_type_dropdown.value
 
@@ -1740,7 +1745,7 @@ class UserInterface:
                 self.multiplot_plot_type_dropdown.value = Line()
                 return
 
-            self.multiplot_y_axis_dropdown.name = "Select Y-Axis dimension"
+            self.multiplot_y_axis_dropdown.label = "Select Y-Axis dimension"
             self.multiplot_y_axis_dropdown.options = viable_dims
             # Default Y to a different dimension if possible
             if (
@@ -2174,7 +2179,7 @@ class UserInterface:
                 labels = [str(val) for val in coord_values]
             options_dict = dict(zip(labels, coord_values))
             slider = pn.widgets.DiscreteSlider(
-                name=f"Slice {dimension} at:", options=options_dict
+                label=f"Slice {dimension} at:", options=options_dict
             )
             labels = list(options_dict)
             text = pn.widgets.AutocompleteInput(
@@ -2236,13 +2241,13 @@ class UserInterface:
                 self.multiplot_analysis_choice_dropdown.value, DiffAnalysis
             )
         ):
-            self.prompt_bounds_dropdown.name = (
+            self.prompt_bounds_dropdown.label = (
                 "Choose how to constrain the x-axis bounds"
             )
             self.prompt_bounds_dropdown.options = self.prompt_bounds_mapping
             slice_ui_row.append(self.prompt_bounds_dropdown)
 
-        button.name = "Plot data"
+        button.label = "Plot data"
         slice_ui_row.append(button)
 
         # Insert the slice UI below the plot choices row
@@ -2573,7 +2578,7 @@ class UserInterface:
             option["name"]: self._build_recipe_option_widget(option)
             for option in kwarg_options
         }
-        self.analysis_plot_button.name = "Plot data"
+        self.analysis_plot_button.label = "Plot data"
 
         # Only recipes that take a data variable need the long name toggle
         self.analysis_variable_widgets = [
@@ -2619,12 +2624,12 @@ class UserInterface:
         panel.widgets.Widget
             A widget whose ``value`` is passed to the recipe as that parameter.
         """
-        # Options without a label fall back to the parameter name
+        # Options without a label fall back to the parameter label
         label = option.get("label") or option["name"]
         if option["units"]:
             label += f" ({option['units']})"
         kind, default = option["kind"], option["default"]
-        widget_kwargs = {"name": label}
+        widget_kwargs = {"label": label}
 
         if kind in ("data variable", "dimension", "choice"):
             choices = list(option["choices"] or [])
@@ -2722,7 +2727,7 @@ class UserInterface:
         """
         # Create a remove button for each plot that is added
         remove_btn = pn.widgets.Button(**self._STYLES.get("remove_button"))
-        remove_btn.name = "Remove Plot"
+        remove_btn.label = "Remove Plot"
         # Group the plot and the button together
         plot_group = pn.Column(plot_pane, remove_btn, margin=(0, 0, 25, 0))
 
