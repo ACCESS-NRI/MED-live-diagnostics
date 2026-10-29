@@ -761,7 +761,7 @@ details.code {
 
 /* Text */
 :is(.funding,.partners) > *:first-child {
-  font-size: 1.2em;
+  font-size: 0.8em;
   font-weight: 500;
   display: flex;
   justify-content: center;
@@ -788,7 +788,9 @@ details.code {
 
 :is(.funding,.partners) > *:last-child a > img {
   margin: auto;
-  max-height: 4rem;
+  height: 2.5rem;
+  width: auto;
+  object-fit: contain;
 }
 .md-footer-meta__inner > * {
   display: flex;
@@ -900,55 +902,62 @@ details.code {
   Header Buttons CSS - "Hive Forum", "ACCESS-NRI", "Contribute"
 */
 .header-btn-container {
-  max-width: 20rem;
+  /* max-width: 20rem; */
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
   justify-content: flex-end;
-  align-items: stretch;
-  gap: 0.8rem;
+  align-items: center;
+  gap: 0.5rem;
   margin: 0 .5rem;
 }
 
 .header-btn {
-  flex-basis: 33.333%;
-  flex-grow: 1;
+  flex: 0 0 auto;
   display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
   justify-content: center;
   align-items: center;
-  gap: 0.2rem;
+  box-sizing: border-box;
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0.25rem;
   border-radius: 0.3rem;
   border: 1px solid;
-  padding: 0 0.3rem;
-  height: 1.6rem;
   color: var(--md-primary-bg-color);
 }
-
 .header-btn:hover {
   transition-duration: 0.3s;
   transition-property: all;
 }
-/* Hive Forum btn */
-.header-btn:first-child {
+/* icon: works for <img> or an inline <svg> */
+.header-btn img,
+.header-btn svg {
+  display: block;
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  fill: currentColor;   /* only affects svg */
+}
+/* Hive Docs btn */
+.header-btn:nth-child(1) {
   border-color: var(--nri-orange);
 }
-.header-btn:first-child:hover {
+.header-btn:nth-child(1):hover {
+  background-color: rgba(var(--nri-orange-color),0.14);
+}
+/* Hive Forum btn */
+.header-btn:nth-child(2) {
+  border-color: var(--nri-orange);
+}
+.header-btn:nth-child(2):hover {
   background-color: rgba(var(--nri-orange-color),0.14);
 }
 /* ACCESS-NRI btn */
-.header-btn:nth-child(2) {
-  border-color: var(--nri-blue);
-}
-.header-btn:nth-child(2):hover {
-  background-color: rgba(var(--nri-blue-color),0.14);
-}
-/* Contribute btn */
-.header-btn:last-child {
+.header-btn:nth-child(3) {
   border-color: var(--md-primary-bg-color);
 }
-.header-btn:last-child:hover {
+.header-btn:nth-child(3):hover {
   background-color: rgba(var(--primary-bg-color),0.14);
 }
 
