@@ -55,7 +55,7 @@ Getting started
 To use the med-diagnostics package use: ``import med_diagnostics``        
 
 
-The full documentation, including tutorials on getting started, the built-in analysis recipes, adding custom analyses and advanced usage, is available from `readthedocs <https://med-live-diagnostics.readthedocs.io/en/latest/>`_.
+The full documentation, including tutorials on getting started, the built-in analysis recipes, adding custom analyses and advanced usage, is available from the `documentation site <https://model-live-diagnostics.access-hive.org.au/latest/>`_.
 The tutorial sources are in the `documentation/docs/pages/tutorials <https://github.com/ACCESS-NRI/MED-live-diagnostics/tree/main/documentation/docs/pages/tutorials>`_ directory.
 
 ------------
@@ -68,8 +68,8 @@ The tutorial sources are in the `documentation/docs/pages/tutorials <https://git
 | License       | |license|                           |
 +---------------+-------------------------------------+
 
-.. |docs| image:: https://readthedocs.org/projects/med-live-diagnostics/badge/?version=latest
-        :target: https://med-live-diagnostics.readthedocs.io/en/latest/?badge=latest
+.. |docs| image:: https://readthedocs.org/projects/model-live-diagnostics/badge/?version=latest
+        :target: https://model-live-diagnostics.access-hive.org.au/latest/
         :alt: Documentation Status
 
 .. |pypi| image:: https://img.shields.io/pypi/v/med-diagnostics

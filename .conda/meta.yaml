@@ -33,7 +33,7 @@ about:
   license: Apache Software
   license_family: APACHE
   summary: "Interactive monitoring and diagnostic analyses of ACCESS climate models"
-  doc_url: https://med-live-diagnostics.readthedocs.io/en/latest
+  doc_url: https://model-live-diagnostics.access-hive.org.au/latest
 
 extra:
   recipe-maintainers:
