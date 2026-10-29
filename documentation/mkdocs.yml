@@ -33,11 +33,14 @@ nav:
   - API reference: pages/api.md
   - Contributing:
     - pages/contributing/index.md
-    - Code: pages/contributing/code.md
-    - Documentation: pages/contributing/docs.md
-    - Issues and feature requests: pages/contributing/issues.md
+    - Feature requests and bug reports: pages/contributing/issues.md
     - Contributing recipes: pages/contributing/recipes.md
     - Adding model types: pages/contributing/models.md
+    - Code: pages/contributing/code.md
+    - Documentation: pages/contributing/docs.md
+    
+    
+    
 
 
 # Theme configuration
@@ -194,6 +197,7 @@ extra_css:
   - css/responsiveness.css
 
 extra_javascript:
+  - js/mathjax.js # MathJax config, must load before MathJax
   - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js # For pymdownx.arithmatex extension
   - https://cdn.jsdelivr.net/gh/atteggiani/animated-terminal@3.1/animated-terminal.min.js # Terminal animations
   - js/custom.js

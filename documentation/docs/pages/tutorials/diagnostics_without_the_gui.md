@@ -50,7 +50,7 @@ client = Client(threads_per_worker=1)
 ```
 
 #### Load your model output
-`api.build_catalog` builds a datastore of your run, the same way "Start Session" does. It is saved under `~/.med_diagnostics/catalogs` and reused next time if your output hasn't changed. A path that doesn't exist, or an unsupported model type, raises a `ValueError`.
+`api.build_catalog` builds a datastore of your run, the same way [Start Session](getting_started_tutorial.md#21-monitor-your-own-run) does. It is saved under `~/.med_diagnostics/catalogs` and reused next time if your output hasn't changed. A path that doesn't exist, or an unsupported model type, raises a `ValueError`.
 
 ```python
 user_cat = api.build_catalog(
@@ -91,7 +91,7 @@ api.plot_data(dataset, "sst", x_axis="xt_ocean", y_axis="yt_ocean", animate_over
     Assign plots to a variable (`fig = ...`), otherwise they show twice in a notebook.
 
 #### Compare with reference models
-Load the ACCESS-NRI reference catalogue, pick a model, and add its datasets to a dictionary of references. Each reference is converted to your dataset's calendar so the two can be plotted together.
+Load the [ACCESS-NRI Intake Catalogue](https://access-nri-intake-catalog.readthedocs.io/en/latest/), a searchable index of published ACCESS model runs on Gadi, pick a model, and add its datasets to a dictionary of references. Each reference is converted to your dataset's calendar so the two can be plotted together.
 
 ```python
 ref_cat = api.load_reference_catalog("OM2")

@@ -1,12 +1,12 @@
-# Adding Custom Analyses
+# Adding custom analyses
 
-Learn how to create and integrate custom analyses into the Model Live Diagnostics (MLD) package. By the end of this tutorial, you will know how to implement a custom analysis that automatically generates interactive UI controls based on user selection. Any analysis that can be computed with `xarray` and plotted via `matplotlib.pyplot` can be integrated into the analysis section.
+Learn how to create and integrate custom analyses into the Model Live Diagnostics (MLD) package. By the end of this tutorial, you will know how to implement a custom analysis that automatically generates interactive user interface (UI) controls based on user selection. Any analysis that can be computed with [xarray](https://docs.xarray.dev/en/stable/) and plotted via [matplotlib.pyplot](https://matplotlib.org/stable/index.html) can be integrated into the analysis section.
 
 For setup guidance, refer to the [Getting Started Tutorial](getting_started_tutorial.md).
 
 ---
 ## How the analysis section works
-### Analysis Interface
+### Analysis interface
 
 The **Run analysis recipes** section provides a dropdown menu of predefined analyses (and user-defined analyses once they are added!). Selecting an analysis dynamically populates the interface with the required input widgets. 
 
@@ -15,7 +15,7 @@ The **Run analysis recipes** section provides a dropdown menu of predefined anal
 ## Building a custom analysis
 The MLD package is designed to require minimal modifications to a typical analysis written for an `xarray.Dataset`. To add a custom analysis to the current MLD session, define a function that takes an `xarray.Dataset` as input, and returns an `xr.DataArray` as output, and register it in the session using `analysis.register_analysis(your_defined_function)`.
 
-### The Minimum Recipe
+### The minimum recipe
 Import the following packages to enable adding custom analyses to MLD:
 
 ```python
@@ -46,15 +46,15 @@ Click **Select recipe** and then **Plot data**. The analysis will run and displa
 
 <img src="/assets/tutorials/Analysis_minimal_recipe_plot.png" alt="Model Live Diagnostics custom analysis plot output" style="width: 100%; height: auto;">
 
-!!! tip "Re-registering Recipes"
+!!! tip "Re-registering recipes"
     Recipes are stored by function name. Re-run the cell and click **Refresh analysis recipes** again to pick up any changes.
 
 
-### Building a Recipe That Takes Arguments
+### Building a recipe that takes arguments
 
 Let's build on the minimum recipe. What if we want to generalise it so we can easily select *any* variable or dimension to average? 
 
-To do this, we define the function arguments using `typing.Annotated`. MLD reads these annotations to automatically understand what type of data the function expects. 
+To do this, we define the function arguments using [`typing.Annotated`](https://docs.python.org/3/library/typing.html#typing.Annotated). MLD reads these annotations to automatically understand what type of data the function expects. 
 
 #### Defining arguments
 Each argument after `ds` must be declared like this:
@@ -72,7 +72,7 @@ name: Annotated[<python type>, {<metadata>}] = <default>
     | `"units"` | Optional | Appended to the widget label (e.g., `Select Depth Slice (m)`). |
     | `"choices"` | Only for `"kind": "choice"` | The list of options for the dropdown menu. |
 
-!!! tip "UI Labels vs. Code Variables"
+!!! tip "UI labels vs. code variables"
 
     `"name"` only changes what is displayed in the UI. The value is always passed to your recipe under the **argument name**, so `var: Annotated[float, {"name": "Variable", ...}]` still arrives as `var=...`
 
@@ -284,7 +284,7 @@ They run in list order, after `ax_kwargs`, so they can override anything.
 
 !!! tip "Compute your data once"
 
-    The loaded dataset is lazy (backed by Dask), so your recipe's result is only calculated when it is used. If your `customise` functions also read `data` (e.g., to fit a trend line), call `.compute()` on the result before returning it. The calculation then runs once, rather than once for the plot and again for every customise function.
+    The loaded dataset is lazy (backed by [Dask](https://docs.dask.org/en/stable/)), so your recipe's result is only calculated when it is used. If your `customise` functions also read `data` (e.g., to fit a trend line), call `.compute()` on the result before returning it. The calculation then runs once, rather than once for the plot and again for every customise function.
 
 !!! tip "Draw extra lines with `ax.plot`, not `DataArray.plot`"
 
@@ -432,7 +432,9 @@ analysis.register_analysis(recipe_timeseries_threshold)
     **Replacing the default plot entirely:**
     By default, MLD always draws `data.plot(...)` first. If you want a plot type that `xarray` does not natively produce (such as a custom bar chart or specialized scatter plot), your `customise` function can clear the axes and draw its own.
 
-    *Important:* Calling `ax.clear()` also removes the title and `ax_kwargs` that MLD already applied, so you must explicitly set them again inside your custom function:
+    !!! warning "`ax.clear()` removes MLD's formatting"
+        Calling `ax.clear()` also removes the title and `ax_kwargs` that MLD already applied, so set them again inside your function.
+
     ```python
     def bar_chart(ax, data):
         """Replace the default xarray plot with a Matplotlib bar chart."""
@@ -450,7 +452,7 @@ analysis.register_analysis(recipe_timeseries_threshold)
 
 ### Running a suite of analyses
 
-A recipe can also return a **list** of results to make a suite of plots in one go. Each item can be a `DataArray` or a `(DataArray, plot_kwargs)` tuple, and MLD draws one plot per item, in list order, each with its own **Remove Plot** button. This is a quick way to bundle the checks you run on every new experiment into one dropdown entry, and suites can simply call other recipes:
+A recipe can also return a **list** of results to make a suite of plots in one go. Each item can be a `DataArray` or a `(DataArray, plot_kwargs)` tuple, and MLD draws one plot per item, in list order, each with its own <span style="color:darkred">**Remove the above plot**</span> button. This is a quick way to bundle the checks you run on every new experiment into one dropdown entry, and suites can simply call other recipes:
 
 ```python
 from typing import Annotated

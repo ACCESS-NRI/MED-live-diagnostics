@@ -14,7 +14,7 @@ This tutorial walks through using Model Live Diagnostics (MLD) to:
 Start an [ARE JupyterLab session](https://are.nci.org.au/pun/sys/dashboard/batch_connect/sys/jupyter/ncigadi/session_contexts/new) using the [ACCESS-NRI Analysis3 conda environment](https://docs.access-hive.org.au/getting_started/environments/), which has the `med_diagnostics` package pre-installed.
 To follow this tutorial, you need to be a member of these NCI projects:
 
-- `xp65`: For the Analysis3 conda environment and the [ACCESS-NRI Intake Catalogue](https://github.com/ACCESS-NRI/access-nri-intake-catalog).
+- `xp65`: For the Analysis3 conda environment and the [ACCESS-NRI Intake Catalogue](https://access-nri-intake-catalog.readthedocs.io/en/latest/).
 - `ik11`: For the example ACCESS-OM2 run and the reference model runs used in this tutorial.
 - Optionally, the project containing your own model output, if you want to use it instead of the example run.
 
@@ -75,7 +75,7 @@ The start section collapses and four collapsible sections appear:
 ??? tip "Tutorial order"
     This tutorial covers the sections in order, but once the catalogue is built you can use them in any order.
 
-#### 3. Loading and plotting user data
+### 3. Loading and plotting user data
 
 - The **Load and plot user data** section shows the <span style="color:orange">catalog</span>, indicating when the model catalog was most recently built/ updated. 
 
@@ -126,7 +126,7 @@ Each plot has a <span style="color:darkred">**Remove the above plot**</span> but
 
 ### 4. Explore reference models
 
-Reference models are existing ACCESS model runs of the selected type, found in the [ACCESS-NRI Intake Catalogue](https://github.com/ACCESS-NRI/access-nri-intake-catalog).
+Reference models are existing ACCESS model runs of the selected type, found in the [ACCESS-NRI Intake Catalogue](https://access-nri-intake-catalog.readthedocs.io/en/latest/).
 
 #### 4.1. Loading reference model data
 
@@ -140,7 +140,7 @@ Reference models are existing ACCESS model runs of the selected type, found in t
 
 #### 4.2. Plotting data
 
-Plotting reference datasets follows the same steps outlined in section 3.1. 
+Plotting reference datasets follows the same steps outlined in [section 3](#3-loading-and-plotting-user-data). 
 
 ![Reference data UI](../../assets/tutorials/tutorial_4-2_ref_plot_controls.png){ width="70%" }
 
@@ -152,9 +152,9 @@ The **Overlay user and reference models** section compares your run with referen
 
 - Select the user dataset to compare in **Select user dataset**, set the years to load, and click <span style="color:royalblue">**Load dataset**</span>. If you already loaded a dataset in [section 3](#3-loading-and-plotting-user-data), it is selected and loaded here automatically.
 
-- Choose the variable to compare from the **Variable selection** dropdown.
+- Select a reference model from the dropdown and click <span style="color:royalblue">**Add reference model**</span>. If the reference model has a dataset matching your user dataset, it loads automatically; if not, the model is skipped. Repeat this to add as many reference models as you like, or click <span style="color:darkred">**Clear loaded data**</span> to remove them all and start again.
 
-- Select a reference model from the dropdown and click <span style="color:royalblue">**Add reference model**</span>. If the reference model has a dataset matching your user dataset, it loads automatically; if not, the model is skipped. Repeat this to add as many reference models as you like, or click <span style="color:darkred">**Clear loaded data**</span> to remove them all and start again. Then select a plot type (Line or Heatmap) and click <span style="color:green">**Select variable and plot type**</span>.
+- Choose the variable to compare from the **Variable selection** dropdown, select a plot type (Line or Heatmap), and click <span style="color:green">**Select variable and plot type**</span>.
 
 ![Add reference model](../../assets/tutorials/tutorial_5_add_ref_model.png){ width="70%" }
 
@@ -183,7 +183,7 @@ Choose your slices (and bounds, if asked) and click the <span style="color:green
 ### 6. Running analysis recipes
 The **Run analysis recipes** section runs predefined analyses ("recipes") on your user dataset, such as the Niño 3.4 sea surface temperature anomaly (`recipe_sst_anomaly_nino34`) or a regional mean on the MOM5 grid (`recipe_regional_mean_mom5`). See [Built-in analysis recipes](../built_in_recipes.md) for what each one does and the options it takes.
 
-- Select the dataset in **Select dataset to analyse**, set the years to load, and click <span style="color:royalblue">**Load dataset**</span>. If you already loaded a user dataset in section 4.1 or 4.2, it is selected here automatically.
+- Select the dataset in **Select dataset to analyse**, set the years to load, and click <span style="color:royalblue">**Load dataset**</span>. If you already loaded a user dataset in [section 3](#3-loading-and-plotting-user-data) or [section 5](#5-comparing-user-and-reference-models), it is selected here automatically.
 
 - Choose a recipe from **Select analysis recipe** and click <span style="color:green">**Select recipe**</span>. A description of the recipe appears, along with inputs for its options (e.g. the variable or region to use).
 

@@ -10,10 +10,18 @@ The documentation is written in Markdown and built with [MkDocs Material](https:
 
 ## Preview the documentation locally
 
-The documentation dependencies are installed with [pixi](https://pixi.sh). From the root of the repository, start a pixi shell and the local development server:
+Install the documentation dependencies into a Python environment of your choice (e.g. venv or conda). From the root of the repository:
 
 ```bash
-pixi shell
+pip install -r documentation/requirements.txt
+```
+
+!!! tip "Using pixi"
+    The repository also includes a [pixi](https://pixi.sh) workspace with these dependencies. If you use pixi, run `pixi shell` from the root of the repository instead of installing them yourself.
+
+Then start the local development server:
+
+```bash
 cd documentation
 mkdocs serve
 ```
@@ -21,11 +29,7 @@ mkdocs serve
 To build the static site, the `resolve-absolute-urls` plugin also needs a site URL, so set `READTHEDOCS_CANONICAL_URL` (any URL works locally):
 
 ```bash
-pixi shell
 cd documentation
 READTHEDOCS_CANONICAL_URL=http://localhost/en/latest/ mkdocs build --strict
 ```
 
----
-
-[Next: Feature requests and bug reports :material-arrow-right:](issues.md){ .md-button }

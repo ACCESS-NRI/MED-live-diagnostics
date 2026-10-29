@@ -21,7 +21,7 @@ All of these functions live in `med_diagnostics.recipes`, along with helpers you
 Plots the Niño 3.4 index, the standard measure of the El Niño–Southern Oscillation (ENSO), from your sea surface temperature:
 
 1. The SST is cut to the Niño 3.4 region (5°S–5°N, 170°W–120°W). Longitudes in either −180–180 or 0–360 are handled.
-2. Monthly anomalies are taken from the dataset's own monthly climatology, then averaged over the region weighted by cos(latitude).
+2. Monthly anomalies are taken from the dataset's own monthly climatology, then averaged over the region weighted by $\cos(\text{latitude})$.
 3. The anomalies are smoothed with a centred rolling mean of about 5 months (150 days, converted to timesteps from the data's own output frequency).
 
 The index is the smoothed SST anomaly in °C. It is drawn in black with reference lines at 0 and ±0.4. Periods above +0.4 (El Niño) are shaded red and periods below −0.4 (La Niña) are shaded blue.
@@ -32,7 +32,7 @@ The index is the smoothed SST anomaly in °C. It is drawn in black with referenc
 | Select Longitude Dim | `xt_ocean` | Longitude coordinate (e.g. `xt_ocean` for MOM5, `lon` for CMORised output) |
 | Select Latitude Dim | `yt_ocean` | Latitude coordinate (e.g. `yt_ocean` for MOM5, `lat` for CMORised output) |
 
-Notes:
+### Notes:
 
 - The time dimension must be called `time`, and the latitude and longitude options must be the variable's 1D dimensions (as on MOM5's `xt_ocean`/`yt_ocean` grid or CMORised `lon`/`lat` output).
 - The anomalies are taken from the climatology of the years you loaded, so load several years (ideally a few decades) for a meaningful index, and leave out any spin-up years with "Years to load".
@@ -41,7 +41,7 @@ Notes:
 
 **Dropdown label:** Timeseries of a variable over a chosen region (Area-weighted mean). (`recipe_regional_mean_mom5`)
 
-Plots the timeseries of any variable averaged over a predefined region, at a chosen depth. The region is cut out of the data, and the mean is weighted by cos(latitude). Optional overlays show a linear trend, the top and bottom 10% of values, and a reference line.
+Plots the timeseries of any variable averaged over a predefined region, at a chosen depth. The region is cut out of the data, and the mean is weighted by $\cos(\text{latitude})$. Optional overlays show a linear trend, the top and bottom 10% of values, and a reference line.
 
 | Option | Default | Description |
 | :--- | :--- | :--- |
@@ -81,13 +81,18 @@ Plots the timeseries of any variable averaged over a predefined region, at a cho
 
     These are defined in `med_diagnostics.recipes.PREDEFINED_REGIONS`, and the `extract_region` helper can cut any of them (or your own `{"lat": (min, max), "lon": (west, east)}` box) out of a dataset in a custom recipe.
 
-Notes:
+### Notes:
 
 - The recipe checks that the variable has the chosen latitude and longitude coordinates, and stops with an error if it doesn't. It is written for MOM5's 1D `xt_ocean`/`yt_ocean` grid; for other grids, write a custom recipe using `extract_region`.
 - The time dimension must be called `time`.
 - The trend and percentiles are calculated after smoothing, from the years you loaded.
 
 ## OM3 timeseries suites
+
+**Dropdown labels:**
+
+- OM3 timeseries suite (OM3 variable names) (`recipe_om3_timeseries`)
+- OM3 timeseries suite (custom variable mapping) (`recipe_om3_timeseries_mapped`)
 
 Two built-in suites reproduce the timeseries plots from the [ACCESS-OM3 paper 1 figures](https://access-om3-paper-1.readthedocs.io/mc_25km_jra_iafwombatlite-test4-d28e0359-2026.07.000/experiments/MC_25km_jra_iaf%2Bwombatlite-test4-d28e0359/timeseries/). Each plot shows a global timeseries of your data with its calendar-year means (thicker line), overlaid on the same timeseries from the paper's reference runs:
 
@@ -139,7 +144,7 @@ The suites cover 28 fields: global means of temperature and salinity (`thetaoga`
     | `total_net_massout` | Total Net Mass Out | | already a total |
     | `total_net_massin` | Total Net Mass In | | already a total |
 
-Notes:
+### Notes:
 
 - These analyses can be quite slow to run, as they load a number of other reference datasets.
 - The yearly means are calendar-year means for your data and every reference run, whatever their output frequency.
