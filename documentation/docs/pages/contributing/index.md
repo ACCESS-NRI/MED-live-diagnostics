@@ -4,12 +4,13 @@ Contributions to Model Live Diagnostics are always welcome. They can include cod
 
 See the relevant guide:
 
-- [Contributing code](code.md)
-- [Contributing documentation](docs.md)
 - [Feature requests and bug reports](issues.md)
 - [Contributing recipes](recipes.md)
 - [Adding support for a new model type](models.md)
+- [Contributing code](code.md)
+- [Contributing documentation](docs.md)
+
 
 ---
 
-[Next: Contributing code :material-arrow-right:](code.md){ .md-button }
+[Next: Feature requests and bug reports :material-arrow-right:](issues.md){ .md-button }

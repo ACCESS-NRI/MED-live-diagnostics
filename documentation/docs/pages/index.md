@@ -6,7 +6,7 @@ The framework is intended for use in the [Australian Research Environment (ARE)]
 
 ## What does this package do?
 
-Model Live Diagnostics helps the ACCESS modelling community check, monitor, visualise, and evaluate the behaviour and progress of live [ACCESS models](https://docs.access-hive.org.au/models/access_models/) on [Gadi](https://nci.org.au/our-systems/hpc-systems). It can also load, visualise, and compare legacy ACCESS model data with the selected live user model. It supports ACCESS-CM2, ACCESS-CM3, ACCESS-OM2, ACCESS-OM3, ACCESS-ESM1.5, ACCESS-ESM1.6, ACCESS-AM3 and MOM6 output.
+Model Live Diagnostics helps the ACCESS modelling community check, monitor, visualise, and evaluate the behaviour and progress of live [ACCESS models](https://docs.access-hive.org.au/models/access_models/) on [Gadi](https://nci.org.au/our-systems/hpc-systems). It can also load, visualise, and compare legacy ACCESS model data with the selected live user model. It supports [ACCESS-CM2](https://docs.access-hive.org.au/models/access_models/access-cm/#access-cm2), ACCESS-CM3, [ACCESS-OM2](https://docs.access-hive.org.au/models/access_models/access-om/#access-om2), [ACCESS-OM3](https://docs.access-hive.org.au/models/access_models/access-om/#access-om3), [ACCESS-ESM1.5](https://docs.access-hive.org.au/models/access_models/access-esm/#access-esm15), [ACCESS-ESM1.6](https://docs.access-hive.org.au/models/access_models/access-esm/#access-esm16), [ACCESS-AM3](https://docs.access-hive.org.au/models/access_models/access-am/#access-am3) and [MOM6](https://docs.access-hive.org.au/models/model_components/ocean/#modular-ocean-model-mom) output.
 
 A session opens an interactive interface in your notebook with four collapsible sections:
 

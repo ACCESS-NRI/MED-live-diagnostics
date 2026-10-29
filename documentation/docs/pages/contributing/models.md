@@ -85,3 +85,7 @@ Add the new model type everywhere the supported model types are listed:
 If built-in recipes support the new model, say so in their **Targets** column and notes in [Built-in analysis recipes](../built_in_recipes.md).
 
 Then open a pull request as described in [Contributing code](code.md).
+
+---
+
+[Next: Contributing code :material-arrow-right:](code.md){ .md-button }
