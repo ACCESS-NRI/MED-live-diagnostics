@@ -1,6 +1,6 @@
 # Built-in Analysis Recipes
 
-MLD comes with a set of built-in analysis recipes. They appear in the "Select analysis recipe" dropdown of the **Run analysis recipes** section for every user, without needing to be registered. This page describes what each recipe does, which data it expects, and the options it offers. For how to run a recipe, see [Running Analysis Recipes](tutorials/getting_started_tutorial.md#6-running-analysis-recipes) in the Getting started tutorial.
+MLD comes with a set of built-in analysis recipes. They appear in the **Select analysis recipe** dropdown of the **Run analysis recipes** section for every user, without needing to be registered. This page describes what each recipe does, which data it expects, and the options it offers. For how to run a recipe, see [Running analysis recipes](tutorials/getting_started_tutorial.md#6-running-analysis-recipes) in the getting started tutorial.
 
 | Dropdown label | Function | Plots | Targets |
 | :--- | :--- | :--- | :--- |
@@ -32,10 +32,10 @@ The index is the smoothed SST anomaly in °C. It is drawn in black with referenc
 | Select Longitude Dim | `xt_ocean` | Longitude coordinate (e.g. `xt_ocean` for MOM5, `lon` for CMORised output) |
 | Select Latitude Dim | `yt_ocean` | Latitude coordinate (e.g. `yt_ocean` for MOM5, `lat` for CMORised output) |
 
-### Notes:
+!!! Note
 
-- The time dimension must be called `time`, and the latitude and longitude options must be the variable's 1D dimensions (as on MOM5's `xt_ocean`/`yt_ocean` grid or CMORised `lon`/`lat` output).
-- The anomalies are taken from the climatology of the years you loaded, so load several years (ideally a few decades) for a meaningful index, and leave out any spin-up years with "Years to load".
+    - The time dimension must be called `time`, and the latitude and longitude options must be the variable's 1D dimensions (as on MOM5's `xt_ocean`/`yt_ocean` grid or CMORised `lon`/`lat` output).
+    - The anomalies are taken from the climatology of the years you loaded, so load several years (ideally a few decades) for a meaningful index, and leave out any spin-up years with "Years to load".
 
 ## Regional mean timeseries
 
@@ -81,11 +81,11 @@ Plots the timeseries of any variable averaged over a predefined region, at a cho
 
     These are defined in `med_diagnostics.recipes.PREDEFINED_REGIONS`, and the `extract_region` helper can cut any of them (or your own `{"lat": (min, max), "lon": (west, east)}` box) out of a dataset in a custom recipe.
 
-### Notes:
+!!! Note
 
-- The recipe checks that the variable has the chosen latitude and longitude coordinates, and stops with an error if it doesn't. It is written for MOM5's 1D `xt_ocean`/`yt_ocean` grid; for other grids, write a custom recipe using `extract_region`.
-- The time dimension must be called `time`.
-- The trend and percentiles are calculated after smoothing, from the years you loaded.
+    - The recipe checks that the variable has the chosen latitude and longitude coordinates, and stops with an error if it doesn't. It is written for MOM5's 1D `xt_ocean`/`yt_ocean` grid; for other grids, write a custom recipe using `extract_region`.
+    - The time dimension must be called `time`.
+    - The trend and percentiles are calculated after smoothing, from the years you loaded.
 
 ## OM3 timeseries suites
 
@@ -144,14 +144,14 @@ The suites cover 28 fields: global means of temperature and salinity (`thetaoga`
     | `total_net_massout` | Total Net Mass Out | | already a total |
     | `total_net_massin` | Total Net Mass In | | already a total |
 
-### Notes:
+!!! Note
 
-- These analyses can be quite slow to run, as they load a number of other reference datasets.
-- The yearly means are calendar-year means for your data and every reference run, whatever their output frequency.
-- The analyses are primarily intended for scalar datasets. Gridded 2D data also works, but the global mean (or max/min) must be calculated first, which takes much longer. 3D fields aren't supported.
-- For gridded data, the variable's `cell_methods` decide whether its time mean, max or min is plotted, as in the paper. If this doesn't match the field (e.g. a time mean chosen for `tos_max`), a warning is shown and the `cell_methods` choice is used. In the OM3 variable names suite, a gridded variable with no time mean, max or min is skipped with a warning; plot it with the custom variable mapping suite instead.
-- The cell area comes from the variable's `cell_measures` (or `areacello`), and is read from the run's grid file if it isn't in the dataset. If no cell area is found, the mean is unweighted and a warning is shown.
-- The reference runs are read from `/g/data/ol01`, so your ARE session needs access to the `ol01` project (add `gdata/ol01` to its storage). If a reference field can't be found, a warning such as `soga failed` is shown and the plot is drawn without it.
+    - These analyses can be quite slow to run, as they load a number of other reference datasets.
+    - The yearly means are calendar-year means for your data and every reference run, whatever their output frequency.
+    - The analyses are primarily intended for scalar datasets. Gridded 2D data also works, but the global mean (or max/min) must be calculated first, which takes much longer. 3D fields aren't supported.
+    - For gridded data, the variable's `cell_methods` decide whether its time mean, max or min is plotted, as in the paper. If this doesn't match the field (e.g. a time mean chosen for `tos_max`), a warning is shown and the `cell_methods` choice is used. In the OM3 variable names suite, a gridded variable with no time mean, max or min is skipped with a warning; plot it with the custom variable mapping suite instead.
+    - The cell area comes from the variable's `cell_measures` (or `areacello`), and is read from the run's grid file if it isn't in the dataset. If no cell area is found, the mean is unweighted and a warning is shown.
+    - The reference runs are read from `/g/data/ol01`, so your ARE session needs access to the `ol01` project (add `gdata/ol01` to its storage). If a reference field can't be found, a warning such as `soga failed` is shown and the plot is drawn without it.
 
 !!! tip "Writing your own recipes"
     You can add your own analyses to this section. See the [Adding custom analyses](tutorials/adding_custom_analyses.md) tutorial. After registering a new recipe, click "Refresh analysis recipes" to add it to the dropdown.

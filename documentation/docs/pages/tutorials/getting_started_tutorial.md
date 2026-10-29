@@ -50,7 +50,7 @@ This starts the model diagnostics session, which initially should look like:
 
 ![Session start](../../assets/tutorials/tutorial_2_session_start.png){ width="70%" }
 
-??? warning "Reopened notebooks"
+!!! warning "Reopened notebooks"
     A notebook saved in an earlier session can still show the previous sessions start section, but it won't work. Run the `CreateModelDiagnosticsSession()` cell again to start a new session.
 
 Now we are ready to load our model data and begin analysing it.
@@ -72,7 +72,7 @@ The start section collapses and four collapsible sections appear:
 - **Overlay user and reference models** (Section 5)
 - **Run analysis recipes** (Section 6)
 
-??? tip "Tutorial order"
+!!! tip "Tutorial order"
     This tutorial covers the sections in order, but once the catalogue is built you can use them in any order.
 
 ### 3. Loading and plotting user data
@@ -160,9 +160,9 @@ The **Overlay user and reference models** section compares your run with referen
 
 - Select the axes and choose an analysis type from the dropdown:
 
-- **None (plot all loaded data)**: plots the datasets overlaid (or side by side for heatmaps).
-- **Plot Difference (Ref. - User data)**: plots the difference between each reference dataset and the user dataset.
-- **Plot All Data & Difference**: plots both the datasets and their differences.
+    - **None (plot all loaded data)**: plots the datasets overlaid (or side by side for heatmaps).
+    - **Plot Difference (Ref. - User data)**: plots the difference between each reference dataset and the user dataset.
+    - **Plot All Data & Difference**: plots both the datasets and their differences.
 
 Then click the <span style="color:green">**Select dimensions**</span> button.
 
@@ -170,8 +170,8 @@ Then click the <span style="color:green">**Select dimensions**</span> button.
 
 - If the variable needs slicing, sliders appear as in [section 3](#3-loading-and-plotting-user-data). For line plots, if the reference models cover a wider x-axis range than the user dataset (e.g. a longer time period), a **Choose how to constrain the x-axis bounds** dropdown also appears beside them:
 
-- **Constrain to user dataset bounds**: zoom the x-axis to the range of the user dataset.
-- **Constrain to min-max reference dataset bounds**: show the full range covered by all loaded datasets.
+    - **Constrain to user dataset bounds**: zoom the x-axis to the range of the user dataset.
+    - **Constrain to min-max reference dataset bounds**: show the full range covered by all loaded datasets.
 
 Choose your slices (and bounds, if asked) and click the <span style="color:green">**Plot data**</span> button to load the plots.
 

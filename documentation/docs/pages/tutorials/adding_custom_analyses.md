@@ -40,11 +40,12 @@ Once your function is defined, click the **Refresh analysis recipes** button in 
 
 Your new analysis will now appear in the dropdown menu, as shown below:
 
-<img src="/assets/tutorials/Analysis_minimal_recipe_load.png" alt="Model Live Diagnostics custom analysis loaded" style="width: 80%; height: auto;">
+<img src="/assets/tutorials/Analysis_minimal_recipe_load.png" alt="Model Live Diagnostics custom analysis loaded" style="width: 50%; height: auto;">
 
 Click **Select recipe** and then **Plot data**. The analysis will run and display using MLD's default plot settings.
 
-<img src="/assets/tutorials/Analysis_minimal_recipe_plot.png" alt="Model Live Diagnostics custom analysis plot output" style="width: 100%; height: auto;">
+??? example "View generated plot"
+    ![Minimum recipe plot](../../assets/tutorials/Analysis_minimal_recipe_plot.png){ width="70%" }
 
 !!! tip "Re-registering recipes"
     Recipes are stored by function name. Re-run the cell and click **Refresh analysis recipes** again to pick up any changes.
@@ -160,9 +161,10 @@ Now, rather than being restricted to just a timeseries, this single function all
 
 <img src="/assets/tutorials/Analysis_widgets_created.png" alt="Model Live Diagnostics custom analysis with dynamically generated UI widgets" style="width: 100%; height: auto;">
 
-Click **Plot data** to view the resulting analysis:
+Click **Plot data** to view the resulting analysis.
 
-<img src="/assets/tutorials/Analysis_widget_recipe_plot.png" alt="Plot output from the dynamically generated custom analysis" style="width: 100%; height: auto;">
+??? example "View generated plot"
+    ![Recipe with arguments plot](../../assets/tutorials/Analysis_widget_recipe_plot.png){ width="70%" }
 
 ??? info "View a complete example using every widget kind"
 
@@ -266,9 +268,8 @@ def recipe_custom_plot(
 analysis.register_analysis(recipe_custom_plot)
 ```
 
-And the resultant plot:
-
-<img src="/assets/tutorials/Analysis_custom_plot_kwargs.png" alt="Model Live Diagnostics plot with custom formatting applied" style="width: 100%; height: auto;">
+??? example "View plot with custom settings"
+    ![Plot with custom plot_kwargs](../../assets/tutorials/Analysis_custom_plot_kwargs.png){ width="70%" }
 
 #### Advanced plot customisation
 
@@ -361,9 +362,8 @@ analysis.register_analysis(recipe_add_box)
 ```
 
 
-The resultant plot from adding this customisation: 
-
-<img src="/assets/tutorials/Analysis_customise_plot.png" alt="Heatmap with a red bounding box and a custom text annotation pointing to it" style="width: 100%; height: auto;">
+??? example "View plot with the custom annotation"
+    ![Heatmap with a red bounding box and annotation](../../assets/tutorials/Analysis_customise_plot.png){ width="70%" }
 
 #### Ready-made customisations
 
