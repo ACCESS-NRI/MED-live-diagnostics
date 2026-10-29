@@ -15,7 +15,7 @@ datastore = session.return_model_data_catalog()
 datastore
 ```
 
-![Data catalogue output](/assets/tutorials/AdvUsage_catalog_output.png){ width="70%" }
+![Data catalogue output](/assets/tutorials/AdvUsage_catalog_output.png){ width="50%" }
 
 #### Retrieve a loaded dataset
 
@@ -29,7 +29,7 @@ dataset = session.return_loaded_dataset()
 dataset
 ```
 
-![Loaded dataset output](/assets/tutorials/AdvUsage_dataset_output.png){ width="80%" }
+![Loaded dataset output](/assets/tutorials/AdvUsage_dataset_output.png){ width="50%" }
 
 !!! warning "Load a dataset first"
     `return_loaded_dataset()` raises an `AttributeError` if no dataset has been loaded yet. Select a dataset and click "Load dataset" in the interface before calling it.

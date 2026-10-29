@@ -10,7 +10,7 @@ For setup guidance, refer to the [Getting Started Tutorial](getting_started_tuto
 
 The **Run analysis recipes** section provides a dropdown menu of predefined analyses (and user-defined analyses once they are added!). Selecting an analysis dynamically populates the interface with the required input widgets. 
 
-<img src="../../assets/tutorials/Analysis_section.png" alt="Model Live Diagnostics Analysis Section Interface" style="width: 100%; height: auto;">
+<img src="../../assets/tutorials/Analysis_section.png" alt="Model Live Diagnostics Analysis Section Interface" style="width: 70%; height: auto;">
 
 ## Building a custom analysis
 The MLD package is designed to require minimal modifications to a typical analysis written for an `xarray.Dataset`. To add a custom analysis to the current MLD session, define a function that takes an `xarray.Dataset` as input, and returns an `xr.DataArray` as output, and register it in the session using `analysis.register_analysis(your_defined_function)`.
@@ -159,7 +159,7 @@ When you choose your new analysis in the **Select analysis recipe** dropdown and
 
 Now, rather than being restricted to just a timeseries, this single function allows us to plot the average of *any* variable along *any* dimension. For example:
 
-<img src="/assets/tutorials/Analysis_widgets_created.png" alt="Model Live Diagnostics custom analysis with dynamically generated UI widgets" style="width: 100%; height: auto;">
+<img src="/assets/tutorials/Analysis_widgets_created.png" alt="Model Live Diagnostics custom analysis with dynamically generated UI widgets" style="width: 70%; height: auto;">
 
 Click **Plot data** to view the resulting analysis.
 
@@ -217,7 +217,7 @@ Click **Plot data** to view the resulting analysis.
     ```
     This function generates the following fully populated interface:
 
-    <img src="/assets/tutorials/Analysis_every_widget.png" alt="Model Live Diagnostics UI showing every available widget type" style="width: 100%; height: auto;">
+    <img src="/assets/tutorials/Analysis_every_widget.png" alt="Model Live Diagnostics UI showing every available widget type" style="width: 70%; height: auto;">
 
 ### Customising the plot
 
