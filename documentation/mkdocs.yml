@@ -134,10 +134,10 @@ plugins:
   #     enabled: !env [READTHEDOCS, false]
   # - privacy # Download any external asset locally to improve privacy (https://squidfunk.github.io/mkdocs-material/plugins/privacy/)
   #     enabled: !env [READTHEDOCS, false]
-  # - mkdocs-jupyter: # Use Jupyter Notebooks in mkdocs (https://github.com/danielfrg/mkdocs-jupyter#mkdocs-jupyter-use-jupyter-notebooks-in-mkdocs)
-  #     include_source: true
-  #     no_prompt: True
-  #     highlight_extra_classes: "jupyter-code"
+  - mkdocs-jupyter: # Use Jupyter Notebooks in mkdocs (https://github.com/danielfrg/mkdocs-jupyter#mkdocs-jupyter-use-jupyter-notebooks-in-mkdocs)
+      include_source: true
+      no_prompt: True
+      highlight_extra_classes: "jupyter-code"
   - mkdocstrings: # Automatic documentation from docstrings (https://mkdocstrings.github.io/)
       default_handler: python
       handlers:
